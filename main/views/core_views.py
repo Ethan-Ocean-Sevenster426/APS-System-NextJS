@@ -2970,7 +2970,7 @@ def scan_inspection_folders(test_path, seen_files):
         print(f"[DEBUG] Checking inspection folder: {inspection_folder}")
         
         # Check each document type in the inspection folder
-        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition']
+        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
         for doc_type in doc_types:
             doc_path = os.path.join(inspection_path, doc_type)
             if os.path.exists(doc_path):
@@ -3046,7 +3046,7 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
         print(f" [DEBUG] Checking inspection folder: {inspection_folder}")
 
         # Check each document type in the inspection folder
-        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition']
+        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
         for doc_type in doc_types:
             # CRITICAL: For Compliance folder, check both capitalized and lowercase versions (case sensitivity fix)
             if doc_type == 'Compliance':
@@ -3380,7 +3380,7 @@ def list_client_folder_files(request):
 
             # Also check traditional document folders (for backward compatibility)
             # Include uppercase variations for Windows compatibility
-            traditional_docs = ['rfi', 'RFI', 'Request For Invoice', 'invoice', 'Invoice', 'lab', 'Lab', 'lab results', 'Lab Results', 'retest', 'Retest', 'occurrence', 'Occurrence', 'composition', 'Composition']
+            traditional_docs = ['rfi', 'RFI', 'Request For Invoice', 'invoice', 'Invoice', 'lab', 'Lab', 'lab results', 'Lab Results', 'retest', 'Retest', 'occurrence', 'Occurrence', 'composition', 'Composition', 'compliance', 'Compliance', 'other', 'Other', 'coa', 'COA']
             for doc_type in traditional_docs:
                 doc_path = os.path.join(test_path, doc_type)
                 if os.path.exists(doc_path):
@@ -3413,18 +3413,28 @@ def list_client_folder_files(request):
                                         seen_files.add(unique_key)
 
                                         # Determine the actual document type based on filename
-                                        actual_doc_type = doc_type
-                                        if doc_type == 'rfi':
+                                        actual_doc_type = doc_type.lower()
+                                        if doc_type.lower() in ['rfi', 'request for invoice']:
                                             actual_doc_type = 'rfi'
-                                        elif doc_type == 'Request For Invoice':
-                                            actual_doc_type = 'rfi'
-                                        elif doc_type in ['lab', 'lab results']:
+                                        elif doc_type.lower() in ['lab', 'lab results']:
                                             if 'lab_form' in filename.lower() or 'lab-form' in filename.lower() or 'labform' in filename.lower():
                                                 actual_doc_type = 'lab_form'
                                             else:
                                                 actual_doc_type = 'lab'
-                                        elif doc_type == 'composition':
+                                        elif doc_type.lower() == 'invoice':
+                                            actual_doc_type = 'invoice'
+                                        elif doc_type.lower() == 'composition':
                                             actual_doc_type = 'composition'
+                                        elif doc_type.lower() == 'compliance':
+                                            actual_doc_type = 'compliance'
+                                        elif doc_type.lower() == 'occurrence':
+                                            actual_doc_type = 'occurrence'
+                                        elif doc_type.lower() == 'other':
+                                            actual_doc_type = 'other'
+                                        elif doc_type.lower() == 'coa':
+                                            actual_doc_type = 'coa'
+                                        elif doc_type.lower() == 'retest':
+                                            actual_doc_type = 'retest'
 
                                         # Filter by inspection ID if provided (but allow old naming conventions)
                                         if inspection_id:
@@ -3510,7 +3520,7 @@ def list_client_folder_files(request):
                             print(f"Found {len(files)} files in {commodity_folder}")
 
         # Initialize any missing categories before returning
-        for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition']:
+        for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition', 'other', 'coa']:
             if category not in files_list:
                 files_list[category] = []
                 print(f"[DEBUG] Initialized empty list for missing category '{category}'")
