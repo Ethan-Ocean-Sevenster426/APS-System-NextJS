@@ -26,8 +26,12 @@ from ..views.core_views import load_drive_files_real, find_document_link_apps_sc
 
 
 class DailyComplianceSyncService:
-    """Service for daily compliance document synchronization with skip logic."""
-    
+    """Service for daily compliance document synchronization with skip logic.
+
+    NOTE: Compliance pulling is DISABLED for this demo version.
+    Users will upload compliance documents directly.
+    """
+
     def __init__(self):
         self.is_running = False
         self.sync_thread = None
@@ -37,12 +41,25 @@ class DailyComplianceSyncService:
             'documents_skipped': 0,
             'documents_processed': 0,
             'last_sync_time': None,
-            'next_sync_time': None
+            'next_sync_time': None,
+            'disabled': True,
+            'disabled_reason': 'Compliance pulling disabled for demo'
         }
+        # Disabled for demo - users upload directly
+        # self._auto_restart_if_needed()
 
-        # Auto-restart service if it was running before (persists across Django reloads/page refreshes)
-        self._auto_restart_if_needed()
-    
+    def start(self):
+        """Disabled for demo."""
+        return {'status': 'disabled', 'message': 'Compliance pulling disabled for demo'}
+
+    def stop(self):
+        """Disabled for demo."""
+        return {'status': 'disabled', 'message': 'Compliance pulling disabled for demo'}
+
+    def get_status(self):
+        """Return disabled status."""
+        return {'is_running': False, 'disabled': True, 'message': 'Compliance pulling disabled for demo', 'sync_stats': self.sync_stats}
+
     def get_system_settings(self):
         """Get current system settings."""
         try:
