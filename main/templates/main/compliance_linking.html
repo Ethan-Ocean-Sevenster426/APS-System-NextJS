@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        :root { 
+            --primary: #007890; 
+            --border: #e5e7eb; 
+            --text: #111827; 
+            --card: #ffffff; 
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --muted: #6b7280;
+        }
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+            margin: 0; 
+            background: #f6f7fb; 
+            color: var(--text); 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 24px auto; 
+            padding: 0 16px; 
+        }
+        .header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 24px; 
+        }
+        .title { 
+            font-size: 24px; 
+            font-weight: 700; 
+            color: var(--primary); 
+        }
+        .card { 
+            background: var(--card); 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            margin-bottom: 24px;
+        }
+        .card-header { 
+            padding: 16px 20px; 
+            border-bottom: 1px solid var(--border); 
+            font-weight: 600; 
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-body { 
+            padding: 20px; 
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            background: var(--primary); 
+            color: #fff; 
+            text-decoration: none; 
+            border: none; 
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); }
+        .btn-danger { background: var(--danger); }
+        .btn-secondary { background: #6b7280; }
+        .btn-sm { padding: 6px 10px; font-size: 12px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .form-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .form-control {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .inspection-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 1200px;
+        }
+        .inspection-table th,
+        .inspection-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .inspection-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .inspection-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .status-found { background: #d1fae5; color: #065f46; }
+        .status-not-found { background: #fee2e2; color: #dc2626; }
+        .status-no-account { background: #fef3c7; color: #92400e; }
+        
+        .document-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .document-link:hover {
+            text-decoration: underline;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+        
+        .filters {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        
+        .summary {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">📋 Inspection Document Links</div>
+            <div style="font-size: 14px; color: var(--muted);">
+                Apps Script functionality replicated in Django
+            </div>
+        </div>
+
+        <!-- Status Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalInspections">{{ total_inspections|default:"0" }}</div>
+                <div class="stat-label">Total Inspections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalMatches">{{ total_matches|default:"0" }}</div>
+                <div class="stat-label">Account Matches</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalLinks">{{ total_links|default:"0" }}</div>
+                <div class="stat-label">Document Links</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalErrors">{{ total_errors|default:"0" }}</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+
+        <!-- Background Sync Status -->
+        <div class="card" id="backgroundSyncCard">
+            <div class="card-header">
+                <div>🔄 Background Auto-Sync</div>
+                <div id="backgroundStatus" style="font-size: 12px;">
+                    <span class="status-badge" id="syncStatusBadge">Checking...</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="margin-bottom: 16px;">
+                    <p style="margin: 0; font-size: 13px; color: var(--muted);">
+                        Automatically processes compliance documents every 5 minutes and downloads them to:<br>
+                        <code>media/inspection/YYYY/Month/ClientName/Compliance/COMMODITY/</code>
+                    </p>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-success" id="startBackgroundBtn">
+                        ▶️ Start Auto-Sync
+                    </button>
+                    <button class="btn btn-danger" id="stopBackgroundBtn" disabled>
+                        ⏹️ Stop Auto-Sync
+                    </button>
+                    <button class="btn btn-secondary" id="checkBackgroundBtn">
+                        📊 Check Status
+                    </button>
+                </div>
+                <div id="backgroundStats" style="margin-top: 12px; font-size: 12px; color: var(--muted);"></div>
+            </div>
+        </div>
+
+        <!-- Manual Controls -->
+        <div class="card">
+            <div class="card-header">
+                <div>Manual Processing Controls</div>
+                <div class="progress-bar" id="progressContainer" style="width: 200px; display: none;">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="controls">
+                    <div class="form-group">
+                        <label class="form-label">Batch Size</label>
+                        <select class="form-control" id="batchSize">
+                            <option value="50">50 inspections</option>
+                            <option value="100">100 inspections</option>
+                            <option value="200">200 inspections</option>
+                            <option value="500" selected>All inspections</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date Range</label>
+                        <select class="form-control" id="dateRange">
+                            <option value="all">All dates</option>
+                            <option value="recent" selected>Recent (30 days)</option>
+                            <option value="month">This month</option>
+                            <option value="quarter">This quarter</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-success" id="processBtn">
+                            🚀 Process Links
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-secondary" id="refreshBtn">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-warning" id="downloadBtn">
+                            📥 Download Documents
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Summary -->
+        <div class="summary" id="processSummary" style="display: none;">
+            <strong>Processing Complete:</strong>
+            <span id="summaryText">Processed 0 inspections, found 0 matches, created 0 links</span>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="controls">
+                <div class="form-group">
+                    <label class="form-label">Filter by Status</label>
+                    <select class="form-control" id="statusFilter">
+                        <option value="all">All statuses</option>
+                        <option value="found">Links found</option>
+                        <option value="not-found">No links</option>
+                        <option value="no-account">No account code</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Search Client</label>
+                    <input type="text" class="form-control" id="clientSearch" placeholder="Search client name...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Commodity</label>
+                    <select class="form-control" id="commodityFilter">
+                        <option value="all">All commodities</option>
+                        <option value="RAW">RAW</option>
+                        <option value="POULTRY">POULTRY</option>
+                        <option value="EGGS">EGGS</option>
+                        <option value="PMP">PMP</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inspection Data Table -->
+        <div class="card">
+            <div class="card-header">
+                <div>Inspection Document Links</div>
+                <div style="font-size: 12px; color: var(--muted);">
+                    Showing <span id="visibleCount">0</span> of <span id="totalCount">0</span> inspections
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-container">
+                    <table class="inspection-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Client Name</th>
+                                <th>Account Code</th>
+                                <th>Email</th>
+                                <th>Commodity</th>
+                                <th>Inspection Date</th>
+                                <th>Document Link</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inspectionTableBody">
+                            <tr>
+                                <td colspan="8" class="loading">
+                                    Loading inspection data...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allInspections = [];
+        let filteredInspections = [];
+        let isProcessing = false;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInspectionData();
+            checkBackgroundStatus();
+            
+            // Event listeners
+            document.getElementById('processBtn').addEventListener('click', processDocumentLinks);
+            document.getElementById('refreshBtn').addEventListener('click', loadInspectionData);
+            document.getElementById('downloadBtn').addEventListener('click', downloadDocuments);
+            document.getElementById('startBackgroundBtn').addEventListener('click', startBackgroundSync);
+            document.getElementById('stopBackgroundBtn').addEventListener('click', stopBackgroundSync);
+            document.getElementById('checkBackgroundBtn').addEventListener('click', checkBackgroundStatus);
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            document.getElementById('clientSearch').addEventListener('input', applyFilters);
+            document.getElementById('commodityFilter').addEventListener('change', applyFilters);
+            
+            // Check background status every 30 seconds
+            setInterval(checkBackgroundStatus, 30000);
+        });
+
+        async function loadInspectionData() {
+            try {
+                showLoading();
+                const response = await fetch('/developer/compliance-documents/inspection-data/');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allInspections = result.inspections;
+                    filteredInspections = [...allInspections];
+                    updateStats(result.stats);
+                    renderTable();
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showError('Failed to load inspection data');
+            }
+        }
+
+        async function processDocumentLinks() {
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            const processBtn = document.getElementById('processBtn');
+            const originalText = processBtn.textContent;
+            processBtn.textContent = '⏳ Processing...';
+            processBtn.disabled = true;
+            
+            try {
+                const batchSize = document.getElementById('batchSize').value;
+                const dateRange = document.getElementById('dateRange').value;
+                
+                showProgress(0);
+                
+                const response = await fetch('/developer/compliance-documents/process-links/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        batch_size: parseInt(batchSize),
+                        date_range: dateRange
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showProgress(100);
+                    showSummary(result.summary);
+                    allInspections = result.inspections;
+                    filteredInspections = [...allInspections];
+                    updateStats(result.stats);
+                    renderTable();
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                console.error('Error processing:', error);
+                showError('Failed to process document links');
+            } finally {
+                isProcessing = false;
+                processBtn.textContent = originalText;
+                processBtn.disabled = false;
+                hideProgress();
+            }
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const clientSearch = document.getElementById('clientSearch').value.toLowerCase();
+            const commodityFilter = document.getElementById('commodityFilter').value;
+            
+            filteredInspections = allInspections.filter(inspection => {
+                // Status filter
+                if (statusFilter !== 'all') {
+                    if (statusFilter === 'found' && inspection.document_status !== 'found') return false;
+                    if (statusFilter === 'not-found' && inspection.document_status !== 'not-found') return false;
+                    if (statusFilter === 'no-account' && inspection.document_status !== 'no-account') return false;
+                }
+                
+                // Client search
+                if (clientSearch && !inspection.client_name.toLowerCase().includes(clientSearch)) {
+                    return false;
+                }
+                
+                // Commodity filter
+                if (commodityFilter !== 'all' && inspection.commodity !== commodityFilter) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('inspectionTableBody');
+            const visibleCount = document.getElementById('visibleCount');
+            const totalCount = document.getElementById('totalCount');
+            
+            visibleCount.textContent = filteredInspections.length.toLocaleString();
+            totalCount.textContent = allInspections.length.toLocaleString();
+            
+            if (filteredInspections.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">No inspections match the current filters</td></tr>';
+                return;
+            }
+            
+            const rows = filteredInspections.map(inspection => `
+                <tr>
+                    <td>${inspection.remote_id || '-'}</td>
+                    <td>${inspection.client_name || '-'}</td>
+                    <td>${inspection.account_code || '-'}</td>
+                    <td>${inspection.email || '-'}</td>
+                    <td>${inspection.commodity || '-'}</td>
+                    <td>${inspection.date_of_inspection || '-'}</td>
+                    <td>${inspection.document_link || '-'}</td>
+                    <td><span class="status-badge status-${inspection.document_status}">${getStatusText(inspection.document_status)}</span></td>
+                </tr>
+            `).join('');
+            
+            tbody.innerHTML = rows;
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'found': return 'Link Found';
+                case 'not-found': return 'No Document';
+                case 'no-account': return 'No Account';
+                default: return 'Unknown';
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('totalInspections').textContent = stats.total.toLocaleString();
+            document.getElementById('totalMatches').textContent = stats.matches.toLocaleString();
+            document.getElementById('totalLinks').textContent = stats.links.toLocaleString();
+            document.getElementById('totalErrors').textContent = stats.errors.toLocaleString();
+        }
+
+        function showLoading() {
+            const tbody = document.getElementById('inspectionTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading inspection data...</td></tr>';
+        }
+
+        function showError(message) {
+            const tbody = document.getElementById('inspectionTableBody');
+            tbody.innerHTML = `<tr><td colspan="8" class="loading" style="color: var(--danger);">Error: ${message}</td></tr>`;
+        }
+
+        function showProgress(percent) {
+            const container = document.getElementById('progressContainer');
+            const fill = document.getElementById('progressFill');
+            container.style.display = 'block';
+            fill.style.width = percent + '%';
+        }
+
+        function hideProgress() {
+            const container = document.getElementById('progressContainer');
+            container.style.display = 'none';
+        }
+
+        function showSummary(summary) {
+            const summaryEl = document.getElementById('processSummary');
+            const summaryText = document.getElementById('summaryText');
+            summaryText.textContent = summary;
+            summaryEl.style.display = 'block';
+        }
+
+        async function downloadDocuments() {
+            try {
+                const downloadBtn = document.getElementById('downloadBtn');
+                const originalText = downloadBtn.textContent;
+                downloadBtn.textContent = '⏳ Downloading...';
+                downloadBtn.disabled = true;
+                
+                const commodityFilter = document.getElementById('commodityFilter').value;
+                const dateRange = document.getElementById('dateRange').value;
+                
+                const response = await fetch('/developer/compliance-documents/download-documents/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        commodity: commodityFilter,
+                        date_range: dateRange
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSummary(`Downloaded ${result.downloaded} compliance documents to organized folders`);
+                } else {
+                    showError(result.error);
+                }
+                
+                downloadBtn.textContent = originalText;
+                downloadBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Error downloading documents:', error);
+                document.getElementById('downloadBtn').textContent = '📥 Download Documents';
+                document.getElementById('downloadBtn').disabled = false;
+            }
+        }
+
+        async function startBackgroundSync() {
+            try {
+                const response = await fetch('/developer/compliance-documents/start-background/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSummary(`✅ ${result.message}`);
+                    checkBackgroundStatus();
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('Failed to start background sync');
+            }
+        }
+
+        async function stopBackgroundSync() {
+            try {
+                const response = await fetch('/developer/compliance-documents/stop-background/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showSummary(`⏹️ ${result.message}`);
+                    checkBackgroundStatus();
+                } else {
+                    showError(result.error);
+                }
+            } catch (error) {
+                showError('Failed to stop background sync');
+            }
+        }
+
+        async function checkBackgroundStatus() {
+            try {
+                const response = await fetch('/developer/compliance-documents/background-status/');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const status = result.status;
+                    const badge = document.getElementById('syncStatusBadge');
+                    const startBtn = document.getElementById('startBackgroundBtn');
+                    const stopBtn = document.getElementById('stopBackgroundBtn');
+                    const statsDiv = document.getElementById('backgroundStats');
+                    
+                    if (status.is_running) {
+                        badge.textContent = 'Running';
+                        badge.className = 'status-badge status-running';
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                    } else {
+                        badge.textContent = 'Stopped';
+                        badge.className = 'status-badge status-not-found';
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                    }
+                    
+                    // Update stats
+                    let statsText = `Processed: ${status.total_processed}, Downloaded: ${status.total_downloaded}, Errors: ${status.total_errors}`;
+                    if (status.last_sync) {
+                        statsText += ` | Last sync: ${new Date(status.last_sync).toLocaleString()}`;
+                    }
+                    if (status.next_sync) {
+                        statsText += ` | Next sync: ${new Date(status.next_sync).toLocaleString()}`;
+                    }
+                    statsDiv.textContent = statsText;
+                }
+            } catch (error) {
+                console.error('Error checking background status:', error);
+            }
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+    </script>
+    
+    <!-- CSRF Token -->
+    {% csrf_token %}
+</body>
+</html>

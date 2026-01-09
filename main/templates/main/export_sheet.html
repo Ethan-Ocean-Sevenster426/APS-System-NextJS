@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    {% load group_filters %}
+
+    <!-- Apply saved theme immediately to prevent flash -->
+    <script>
+        (function() {
+            // Check server-side dark mode setting first
+            const serverDarkMode = '{{ settings.dark_mode }}' === 'True';
+            const savedTheme = localStorage.getItem('theme');
+
+            // Priority: localStorage > server setting > default (light)
+            let theme = 'light';
+            if (savedTheme) {
+                theme = savedTheme;
+            } else if (serverDarkMode) {
+                theme = 'dark';
+                localStorage.setItem('theme', 'dark');
+            }
+
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="-1">
+    <title>Export Sheet - Food Safety Agency</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect hints for faster CDN connections -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        'primary-dark': '#005a6b',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        background: '#f9fafb',
+                        'card-bg': '#ffffff',
+                        text: '#1f2937',
+                        'text-light': '#6b7280',
+                        border: '#e5e7eb',
+                        'light-black': '#333333',
+                        'import-color': '#446f1e',
+                        grey: '#777777',
+                        analytics: '#7c3aed'
+                    },
+                    borderRadius: {
+                        'custom': '6px'
+                    },
+                    boxShadow: {
+                        'custom': '0 1px 3px rgba(0,0,0,0.05)',
+                        'custom-lg': '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Light theme (default) */
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --sidebar-bg: #1e293b;
+            --sidebar-text: #f1f5f9;
+            --sidebar-hover: #f3f4f6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --success: #10b981;
+            --info: #3b82f6;
+            --light-black: #333333;
+            --import-color: #446f1e;
+            --grey: #777777;
+            --analytics: #7c3aed;
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --primary: #007890;
+            --primary-light: #1a3a40;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.6), 0 2px 4px -1px rgba(0,0,0,0.4);
+            --sidebar-bg: #1a1a1a;
+            --sidebar-text: #ffffff;
+            --sidebar-hover: #404040;
+            --input-bg: #2d2d2d;
+            --input-border: #404040;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        /* Dark mode specific element styles */
+        [data-theme="dark"] #exportTable thead {
+            background-color: #2d2d2d;
+        }
+
+        [data-theme="dark"] #exportTable thead th {
+            background-color: #2d2d2d;
+            color: #ffffff;
+            border-bottom-color: #404040;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr.invoiced {
+            background-color: #1e4620;
+        }
+
+        [data-theme="dark"] #exportTable tbody td {
+            color: #ffffff;
+            border-bottom-color: #404040;
+        }
+
+        [data-theme="dark"] .invoice-input,
+        [data-theme="dark"] input[type="text"],
+        [data-theme="dark"] input[type="date"],
+        [data-theme="dark"] select {
+            background-color: var(--input-bg);
+            color: var(--text);
+            border-color: var(--input-border);
+        }
+
+        [data-theme="dark"] .invoice-input:focus,
+        [data-theme="dark"] input[type="text"]:focus,
+        [data-theme="dark"] input[type="date"]:focus,
+        [data-theme="dark"] select:focus {
+            border-color: var(--primary);
+            background-color: #383838;
+        }
+
+        [data-theme="dark"] .context-menu {
+            background-color: #2d2d2d;
+            border-color: #404040;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        [data-theme="dark"] .context-menu-item {
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .context-menu-item:hover {
+            background-color: #383838;
+            color: var(--primary);
+        }
+
+        [data-theme="dark"] .context-menu-separator {
+            background-color: #404040;
+        }
+
+        [data-theme="dark"] .filter-controls {
+            background-color: var(--card-bg);
+            border-color: var(--border);
+        }
+
+        [data-theme="dark"] .filter-controls label {
+            color: var(--text);
+        }
+
+        [data-theme="dark"] .status-badge.status-invoiced {
+            background-color: #10b981;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .status-badge.status-pending {
+            background-color: #f59e0b;
+            color: #1a1a1a;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr.invoiced .status-invoiced {
+            background-color: #ffffff;
+            color: #166534;
+            border-color: #166534;
+        }
+
+        [data-theme="dark"] #exportTable tbody td.selected-cell {
+            background-color: #1e3a5f !important;
+            outline-color: #3b82f6;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr.selected-row {
+            background-color: #1a2940 !important;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr.selected-row.invoiced {
+            background-color: #2d4a2f !important;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        html {
+            overflow-x: hidden;
+        }
+
+        body {
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text);
+            line-height: 1.5;
+            padding: var(--spacing);
+            overflow-x: hidden;
+            max-width: 100vw;
+            position: relative;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+            height: 100%;
+        }
+
+        /* Sidebar theme styles */
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        #sidebar .border-slate-600 {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        #sidebar .text-sidebar-text {
+            color: var(--sidebar-text) !important;
+        }
+
+        .bg-sidebar-bg {
+            background-color: var(--sidebar-bg) !important;
+        }
+
+        /* Force sidebar colors based on theme */
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+
+        /* Smooth transitions */
+        body, .container, #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Sidebar mobile positioning */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 9998;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Logout button styling */
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+
+        .container {
+            width: calc(100% - var(--spacing)*2);
+            margin: 0 auto;
+            padding: 5px 0;
+            position: relative;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .logo img {
+            max-height: 80px;
+        }
+        
+        .header {
+            padding: 10px 5px 20px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+        
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-title i {
+            color: var(--primary);
+        }
+        
+        .card-body {
+            padding: 16px;
+            background: var(--background);
+        }
+
+        .card-body .table-responsive {
+            margin: 0 -16px;
+            padding: 0 16px;
+        }
+        
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 4px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.6875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+            border-color: #004a57;
+        }
+
+        .btn-primary:active {
+            background: #004450;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: 1px solid #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            border-color: #374151;
+        }
+
+        .btn-secondary:active {
+            background: #374151;
+            transform: scale(0.98);
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+            border: 1px solid #10b981;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            border-color: #047857;
+            transform: scale(1.02);
+        }
+
+        .btn-success:active {
+            background: #047857;
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Modal Styles - Matching Client Allocation */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background-color: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .client-modal {
+            width: 600px;
+            max-width: 90%;
+            padding: 0;
+            overflow: visible;
+            max-height: 85vh;
+            overflow-y: auto;
+            margin: auto;
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: var(--card-bg);
+        }
+
+        @media (max-height: 800px) {
+            .client-modal {
+                max-height: 70vh;
+            }
+        }
+
+        .modal-header-new {
+            background: linear-gradient(135deg, var(--primary) 0%, #005a6e 100%);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .modal-title-new {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            color: white;
+        }
+
+        .modal-close-new {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        .modal-close-new:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body-new {
+            padding: 0;
+        }
+
+        .modal-footer-new {
+            padding: 0.75rem 1.25rem;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            border-radius: 0 0 8px 8px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.625rem;
+        }
+
+        [data-theme="dark"] .modal-footer-new {
+            background: #2a2a2a;
+            border-top-color: #404040;
+        }
+
+        .btn-cancel-new {
+            padding: 0.35rem 0.65rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #6b7280;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.6875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel-new:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+
+        [data-theme="dark"] .btn-cancel-new {
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border-color: #404040;
+        }
+
+        [data-theme="dark"] .btn-cancel-new:hover {
+            background: #4a4a4a;
+        }
+
+        .btn-submit-new {
+            padding: 0.35rem 0.65rem;
+            border: none;
+            background: linear-gradient(135deg, var(--primary) 0%, #005a6e 100%);
+            color: white;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.6875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            box-shadow: 0 1px 3px rgba(0, 120, 144, 0.2);
+        }
+
+        .btn-submit-new:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 120, 144, 0.25);
+        }
+
+        .btn-submit-new:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .client-modal {
+                max-width: 95%;
+                width: 95%;
+            }
+
+            .modal-header-new {
+                padding: 1rem 1.25rem;
+            }
+
+            .modal-title-new {
+                font-size: 1.125rem;
+            }
+
+            .modal-footer-new {
+                padding: 1rem 1.5rem;
+                flex-direction: column;
+            }
+
+            .btn-cancel-new,
+            .btn-submit-new {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #4db8d1;
+            color: #ffffff;
+            border-color: #4db8d1;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: #6ec9dd;
+            border-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .btn-primary:active {
+            background: #3da7bd;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: #4b5563;
+            color: #f3f4f6;
+            border-color: #4b5563;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background: #6b7280;
+            border-color: #6b7280;
+        }
+
+        [data-theme="dark"] .btn-secondary:active {
+            background: #374151;
+        }
+        
+        .export-content {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .export-content p {
+            color: var(--text-light);
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        
+        .export-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        @media (min-width: 768px) {
+            .export-buttons {
+                flex-direction: row;
+                justify-content: center;
+            }
+        }
+        
+        /* Mobile menu button - ABSOLUTE FIXED POSITIONING */
+        .mobile-menu-btn,
+        #mobile-menu-btn,
+        button#mobile-menu-btn {
+            display: none;
+        }
+
+        .mobile-menu-btn {
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 99999 !important;
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+            border: none !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            width: 48px !important;
+            height: 48px !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+
+        .mobile-menu-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.95);
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: var(--sidebar-hover) !important;
+        }
+
+        /* Force fixed positioning on mobile */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn,
+            #mobile-menu-btn,
+            button#mobile-menu-btn {
+                display: flex !important;
+                position: fixed !important;
+                top: 12px !important;
+                left: 12px !important;
+                z-index: 99999 !important;
+                transform: translate3d(0, 0, 0) !important;
+            }
+
+            .action-bar {
+                display: none !important;
+            }
+
+            /* Hide sidebar by default on mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                width: 280px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            }
+
+            /* Show sidebar when active */
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            /* Remove left margin on main content */
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
+            /* Sidebar overlay */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9997;
+                display: none;
+                backdrop-filter: blur(2px);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Full width sidebar on tablet */
+            #sidebar {
+                width: 85%;
+                max-width: 320px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            /* Small mobile */
+            .mobile-menu-btn {
+                top: 10px !important;
+                left: 10px !important;
+                width: 44px !important;
+                height: 44px !important;
+            }
+
+            #sidebar {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Extra small devices */
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .mobile-menu-btn {
+                top: 8px !important;
+                left: 8px !important;
+                width: 40px !important;
+                height: 40px !important;
+            }
+        }
+
+        /* Touch-friendly adjustments */
+        @media (hover: none) and (pointer: coarse) {
+            /* Increase touch targets */
+            button, a {
+                min-height: 44px !important;
+            }
+
+            /* Remove hover effects on touch devices */
+            #sidebar a:hover {
+                background-color: transparent !important;
+            }
+
+            #sidebar a:active {
+                background-color: rgba(255, 255, 255, 0.1) !important;
+            }
+        }
+        
+        /* Filter controls styling */
+        .filter-controls {
+            background: var(--background);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        
+        .filter-controls label {
+            font-weight: 500;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        
+        .filter-controls input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        
+        .filter-controls input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.1);
+        }
+        
+        /* Prevent horizontal page scroll */
+        #main-content {
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        .container {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* Table styling */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            width: 100%;
+            background: white;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        [data-theme="dark"] .table-responsive {
+            border: 1px solid #374151;
+            background-color: #1f2937;
+        }
+
+        #exportTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            min-width: 800px;
+            background: white;
+        }
+
+        [data-theme="dark"] #exportTable {
+            background-color: #1f2937;
+        }
+
+        #exportTable thead {
+            background: transparent;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        #exportTable thead th {
+            background-color: #111827;
+            color: #f9fafb;
+            text-align: left;
+            padding: 6px 8px;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 1px solid #374151;
+            font-size: 0.7rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        [data-theme="dark"] #exportTable thead th {
+            background-color: #111827;
+            color: #ffffff;
+            border-bottom: 1px solid #404040;
+        }
+
+        #exportTable tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        #exportTable tbody tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr:nth-child(even) {
+            background-color: #1a1f2e;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr:nth-child(odd) {
+            background-color: #1f2937;
+        }
+
+        /* Hover effect disabled per user request - rules removed entirely */
+
+        #exportTable tbody tr.invoiced {
+            background-color: #4ade80 !important;
+        }
+
+        #exportTable tbody td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.7rem;
+            color: #374151;
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+            height: 32px;
+        }
+
+        [data-theme="dark"] #exportTable tbody td {
+            border-bottom: 1px solid #2d3748;
+            color: #e5e7eb;
+        }
+
+        .invoice-input {
+            width: 140px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.65rem;
+            background: white;
+        }
+
+        .invoice-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 120, 144, 0.1);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-invoiced {
+            background-color: #10b981;
+            color: white;
+        }
+
+        /* Better contrast for status badge on invoiced (green) rows */
+        #exportTable tbody tr.invoiced .status-invoiced {
+            background-color: white;
+            color: #166534;
+            border: 1px solid #166534;
+        }
+
+        .status-pending {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        #exportTable tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Column widths - consolidated for performance */
+        /* 180px columns: ContactName, InvoiceNumber, Reference, TaxType */
+        #exportTable th:nth-child(1),
+        #exportTable td:nth-child(1),
+        #exportTable th:nth-child(6),
+        #exportTable td:nth-child(6),
+        #exportTable th:nth-child(7),
+        #exportTable td:nth-child(7),
+        #exportTable th:nth-child(15),
+        #exportTable td:nth-child(15) {
+            min-width: 180px;
+        }
+
+        /* 150px columns: Inspector */
+        #exportTable th:nth-child(2),
+        #exportTable td:nth-child(2) {
+            min-width: 150px;
+        }
+
+        /* 120px columns: Inspection Date, POCity, InventoryItemCode, AccountCode */
+        #exportTable th:nth-child(3),
+        #exportTable td:nth-child(3),
+        #exportTable th:nth-child(4),
+        #exportTable td:nth-child(4),
+        #exportTable th:nth-child(10),
+        #exportTable td:nth-child(10),
+        #exportTable th:nth-child(14),
+        #exportTable td:nth-child(14) {
+            min-width: 120px;
+        }
+
+        /* 110px columns: InvoiceDate, UnitAmount */
+        #exportTable th:nth-child(8),
+        #exportTable td:nth-child(8),
+        #exportTable th:nth-child(13),
+        #exportTable td:nth-child(13) {
+            min-width: 110px;
+        }
+
+        /* 100px columns: POCountry, Total */
+        #exportTable th:nth-child(5),
+        #exportTable td:nth-child(5),
+        #exportTable th:nth-child(9),
+        #exportTable td:nth-child(9) {
+            min-width: 100px;
+        }
+
+        /* 90px columns: Quantity */
+        #exportTable th:nth-child(12),
+        #exportTable td:nth-child(12) {
+            min-width: 90px;
+        }
+
+        /* Auto-width columns: Description */
+        #exportTable th:nth-child(11),
+        #exportTable td:nth-child(11) {
+            min-width: auto;
+            white-space: nowrap;
+        }
+
+        /* Context menu styling */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            z-index: 10000;
+            min-width: 200px;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.875rem;
+            color: var(--text);
+            transition: background 0.15s ease;
+        }
+
+        .context-menu-item:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .context-menu-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        /* Export dropdown styling */
+        .export-dropdown-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .export-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            min-width: 200px;
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .export-dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.875rem;
+            color: var(--text);
+            transition: all 0.15s ease;
+        }
+
+        .export-dropdown-item:hover {
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .export-dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .export-dropdown-separator {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        [data-theme="dark"] .export-dropdown-menu {
+            background: #1f2937;
+            border-color: #374151;
+        }
+
+        [data-theme="dark"] .export-dropdown-item {
+            color: #e5e7eb;
+        }
+
+        [data-theme="dark"] .export-dropdown-item:hover {
+            background-color: #374151;
+            color: #4db8d1;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        /* Excel-like cell selection styles */
+        #exportTable tbody td {
+            cursor: pointer;
+            position: relative;
+        }
+
+        #exportTable tbody td.selected-cell {
+            background-color: #dbeafe !important;
+            outline: 2px solid #3b82f6;
+            outline-offset: -2px;
+            z-index: 1;
+        }
+
+        #exportTable tbody tr.selected-row {
+            background-color: #f0f9ff !important;
+        }
+
+        #exportTable tbody tr.selected-row.invoiced {
+            background-color: #86efac !important;
+        }
+
+        /* Smooth scrolling for table */
+        .table-responsive {
+            scroll-behavior: smooth;
+        }
+
+        /* Keyboard navigation indicator */
+        #exportTable tbody td:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: -2px;
+        }
+
+        /* Navigation hint */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .keyboard-hint.show {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Notification Bell Styles */
+        .notification-bell {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            background: linear-gradient(135deg, #007890 0%, #005a6e 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .notification-bell i {
+            color: white;
+            font-size: 20px;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #EC343C;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid white;
+        }
+
+        .notification-badge.show {
+            display: flex;
+        }
+
+        @media (max-width: 768px) {
+            .notification-bell {
+                top: 15px;
+                right: 60px;
+                width: 45px;
+                height: 45px;
+            }
+
+            .notification-bell i {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Section -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <!-- Logout Button -->
+                <form action="{% url 'logout' %}" method="post" class="w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="flex-1 w-full lg:ml-64">
+    <div class="container mx-auto px-4 py-6 w-full">
+        <div class="header">
+            <h1>Food Safety Agency (Pty) Ltd</h1>
+            <h2>Export Sheet</h2>
+        </div>
+
+        <!-- Export content card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    Invoice Line Items Dashboard
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filter and Export Controls -->
+                <div class="filter-controls" style="margin-bottom: 20px;">
+                    <!-- First row: Text filters -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="contactNameFilter" style="font-size: 0.75rem; font-weight: 500;">Contact Name:</label>
+                            <input type="text" id="contactNameFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="referenceFilter" style="font-size: 0.75rem; font-weight: 500;">Reference:</label>
+                            <input type="text" id="referenceFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="cityFilter" style="font-size: 0.75rem; font-weight: 500;">City:</label>
+                            <input type="text" id="cityFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="inspectorFilter" style="font-size: 0.75rem; font-weight: 500;">Inspector:</label>
+                            <input type="text" id="inspectorFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="invoiceDateFromFilter" style="font-size: 0.75rem; font-weight: 500;">Date From:</label>
+                            <input type="date" id="invoiceDateFromFilter" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <label for="invoiceDateToFilter" style="font-size: 0.75rem; font-weight: 500;">Date To:</label>
+                            <input type="date" id="invoiceDateToFilter" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
+                        </div>
+                    </div>
+
+                    <!-- Second row: Buttons -->
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button onclick="applyDateFilter()" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Apply
+                        </button>
+
+                        <button onclick="clearAllFilters()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+
+                        <button type="button" class="btn btn-warning" onclick="showManageFeesModal()">
+                            <i class="fas fa-dollar-sign"></i> Manage Fees
+                        </button>
+
+                        <div class="export-dropdown-container">
+                            <button type="button" class="btn btn-success" onclick="toggleExportDropdown()">
+                                <i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down" style="margin-left: 4px; font-size: 0.75rem;"></i>
+                            </button>
+                            <div id="exportDropdownMenu" class="export-dropdown-menu" style="display: none;">
+                                <div class="export-dropdown-item" onclick="exportToExcel(); hideExportDropdown();">
+                                    <i class="fas fa-file-excel"></i>
+                                    <span>Export to Excel</span>
+                                </div>
+                                <div class="export-dropdown-separator"></div>
+                                <div class="export-dropdown-item" onclick="exportAsGoogleSheets(); hideExportDropdown();">
+                                    <i class="fab fa-google"></i>
+                                    <span>Export as Google Sheets</span>
+                                </div>
+                                <div class="export-dropdown-separator"></div>
+                                <div class="export-dropdown-item" onclick="exportAsCSV(); hideExportDropdown();">
+                                    <i class="fas fa-file-csv"></i>
+                                    <span>Export as CSV</span>
+                                </div>
+                                <div class="export-dropdown-item" onclick="exportAsExcelCSV(); hideExportDropdown();">
+                                    <i class="fas fa-file-excel"></i>
+                                    <span>Export as Excel CSV</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive" style="overflow-x: auto;">
+                    <table id="exportTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*ContactName</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Inspector</th>
+                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">Inspection Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">POCity</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">POCountry</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Reference</th>
+                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">*InvoiceDate</th>
+                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">Total</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">InventoryItemCode</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*Description</th>
+                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">*Quantity</th>
+                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">*UnitAmount</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*AccountCode</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*TaxType</th>
+                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Invoice Number</th>
+                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exportTableBody" class="bg-white divide-y divide-gray-200">
+                            {% for item in invoice_items %}
+                            <tr class="{% if item.invoice_number %}invoiced{% endif %}"
+                                data-contact="{{ item.client_name }}"
+                                data-reference="{{ item.invoice_number|default:item.invoice_ref }}"
+                                data-rfi="{{ item.rfi_ref }}"
+                                data-city="{{ item.city }}"
+                                data-date="{{ item.invoice_date }}"
+                                data-inspector="{{ item.inspector_name }}"
+                                data-country="{{ item.country }}"
+                                data-itemcode="{{ item.item_code }}"
+                                data-description="{{ item.description }}"
+                                data-quantity="{{ item.quantity }}"
+                                data-unitamount="{{ item.unit_amount }}"
+                                data-total="{{ item.total }}"
+                                data-accountcode="{{ item.account_code }}"
+                                data-taxtype="{{ item.tax_rate }}"
+                                data-item-id="{{ item.id }}">
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.client_name|default:'' }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.inspector_name|default:'' }}</td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-900">{{ item.invoice_date }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.city|default:'' }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.country|default:'' }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.rfi_ref|default:'' }}</td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-900">{{ item.invoice_date }}</td>
+                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.total|floatformat:2 }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.item_code }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.description }}</td>
+                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.quantity|floatformat:2 }}</td>
+                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.unit_amount|floatformat:2 }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.account_code }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.tax_rate }}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                    <input type="text"
+                                           class="invoice-input"
+                                           placeholder="Enter invoice #"
+                                           value="{{ item.invoice_number|default:'' }}"
+                                           onchange="updateInvoiceNumber(this, '{{ item.id }}')"
+                                           onblur="updateInvoiceNumber(this, '{{ item.id }}')"
+                                           data-invoice-input>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-900">
+                                    <span class="status-badge {% if item.invoice_number %}status-invoiced{% else %}status-pending{% endif %}" data-status-badge>
+                                        {% if item.invoice_number %}Invoiced{% else %}Pending{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="16" class="px-4 py-8 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                                    <p>No invoice items found. Complete inspections with hours, travel, and test data to generate invoice line items.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="exportToExcel()">
+            <i class="fas fa-file-excel"></i>
+            <span>Excel (.xlsx)</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="exportAsGoogleSheets()">
+            <i class="fab fa-google"></i>
+            <span>Google Sheets</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="exportAsCSV()">
+            <i class="fas fa-file-csv"></i>
+            <span>CSV (Standard)</span>
+        </div>
+        <div class="context-menu-item" onclick="exportAsExcelCSV()">
+            <i class="fas fa-file-csv"></i>
+            <span>CSV (Excel Compatible)</span>
+        </div>
+    </div>
+
+    <!-- ExcelJS Library for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+
+    <script>
+        // Cache DOM elements for performance
+        const DOM = {
+            exportTableBody: null,
+            contextMenu: null,
+            filters: {},
+            init() {
+                this.exportTableBody = document.getElementById('exportTableBody');
+                this.contextMenu = document.getElementById('contextMenu');
+                this.filters = {
+                    contactName: document.getElementById('contactNameFilter'),
+                    reference: document.getElementById('referenceFilter'),
+                    city: document.getElementById('cityFilter'),
+                    inspector: document.getElementById('inspectorFilter'),
+                    dateFrom: document.getElementById('invoiceDateFromFilter'),
+                    dateTo: document.getElementById('invoiceDateToFilter')
+                };
+            }
+        };
+
+        // Helper function to check if there's data to export
+        function hasExportData() {
+            const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+            // Check if there's at least one visible row
+            for (let row of rows) {
+                if (row.style.display !== 'none') {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Debounce function for filter inputs
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        
+        // Function to convert DD/MM/YYYY to YYYY-MM-DD for date comparison
+        function convertDateFormat(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        }
+        
+        // Optimized filter function with batch processing
+        function applyDateFilter() {
+            console.log('applyDateFilter called');
+
+            // Get date filter values
+            const dateFrom = document.getElementById('invoiceDateFromFilter')?.value || '';
+            const dateTo = document.getElementById('invoiceDateToFilter')?.value || '';
+
+            // Build URL with query parameters
+            const url = new URL(window.location.href);
+            url.search = ''; // Clear existing params
+
+            if (dateFrom) {
+                url.searchParams.set('date_from', dateFrom);
+            }
+            if (dateTo) {
+                url.searchParams.set('date_to', dateTo);
+            }
+
+            // Reload page with new date filters
+            window.location.href = url.toString();
+        }
+
+        function applyFilters() {
+            console.log('applyFilters called');
+
+            // Get filter values (use cached elements if available)
+            const filters = DOM.filters.contactName ? DOM.filters : {
+                contactName: document.getElementById('contactNameFilter'),
+                reference: document.getElementById('referenceFilter'),
+                city: document.getElementById('cityFilter'),
+                inspector: document.getElementById('inspectorFilter'),
+                dateFrom: document.getElementById('invoiceDateFromFilter'),
+                dateTo: document.getElementById('invoiceDateToFilter')
+            };
+
+            // Null-safe value extraction
+            const contactName = filters.contactName?.value?.toLowerCase().trim() || '';
+            const reference = filters.reference?.value?.toLowerCase().trim() || '';
+            const city = filters.city?.value?.toLowerCase().trim() || '';
+            const inspector = filters.inspector?.value?.toLowerCase().trim() || '';
+            const invoiceDateFrom = filters.dateFrom?.value || '';
+            const invoiceDateTo = filters.dateTo?.value || '';
+
+            console.log('Filter values:', { contactName, reference, city, inspector, invoiceDateFrom, invoiceDateTo });
+
+            // Check if any filters are active
+            const hasFilters = contactName || reference || city || inspector || invoiceDateFrom || invoiceDateTo;
+
+            const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+            const rowCount = rows.length;
+
+            console.log('Total rows to filter:', rowCount);
+
+            // Batch process for smooth performance
+            const BATCH_SIZE = 50;
+            let currentIndex = 0;
+            let visibleCount = 0;
+
+            function processBatch() {
+                const endIndex = Math.min(currentIndex + BATCH_SIZE, rowCount);
+
+                for (let i = currentIndex; i < endIndex; i++) {
+                    const row = rows[i];
+
+                    if (!hasFilters) {
+                        row.style.display = '';
+                        visibleCount++;
+                        continue;
+                    }
+
+                    let show = true;
+
+                    // Contact Name filter
+                    if (show && contactName) {
+                        const rowContact = (row.getAttribute('data-contact') || '').toLowerCase();
+                        show = rowContact.includes(contactName);
+                    }
+
+                    // Reference Number filter
+                    if (show && reference) {
+                        const rowReference = (row.getAttribute('data-reference') || '').toLowerCase();
+                        show = rowReference.includes(reference);
+                    }
+
+                    // City filter
+                    if (show && city) {
+                        const rowCity = (row.getAttribute('data-city') || '').toLowerCase();
+                        show = rowCity.includes(city);
+                    }
+
+                    // Inspector filter
+                    if (show && inspector) {
+                        const rowInspector = (row.getAttribute('data-inspector') || '').toLowerCase();
+                        show = rowInspector.includes(inspector);
+                    }
+
+                    // Invoice Date range filter
+                    if (show && (invoiceDateFrom || invoiceDateTo)) {
+                        const rowDate = row.getAttribute('data-date') || '';
+                        const parts = rowDate.split('/');
+                        if (parts.length === 3) {
+                            const rowDateFormatted = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                            if (invoiceDateFrom && rowDateFormatted < invoiceDateFrom) show = false;
+                            if (invoiceDateTo && rowDateFormatted > invoiceDateTo) show = false;
+                        } else {
+                            show = false;
+                        }
+                    }
+
+                    row.style.display = show ? '' : 'none';
+                    if (show) visibleCount++;
+                }
+
+                currentIndex = endIndex;
+
+                if (currentIndex < rowCount) {
+                    requestAnimationFrame(processBatch);
+                } else {
+                    console.log('Filtering complete. Visible rows:', visibleCount, '/', rowCount);
+                }
+            }
+
+            processBatch();
+        }
+
+        // Function to clear all filters
+        function clearAllFilters() {
+            // Reload page without any query parameters (will use default yesterday-today)
+            const url = new URL(window.location.href);
+            url.search = ''; // Clear all query params
+            window.location.href = url.toString();
+        }
+
+        // Legacy function for backward compatibility
+        function filterByInvoiceDate() {
+            applyFilters();
+        }
+
+        // Legacy function for backward compatibility
+        function clearFilter() {
+            clearAllFilters();
+        }
+        
+        // Show context menu on right-click
+        document.getElementById('exportTable').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const contextMenu = DOM.contextMenu || document.getElementById('contextMenu');
+
+            // Show menu first to get dimensions
+            contextMenu.style.display = 'block';
+
+            // Use clientX/clientY for fixed positioning (relative to viewport)
+            let x = e.clientX;
+            let y = e.clientY;
+
+            // Get menu dimensions
+            const menuWidth = contextMenu.offsetWidth;
+            const menuHeight = contextMenu.offsetHeight;
+
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Adjust position if menu would go off-screen
+            if (x + menuWidth > viewportWidth) {
+                x = viewportWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > viewportHeight) {
+                y = viewportHeight - menuHeight - 10;
+            }
+
+            // Ensure menu doesn't go off the left or top edge
+            x = Math.max(10, x);
+            y = Math.max(10, y);
+
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        });
+
+        // Hide context menu on click outside
+        document.addEventListener('click', function(e) {
+            const contextMenu = DOM.contextMenu || document.getElementById('contextMenu');
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.style.display = 'none';
+            }
+        });
+
+        // Get data for export
+        function getExportData() {
+            // Xero-compatible headers with all required columns (exact order as specified)
+            const headers = [
+                '*ContactName',
+                'EmailAddress',
+                'POAddressLine1',
+                'POAddressLine2',
+                'POAddressLine3',
+                'POAddressLine4',
+                'POCity',
+                'PORegion',
+                'POPostalCode',
+                'POCountry',
+                '*InvoiceNumber',
+                'Reference',
+                '*InvoiceDate',
+                '*DueDate',
+                'Total',
+                'InventoryItemCode',
+                '*Description',
+                '*Quantity',
+                '*UnitAmount',
+                'Discount',
+                '*AccountCode',
+                '*TaxType',
+                'Tax Amount',
+                'TrackingName1',
+                'TrackingOption1',
+                'TrackingName2',
+                'TrackingOption2',
+                'Currency',
+                'BrandingTheme'
+            ];
+
+            const data = [headers];
+
+            // Get all visible table rows (only rows that are not hidden by filters)
+            const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+            rows.forEach(row => {
+                // Skip hidden rows (filtered out)
+                if (row.style.display === 'none') {
+                    return;
+                }
+
+                const contactName = row.getAttribute('data-contact') || '';
+                const city = row.getAttribute('data-city') || '';
+                const country = row.getAttribute('data-country') || '';
+                // Note: invoiceRef is read but NOT exported (kept blank for Xero import)
+                // const invoiceRef = row.getAttribute('data-reference') || '';
+                // const rfiRef = row.getAttribute('data-rfi') || '';
+                const invoiceDate = row.getAttribute('data-date') || '';
+                const total = row.getAttribute('data-total') || '';
+                const itemCode = row.getAttribute('data-itemcode') || '';
+                const description = row.getAttribute('data-description') || '';
+                const quantity = row.getAttribute('data-quantity') || '';
+                const unitAmount = row.getAttribute('data-unitamount') || '';
+                const accountCode = row.getAttribute('data-accountcode') || '';
+                const taxType = row.getAttribute('data-taxtype') || '';
+
+                data.push([
+                    contactName,              // *ContactName
+                    '',                       // EmailAddress (blank)
+                    '',                       // POAddressLine1 (blank)
+                    '',                       // POAddressLine2 (blank)
+                    '',                       // POAddressLine3 (blank)
+                    '',                       // POAddressLine4 (blank)
+                    city,                     // POCity
+                    '',                       // PORegion (blank)
+                    '',                       // POPostalCode (blank)
+                    '',                       // POCountry (blank)
+                    '',                       // *InvoiceNumber (blank - Xero will generate)
+                    '',                       // Reference (empty as requested)
+                    invoiceDate,              // *InvoiceDate
+                    '',                       // *DueDate (blank - Xero will calculate)
+                    '',                       // Total (blank - Xero calculates from line items)
+                    itemCode,                 // InventoryItemCode
+                    description,              // *Description
+                    quantity,                 // *Quantity
+                    unitAmount,               // *UnitAmount
+                    '',                       // Discount (blank)
+                    accountCode,              // *AccountCode
+                    taxType,                  // *TaxType
+                    '',                       // Tax Amount (blank - Xero calculates)
+                    '',                       // TrackingName1 (blank)
+                    '',                       // TrackingOption1 (blank)
+                    '',                       // TrackingName2 (blank)
+                    '',                       // TrackingOption2 (blank)
+                    '',                       // Currency (blank - uses default)
+                    ''                        // BrandingTheme (blank)
+                ]);
+            });
+
+            return data;
+        }
+
+        // Export to Google Sheets
+        async function exportAsGoogleSheets() {
+            document.getElementById('contextMenu').style.display = 'none';
+
+            if (!hasExportData()) {
+                alert('No data to export');
+                return;
+            }
+
+            const exportData = getExportData();
+
+            // Open a blank tab immediately (within user click context)
+            const newTab = window.open('about:blank', '_blank');
+
+            if (!newTab) {
+                alert('❌ Please allow pop-ups for this site to export to Google Sheets.');
+                return;
+            }
+
+            // Show loading message in the new tab
+            newTab.document.write('<html><head><title>Creating Google Sheet...</title></head><body style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5;"><div style="text-align: center;"><h2>Creating your Google Sheet...</h2><p>Please wait...</p><div style="margin-top: 20px;"><div style="border: 4px solid #f3f3f3; border-top: 4px solid #007890; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div></div></div><style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style></body></html>');
+
+            console.log('Sending export request...');
+            console.log('Export data rows:', exportData.length);
+
+            try {
+                const response = await fetch('{% url "export_to_google_sheets" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ data: exportData })
+                });
+
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (data.success) {
+                    console.log('Redirecting to Google Sheet:', data.url);
+
+                    // Redirect the blank tab to the Google Sheet
+                    newTab.location.href = data.url;
+
+                    console.log('✅ Opened in new tab');
+                } else {
+                    // Close the blank tab and show error
+                    newTab.close();
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+
+                // Close the blank tab
+                newTab.close();
+
+                alert('❌ Error creating Google Sheet: ' + error.message);
+            }
+        }
+
+        // Export as CSV (Tab-separated for Xero)
+        function exportAsCSV() {
+            document.getElementById('contextMenu').style.display = 'none';
+
+            if (!hasExportData()) {
+                alert('No data to export');
+                return;
+            }
+
+            const exportData = getExportData();
+            // Use tabs instead of commas for Xero import
+            const csvRows = exportData.map(row => row.join('\t'));
+            const csvContent = csvRows.join('\n');
+
+            downloadFile(csvContent, 'text/tab-separated-values', 'Xero_Import.txt');
+        }
+
+        // Export as CSV (Excel) - Tab-separated for Xero
+        function exportAsExcelCSV() {
+            document.getElementById('contextMenu').style.display = 'none';
+
+            if (!hasExportData()) {
+                alert('No data to export');
+                return;
+            }
+
+            const exportData = getExportData();
+
+            // Excel CSV needs BOM for UTF-8
+            // Use tabs instead of commas for Xero import
+            const BOM = '\uFEFF';
+            const csvRows = exportData.map(row => row.join('\t'));
+            const csvContent = BOM + csvRows.join('\r\n');
+
+            downloadFile(csvContent, 'text/tab-separated-values', 'Xero_Import.txt');
+        }
+
+        // Helper function to download file
+        function downloadFile(content, mimeType, fileName) {
+            const blob = new Blob([content], { type: mimeType + ';charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+        }
+
+        // Toggle export dropdown menu
+        function toggleExportDropdown() {
+            const dropdown = document.getElementById('exportDropdownMenu');
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+
+        // Hide export dropdown menu
+        function hideExportDropdown() {
+            document.getElementById('exportDropdownMenu').style.display = 'none';
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('exportDropdownMenu');
+            const container = event.target.closest('.export-dropdown-container');
+
+            if (!container && dropdown && dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Export to Excel using SheetJS
+        async function exportToExcel() {
+            const exportData = getExportData();
+
+            if (exportData.length <= 1) {
+                alert('No data to export');
+                return;
+            }
+
+            // Create a new workbook using ExcelJS
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Invoice Data');
+
+            // Get headers and data rows
+            const headers = exportData[0];
+            const dataRows = exportData.slice(1);
+
+            // Add all data (headers + rows)
+            worksheet.addRows(exportData);
+
+            // Set column widths
+            const colWidths = [25, 20, 20, 20, 20, 20, 15, 15, 12, 15, 20, 20, 12, 12, 12, 15, 50, 10, 12, 10, 15, 25, 12, 15, 15, 15, 15, 10, 15];
+            worksheet.columns = colWidths.map((width, i) => ({
+                width: width
+            }));
+
+            // Format header row with blue background and white text
+            const headerRow = worksheet.getRow(1);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF4472C4' }
+                };
+            });
+            headerRow.commit();
+
+            // Add autofilter to make headers recognized
+            const lastCol = String.fromCharCode(64 + headers.length);
+            const lastRow = dataRows.length + 1;
+            worksheet.autoFilter = `A1:${lastCol}${lastRow}`;
+
+            // Generate filename with current date
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            const filename = `Invoice_Export_${dateStr}.xlsx`;
+
+            // Write the workbook and trigger download
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            console.log('Excel file exported successfully');
+        }
+
+        // Update invoice number for all rows in the same contact+date group
+        function updateInvoiceNumber(input, itemId) {
+            const invoiceNumber = input.value.trim();
+            const row = input.closest('tr');
+            const contactName = row.getAttribute('data-contact');
+            const invoiceDate = row.getAttribute('data-date');
+            const groupKey = `${contactName}|${invoiceDate}`;
+
+            // Find all rows in the same group
+            const allRows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+            const groupRows = [];
+            const groupItemIds = [];
+
+            allRows.forEach(r => {
+                const rContact = r.getAttribute('data-contact');
+                const rDate = r.getAttribute('data-date');
+                const rKey = `${rContact}|${rDate}`;
+                if (rKey === groupKey) {
+                    groupRows.push(r);
+                    groupItemIds.push(r.getAttribute('data-item-id'));
+                }
+            });
+
+            // Update UI for all rows in the group
+            groupRows.forEach(r => {
+                const statusBadge = r.querySelector('[data-status-badge]');
+                const invoiceDisplay = r.querySelector('[data-invoice-display]');
+
+                if (invoiceNumber) {
+                    r.classList.add('invoiced');
+                    if (statusBadge) {
+                        statusBadge.className = 'status-badge status-invoiced';
+                        statusBadge.textContent = 'Invoiced';
+                    }
+                    r.setAttribute('data-reference', invoiceNumber);
+                    // Update display text for non-input rows
+                    if (invoiceDisplay) {
+                        invoiceDisplay.textContent = invoiceNumber;
+                    }
+                } else {
+                    r.classList.remove('invoiced');
+                    if (statusBadge) {
+                        statusBadge.className = 'status-badge status-pending';
+                        statusBadge.textContent = 'Pending';
+                    }
+                    r.setAttribute('data-reference', '');
+                    if (invoiceDisplay) {
+                        invoiceDisplay.textContent = '';
+                    }
+                }
+            });
+
+            // Save to backend for all items in the group
+            fetch('{% url "update_invoice_number" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    item_id: itemId,
+                    invoice_number: invoiceNumber,
+                    group_item_ids: groupItemIds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Invoice number updated for group');
+                    input.style.borderColor = '#10b981';
+                    setTimeout(() => {
+                        input.style.borderColor = '';
+                    }, 1000);
+                } else {
+                    console.error('Error updating invoice number:', data.error);
+                    alert('Error saving invoice number: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving invoice number. Please try again.');
+            });
+        }
+
+        // Calculate unique stats
+        function calculateUniqueStats() {
+            const rows = document.querySelectorAll('#exportTableBody tr[data-reference]');
+            const uniqueInvoices = new Set();
+            const uniqueClients = new Set();
+
+            rows.forEach(row => {
+                const ref = row.getAttribute('data-reference');
+                const client = row.getAttribute('data-contact');
+                if (ref) uniqueInvoices.add(ref);
+                if (client) uniqueClients.add(client);
+            });
+
+            document.getElementById('uniqueInspections').textContent = uniqueInvoices.size;
+            document.getElementById('uniqueClients').textContent = uniqueClients.size;
+        }
+
+        // Optimized initialization with batch processing
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize DOM cache first
+            DOM.init();
+
+            // Set default date filters to yesterday to today
+            const defaultStartDate = '{{ default_start_date }}';
+            const defaultEndDate = '{{ default_end_date }}';
+            if (defaultStartDate && defaultEndDate && DOM.filters.dateFrom && DOM.filters.dateTo) {
+                // Set date from to yesterday
+                DOM.filters.dateFrom.value = defaultStartDate;
+
+                // Set date to to today
+                DOM.filters.dateTo.value = defaultEndDate;
+            }
+
+            // Use requestAnimationFrame for smooth loading
+            requestAnimationFrame(() => {
+                // Get all rows once
+                const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+                const groups = new Map();
+                const years = new Set();
+                const rowCount = rows.length;
+
+                // Batch process rows for better performance
+                const BATCH_SIZE = 100;
+                let currentIndex = 0;
+
+                function processBatch() {
+                    const endIndex = Math.min(currentIndex + BATCH_SIZE, rowCount);
+
+                    // Process batch
+                    for (let i = currentIndex; i < endIndex; i++) {
+                        const row = rows[i];
+                        const contactName = row.getAttribute('data-contact');
+                        const invoiceDate = row.getAttribute('data-date');
+                        const groupKey = `${contactName}|${invoiceDate}`;
+
+                        if (!groups.has(groupKey)) {
+                            groups.set(groupKey, []);
+                        }
+                        groups.get(groupKey).push(row);
+
+                        // Collect years
+                        if (invoiceDate) {
+                            const parts = invoiceDate.split('/');
+                            if (parts.length === 3) {
+                                years.add(parts[2]);
+                            }
+                        }
+                    }
+
+                    currentIndex = endIndex;
+
+                    // Continue processing or finalize
+                    if (currentIndex < rowCount) {
+                        requestAnimationFrame(processBatch);
+                    } else {
+                        finializeProcessing();
+                    }
+                }
+
+                function finializeProcessing() {
+                    // Process groups - show input only on first row (batch process)
+                    const groupsArray = Array.from(groups.values());
+                    let groupIndex = 0;
+
+                    function processGroupBatch() {
+                        const endGroupIndex = Math.min(groupIndex + 10, groupsArray.length);
+
+                        for (let g = groupIndex; g < endGroupIndex; g++) {
+                            const groupRows = groupsArray[g];
+                            for (let i = 1; i < groupRows.length; i++) {
+                                const row = groupRows[i];
+                                const inputCell = row.querySelector('td:nth-last-child(2)');
+                                const input = inputCell?.querySelector('input[data-invoice-input]');
+
+                                if (input) {
+                                    const textSpan = document.createElement('span');
+                                    textSpan.setAttribute('data-invoice-display', '');
+                                    textSpan.textContent = input.value;
+                                    textSpan.style.cssText = 'display: inline-block; width: 140px; padding: 4px 8px; font-size: 0.65rem;';
+                                    input.replaceWith(textSpan);
+                                }
+                            }
+                        }
+
+                        groupIndex = endGroupIndex;
+
+                        if (groupIndex < groupsArray.length) {
+                            requestAnimationFrame(processGroupBatch);
+                        } else {
+                            setupEventListeners();
+                        }
+                    }
+
+                    processGroupBatch();
+                }
+
+                function setupEventListeners() {
+                    // Create debounced filter function
+                    const debouncedApplyFilters = debounce(applyFilters, 300);
+
+                    // Add input event listeners for text filters (with debounce)
+                    ['contactName', 'reference', 'city', 'inspector'].forEach(key => {
+                        const input = DOM.filters[key];
+                        if (input) {
+                            input.addEventListener('input', debouncedApplyFilters);
+                            input.addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    applyFilters();
+                                }
+                            });
+                        }
+                    });
+
+                    // Note: Date filters require clicking Apply button to reload page
+                    // Other filters (text inputs) can still use instant filtering
+
+                    // Auto-apply frontend filters on initial load (for non-date filters)
+                    applyFilters();
+                }
+
+                // Start processing
+                processBatch();
+            });
+        });
+
+        // Excel-like Keyboard Navigation
+        let selectedCell = null;
+        let selectedRow = null;
+
+        function initTableNavigation() {
+            const table = document.getElementById('exportTable');
+            const tbody = table.querySelector('tbody');
+            const keyboardHint = document.getElementById('keyboardHint');
+
+            // Show hint on first interaction
+            let hintShown = false;
+
+            // Click to select cell
+            tbody.addEventListener('click', function(e) {
+                const cell = e.target.closest('td');
+                if (!cell) return;
+
+                selectCell(cell);
+
+                // Show keyboard hint on first click
+                if (!hintShown) {
+                    keyboardHint.classList.add('show');
+                    hintShown = true;
+                    setTimeout(() => {
+                        keyboardHint.classList.remove('show');
+                    }, 5000);
+                }
+            });
+
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (!selectedCell) return;
+
+                // Only handle arrow keys
+                if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+                e.preventDefault();
+
+                const currentRow = selectedCell.parentElement;
+                const currentCellIndex = Array.from(currentRow.cells).indexOf(selectedCell);
+                const currentRowIndex = Array.from(tbody.rows).indexOf(currentRow);
+
+                let newCell = null;
+
+                switch(e.key) {
+                    case 'ArrowUp':
+                        if (currentRowIndex > 0) {
+                            const prevRow = tbody.rows[currentRowIndex - 1];
+                            newCell = prevRow.cells[currentCellIndex];
+                        }
+                        break;
+
+                    case 'ArrowDown':
+                        if (currentRowIndex < tbody.rows.length - 1) {
+                            const nextRow = tbody.rows[currentRowIndex + 1];
+                            newCell = nextRow.cells[currentCellIndex];
+                        }
+                        break;
+
+                    case 'ArrowLeft':
+                        if (currentCellIndex > 0) {
+                            newCell = currentRow.cells[currentCellIndex - 1];
+                        }
+                        break;
+
+                    case 'ArrowRight':
+                        if (currentCellIndex < currentRow.cells.length - 1) {
+                            newCell = currentRow.cells[currentCellIndex + 1];
+                        }
+                        break;
+                }
+
+                if (newCell) {
+                    selectCell(newCell);
+                    scrollToCell(newCell);
+                }
+            });
+        }
+
+        function selectCell(cell) {
+            // Remove previous selection
+            if (selectedCell) {
+                selectedCell.classList.remove('selected-cell');
+            }
+            if (selectedRow) {
+                selectedRow.classList.remove('selected-row');
+            }
+
+            // Add new selection
+            selectedCell = cell;
+            selectedRow = cell.parentElement;
+
+            selectedCell.classList.add('selected-cell');
+            selectedRow.classList.add('selected-row');
+        }
+
+        function scrollToCell(cell) {
+            const tableContainer = document.querySelector('.table-responsive');
+            const cellRect = cell.getBoundingClientRect();
+            const containerRect = tableContainer.getBoundingClientRect();
+
+            // Horizontal scroll
+            const cellLeft = cell.offsetLeft;
+            const cellRight = cellLeft + cell.offsetWidth;
+            const scrollLeft = tableContainer.scrollLeft;
+            const containerWidth = tableContainer.clientWidth;
+
+            if (cellLeft < scrollLeft) {
+                // Cell is to the left of visible area
+                tableContainer.scrollLeft = cellLeft - 20;
+            } else if (cellRight > scrollLeft + containerWidth) {
+                // Cell is to the right of visible area
+                tableContainer.scrollLeft = cellRight - containerWidth + 20;
+            }
+
+            // Vertical scroll
+            const cellTop = cell.offsetTop;
+            const cellBottom = cellTop + cell.offsetHeight;
+            const scrollTop = tableContainer.scrollTop;
+            const containerHeight = tableContainer.clientHeight;
+
+            if (cellTop < scrollTop) {
+                // Cell is above visible area
+                tableContainer.scrollTop = cellTop - 20;
+            } else if (cellBottom > scrollTop + containerHeight) {
+                // Cell is below visible area
+                tableContainer.scrollTop = cellBottom - containerHeight + 20;
+            }
+        }
+
+        // Mobile Menu Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize table navigation
+            initTableNavigation();
+
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+
+                const icon = mobileMenuBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times text-xl';
+                } else {
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            }
+
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleSidebar);
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+
+            const navLinks = sidebar.querySelectorAll('a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 1024) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            });
+        });
+
+        // Manage Fees Modal Functions
+        let currentFees = [];
+
+        function showManageFeesModal() {
+            const modal = document.getElementById('manageFeesModal');
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                loadFees();
+            }
+        }
+
+        function closeManageFeesModal() {
+            const modal = document.getElementById('manageFeesModal');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function loadFees() {
+            fetch('/api/fees/get/')
+                .then(response => response.json())
+                .then(data => {
+                    currentFees = data.fees;
+                    displayFees(currentFees);
+                })
+                .catch(error => {
+                    console.error('Error loading fees:', error);
+                    alert('Failed to load fees');
+                });
+        }
+
+        function displayFees(fees) {
+            const feesList = document.getElementById('fees-list');
+            if (!feesList) return;
+
+            if (fees.length === 0) {
+                feesList.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-light, #666); font-size: 0.875rem;">No fees found. Please run migrations and populate default fees.</p>';
+                return;
+            }
+
+            const today = new Date();
+            const todayISO = today.toISOString().split('T')[0];
+            const todayFormatted = today.toLocaleDateString('en-ZA', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+            const headerBg = isDarkMode ? '#2a2a2a' : '#f9fafb';
+            const headerBorder = isDarkMode ? '#404040' : '#e5e7eb';
+            const textColor = isDarkMode ? '#e0e0e0' : '#374151';
+            const subTextColor = isDarkMode ? '#9ca3af' : '#6b7280';
+
+            let html = `
+                <div style="padding: 1rem 1.25rem; background: ${headerBg}; border-bottom: 1px solid ${headerBorder};">
+                    <div style="margin-bottom: 0.5rem;">
+                        <div style="font-weight: 600; font-size: 0.8125rem; color: ${textColor}; margin-bottom: 0.375rem;">
+                            Effective Date for Changes:
+                        </div>
+                        <div style="display: inline-block; padding: 0.375rem 0.75rem; background: var(--primary); color: white; border-radius: 5px; font-size: 0.8125rem; font-weight: 500;">
+                            ${todayFormatted} (Today)
+                        </div>
+                        <input type="hidden" id="effective-date-input" value="${todayISO}" />
+                    </div>
+                    <p style="font-size: 0.75rem; color: ${subTextColor}; margin: 0; line-height: 1.4;">
+                        Fee changes will apply from today onwards. Past inspections will use historical rates.
+                    </p>
+                </div>
+            `;
+
+            html += fees.map(fee => {
+                const effectiveDateText = fee.effective_date
+                    ? `Current since: ${new Date(fee.effective_date).toLocaleDateString()}`
+                    : 'No history';
+
+                const historyBadge = fee.has_history
+                    ? `<span style="font-size: 0.7rem; color: #6b7280; margin-left: 0.5rem;" title="This fee has ${fee.history_count} historical version(s)">📊 ${fee.history_count} versions</span>`
+                    : '';
+
+                return `
+                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb; background: var(--card-bg); transition: background 0.15s ease;" onmouseenter="this.style.background='rgba(0, 115, 135, 0.04)'" onmouseleave="this.style.background='var(--card-bg)'">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.8125rem; color: var(--text); margin-bottom: 0.25rem;">${fee.fee_name}</div>
+                            <div style="font-size: 0.7rem; color: #6b7280; display: flex; align-items: center;">
+                                ${effectiveDateText}${historyBadge}
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.375rem;">
+                            <span style="font-weight: 600; font-size: 0.8125rem; color: var(--text);">R</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value="${fee.rate}"
+                                data-fee-id="${fee.id}"
+                                data-original-rate="${fee.rate}"
+                                class="fee-rate-input"
+                                style="width: 100px; padding: 0.375rem 0.5rem; font-size: 0.8125rem; border: 1px solid #d1d5db; border-radius: 5px; background: var(--card-bg); color: var(--text); transition: all 0.2s ease;"
+                                onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 0 2px rgba(0, 120, 144, 0.1)';"
+                                onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none';"
+                            />
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            feesList.innerHTML = html;
+        }
+
+        function saveAllFees() {
+            const feeInputs = document.querySelectorAll('.fee-rate-input');
+            const effectiveDateInput = document.getElementById('effective-date-input');
+            const effectiveDate = effectiveDateInput ? effectiveDateInput.value : null;
+            const updatedFees = [];
+
+            feeInputs.forEach(input => {
+                const feeId = input.getAttribute('data-fee-id');
+                const newRate = parseFloat(input.value);
+                const originalRate = parseFloat(input.getAttribute('data-original-rate'));
+
+                if (feeId && !isNaN(newRate) && newRate !== originalRate) {
+                    updatedFees.push({
+                        id: parseInt(feeId),
+                        rate: newRate
+                    });
+                }
+            });
+
+            if (updatedFees.length === 0) {
+                alert('No fees have been modified. Make changes to fees before saving.');
+                return;
+            }
+
+            if (!effectiveDate) {
+                alert('Please select an effective date for the fee changes.');
+                return;
+            }
+
+            const confirmMessage = `You are about to update ${updatedFees.length} fee(s) with an effective date of ${effectiveDate}.\n\nThis will create new fee history records. Continue?`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            fetch('/api/fees/update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    fees: updatedFees,
+                    effective_date: effectiveDate
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let message = `Successfully updated ${data.updated_count} fees!`;
+                        if (data.effective_date) {
+                            message += `\nEffective date: ${data.effective_date}`;
+                        }
+                        if (data.warnings && data.warnings.length > 0) {
+                            message += '\n\nWarnings:\n' + data.warnings.join('\n');
+                        }
+                        alert(message);
+                        loadFees();
+
+                        // Refresh fee history if the modal is open
+                        const historyModal = document.getElementById('feeHistoryModal');
+                        if (historyModal && historyModal.classList.contains('show')) {
+                            loadFeeHistory();
+                        }
+                    } else {
+                        alert('Error updating fees: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving fees:', error);
+                    alert('Failed to save fees. Please try again.');
+                });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Fee History Modal Functions
+        function showFeeHistory() {
+            const modal = document.getElementById('feeHistoryModal');
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                loadFeeHistory();
+            }
+        }
+
+        function closeFeeHistoryModal() {
+            const modal = document.getElementById('feeHistoryModal');
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function loadFeeHistory() {
+            const historyList = document.getElementById('fee-history-list');
+            if (!historyList) return;
+
+            historyList.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text); font-size: 0.875rem;">Loading fee history...</p>';
+
+            fetch('/api/fees/history/')
+                .then(response => response.json())
+                .then(data => {
+                    displayFeeHistory(data.history);
+                })
+                .catch(error => {
+                    console.error('Error loading fee history:', error);
+                    historyList.innerHTML = '<p style="text-align: center; padding: 2rem; color: #ef4444; font-size: 0.875rem;">Failed to load fee history. Please try again.</p>';
+                });
+        }
+
+        function displayFeeHistory(history) {
+            const historyList = document.getElementById('fee-history-list');
+            if (!historyList) return;
+
+            if (!history || history.length === 0) {
+                const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                const textColor = isDarkMode ? '#9ca3af' : '#6b7280';
+                const bgColor = isDarkMode ? '#1f1f1f' : '#f9fafb';
+
+                historyList.innerHTML = `
+                    <div style="text-align: center; padding: 3rem 2rem; background: ${bgColor};">
+                        <i class="fas fa-history" style="font-size: 3rem; color: ${textColor}; opacity: 0.3; margin-bottom: 1rem;"></i>
+                        <p style="color: ${textColor}; font-size: 0.9375rem; font-weight: 500; margin: 0;">No Fee Change History</p>
+                        <p style="color: ${textColor}; font-size: 0.8125rem; margin: 0.5rem 0 0 0; opacity: 0.8;">Fee changes will appear here once you update any inspection fees.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+            const headerBg = isDarkMode ? '#2a2a2a' : '#f9fafb';
+            const headerBorder = isDarkMode ? '#404040' : '#e5e7eb';
+            const textColor = isDarkMode ? '#e0e0e0' : '#374151';
+            const subTextColor = isDarkMode ? '#9ca3af' : '#6b7280';
+
+            // Group history by fee name
+            const groupedHistory = {};
+            history.forEach(record => {
+                if (!groupedHistory[record.fee_name]) {
+                    groupedHistory[record.fee_name] = [];
+                }
+                groupedHistory[record.fee_name].push(record);
+            });
+
+            let html = `
+                <div style="padding: 1rem 1.25rem; background: ${headerBg}; border-bottom: 1px solid ${headerBorder};">
+                    <p style="font-size: 0.8125rem; color: ${textColor}; margin: 0;">
+                        Complete history of all fee changes, showing what changed and when.
+                    </p>
+                </div>
+            `;
+
+            // Display each fee's history as one block
+            Object.entries(groupedHistory).forEach(([feeName, records]) => {
+                html += `
+                    <div style="padding: 1rem 1.25rem; border-bottom: 2px solid ${headerBorder}; background: var(--card-bg);">
+                        <div style="font-weight: 600; font-size: 0.9375rem; color: ${textColor}; margin-bottom: 0.75rem;">
+                            ${feeName}
+                        </div>
+                `;
+
+                // Display all changes for this fee
+                records.forEach((record, index) => {
+                    const isInitialRate = record.previous_rate === null;
+
+                    // For initial rates, show "Beginning" instead of date
+                    const dateDisplay = isInitialRate
+                        ? 'Beginning'
+                        : new Date(record.effective_date + 'T12:00:00').toLocaleDateString('en-ZA', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+
+                    const time = new Date(record.created_at).toLocaleTimeString('en-ZA', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    const changeType = isInitialRate ? 'Initial Rate' : 'Rate Change';
+                    const changeColor = isInitialRate ? '#10b981' : '#f59e0b';
+
+                    let changeText = '';
+                    if (!isInitialRate) {
+                        const diff = record.rate - record.previous_rate;
+                        const diffText = diff > 0 ? `+R${diff.toFixed(2)}` : `R${diff.toFixed(2)}`;
+                        const diffColor = diff > 0 ? '#ef4444' : '#10b981';
+                        changeText = `<span style="color: ${diffColor}; font-weight: 600;">${diffText}</span> (R${record.previous_rate.toFixed(2)} → R${record.rate.toFixed(2)})`;
+                    } else {
+                        changeText = `<span style="font-weight: 600;">R${record.rate.toFixed(2)}</span>`;
+                    }
+
+                    const borderTop = index > 0 ? `border-top: 1px solid ${headerBorder}; padding-top: 0.75rem; margin-top: 0.75rem;` : '';
+
+                    html += `
+                        <div style="${borderTop}">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.8125rem; color: ${textColor}; margin-bottom: 0.25rem;">
+                                        <strong>${isInitialRate ? '' : 'Effective: '}${dateDisplay}</strong>
+                                    </div>
+                                    <div style="font-size: 0.8125rem; color: ${textColor};">
+                                        ${changeText}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="display: inline-block; padding: 0.25rem 0.625rem; background: ${changeColor}; color: white; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-bottom: 0.25rem;">
+                                        ${changeType}
+                                    </span>
+                                    ${!isInitialRate ? `<div style="font-size: 0.7rem; color: ${subTextColor};">${time}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            historyList.innerHTML = html;
+        }
+    </script>
+
+    <!-- Manage Fees Modal -->
+    <div id="manageFeesModal" class="modal-backdrop">
+        <div class="client-modal">
+            <div class="modal-body-new">
+                <div id="fees-list">
+                    <!-- Fees will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer-new">
+                <button type="button" onclick="closeManageFeesModal()" class="btn-cancel-new">
+                    Close
+                </button>
+                <button type="button" onclick="showFeeHistory()" class="btn btn-warning" style="margin-right: auto;">
+                    <i class="fas fa-history"></i> View Changes
+                </button>
+                <button type="button" onclick="saveAllFees()" class="btn-submit-new">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee History Modal -->
+    <div id="feeHistoryModal" class="modal-backdrop">
+        <div class="client-modal">
+            <div class="modal-body-new">
+                <div id="fee-history-list">
+                    <!-- Fee history will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer-new">
+                <button type="button" onclick="closeFeeHistoryModal()" class="btn-cancel-new">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+        </div> <!-- Close main-content -->
+    </div> <!-- Close flex container -->
+</body>
+</html>

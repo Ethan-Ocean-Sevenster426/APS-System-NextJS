@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Excel Header Export - Version 2 (Table Method)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .info {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .method {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border-left: 4px solid #2196F3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Header Export Test - Version 2</h1>
+
+    <div class="info">
+        <h3>This test uses Excel Table format for better header recognition</h3>
+        <p><strong>Test both methods below and see which one works better!</strong></p>
+    </div>
+
+    <div class="method">
+        <h3>Method 1: Original (AutoFilter only)</h3>
+        <p>Uses the current approach with just autofilter</p>
+        <button onclick="exportMethod1()">Export Method 1</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 2: Excel Table (Recommended)</h3>
+        <p>Uses Excel's Table structure which always recognizes headers</p>
+        <button onclick="exportMethod2()">Export Method 2</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 3: JSON approach</h3>
+        <p>Uses json_to_sheet with header specification</p>
+        <button onclick="exportMethod3()">Export Method 3</button>
+    </div>
+
+    <div class="info">
+        <h3>How to test:</h3>
+        <ol>
+            <li>Click each export button above</li>
+            <li>Open each downloaded Excel file</li>
+            <li>Go to <strong>Data → Sort</strong> in Excel</li>
+            <li>Check which method shows actual column names instead of "Column A, B, C"</li>
+        </ol>
+    </div>
+
+    <h3>Sample Data Preview:</h3>
+    <table id="previewTable">
+        <thead>
+            <tr>
+                <th>ContactName</th>
+                <th>EmailAddress</th>
+                <th>InvoiceNumber</th>
+                <th>InvoiceDate</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>UnitAmount</th>
+                <th>AccountCode</th>
+                <th>TaxType</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Test Client 1</td>
+                <td>test1@example.com</td>
+                <td>INV-001</td>
+                <td>2025-01-15</td>
+                <td>PMP 120 - Inspector Travel</td>
+                <td>1</td>
+                <td>150.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+            <tr>
+                <td>Test Client 1</td>
+                <td>test1@example.com</td>
+                <td>INV-001</td>
+                <td>2025-01-15</td>
+                <td>PMP 062 - Fat Test</td>
+                <td>1</td>
+                <td>450.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+            <tr>
+                <td>Test Client 2</td>
+                <td>test2@example.com</td>
+                <td>INV-002</td>
+                <td>2025-01-15</td>
+                <td>RAW 052 - Fat Test</td>
+                <td>1</td>
+                <td>450.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        function getSampleData() {
+            // Array of arrays format
+            return [
+                // Header row
+                [
+                    '*ContactName',
+                    'EmailAddress',
+                    'POAddressLine1',
+                    'POAddressLine2',
+                    'POAddressLine3',
+                    'POAddressLine4',
+                    'POCity',
+                    'PORegion',
+                    'POPostalCode',
+                    'POCountry',
+                    '*InvoiceNumber',
+                    'Reference',
+                    '*InvoiceDate',
+                    '*DueDate',
+                    'Total',
+                    'InventoryItemCode',
+                    '*Description',
+                    '*Quantity',
+                    '*UnitAmount',
+                    'Discount',
+                    '*AccountCode',
+                    '*TaxType',
+                    'Tax Amount',
+                    'TrackingName1',
+                    'TrackingOption1',
+                    'TrackingName2',
+                    'TrackingOption2',
+                    'Currency',
+                    'BrandingTheme'
+                ],
+                // Data rows
+                [
+                    'Test Client 1', 'test1@example.com', '', '', '', '',
+                    'Johannesburg', 'Gauteng', '2000', 'South Africa',
+                    'INV-001', 'REF-001', '2025-01-15', '2025-02-14', '',
+                    '', 'PMP 120 - Inspector Travel (Johannesburg)', '1', '150.00', '',
+                    '200', 'Tax Exempt (0%)', '', '', '', '', '', 'ZAR', ''
+                ],
+                [
+                    'Test Client 1', 'test1@example.com', '', '', '', '',
+                    'Johannesburg', 'Gauteng', '2000', 'South Africa',
+                    'INV-001', 'REF-001', '2025-01-15', '2025-02-14', '',
+                    '', 'PMP 062 - Fat Test (Lancet Labs)', '1', '450.00', '',
+                    '200', 'Tax Exempt (0%)', '', '', '', '', '', 'ZAR', ''
+                ],
+                [
+                    'Test Client 2', 'test2@example.com', '', '', '', '',
+                    'Pretoria', 'Gauteng', '0001', 'South Africa',
+                    'INV-002', 'REF-002', '2025-01-15', '2025-02-14', '',
+                    '', 'RAW 052 - Fat Test (Lancet Labs)', '1', '450.00', '',
+                    '200', 'Tax Exempt (0%)', '', '', '', '', '', 'ZAR', ''
+                ]
+            ];
+        }
+
+        function getColumnWidths() {
+            return [
+                { wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
+                { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+                { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+                { wch: 15 }, { wch: 50 }, { wch: 10 }, { wch: 12 }, { wch: 10 },
+                { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+                { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 }
+            ];
+        }
+
+        // METHOD 1: Original approach with just autofilter
+        function exportMethod1() {
+            console.log('Method 1: AutoFilter only');
+
+            const exportData = getSampleData();
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+            ws['!cols'] = getColumnWidths();
+            ws['!autofilter'] = { ref: ws['!ref'] };
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Invoice Data');
+
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Method1_AutoFilter_${dateStr}.xlsx`);
+
+            console.log('Method 1 exported');
+            alert('Method 1 exported! Check Data → Sort dialog.');
+        }
+
+        // METHOD 2: Use Excel Table structure
+        function exportMethod2() {
+            console.log('Method 2: Excel Table');
+
+            const exportData = getSampleData();
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+            ws['!cols'] = getColumnWidths();
+
+            // Create Excel Table (this is the key!)
+            // Excel tables ALWAYS recognize the first row as headers
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            const tableRef = XLSX.utils.encode_range(range);
+
+            // Add table definition
+            if (!ws['!tables']) ws['!tables'] = [];
+            ws['!tables'].push({
+                ref: tableRef,
+                name: 'InvoiceTable',
+                headerRow: true,
+                totalsRow: false,
+                style: {
+                    theme: 'TableStyleMedium2',
+                    showRowStripes: true
+                }
+            });
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Invoice Data');
+
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Method2_Table_${dateStr}.xlsx`);
+
+            console.log('Method 2 exported with table');
+            alert('Method 2 exported! Check Data → Sort dialog.');
+        }
+
+        // METHOD 3: JSON approach with explicit headers
+        function exportMethod3() {
+            console.log('Method 3: JSON with headers');
+
+            const data = getSampleData();
+            const headers = data[0];
+            const rows = data.slice(1);
+
+            // Convert to array of objects
+            const jsonData = rows.map(row => {
+                const obj = {};
+                headers.forEach((header, i) => {
+                    obj[header] = row[i];
+                });
+                return obj;
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(jsonData, { header: headers });
+
+            ws['!cols'] = getColumnWidths();
+            ws['!autofilter'] = { ref: ws['!ref'] };
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Invoice Data');
+
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Method3_JSON_${dateStr}.xlsx`);
+
+            console.log('Method 3 exported');
+            alert('Method 3 exported! Check Data → Sort dialog.');
+        }
+    </script>
+</body>
+</html>

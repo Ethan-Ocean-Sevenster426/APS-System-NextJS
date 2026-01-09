@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(powershell -Command \"cd ''c:\\\\Users\\\\Ethan\\\\Documents\\\\Inspection-System-master''; python -c \"\"import sqlite3; conn = sqlite3.connect\\(r''db_wizard.sqlite3''\\); c = conn.cursor\\(\\); c.execute\\(''PRAGMA table_info\\(auth_user\\)''\\); print\\([col[1] for col in c.fetchall\\(\\)]\\)\"\"\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

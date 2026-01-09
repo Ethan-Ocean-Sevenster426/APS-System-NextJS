@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Allocation Sheet - Food Safety Agency</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        background: '#f9fafb',
+                        'card-bg': '#ffffff',
+                        text: '#1f2937',
+                        'text-light': '#6b7280',
+                        border: '#e5e7eb',
+                    }
+                }
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+
+            if (sidebar && overlay && mobileBtn) {
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+
+                const icon = mobileBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times';
+                } else {
+                    icon.className = 'fas fa-bars';
+                }
+            }
+        }
+
+        // Arrow key navigation for spreadsheet
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.querySelector('table');
+            if (!table) return;
+
+            table.addEventListener('keydown', function(e) {
+                const element = e.target;
+                if (element.tagName !== 'INPUT' && element.tagName !== 'SELECT') return;
+
+                const cell = element.parentElement;
+                const row = cell.parentElement;
+                const cells = Array.from(row.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                const currentIndex = cells.indexOf(cell);
+
+                function focusCell(targetCell) {
+                    const input = targetCell.querySelector('input');
+                    const select = targetCell.querySelector('select');
+                    if (input) input.focus();
+                    else if (select) select.focus();
+                }
+
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    // Move to next cell
+                    if (currentIndex < cells.length - 1) {
+                        focusCell(cells[currentIndex + 1]);
+                    } else {
+                        // Move to first cell of next row
+                        const nextRow = row.nextElementSibling;
+                        if (nextRow) {
+                            const nextCells = Array.from(nextRow.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                            if (nextCells.length > 0) {
+                                focusCell(nextCells[0]);
+                            }
+                        }
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    // Move to previous cell
+                    if (currentIndex > 0) {
+                        focusCell(cells[currentIndex - 1]);
+                    } else {
+                        // Move to last cell of previous row
+                        const prevRow = row.previousElementSibling;
+                        if (prevRow) {
+                            const prevCells = Array.from(prevRow.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                            if (prevCells.length > 0) {
+                                focusCell(prevCells[prevCells.length - 1]);
+                            }
+                        }
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    // Move to same cell in next row
+                    const nextRow = row.nextElementSibling;
+                    if (nextRow) {
+                        const nextCells = Array.from(nextRow.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                        if (nextCells[currentIndex]) {
+                            focusCell(nextCells[currentIndex]);
+                        }
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    // Move to same cell in previous row
+                    const prevRow = row.previousElementSibling;
+                    if (prevRow) {
+                        const prevCells = Array.from(prevRow.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                        if (prevCells[currentIndex]) {
+                            focusCell(prevCells[currentIndex]);
+                        }
+                    }
+                }
+            });
+
+            // Auto-add new row when typing in last row
+            table.addEventListener('input', function(e) {
+                const element = e.target;
+                if (element.tagName !== 'INPUT' && element.tagName !== 'SELECT') return;
+
+                const row = element.closest('tr');
+                const tbody = table.querySelector('tbody');
+                const lastRow = tbody.lastElementChild;
+
+                // If user is typing in the last row, add a new row
+                if (row === lastRow) {
+                    addNewRow();
+                }
+            });
+
+            // Also trigger on change for select elements
+            table.addEventListener('change', function(e) {
+                const element = e.target;
+                if (element.tagName !== 'SELECT') return;
+
+                const row = element.closest('tr');
+                const tbody = table.querySelector('tbody');
+                const lastRow = tbody.lastElementChild;
+
+                // If user changes dropdown in the last row, add a new row
+                if (row === lastRow) {
+                    addNewRow();
+                }
+            });
+
+            // Also trigger on focus for better UX
+            table.addEventListener('focus', function(e) {
+                const element = e.target;
+                if (element.tagName !== 'INPUT' && element.tagName !== 'SELECT') return;
+
+                const row = element.closest('tr');
+                const tbody = table.querySelector('tbody');
+                const lastRow = tbody.lastElementChild;
+
+                // If user focuses on the last row, add a new row
+                if (row === lastRow) {
+                    addNewRow();
+                }
+            }, true);
+
+            // Corporate Group code mapping
+            const corporateGroupCodes = {
+                'Not Applicable (None)': 'NA',
+                'Pick n Pay - Franchise': 'PNP-F',
+                'Pick n Pay - Corporate': 'PNP-C',
+                'Fruit & Veg': 'FNV',
+                'OK Foods': 'OK',
+                'Checkers': 'CHK',
+                'Spar': 'SPR',
+                'SuperSpar': 'SSPR',
+                'Spar - Northrand': 'SPR-N',
+                'Shoprite': 'SHO',
+                'Massmart': 'MAS',
+                'Chester Butcheries': 'CHE',
+                'Boxer': 'BOX',
+                'Food Lovers Market': 'FLM',
+                'Cambridge': 'CAM',
+                'Woolworths': 'WOO',
+                'Jwayelani': 'JWA',
+                'Usave': 'USA',
+                'Other (Unlisted Group)': 'OTH',
+                'OBC': 'OBC',
+                'Roots': 'ROO',
+                'Meat World': 'MEA',
+                'Quantum Foods Nulaid': 'QFN',
+                'Bluff Meat Supply': 'BMS',
+                'Eat Sum Meat': 'ESM',
+                'Waltloo Meat and Chicken': 'WMC',
+                'Choppies': 'CHO',
+                'Econo Foods': 'ECO',
+                'Makro': 'MAK',
+                'Boma Vleismark': 'BOM',
+                'Eskort': 'ESK',
+                'Nesta Foods': 'NES'
+            };
+
+            // Function to generate account code
+            function generateAccountCode(row) {
+                const clientId = row.querySelector('.client-id')?.value || '';
+                const facilityType = row.querySelector('.facility-type')?.value || '';
+                const groupType = row.querySelector('.group-type')?.value || '';
+                const commodity = row.querySelector('.commodity')?.value || '';
+                const corporateGroup = row.querySelector('.corporate-group')?.value || '';
+
+                // Part 1: First 2 characters of Facility Type in uppercase
+                const part1 = facilityType ? facilityType.substring(0, 2).toUpperCase() : '-';
+
+                // Part 2: Group Type mapping
+                let part2 = 'IND';
+                if (groupType === 'Corporate Store') {
+                    part2 = 'COR';
+                } else if (groupType === 'Franchise Store') {
+                    part2 = 'FRN';
+                }
+
+                // Part 3: Commodity code
+                let part3 = 'OTH';
+                if (commodity === 'PMP' || commodity === 'RAW' || commodity === 'EGG' || commodity === 'PLT') {
+                    part3 = commodity;
+                }
+
+                // Part 4: Corporate Group code lookup
+                let part4 = corporateGroupCodes[corporateGroup] || '-';
+
+                // Part 5: Client ID padded to 4 digits
+                const part5 = clientId ? clientId.padStart(4, '0') : '0000';
+
+                // Combine all parts
+                return `${part1}-${part2}-${part3}-${part4}-${part5}`;
+            }
+
+            // Add event listeners to update account code when fields change
+            table.addEventListener('input', function(e) {
+                if (e.target.classList.contains('client-id')) {
+                    const row = e.target.closest('tr');
+                    const accountCodeField = row.querySelector('.account-code');
+                    if (accountCodeField) {
+                        accountCodeField.value = generateAccountCode(row);
+                    }
+                }
+            });
+
+            table.addEventListener('change', function(e) {
+                if (e.target.classList.contains('facility-type') ||
+                    e.target.classList.contains('group-type') ||
+                    e.target.classList.contains('commodity') ||
+                    e.target.classList.contains('corporate-group')) {
+                    const row = e.target.closest('tr');
+                    const accountCodeField = row.querySelector('.account-code');
+                    if (accountCodeField) {
+                        accountCodeField.value = generateAccountCode(row);
+                    }
+                }
+            });
+
+            function addNewRow() {
+                const tbody = table.querySelector('tbody');
+                const rows = tbody.querySelectorAll('tr');
+                const newRowNumber = rows.length + 1;
+
+                // Create new row
+                const newRow = document.createElement('tr');
+
+                // Add row number cell
+                const rowNumCell = document.createElement('td');
+                rowNumCell.className = 'row-number';
+                rowNumCell.textContent = newRowNumber;
+                newRow.appendChild(rowNumCell);
+
+                // Add 14 cells (some with dropdowns, some with inputs)
+                for (let i = 0; i < 14; i++) {
+                    const cell = document.createElement('td');
+
+                    // Column A (index 0): Client ID
+                    if (i === 0) {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'client-id';
+                        cell.appendChild(input);
+                    }
+                    // Column B (index 1): Facility Type dropdown
+                    else if (i === 1) {
+                        const select = document.createElement('select');
+                        select.className = 'facility-type';
+                        select.style.cssText = 'width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;';
+                        select.innerHTML = `
+                            <option value=""></option>
+                            <option value="Retailer">Retailer</option>
+                            <option value="Butchery">Butchery</option>
+                            <option value="Re-Packer">Re-Packer</option>
+                            <option value="Production Plant">Production Plant</option>
+                            <option value="Farm">Farm</option>
+                            <option value="Abattoir">Abattoir</option>
+                        `;
+                        cell.appendChild(select);
+                    }
+                    // Column C (index 2): Group Type dropdown
+                    else if (i === 2) {
+                        const select = document.createElement('select');
+                        select.className = 'group-type';
+                        select.style.cssText = 'width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;';
+                        select.innerHTML = `
+                            <option value=""></option>
+                            <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                            <option value="Corporate Store">Corporate Store</option>
+                            <option value="Franchise Store">Franchise Store</option>
+                        `;
+                        cell.appendChild(select);
+                    }
+                    // Column D (index 3): Commodity dropdown
+                    else if (i === 3) {
+                        const select = document.createElement('select');
+                        select.className = 'commodity';
+                        select.style.cssText = 'width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;';
+                        select.innerHTML = `
+                            <option value=""></option>
+                            <option value="EGG">EGG</option>
+                            <option value="PMP">PMP</option>
+                            <option value="RAW">RAW</option>
+                            <option value="PLT">PLT</option>
+                        `;
+                        cell.appendChild(select);
+                    }
+                    // Column E (index 4): Province dropdown
+                    else if (i === 4) {
+                        const select = document.createElement('select');
+                        select.className = 'province';
+                        select.style.cssText = 'width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;';
+                        select.innerHTML = `
+                            <option value=""></option>
+                            <option value="TBC">TBC</option>
+                            <option value="Gauteng">Gauteng</option>
+                            <option value="North West">North West</option>
+                            <option value="Eastern Cape">Eastern Cape</option>
+                            <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                            <option value="Limpopo">Limpopo</option>
+                            <option value="Mpumalanga">Mpumalanga</option>
+                            <option value="Northern Cape">Northern Cape</option>
+                            <option value="Western Cape">Western Cape</option>
+                            <option value="Free State">Free State</option>
+                            <option value="Unknown/Other">Unknown/Other</option>
+                            <option value="To be declared">To be declared</option>
+                        `;
+                        cell.appendChild(select);
+                    }
+                    // Column F (index 5): Corporate Group dropdown
+                    else if (i === 5) {
+                        const select = document.createElement('select');
+                        select.className = 'corporate-group';
+                        select.style.cssText = 'width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;';
+                        select.innerHTML = `
+                            <option value=""></option>
+                            <option value="Not Applicable (None)">Not Applicable (None)</option>
+                            <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
+                            <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
+                            <option value="Fruit & Veg">Fruit & Veg</option>
+                            <option value="OK Foods">OK Foods</option>
+                            <option value="Checkers">Checkers</option>
+                            <option value="Spar">Spar</option>
+                            <option value="SuperSpar">SuperSpar</option>
+                            <option value="Spar - Northrand">Spar - Northrand</option>
+                            <option value="Shoprite">Shoprite</option>
+                            <option value="Massmart">Massmart</option>
+                            <option value="Chester Butcheries">Chester Butcheries</option>
+                            <option value="Boxer">Boxer</option>
+                            <option value="Food Lovers Market">Food Lovers Market</option>
+                            <option value="Cambridge">Cambridge</option>
+                            <option value="Woolworths">Woolworths</option>
+                            <option value="Jwayelani">Jwayelani</option>
+                            <option value="Usave">Usave</option>
+                            <option value="Other (Unlisted Group)">Other (Unlisted Group)</option>
+                            <option value="OBC">OBC</option>
+                            <option value="Roots">Roots</option>
+                            <option value="Meat World">Meat World</option>
+                            <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
+                            <option value="Bluff Meat Supply">Bluff Meat Supply</option>
+                            <option value="Eat Sum Meat">Eat Sum Meat</option>
+                            <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
+                            <option value="Choppies">Choppies</option>
+                            <option value="Econo Foods">Econo Foods</option>
+                            <option value="Makro">Makro</option>
+                            <option value="Boma Vleismark">Boma Vleismark</option>
+                            <option value="Eskort">Eskort</option>
+                            <option value="Nesta Foods">Nesta Foods</option>
+                        `;
+                        cell.appendChild(select);
+                    }
+                    // Column H (index 7): Internal Account Code (readonly)
+                    else if (i === 7) {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'account-code';
+                        input.readOnly = true;
+                        input.style.backgroundColor = '#f3f4f6';
+                        cell.appendChild(input);
+                    }
+                    // All other columns: text input
+                    else {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        cell.appendChild(input);
+                    }
+
+                    newRow.appendChild(cell);
+                }
+
+                tbody.appendChild(newRow);
+
+                // Resize columns after adding new row
+                resizeColumns();
+            }
+
+            // Function to resize columns based on content
+            function resizeColumns() {
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0) return;
+
+                // Get the number of columns (excluding row number column)
+                const firstRow = rows[0];
+                const cells = Array.from(firstRow.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                const numColumns = cells.length;
+
+                // For each column, find the maximum content width
+                for (let colIndex = 0; colIndex < numColumns; colIndex++) {
+                    let maxWidth = 0;
+
+                    // Check all rows for this column
+                    rows.forEach(row => {
+                        const rowCells = Array.from(row.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                        const cell = rowCells[colIndex];
+
+                        if (cell) {
+                            const input = cell.querySelector('input');
+                            const select = cell.querySelector('select');
+
+                            let contentWidth = 0;
+                            if (input) {
+                                // Create a temporary span to measure text width
+                                const span = document.createElement('span');
+                                span.style.visibility = 'hidden';
+                                span.style.position = 'absolute';
+                                span.style.fontSize = '0.7rem';
+                                span.style.padding = '0.25rem 0.4rem';
+                                span.textContent = input.value || input.placeholder || '';
+                                document.body.appendChild(span);
+                                contentWidth = span.offsetWidth;
+                                document.body.removeChild(span);
+                            } else if (select) {
+                                // For select elements, measure the selected option text
+                                const selectedText = select.options[select.selectedIndex]?.text || '';
+                                const span = document.createElement('span');
+                                span.style.visibility = 'hidden';
+                                span.style.position = 'absolute';
+                                span.style.fontSize = '0.7rem';
+                                span.style.padding = '0.25rem 0.4rem';
+                                span.textContent = selectedText;
+                                document.body.appendChild(span);
+                                contentWidth = span.offsetWidth;
+                                document.body.removeChild(span);
+                            }
+
+                            // Add extra space for padding and borders
+                            contentWidth += 20;
+
+                            if (contentWidth > maxWidth) {
+                                maxWidth = contentWidth;
+                            }
+                        }
+                    });
+
+                    // Set minimum width of 80px, maximum width based on content
+                    maxWidth = Math.max(80, Math.min(maxWidth, 400));
+
+                    // Apply the width to all cells in this column
+                    rows.forEach(row => {
+                        const rowCells = Array.from(row.children).filter(c => c.tagName === 'TD' && !c.classList.contains('row-number'));
+                        const cell = rowCells[colIndex];
+                        if (cell) {
+                            cell.style.minWidth = maxWidth + 'px';
+                            cell.style.maxWidth = maxWidth + 'px';
+                        }
+                    });
+
+                    // Also apply to header
+                    const headerCells = table.querySelectorAll('thead th');
+                    if (headerCells[colIndex + 1]) { // +1 to skip row number header
+                        headerCells[colIndex + 1].style.minWidth = maxWidth + 'px';
+                        headerCells[colIndex + 1].style.maxWidth = maxWidth + 'px';
+                    }
+                }
+            }
+
+            // Resize columns on input
+            table.addEventListener('input', function(e) {
+                resizeColumns();
+            });
+
+            // Resize columns on change (for dropdowns)
+            table.addEventListener('change', function(e) {
+                resizeColumns();
+            });
+
+            // Initial resize
+            resizeColumns();
+        });
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --sidebar-bg: #0f172a;
+            --sidebar-text: #f1f5f9;
+        }
+
+        body {
+            background: url("{% static 'img/food_safety_background.png' %}") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100vh;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .sidebar-header img {
+            max-height: 60px;
+            margin: 0 auto;
+        }
+
+        .company-name {
+            color: var(--sidebar-text);
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0.5rem;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin: 0.25rem 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-link i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .logout-section {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #c72a32;
+        }
+
+        .logout-btn i {
+            margin-right: 0.5rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 2rem;
+            width: calc(100% - 250px);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .logo img {
+            max-height: 80px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .header h2 {
+            font-size: 1.25rem;
+            color: var(--text-light);
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        /* Table Container */
+        .table-container {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        table {
+            width: 100%;
+            min-width: 1400px;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f9fafb;
+        }
+
+        th {
+            padding: 0.25rem 0.5rem;
+            text-align: center;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1f2937;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            white-space: nowrap;
+        }
+
+        th.row-number {
+            background: #f3f4f6;
+            color: #6b7280;
+            font-weight: 600;
+            min-width: 40px;
+            width: 40px;
+        }
+
+        tbody tr {
+            border: none;
+        }
+
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        td {
+            padding: 0;
+            font-size: 0.75rem;
+            color: var(--text);
+            border: 1px solid #d1d5db;
+        }
+
+        td.row-number {
+            background: #f3f4f6;
+            color: #6b7280;
+            font-weight: 600;
+            text-align: center;
+            padding: 0.25rem;
+            min-width: 40px;
+            width: 40px;
+            font-size: 0.7rem;
+        }
+
+        td input, td select {
+            width: 100%;
+            border: none;
+            padding: 0.25rem 0.4rem;
+            font-size: 0.7rem;
+            background: transparent;
+        }
+
+        td input:focus, td select:focus {
+            outline: 2px solid #007890;
+            background: white;
+        }
+
+        /* Column sizing */
+        td {
+            white-space: nowrap;
+        }
+
+        /* Mobile Styles */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .sidebar-close-btn {
+            display: none;
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            #sidebar {
+                transform: translateX(-100%);
+            }
+
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .sidebar-close-btn {
+                display: block;
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                background: transparent;
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                cursor: pointer;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="page-container">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
+                <div class="company-name">Food Safety Agency (Pty) Ltd</div>
+                <button class="sidebar-close-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="{% url 'home' %}" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'client_list' %}" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Client Directory
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'shipment_list' %}" class="nav-link">
+                        <i class="fas fa-clipboard-check"></i>
+                        Inspection Records
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'client_allocation_sheet' %}" class="nav-link active">
+                        <i class="fas fa-table"></i>
+                        Client Allocation Sheet
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'user_management' %}" class="nav-link">
+                        <i class="fas fa-users-cog"></i>
+                        User Management
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'system_logs' %}" class="nav-link">
+                        <i class="fas fa-clipboard-list"></i>
+                        System Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'settings' %}" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </a>
+                </li>
+            </ul>
+
+            <div class="logout-section">
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="logo">
+                <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
+            </div>
+
+            <div class="header">
+                <h1>Food Safety Agency (Pty) Ltd</h1>
+                <h2>Client Allocation Sheet</h2>
+            </div>
+
+            <div class="action-bar">
+                <a href="{% url 'home' %}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <button type="button" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button type="button" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="row-number"></th>
+                            <th>A</th>
+                            <th>B</th>
+                            <th>C</th>
+                            <th>D</th>
+                            <th>E</th>
+                            <th>F</th>
+                            <th>G</th>
+                            <th>H</th>
+                            <th>I</th>
+                            <th>J</th>
+                            <th>K</th>
+                            <th>L</th>
+                            <th>M</th>
+                            <th>N</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row_num in rows %}
+                        <tr>
+                            <td class="row-number">{{ row_num }}</td>
+                            {% if row_num == 1 %}
+                                <td><input type="text" value="Client ID" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Facility Type" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Group Type" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Commodity" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Province" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Corporate Group" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Other" /></td>
+                                <td><input type="text" value="Internal Account Code" style="background-color: #FF9900;" /></td>
+                                <td><input type="text" value="Allocated" style="background-color: #FFFF00;" /></td>
+                                <td><input type="text" value="E-Click Name" style="background-color: red; color: white;" /></td>
+                                <td><input type="text" value="Representative Email Adress" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Phone Number" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Duplciates" style="background-color: #01EFFD;" /></td>
+                                <td><input type="text" value="Active/Deactive" style="background-color: #01EFFD;" /></td>
+                            {% else %}
+                                <td><input type="text" class="client-id" /></td>
+                                <td>
+                                    <select class="facility-type" style="width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;">
+                                        <option value=""></option>
+                                        <option value="Retailer">Retailer</option>
+                                        <option value="Butchery">Butchery</option>
+                                        <option value="Re-Packer">Re-Packer</option>
+                                        <option value="Production Plant">Production Plant</option>
+                                        <option value="Farm">Farm</option>
+                                        <option value="Abattoir">Abattoir</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="group-type" style="width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;">
+                                        <option value=""></option>
+                                        <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                                        <option value="Corporate Store">Corporate Store</option>
+                                        <option value="Franchise Store">Franchise Store</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="commodity" style="width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;">
+                                        <option value=""></option>
+                                        <option value="EGG">EGG</option>
+                                        <option value="PMP">PMP</option>
+                                        <option value="RAW">RAW</option>
+                                        <option value="PLT">PLT</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="province" style="width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;">
+                                        <option value=""></option>
+                                        <option value="TBC">TBC</option>
+                                        <option value="Gauteng">Gauteng</option>
+                                        <option value="North West">North West</option>
+                                        <option value="Eastern Cape">Eastern Cape</option>
+                                        <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                        <option value="Limpopo">Limpopo</option>
+                                        <option value="Mpumalanga">Mpumalanga</option>
+                                        <option value="Northern Cape">Northern Cape</option>
+                                        <option value="Western Cape">Western Cape</option>
+                                        <option value="Free State">Free State</option>
+                                        <option value="Unknown/Other">Unknown/Other</option>
+                                        <option value="To be declared">To be declared</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="corporate-group" style="width: 100%; border: none; padding: 0.25rem 0.4rem; font-size: 0.7rem; background: transparent;">
+                                        <option value=""></option>
+                                        <option value="Not Applicable (None)">Not Applicable (None)</option>
+                                        <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
+                                        <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
+                                        <option value="Fruit & Veg">Fruit & Veg</option>
+                                        <option value="OK Foods">OK Foods</option>
+                                        <option value="Checkers">Checkers</option>
+                                        <option value="Spar">Spar</option>
+                                        <option value="SuperSpar">SuperSpar</option>
+                                        <option value="Spar - Northrand">Spar - Northrand</option>
+                                        <option value="Shoprite">Shoprite</option>
+                                        <option value="Massmart">Massmart</option>
+                                        <option value="Chester Butcheries">Chester Butcheries</option>
+                                        <option value="Boxer">Boxer</option>
+                                        <option value="Food Lovers Market">Food Lovers Market</option>
+                                        <option value="Cambridge">Cambridge</option>
+                                        <option value="Woolworths">Woolworths</option>
+                                        <option value="Jwayelani">Jwayelani</option>
+                                        <option value="Usave">Usave</option>
+                                        <option value="Other (Unlisted Group)">Other (Unlisted Group)</option>
+                                        <option value="OBC">OBC</option>
+                                        <option value="Roots">Roots</option>
+                                        <option value="Meat World">Meat World</option>
+                                        <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
+                                        <option value="Bluff Meat Supply">Bluff Meat Supply</option>
+                                        <option value="Eat Sum Meat">Eat Sum Meat</option>
+                                        <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
+                                        <option value="Choppies">Choppies</option>
+                                        <option value="Econo Foods">Econo Foods</option>
+                                        <option value="Makro">Makro</option>
+                                        <option value="Boma Vleismark">Boma Vleismark</option>
+                                        <option value="Eskort">Eskort</option>
+                                        <option value="Nesta Foods">Nesta Foods</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" class="account-code" readonly style="background-color: #f3f4f6;" /></td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" /></td>
+                                <td><input type="text" /></td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

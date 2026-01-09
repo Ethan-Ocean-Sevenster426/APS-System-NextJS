@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>System Logs - Food Safety Agency</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect hints for faster CDN connections -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Async Font Awesome loading -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --light-black: #333333;
+            --import-color: #446f1e;
+            --grey: #777777;
+            --analytics: #7c3aed;
+        }
+        
+        /* Dark mode variables */
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --primary-light: #1a3a40;
+            --light-black: #ffffff;
+            --grey: #b0b0b0;
+        }
+        
+        /* Dark mode specific overrides */
+        [data-theme="dark"] .table-responsive {
+            border: 1px solid #374151;
+        }
+
+        [data-theme="dark"] table {
+            background-color: #1f2937;
+        }
+
+        [data-theme="dark"] th {
+            background-color: #111827;
+            color: #f9fafb;
+            border-bottom: 1px solid #374151;
+        }
+
+        [data-theme="dark"] tr:nth-child(even) {
+            background-color: #1a1f2e;
+        }
+
+        [data-theme="dark"] tr:nth-child(odd) {
+            background-color: #1f2937;
+        }
+
+        [data-theme="dark"] tr:hover {
+            background-color: rgba(77, 184, 209, 0.1);
+        }
+
+        [data-theme="dark"] td {
+            border-bottom: 1px solid #2d3748;
+            color: #e5e7eb;
+        }
+        
+        [data-theme="dark"] .empty-message {
+            background-color: #3a3a3a;
+            color: #b0b0b0;
+        }
+        
+        [data-theme="dark"] .form-control {
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border-color: #404040;
+        }
+        
+        [data-theme="dark"] .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
+        }
+        
+        [data-theme="dark"] .card-title {
+            color: #ffffff;
+        }
+        
+        [data-theme="dark"] .table-info {
+            color: #b0b0b0;
+        }
+        
+        [data-theme="dark"] .page-info {
+            color: #b0b0b0;
+        }
+        
+        [data-theme="dark"] .message.success {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border-left: 3px solid #10b981;
+        }
+        
+        [data-theme="dark"] .message.error {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-left: 3px solid #ef4444;
+        }
+        
+        [data-theme="dark"] .message.warning {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border-left: 3px solid #f59e0b;
+        }
+        
+        [data-theme="dark"] .message.info {
+            background-color: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        
+        [data-theme="dark"] .card {
+            border: 1px solid #404040;
+        }
+        
+        [data-theme="dark"] .card-header {
+            border-bottom: 1px solid #404040;
+        }
+        
+        /* Dark mode sidebar styles */
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        [data-theme="dark"] .sidebar-header {
+            border-bottom: 1px solid #404040;
+        }
+        
+        [data-theme="dark"] .company-name {
+            color: #ffffff;
+        }
+        
+        [data-theme="dark"] .nav-link {
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        [data-theme="dark"] .nav-link:active {
+            background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        [data-theme="dark"] .nav-link.active {
+            background-color: rgba(77, 184, 209, 0.2);
+            border-color: rgba(77, 184, 209, 0.4);
+            color: #6ec9dd;
+        }
+        
+        [data-theme="dark"] .logout-section {
+            border-top: 1px solid #404040;
+        }
+        
+        [data-theme="dark"] .mobile-menu-btn {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        [data-theme="dark"] .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background: var(--background);  /* Fallback color */
+            color: var(--text);
+            line-height: 1.5;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Lazy load background image */
+        body.bg-loaded::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            z-index: -1;
+        }
+        
+        /* Page Container */
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 256px;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #334155;
+            text-align: center;
+        }
+        
+        .sidebar-header img {
+            max-height: 60px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .company-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .nav-item {
+            margin: 0;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #f1f5f9;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            margin: 0.25rem 0.5rem;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .nav-link:active {
+            background-color: rgba(255, 255, 255, 0.12);
+            transform: scale(0.98);
+        }
+
+        .nav-link.active {
+            background-color: rgba(77, 184, 209, 0.15);
+            border-color: rgba(77, 184, 209, 0.3);
+            color: #4db8d1;
+        }
+        
+        .nav-link i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .logout-section {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            border-top: 1px solid #334155;
+        }
+        
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+        
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .sidebar-overlay.show {
+            display: block;
+        }
+        
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 256px;
+            padding: var(--spacing);
+            transition: margin-left 0.3s ease;
+        }
+        
+        .container {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            position: relative;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .logo img {
+            max-height: 60px;
+            width: auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 0;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+        
+        .card-header {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .card-body {
+            padding: 0.625rem 0.75rem;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 0.35rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            width: 100%;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 4px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.6875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            white-space: nowrap;
+        }
+        
+        .btn i {
+            font-size: 0.875rem;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+            border-color: #004a57;
+        }
+
+        .btn-primary:active {
+            background: #004450;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: 1px solid #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            border-color: #374151;
+        }
+
+        .btn-secondary:active {
+            background: #374151;
+            transform: scale(0.98);
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #4db8d1;
+            color: #ffffff;
+            border-color: #4db8d1;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: #6ec9dd;
+            border-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .btn-primary:active {
+            background: #3da7bd;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: #4b5563;
+            color: #f3f4f6;
+            border-color: #4b5563;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background: #6b7280;
+            border-color: #6b7280;
+        }
+
+        [data-theme="dark"] .btn-secondary:active {
+            background: #374151;
+        }
+        
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #d42e35;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            width: 100%;
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding-top: 0.625rem;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .form-label {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+            display: block;
+        }
+        
+        .form-control {
+            padding: 0.4rem 0.55rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+            color: var(--text);
+            background-color: var(--card-bg);
+            width: 100%;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        
+        .messages {
+            margin-bottom: var(--spacing);
+            width: 100%;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            margin-bottom: var(--spacing);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .message.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+            border-left: 3px solid var(--secondary);
+        }
+        
+        .message.error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-left: 3px solid var(--danger);
+        }
+        
+        .message.warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border-left: 3px solid var(--warning);
+        }
+        
+        .message.info {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+            background: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            background: white;
+        }
+
+        th {
+            background-color: #fafafa;
+            color: #1f2937;
+            text-align: left;
+            padding: 10px 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.75rem;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        tr:hover {
+            background-color: rgba(0, 115, 135, 0.04);
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.75rem;
+            color: #374151;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px 20px;
+            background-color: var(--card-bg);
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .page-info {
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+        
+        .table-info {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+        
+        .action-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        .action-LOGIN { background-color: #059669; color: white; }
+        .action-LOGOUT { background-color: #dc2626; color: white; }
+        .action-CREATE { background-color: #1e40af; color: white; }
+        .action-UPDATE { background-color: #d97706; color: white; }
+        .action-DELETE { background-color: #dc2626; color: white; }
+        .action-VIEW { background-color: #3730a3; color: white; }
+        .action-NAVIGATE { background-color: #7c3aed; color: white; }
+        .action-SYNC { background-color: #059669; color: white; }
+        .action-SETTINGS { background-color: #d97706; color: white; }
+        .action-USER_MANAGEMENT { background-color: #d97706; color: white; }
+        .action-PASSWORD_RESET { background-color: #dc2626; color: white; }
+        .action-FILE_UPLOAD { background-color: #1e40af; color: white; }
+        .action-EXPORT { background-color: #059669; color: white; }
+        .action-IMPORT { background-color: #1e40af; color: white; }
+        .action-SEARCH { background-color: #3730a3; color: white; }
+        .action-FILTER { background-color: #7c3aed; color: white; }
+        .action-ERROR { background-color: #dc2626; color: white; }
+        .action-WARNING { background-color: #d97706; color: white; }
+        .action-INFO { background-color: #1e40af; color: white; }
+        
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+            
+            #sidebar {
+                transform: translateX(-100%);
+            }
+            
+            #sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            
+            .header {
+                padding-top: 4rem;
+            }
+            }
+            
+        /* Mobile responsive table styles */
+        @media (max-width: 768px) {
+            /* Prevent horizontal scrolling */
+            body {
+                overflow-x: hidden;
+            }
+            
+            .page-container {
+                overflow-x: hidden;
+            }
+            
+            .main-content {
+                overflow-x: hidden;
+                padding: 1rem;
+            }
+            
+            .container {
+                overflow-x: hidden;
+                max-width: 100%;
+            }
+            
+            .form-group {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .action-bar {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .action-bar .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .form-field {
+                margin-bottom: 8px;
+            }
+
+            .form-label {
+                font-size: 0.8rem;
+            }
+
+            .form-control {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+
+            .filter-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .filter-actions .btn {
+                width: 100%;
+            }
+            
+            .modal-content {
+                min-width: 300px;
+                margin: 16px;
+                max-width: calc(100% - 32px);
+                max-height: calc(100vh - 32px);
+                overflow-y: auto;
+            }
+            
+            .modal-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .modal-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Hide desktop table headers on mobile */
+            .table-responsive table thead {
+                display: none;
+            }
+            
+            /* Mobile card layout for table rows */
+            .table-responsive {
+                overflow-x: visible;
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .table-responsive table {
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .table-responsive table tbody tr {
+                display: block;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                margin-bottom: 12px;
+                padding: 0;
+                box-shadow: var(--shadow);
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .table-responsive table tbody tr.empty-row {
+                display: table-row;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+            }
+            
+            .table-responsive table tbody tr.empty-row td {
+                display: table-cell;
+                text-align: center;
+                padding: 40px 20px;
+            }
+            
+            /* Mobile row content */
+            .mobile-row-content {
+                padding: 16px;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .mobile-row-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .mobile-row-main {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .mobile-row-field {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 4px 0;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .mobile-row-label {
+                font-weight: 600;
+                color: var(--text-light);
+                font-size: 0.8rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                min-width: 80px;
+            }
+            
+            .mobile-row-value {
+                color: var(--text);
+                font-size: 0.875rem;
+                text-align: right;
+                flex: 1;
+                margin-left: 12px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                max-width: calc(100% - 100px);
+            }
+            
+            .mobile-row-value.action-badge {
+                text-align: right;
+                margin-left: 12px;
+                max-width: calc(100% - 100px);
+                flex: 1;
+                background-color: transparent !important;
+                color: var(--text) !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+                font-size: 0.875rem !important;
+                font-weight: normal !important;
+                text-transform: capitalize !important;
+                letter-spacing: normal !important;
+                text-shadow: none !important;
+            }
+            
+            /* Ensure action badge font size matches other mobile row values */
+            @media (max-width: 768px) {
+                .mobile-row-content .action-badge {
+                    font-size: 0.875rem !important;
+                    text-transform: capitalize !important;
+                }
+                
+                /* Additional override for action badges in mobile view */
+                .mobile-row-value.action-badge,
+                .mobile-row-content .action-badge,
+                .action-badge {
+                    text-transform: capitalize !important;
+                    font-size: 0.875rem !important;
+                    background-color: transparent !important;
+                    color: var(--text) !important;
+                    padding: 0 !important;
+                    border-radius: 0 !important;
+                    font-weight: normal !important;
+                    letter-spacing: normal !important;
+                    text-shadow: none !important;
+                }
+                
+                /* Target specific action classes on mobile */
+                .mobile-row-content .action-LOGIN,
+                .mobile-row-content .action-LOGOUT,
+                .mobile-row-content .action-CREATE,
+                .mobile-row-content .action-UPDATE,
+                .mobile-row-content .action-DELETE,
+                .mobile-row-content .action-VIEW,
+                .mobile-row-content .action-NAVIGATE,
+                .mobile-row-content .action-SYNC,
+                .mobile-row-content .action-SETTINGS,
+                .mobile-row-content .action-USER_MANAGEMENT,
+                .mobile-row-content .action-PASSWORD_RESET,
+                .mobile-row-content .action-FILE_UPLOAD,
+                .mobile-row-content .action-EXPORT,
+                .mobile-row-content .action-IMPORT,
+                .mobile-row-content .action-SEARCH,
+                .mobile-row-content .action-FILTER,
+                .mobile-row-content .action-ERROR,
+                .mobile-row-content .action-WARNING,
+                .mobile-row-content .action-INFO {
+                    text-transform: capitalize !important;
+                    font-size: 0.875rem !important;
+                    background-color: transparent !important;
+                    color: var(--text) !important;
+                    padding: 0 !important;
+                    border-radius: 0 !important;
+                    font-weight: normal !important;
+                    letter-spacing: normal !important;
+                    text-shadow: none !important;
+                }
+            }
+            
+            .mobile-row-expandable {
+                display: none;
+                padding-top: 12px;
+                border-top: 1px solid var(--border);
+                margin-top: 12px;
+            }
+            
+            .mobile-row-expandable.show {
+                display: block;
+            }
+            
+            .mobile-expand-btn {
+                background: none;
+                border: none;
+                color: var(--primary);
+                font-size: 1.2rem;
+                cursor: pointer;
+                padding: 4px;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-expand-btn:hover {
+                background-color: var(--primary-light);
+            }
+            
+            .mobile-expand-btn i {
+                transition: transform 0.2s ease;
+            }
+            
+            .mobile-expand-btn.expanded i {
+                transform: rotate(180deg);
+            }
+            
+            /* Hide desktop table cells on mobile */
+            .table-responsive table tbody tr td:not(.mobile-row-content) {
+                display: none;
+            }
+            
+        /* Show only the mobile content on mobile */
+        .table-responsive table tbody tr .mobile-row-content {
+            display: block;
+        }
+    }
+    
+    /* Desktop styles - hide mobile content */
+    @media (min-width: 769px) {
+        .mobile-row-content {
+            display: none !important;
+        }
+    }
+
+    /* Floating Notification Bell - Top Right */
+    .notification-bell-float {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #007890 0%, #005a6d 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 120, 144, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .notification-bell-float:hover {
+        background: linear-gradient(135deg, #005a6d 0%, #004050 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 120, 144, 0.4);
+    }
+
+    .notification-bell-float:active {
+        transform: translateY(0);
+    }
+
+    .notification-bell-float i {
+        color: white;
+        font-size: 16px;
+    }
+
+    .notification-bell-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #EC343C;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        border-radius: 10px;
+        min-width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Mobile responsiveness for notification bell */
+    @media (max-width: 768px) {
+        .notification-bell-float {
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+        }
+
+        .notification-bell-float i {
+            font-size: 15px;
+        }
+
+        .notification-bell-badge {
+            font-size: 9px;
+            min-width: 16px;
+            height: 16px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .notification-bell-float {
+            top: 10px;
+            right: 60px; /* Move left to avoid menu button */
+            width: 34px;
+            height: 34px;
+        }
+
+        .notification-bell-float i {
+            font-size: 14px;
+        }
+    }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+    {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+    <div id="notification-bell" class="notification-bell-float" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+    </div>
+    {% endif %}
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="container">
+            <div class="header">
+                    <h1>System Logs</h1>
+                <h2>Comprehensive system activity tracking and monitoring</h2>
+            </div>
+
+            <!-- Messages Section -->
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+         
+            <!-- Action bar removed - all actions available in sidebar -->
+            
+            <!-- Filter Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-filter"></i> Filter Logs
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="">
+                        <!-- First Row: Selection Fields -->
+                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-field" style="flex: 1;">
+                                <label class="form-label">User</label>
+                                <select class="form-control" name="user">
+                                    <option value="">All Users</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.username }}" {% if filters.user == user.username %}selected{% endif %}>{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-field" style="flex: 1;">
+                                <label class="form-label">Action</label>
+                                <select class="form-control" name="action">
+                                    <option value="">All Actions</option>
+                                    {% for action in actions %}
+                                    <option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-field" style="flex: 1;">
+                                <label class="form-label">Page</label>
+                                <select class="form-control" name="page">
+                                    <option value="">All Pages</option>
+                                    {% for page in pages %}
+                                    <option value="{{ page }}" {% if filters.page == page %}selected{% endif %}>{{ page }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Second Row: Date Range -->
+                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                            <div class="form-field" style="flex: 1;">
+                                <label class="form-label">Date From</label>
+                                <input type="date" class="form-control" name="date_from" value="{{ filters.date_from }}">
+                            </div>
+                            <div class="form-field" style="flex: 1;">
+                                <label class="form-label">Date To</label>
+                                <input type="date" class="form-control" name="date_to" value="{{ filters.date_to }}">
+                            </div>
+                            <div class="form-field" style="flex: 1; display: flex; align-items: end;">
+                                <!-- Empty space for alignment -->
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons Row -->
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                                <span>Apply Filters</span>
+                            </button>
+                            <a href="?" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                <span>Clear All</span>
+                            </a>
+                            {% if not filters.show_all %}
+                            <a href="?show_all=true" class="btn btn-secondary">
+                                <i class="fas fa-list"></i>
+                                <span>Show All ({{ total_logs }})</span>
+                            </a>
+                            {% else %}
+                            <a href="?" class="btn btn-secondary">
+                                <i class="fas fa-list"></i>
+                                <span>Show Paginated</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-list-alt"></i> System Activity Logs
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="col-timestamp">Timestamp</th>
+                                    <th class="col-user">User</th>
+                                    <th class="col-action">Action</th>
+                                    <th class="col-page">Page</th>
+                                    <th class="col-object">Object</th>
+                                    <th class="col-description">Description</th>
+                                    <th class="col-ip">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <!-- Desktop table cells -->
+                                    <td class="col-timestamp" data-label="Timestamp">
+                                        <span>{{ log.timestamp|date:"m/d/y H:i:s" }}</span>
+                                    </td>
+                                    <td class="col-user" data-label="User">
+                                        <span>{{ log.user.username }}</span>
+                                    </td>
+                                    <td class="col-action" data-label="Action">
+                                        <span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span>
+                                    </td>
+                                    <td class="col-page" data-label="Page">
+                                        <span>{{ log.page|default:"-" }}</span>
+                                    </td>
+                                    <td class="col-object" data-label="Object">
+                                        <span>
+                                        {% if log.object_type and log.object_id %}
+                                            {{ log.object_type }}: {{ log.object_id }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="col-description" data-label="Description">
+                                        <span>{{ log.description|default:"-" }}</span>
+                                    </td>
+                                    <td class="col-ip" data-label="IP Address">
+                                        <span>{{ log.ip_address|default:"-" }}</span>
+                                    </td>
+                                    
+                                    <!-- Mobile card content -->
+                                    <td class="mobile-row-content" style="display: none;">
+                                        <div class="mobile-row-header">
+                                            <div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">Time</span>
+                                                    <span class="mobile-row-value">{{ log.timestamp|date:"m/d/y H:i:s" }}</span>
+                                                </div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">User</span>
+                                                    <span class="mobile-row-value">{{ log.user.username }}</span>
+                                                </div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">Action</span>
+                                                    <span class="mobile-row-value action-badge action-{{ log.action }}">{{ log.action|title }}</span>
+                                                </div>
+                                            </div>
+                                            <button class="mobile-expand-btn" onclick="toggleMobileRow(this)">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="mobile-row-expandable">
+                                            <div class="mobile-row-field">
+                                                <span class="mobile-row-label">Page</span>
+                                                <span class="mobile-row-value">{{ log.page|default:"-" }}</span>
+                                            </div>
+                                            <div class="mobile-row-field">
+                                                <span class="mobile-row-label">Object</span>
+                                                <span class="mobile-row-value">
+                                                    {% if log.object_type and log.object_id %}
+                                                        {{ log.object_type }}: {{ log.object_id }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="mobile-row-field">
+                                                <span class="mobile-row-label">Description</span>
+                                                <span class="mobile-row-value">{{ log.description|default:"-" }}</span>
+                                            </div>
+                                            <div class="mobile-row-field">
+                                                <span class="mobile-row-label">IP Address</span>
+                                                <span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr class="empty-row">
+                                    <td colspan="7" class="empty-message" style="display: table-cell;">
+                                        <i class="fas fa-list-alt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                        <p>No system logs found.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if page_obj and not filters.show_all %}
+                    <div class="pagination">
+                        {% if page_obj.has_previous %}
+                            <a href="?page=1{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">First</a>
+                            <a href="?page={{ page_obj.previous_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Previous</a>
+                        {% endif %}
+                        
+                        <span class="page-info">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                        
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Next</a>
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Last</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+
+        // Theme management - compatible with settings page
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = '{{ settings.dark_mode|yesno:"dark,light" }}';
+            
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+            }
+            
+            document.documentElement.setAttribute('data-theme', activeTheme);
+        }
+
+        // Mobile Menu Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            
+                sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+                
+            const icon = mobileBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                icon.className = 'fas fa-times';
+                } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        // Lazy load background image
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Apply theme on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            initMobileResponsive();
+            
+            // Mobile menu functionality
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleSidebar);
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+            
+            // Close sidebar when clicking on nav links on mobile
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', handleResize);
+        });
+
+        // Listen for theme changes from settings page
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'theme') {
+                document.documentElement.setAttribute('data-theme', e.newValue || 'light');
+            }
+        });
+
+        // ================================================================
+        // NOTIFICATION SYSTEM
+        // ================================================================
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        let notificationModal = null;
+
+        // Fetch notifications and update badge
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateNotificationBadge(data.unread_count);
+                    return data.notifications;
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+            return [];
+        }
+
+        // Update notification badge
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        // Show notification modal
+        async function showNotificationModal() {
+            const notifications = await fetchNotifications();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="notification-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0, 0, 0, 0.5);">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-bell text-yellow-400 mr-2"></i>
+                                Notifications
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllAsRead()" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                    <i class="fas fa-check-double mr-1"></i>Mark All Read
+                                </button>
+                                <button onclick="closeNotificationModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-y-auto max-h-[60vh]" id="notification-list">
+                            ${notifications.length === 0 ? `
+                                <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-bell-slash text-4xl mb-2"></i>
+                                    <p>No notifications</p>
+                                </div>
+                            ` : notifications.map(notif => createNotificationHTML(notif)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existing = document.getElementById('notification-modal');
+            if (existing) existing.remove();
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Create HTML for a single notification
+        function createNotificationHTML(notif) {
+            const typeColors = {
+                'error': 'bg-red-100 border-red-500 text-red-900 dark:bg-red-900 dark:text-red-100',
+                'warning': 'bg-yellow-100 border-yellow-500 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100',
+                'info': 'bg-blue-100 border-blue-500 text-blue-900 dark:bg-blue-900 dark:text-blue-100',
+                'success': 'bg-green-100 border-green-500 text-green-900 dark:bg-green-900 dark:text-green-100',
+                'sync': 'bg-purple-100 border-purple-500 text-purple-900 dark:bg-purple-900 dark:text-purple-100',
+                'system': 'bg-gray-100 border-gray-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+            };
+
+            const typeIcons = {
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle',
+                'success': 'fa-check-circle',
+                'sync': 'fa-sync',
+                'system': 'fa-cog',
+            };
+
+            const bgColor = typeColors[notif.type] || typeColors['info'];
+            const icon = typeIcons[notif.type] || typeIcons['info'];
+            const timeAgo = getTimeAgo(notif.created_at);
+            const opacity = notif.is_read ? 'opacity-60' : '';
+
+            return `
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${opacity}" data-notification-id="${notif.id}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full ${bgColor} flex items-center justify-center">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">${notif.title}</h4>
+                                ${!notif.is_read ? '<span class="bg-blue-500 w-2 h-2 rounded-full"></span>' : ''}
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">${notif.message}</p>
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span><i class="far fa-clock mr-1"></i>${timeAgo}</span>
+                                <div class="flex gap-2">
+                                    ${!notif.is_read ? `<button onclick="markAsRead(${notif.id})" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                        <i class="fas fa-check mr-1"></i>Mark Read
+                                    </button>` : ''}
+                                    <button onclick="deleteNotification(${notif.id})" class="text-red-600 hover:text-red-800 dark:text-red-400">
+                                        <i class="fas fa-trash mr-1"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get time ago string
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' days ago';
+            return date.toLocaleDateString();
+        }
+
+        // Close notification modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all notifications as read
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/api/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    closeNotificationModal();
+                    updateNotificationBadge(0);
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            if (!confirm('Are you sure you want to delete this notification?')) return;
+
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Initialize notification system
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showNotificationModal();
+                });
+
+                // Fetch notifications every 30 seconds
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+        {% endif %}
+
+        // Mobile row toggle functionality
+        function toggleMobileRow(button) {
+            const row = button.closest('tr');
+            const expandable = row.querySelector('.mobile-row-expandable');
+            const icon = button.querySelector('i');
+            
+            if (expandable.classList.contains('show')) {
+                expandable.classList.remove('show');
+                button.classList.remove('expanded');
+            } else {
+                expandable.classList.add('show');
+                button.classList.add('expanded');
+            }
+        }
+
+        // Initialize mobile responsive behavior
+        function initMobileResponsive() {
+            const isMobile = window.innerWidth <= 768;
+            const tableRows = document.querySelectorAll('tbody tr:not(.empty-row)');
+            
+            tableRows.forEach(row => {
+                const desktopCells = row.querySelectorAll('td:not(.mobile-row-content)');
+                const mobileContent = row.querySelector('.mobile-row-content');
+                
+                if (isMobile) {
+                    // Hide desktop cells and show mobile content
+                    desktopCells.forEach(cell => cell.style.display = 'none');
+                    if (mobileContent) {
+                        mobileContent.style.display = 'block';
+                    }
+                } else {
+                    // Show desktop cells and hide mobile content
+                    desktopCells.forEach(cell => cell.style.display = '');
+                    if (mobileContent) {
+                        mobileContent.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Handle window resize for responsive behavior
+        function handleResize() {
+            initMobileResponsive();
+            
+            // Also handle sidebar resize logic
+            if (window.innerWidth > 1024) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+                const mobileBtn = document.getElementById('mobile-menu-btn');
+                
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+                
+                if (mobileBtn) {
+                    const icon = mobileBtn.querySelector('i');
+                    icon.className = 'fas fa-bars';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

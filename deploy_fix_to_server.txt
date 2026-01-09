@@ -1,0 +1,77 @@
+DEPLOYMENT INSTRUCTIONS FOR CLIENT NAME PARTIAL MATCHING FIX
+================================================================
+
+This fix addresses the issue where client names with "/" (like "t/a") create nested
+folder structures that the file finding logic couldn't locate.
+
+Example: "Marang Layers Farming Enterprises t/a Maranga Eggs" creates:
+  - Folder: "Marang Layers Farming Enterprises t/"
+  - Subfolder: "a Maranga Eggs/"
+  - But code was searching for: "marang_layers_farming_enterprises_t_a_maranga_eggs" (empty)
+
+DEPLOYMENT STEPS:
+================================================================
+
+1. Connect to server:
+   ssh root@167.172.184.198
+
+2. Backup the current file:
+   cd /root/Inspection-System
+   cp main/views/core_views.py main/views/core_views.py.backup.$(date +%Y%m%d_%H%M%S)
+
+3. Copy the updated file from local to server:
+   On your LOCAL machine (not server), run:
+   scp main/views/core_views.py root@167.172.184.198:/root/Inspection-System/main/views/core_views.py
+
+   (If SCP fails with "Host key verification failed", you may need to update your SSH known_hosts file)
+
+4. Restart the service on the server:
+   ssh root@167.172.184.198 "cd /root/Inspection-System && sudo systemctl restart inspection-system"
+
+5. Test the fix:
+   Open browser and search for: "Marang Layers Farming Enterprises t/a Maranga Eggs"
+   Date: 2025-10-01 or October 2025
+   Should now show 6 files in EGGS compliance folder
+
+WHAT WAS CHANGED:
+================================================================
+
+Function: get_inspection_files_local() (around line 8940)
+- Added logic to find ALL candidate folders (exact + partial matches)
+- Checks each candidate to see if it contains Inspection-XXX folders
+- Selects the folder that actually has files (not empty sanitized folders)
+
+Function: list_client_folder_files() (around line 2978)
+- Added same logic for partial matching
+- Searches for folders that START WITH the client name prefix
+- Handles nested "/" structures created by filesystem
+
+DEBUG LOGS TO WATCH FOR:
+================================================================
+When testing, check browser console for these new debug logs:
+- "[DEBUG get_inspection_files_local] Found exact match candidate: ..."
+- "[DEBUG get_inspection_files_local] Found partial match candidate: ..."
+- "[DEBUG get_inspection_files_local] Found Inspection folder: ..."
+- "[DEBUG get_inspection_files_local] Selected folder with Inspection folders: ..."
+
+If you see "No Inspection folders found", the fix didn't work as expected.
+
+ALTERNATIVE MANUAL DEPLOYMENT (if SCP doesn't work):
+================================================================
+
+1. SSH to server: ssh root@167.172.184.198
+
+2. Edit the file directly:
+   cd /root/Inspection-System
+   nano main/views/core_views.py
+
+3. Find line ~8940 that says:
+   "# Try original client name first (as stored in database with spaces)"
+
+4. Replace the entire section (lines 8940-8975) with the new code from:
+   c:\Users\Ethan\Desktop\Inspection-System-master\Inspection-System-master\main\views\core_views.py
+   (lines 8940-9017)
+
+5. Do the same for the list_client_folder_files() function around line 2970-3021
+
+6. Save and restart: sudo systemctl restart inspection-system

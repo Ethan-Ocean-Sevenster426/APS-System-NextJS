@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Analytics Dashboard - Food Safety Agency</title>
+
+    <!-- Favicon - Food Safety Agency Logo -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+    <!-- Async Font Awesome loading for better performance -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                        success: '#10b981',
+                        info: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --sidebar-bg: #1e293b;
+            --sidebar-text: #f1f5f9;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --light-black: #333333;
+            --import-color: #446f1e;
+            --grey: #777777;
+            --analytics: #7c3aed;
+        }
+
+        /* Dark mode variables */
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --sidebar-bg: #1a1a1a;
+            --sidebar-text: #ffffff;
+            --primary-light: #1a3a40;
+            --light-black: #ffffff;
+            --grey: #b0b0b0;
+        }
+        
+        /* Dark mode specific overrides for better text visibility */
+        [data-theme="dark"] .stat-card h3 {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] .stat-card p {
+            color: #b0b0b0 !important;
+        }
+        
+        [data-theme="dark"] .card-title {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] .chart-header h3 {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] .no-data h3 {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] .no-data p {
+            color: #b0b0b0 !important;
+        }
+
+        /* Sidebar theme styles */
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        #sidebar .border-slate-600 {
+            border-color: #334155 !important;
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+
+        #sidebar .text-sidebar-text {
+            color: var(--sidebar-text) !important;
+        }
+
+        /* Force sidebar to be dark in both themes */
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+
+        /* Ensure smooth sidebar transitions */
+        #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 99999 !important;
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+            border: none !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            width: 48px !important;
+            height: 48px !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* Sidebar positioning */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 9998;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Sidebar overlay */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9997;
+            display: none;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background: var(--background);  /* Fallback color while image loads */
+            color: var(--text);
+            line-height: 1.5;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Load background image after page loads for better performance */
+        body.bg-loaded {
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .container {
+            width: calc(100% - var(--spacing)*2);
+            margin-left: 16rem;
+            padding: 5px 0;
+            position: relative;
+            transition: margin-left 0.3s ease;
+        }
+
+        .header {
+            padding: 10px 5px 20px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+
+        [data-theme="dark"] .card {
+            background: var(--card-bg);
+            border-color: var(--border);
+        }
+        
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-body {
+            padding: 16px;
+        }
+        
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            border: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #005a6b;
+        }
+        
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--background);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--border);
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card h3 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 8px 0;
+        }
+
+        .stat-card p {
+            color: var(--text-light);
+            font-weight: 500;
+            font-size: 0.75rem;
+            margin: 0;
+        }
+
+        .stat-trend {
+            font-size: 1.25rem;
+            color: var(--primary);
+            opacity: 0.6;
+            margin-bottom: 4px;
+        }
+
+        .stat-trend i {
+            display: block;
+        }
+        
+        
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .chart-controls .form-control {
+            width: auto;
+            min-width: 120px;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            background-color: var(--primary-light);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .table td {
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(0, 120, 144, 0.05);
+        }
+
+        [data-theme="dark"] .table tbody tr:hover {
+            background-color: rgba(77, 184, 209, 0.1);
+        }
+
+        .table-responsive {
+            overflow-x: visible;
+            overflow-y: visible;
+        }
+        
+        .risk-high {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .risk-medium {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .risk-low {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        
+        .no-data {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px 20px;
+        }
+        
+        .no-data i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            color: var(--grey);
+        }
+        
+        .no-data h3 {
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .no-data p {
+            font-size: 0.875rem;
+        }
+        
+        
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+            color: var(--text);
+            background-color: var(--card-bg);
+            width: 100%;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        
+        .messages {
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .message.success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .message.error {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .message.warning {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+        
+        .message.info {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+        
+        /* Enhanced Mobile styles */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                width: 280px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            }
+
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            .container {
+                margin-left: 0 !important;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+
+            .export-buttons {
+                flex-direction: column;
+            }
+
+            #sidebar {
+                width: 85%;
+                max-width: 320px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            #sidebar {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+
+        /* Floating Notification Bell - Top Right */
+        .notification-bell-float {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #007890 0%, #005a6d 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 120, 144, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell-float:hover {
+            background: linear-gradient(135deg, #005a6d 0%, #004a58 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 120, 144, 0.4);
+        }
+
+        .notification-bell-float i {
+            color: #ffffff;
+            font-size: 18px;
+        }
+
+        .notification-bell-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #EC343C;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            border: 2px solid white;
+        }
+
+        .notification-bell-badge.hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .notification-bell-float {
+                top: 12px;
+                right: 70px;
+                width: 38px;
+                height: 38px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+    {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+    <div id="notification-bell" class="notification-bell-float" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+    </div>
+    {% endif %}
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 w-full lg:ml-64">
+            <!-- Header -->
+            <div class="pt-12 pb-4 text-center px-4" style="background: transparent;">
+                <h1 class="text-xl lg:text-2xl font-semibold mb-1" style="color: #ffffff;">Food Safety Agency (Pty) Ltd</h1>
+                <h2 class="text-sm lg:text-base font-normal" style="color: #ffffff;">All Inspectors Analytics Dashboard</h2>
+            </div>
+
+        <div class="px-4 lg:px-6" style="overflow: visible;">
+
+        <!-- Messages Section -->
+        {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+            <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-700 px-3 py-2 rounded text-sm">
+                <i class="fas fa-info-circle mr-1"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Quick Stats Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="padding: 1.25rem; text-align: center;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary);">{{ total_food_safety_inspections }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-light); margin-top: 0.5rem;">Total Inspections</div>
+            </div>
+            <div class="card" style="padding: 1.25rem; text-align: center;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: #10b981;">{{ compliance_rate|floatformat:1 }}%</div>
+                <div style="font-size: 0.875rem; color: var(--text-light); margin-top: 0.5rem;">Client Compliance Rate</div>
+            </div>
+            <div class="card" style="padding: 1.25rem; text-align: center;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: #f59e0b;">{{ active_inspectors_count }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-light); margin-top: 0.5rem;">Active Inspectors</div>
+            </div>
+            <div class="card" style="padding: 1.25rem; text-align: center;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: #ef4444;">{{ this_month_inspections }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-light); margin-top: 0.5rem;">This Month</div>
+            </div>
+        </div>
+
+        <!-- Unknown Inspectors Section -->
+        {% if unknown_inspectors_count > 0 %}
+        <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+            <div class="card-header" style="background: rgba(245, 158, 11, 0.1);">
+                <div class="card-title">
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                    <span>Unknown Inspectors Requiring Assignment ({{ unknown_inspectors_count }})</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p style="color: var(--text-light); margin-bottom: 1rem; font-size: 0.875rem;">
+                    The following inspector IDs have inspections but no assigned name. Please assign proper inspector names to these IDs in your system.
+                </p>
+                <div class="table-responsive">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="text-align: left; padding: 0.75rem; font-weight: 600; color: var(--text); font-size: 0.875rem;">Inspector ID</th>
+                                <th style="text-align: left; padding: 0.75rem; font-weight: 600; color: var(--text); font-size: 0.875rem;">Current Name</th>
+                                <th style="text-align: center; padding: 0.75rem; font-weight: 600; color: var(--text); font-size: 0.875rem;">Total Inspections</th>
+                                <th style="text-align: center; padding: 0.75rem; font-weight: 600; color: var(--text); font-size: 0.875rem;">Latest Inspection</th>
+                                <th style="text-align: center; padding: 0.75rem; font-weight: 600; color: var(--text); font-size: 0.875rem;">Earliest Inspection</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unknownInspectorsTable">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Charts Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 1.5rem;">
+            <!-- Inspections Over Time -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Inspections Over Time</span>
+                    </div>
+                    <select id="timeRange" class="form-control" style="width: auto; min-width: 120px;">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly" selected>Monthly</option>
+                    </select>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="inspectionsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Inspector Performance -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-user-tie"></i>
+                        <span>Top Inspectors</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="inspectorsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Compliance Analysis -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Client Compliance Status</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="complianceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Commodity Analysis -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-seedling"></i>
+                        <span>Top Commodities</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="commodityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Width Charts -->
+        <div style="margin-top: 1.5rem;">
+            <!-- Inspector Comparison Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-users"></i>
+                        <span>All Inspectors - Client Findings Breakdown</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-light); font-style: italic;">
+                        Finding non-compliance indicates good inspector work (identifying client issues)
+                    </div>
+                </div>
+                <div class="card-body" style="height: 450px;">
+                    <canvas id="inspectorComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme management - compatible with settings page
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+        
+
+        // Apply theme on load
+        initTheme();
+
+        // Listen for theme changes from settings page
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'theme') {
+                document.documentElement.setAttribute('data-theme', e.newValue || 'light');
+            }
+        });
+
+        // Enhanced chart data from Django
+        const chartData = {
+            // Time series data
+            daily: {{ daily_inspections|safe }},
+            weekly: {{ weekly_inspections|safe }},
+            monthly: {{ monthly_inspections|safe }},
+            
+            // Performance data
+            inspectors: {{ inspector_performance|safe }},
+            clients: {{ client_analytics|safe }},
+            commodities: {{ commodity_analysis|safe }},
+            
+            // Legacy data
+            companies: {{ major_companies|safe }},
+            forecast: {{ forecast_data|safe }},
+            
+            // Risk data
+            highRiskClients: {{ high_risk_clients|safe }},
+            
+            // Statistics
+            complianceStats: {{ compliance_stats|safe }},
+            rfiStats: {{ rfi_stats|safe }},
+            efficiencyMetrics: {{ efficiency_metrics|safe }},
+            geographicAnalysis: {{ geographic_analysis|safe }},
+            hoursAnalysis: {{ hours_analysis|safe }}
+        };
+        
+        // Debug: Log chart data to console
+        console.log('Chart Data:', chartData);
+        console.log('Daily Inspections:', chartData.daily);
+        console.log('Monthly Inspections:', chartData.monthly);
+        console.log('Inspectors:', chartData.inspectors);
+        console.log('Compliance Stats:', chartData.complianceStats);
+        
+        // Validate data and handle any parsing errors
+        try {
+            // Ensure all data is properly parsed
+            if (typeof chartData.complianceStats === 'string') {
+                chartData.complianceStats = JSON.parse(chartData.complianceStats);
+            }
+            if (typeof chartData.rfiStats === 'string') {
+                chartData.rfiStats = JSON.parse(chartData.rfiStats);
+            }
+            if (typeof chartData.efficiencyMetrics === 'string') {
+                chartData.efficiencyMetrics = JSON.parse(chartData.efficiencyMetrics);
+            }
+            if (typeof chartData.geographicAnalysis === 'string') {
+                chartData.geographicAnalysis = JSON.parse(chartData.geographicAnalysis);
+            }
+            if (typeof chartData.hoursAnalysis === 'string') {
+                chartData.hoursAnalysis = JSON.parse(chartData.hoursAnalysis);
+            }
+            console.log('Data validation successful');
+        } catch (error) {
+            console.error('Error parsing chart data:', error);
+        }
+        
+        // Global variables
+        let currentTimeRange = 'monthly';
+        let companyViewType = 'bar';
+        
+        // Helper function to get week number
+        Date.prototype.getWeek = function() {
+            const onejan = new Date(this.getFullYear(), 0, 1);
+            return Math.ceil((((this - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        };
+
+        // Create Inspections Over Time Chart with Time Range Selection
+        function createInspectionsChart() {
+            const ctx = document.getElementById('inspectionsChart');
+            if (!ctx) {
+                console.error('Inspections chart canvas not found');
+                return;
+            }
+
+            const timeRange = currentTimeRange;
+            let data = chartData[timeRange];
+            
+            console.log(`Creating inspections chart for ${timeRange}:`, data);
+            
+            if (!data || data.length === 0) {
+                console.log('No data available for inspections chart');
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>No Data Available</h3>
+                        <p>No inspection data available for this period.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Prepare data based on time range
+            let labels, inspectionData, compliantData, nonCompliantData;
+            
+            if (timeRange === 'daily') {
+                labels = data.map(item => {
+                    const date = new Date(item.day);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+                inspectionData = data.map(item => item.count);
+                compliantData = data.map(item => item.compliant);
+                nonCompliantData = data.map(item => item.non_compliant);
+            } else if (timeRange === 'weekly') {
+                labels = data.map(item => {
+                    const date = new Date(item.week);
+                    return `Week ${date.getWeek()}`;
+                });
+                inspectionData = data.map(item => item.count);
+                compliantData = data.map(item => item.compliant);
+                nonCompliantData = data.map(item => item.non_compliant);
+            } else {
+                labels = data.map(item => {
+                    const date = new Date(item.month);
+                    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                });
+                inspectionData = data.map(item => item.count);
+                compliantData = data.map(item => item.compliant);
+                nonCompliantData = data.map(item => item.non_compliant);
+            }
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Inspections',
+                            data: inspectionData,
+                            borderColor: '#007890',
+                            backgroundColor: 'rgba(0, 120, 144, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Compliant',
+                            data: compliantData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Non-Compliant',
+                            data: nonCompliantData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Create Compliance Analysis Chart
+        function createComplianceChart() {
+            const ctx = document.getElementById('complianceChart');
+            if (!ctx) {
+                console.error('Compliance chart canvas not found');
+                return;
+            }
+
+            const data = chartData.complianceStats;
+            console.log('Creating compliance chart with data:', data);
+            
+            if (!data || (!data.compliant && !data.non_compliant)) {
+                console.log('No compliance data available');
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-shield-alt"></i>
+                        <h3>No Compliance Data</h3>
+                        <p>No compliance data available.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Compliant', 'Non-Compliant'],
+                    datasets: [{
+                        data: [data.compliant, data.non_compliant],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderColor: ['#059669', '#dc2626'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Create Commodity Analysis Chart
+        function createCommodityChart() {
+            const ctx = document.getElementById('commodityChart');
+            if (!ctx) return;
+
+            if (!chartData.commodities || chartData.commodities.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-seedling"></i>
+                        <h3>No Commodity Data</h3>
+                        <p>No commodity data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = chartData.commodities.slice(0, 10); // Top 10 commodities
+            const labels = data.map(item => item.commodity || 'Unknown');
+            const counts = data.map(item => item.total_inspections);
+            const complianceRates = data.map(item => item.compliance_rate);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Inspections',
+                        data: counts,
+                        backgroundColor: '#007890',
+                        borderColor: '#005a6b',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    return `Compliance Rate: ${complianceRates[index].toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Create Distance Analysis Chart
+        function createDistanceChart() {
+            const ctx = document.getElementById('distanceChart');
+            if (!ctx) return;
+
+            const data = chartData.geographicAnalysis;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Average', 'Maximum', 'Minimum'],
+                    datasets: [{
+                        label: 'Distance (km)',
+                        data: [
+                            data.avg_distance || 0,
+                            data.max_distance || 0,
+                            data.min_distance || 0
+                        ],
+                        backgroundColor: ['#3b82f6', '#ef4444', '#10b981'],
+                        borderColor: ['#2563eb', '#dc2626', '#059669'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.parsed.y.toFixed(1)} km`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Create Risk Assessment Chart
+        function createRiskChart() {
+            const ctx = document.getElementById('riskChart');
+            if (!ctx) return;
+
+            if (!chartData.highRiskClients || chartData.highRiskClients.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>No Risk Data</h3>
+                        <p>No high-risk client data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = chartData.highRiskClients.slice(0, 8); // Top 8 high-risk clients
+            const labels = data.map(item => item.client_name.length > 15 ? 
+                item.client_name.substring(0, 15) + '...' : item.client_name);
+            const riskScores = data.map(item => item.risk_score);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Risk Score',
+                        data: riskScores,
+                        backgroundColor: riskScores.map(score => {
+                            if (score >= 70) return '#ef4444';
+                            if (score >= 40) return '#f59e0b';
+                            return '#10b981';
+                        }),
+                        borderColor: riskScores.map(score => {
+                            if (score >= 70) return '#dc2626';
+                            if (score >= 40) return '#d97706';
+                            return '#059669';
+                        }),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Risk Score: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create Top Inspectors Chart
+        function createInspectorsChart() {
+            const ctx = document.getElementById('inspectorsChart');
+            if (!ctx) return;
+
+            if (!chartData.inspectors || chartData.inspectors.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-user-tie"></i>
+                        <h3>No Inspector Data</h3>
+                        <p>No inspector data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const labels = chartData.inspectors.map(item => item.inspector_name || 'Unknown');
+            const data = chartData.inspectors.map(item => item.count);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Inspections',
+                        data: data,
+                        backgroundColor: '#EC343C',
+                        borderColor: '#EC343C',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Inspections: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create Major Companies Chart
+        function createCompaniesChart() {
+            const ctx = document.getElementById('companiesChart');
+            if (!ctx) return;
+
+            if (!chartData.companies || chartData.companies.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-building"></i>
+                        <h3>No Company Data</h3>
+                        <p>No major company data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const labels = chartData.companies.map(item => item.client_name);
+            const data = chartData.companies.map(item => item.count);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Inspections',
+                        data: data,
+                        backgroundColor: '#446f1e',
+                        borderColor: '#446f1e',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Inspections: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Export functionality with dropdown
+        function exportData() {
+            const format = document.getElementById('exportFormat').value;
+            const data = {
+                monthly_inspections: chartData.monthly,
+                top_inspectors: chartData.inspectors,
+                major_companies: chartData.companies,
+                forecast_data: chartData.forecast,
+                total_inspections: {{ total_inspections }},
+                total_food_safety_inspections: {{ total_food_safety_inspections }},
+                recent_inspections: {{ recent_inspections }},
+                this_month_inspections: {{ this_month_inspections }},
+                avg_monthly_inspections: {{ avg_monthly_inspections }}
+            };
+
+            fetch(`/export-analytics/${format}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `analytics_report_${new Date().toISOString().split('T')[0]}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                console.error('Export failed:', error);
+                alert('Export failed. Please try again.');
+            });
+        }
+
+        // Enhanced Inspector Performance Chart
+        function createInspectorsChart() {
+            const ctx = document.getElementById('inspectorsChart');
+            if (!ctx) return;
+
+            if (!chartData.inspectors || chartData.inspectors.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-user-tie"></i>
+                        <h3>No Inspector Data</h3>
+                        <p>No inspector data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = chartData.inspectors.slice(0, 10); // Top 10 inspectors
+            const labels = data.map(item => item.inspector_name || 'Unknown');
+            const inspections = data.map(item => item.total_inspections);
+            const complianceRates = data.map(item => item.compliance_rate);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Inspections',
+                        data: inspections,
+                        backgroundColor: '#007890',
+                        borderColor: '#005a6b',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    return `Compliance Rate: ${complianceRates[index].toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Enhanced Major Companies Chart
+        function createCompaniesChart() {
+            const ctx = document.getElementById('companiesChart');
+            if (!ctx) return;
+
+            if (!chartData.companies || chartData.companies.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-building"></i>
+                        <h3>No Company Data</h3>
+                        <p>No major company data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = chartData.companies;
+            const labels = data.map(item => item.client_name);
+            const counts = data.map(item => item.count);
+
+            new Chart(ctx, {
+                type: companyViewType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Inspections',
+                        data: counts,
+                        backgroundColor: companyViewType === 'bar' ? '#446f1e' : [
+                            '#007890', '#EC343C', '#f59e0b', '#10b981', '#3b82f6',
+                            '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316'
+                        ],
+                        borderColor: companyViewType === 'bar' ? '#365314' : '#ffffff',
+                        borderWidth: companyViewType === 'bar' ? 1 : 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: companyViewType === 'doughnut',
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (companyViewType === 'doughnut') {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                        return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                    }
+                                    return `Inspections: ${context.parsed.y || context.parsed}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: companyViewType === 'bar' ? {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                maxRotation: 45
+                            }
+                        }
+                    } : {}
+                }
+            });
+        }
+
+        // Toggle Company View
+        function toggleCompanyView() {
+            companyViewType = companyViewType === 'bar' ? 'doughnut' : 'bar';
+            createCompaniesChart();
+        }
+
+        // Time Range Change Handler
+        function handleTimeRangeChange() {
+            const select = document.getElementById('timeRange');
+            if (select) {
+                select.addEventListener('change', function() {
+                    currentTimeRange = this.value;
+                    createInspectionsChart();
+                });
+            }
+        }
+
+        // Populate All Inspectors Table
+        function populateInspectorsTable() {
+            const tbody = document.getElementById('inspectorsTableBody');
+            if (!tbody || !chartData.inspectors || chartData.inspectors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding: 16px; text-align: center; color: var(--text-light);">No inspector data available</td></tr>';
+                return;
+            }
+
+            const data = chartData.inspectors;
+
+            tbody.innerHTML = data.map((inspector, index) => {
+                const avgPerMonth = inspector.avg_per_month || 0;
+                const totalInspections = inspector.total_inspections || 0;
+                const rawMeat = inspector.raw_meat || 0;
+                const poultry = inspector.poultry || 0;
+                const eggs = inspector.eggs || 0;
+
+                return `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px; color: var(--text); font-weight: 500;">
+                            <i class="fas fa-user-tie" style="margin-right: 6px; color: var(--primary);"></i>
+                            ${inspector.inspector_name || 'Unknown'}
+                        </td>
+                        <td style="padding: 12px; text-align: center; color: var(--text); font-weight: 600;">${totalInspections}</td>
+                        <td style="padding: 12px; text-align: center; color: #ef4444;" title="Raw Meat inspections">${rawMeat}</td>
+                        <td style="padding: 12px; text-align: center; color: #f59e0b;" title="Poultry inspections">${poultry}</td>
+                        <td style="padding: 12px; text-align: center; color: #10b981;" title="Eggs inspections">${eggs}</td>
+                        <td style="padding: 12px; text-align: center; color: var(--text); font-weight: 600;">${avgPerMonth.toFixed(1)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Table Sorting Function
+        let sortDirection = {};
+        function sortTable(columnIndex) {
+            const table = document.getElementById('inspectorsTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Initialize sort direction for this column
+            if (!sortDirection[columnIndex]) {
+                sortDirection[columnIndex] = 'asc';
+            } else {
+                sortDirection[columnIndex] = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+            }
+
+            const direction = sortDirection[columnIndex];
+
+            rows.sort((a, b) => {
+                let aValue = a.cells[columnIndex].textContent.trim();
+                let bValue = b.cells[columnIndex].textContent.trim();
+
+                // Remove % sign and convert to number if present
+                aValue = aValue.replace('%', '');
+                bValue = bValue.replace('%', '');
+
+                // Try to convert to number
+                const aNum = parseFloat(aValue);
+                const bNum = parseFloat(bValue);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                } else {
+                    return direction === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+                }
+            });
+
+            // Clear and repopulate tbody
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Create Inspector Comparison Chart
+        function createInspectorComparisonChart() {
+            const ctx = document.getElementById('inspectorComparisonChart');
+            if (!ctx) {
+                console.error('Inspector comparison chart canvas not found');
+                return;
+            }
+
+            if (!chartData.inspectors || chartData.inspectors.length === 0) {
+                ctx.parentElement.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-user-tie"></i>
+                        <h3>No Inspector Data</h3>
+                        <p>No inspector performance data available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const data = chartData.inspectors.slice(0, 15); // Top 15 inspectors
+            const labels = data.map(item => item.inspector_name || 'Unknown');
+            const inspections = data.map(item => item.total_inspections || 0);
+            const compliantData = data.map(item => item.compliant || 0);
+            const nonCompliantData = data.map(item => item.non_compliant || 0);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Compliant',
+                            data: compliantData,
+                            backgroundColor: '#10b981',
+                            borderColor: '#059669',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Non-Compliant',
+                            data: nonCompliantData,
+                            backgroundColor: '#ef4444',
+                            borderColor: '#dc2626',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    const total = compliantData[index] + nonCompliantData[index];
+                                    const rate = total > 0 ? ((compliantData[index] / total) * 100).toFixed(1) : 0;
+                                    return `Client Compliance Rate: ${rate}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937',
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 9
+                                }
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#ffffff' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Populate High-Risk Clients Table (Top 10)
+        function populateHighRiskTable() {
+            const tbody = document.getElementById('highRiskTableBody');
+            if (!tbody) return;
+
+            if (!chartData.highRiskClients || chartData.highRiskClients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="padding: 16px; text-align: center; color: var(--text-light);">No high-risk clients found</td></tr>';
+                return;
+            }
+
+            const data = chartData.highRiskClients;
+
+            // Show top 10 clients
+            const top10 = data.slice(0, 10);
+
+            tbody.innerHTML = top10.map(client => {
+                const riskColor = client.risk_score >= 70 ? '#ef4444' :
+                                 client.risk_score >= 40 ? '#f59e0b' : '#10b981';
+
+                return `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 8px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${client.client_name}">${client.client_name}</td>
+                        <td style="padding: 8px; text-align: center; color: var(--text);">${client.total_inspections}</td>
+                        <td style="padding: 8px; text-align: center; color: ${riskColor}; font-weight: 600;">${client.risk_score.toFixed(0)}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // View Client Details (placeholder)
+        function viewClientDetails(clientName) {
+            alert(`View details for ${clientName} - This would open a detailed client view.`);
+        }
+
+        // Enhanced Export functionality
+        function exportData() {
+            const format = document.getElementById('exportFormat').value;
+            const data = {
+                summary: {
+                    total_clients: {{ total_clients }},
+                    total_inspections: {{ total_food_safety_inspections }},
+                    compliance_rate: {{ compliance_rate }},
+                    rfi_rate: {{ rfi_rate }},
+                    month_growth_rate: {{ month_growth_rate }}
+                },
+                time_series: {
+                    daily: chartData.daily,
+                    weekly: chartData.weekly,
+                    monthly: chartData.monthly
+                },
+                performance: {
+                    inspectors: chartData.inspectors,
+                    clients: chartData.clients,
+                    commodities: chartData.commodities
+                },
+                risk_assessment: {
+                    high_risk_clients: chartData.highRiskClients
+                }
+            };
+
+            fetch(`/export-analytics/${format}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `comprehensive_analytics_report_${new Date().toISOString().split('T')[0]}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                console.error('Export failed:', error);
+                alert('Export failed. Please try again.');
+            });
+        }
+
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Initialize all components
+        // Populate Unknown Inspectors Table
+        function populateUnknownInspectorsTable() {
+            const tableBody = document.getElementById('unknownInspectorsTable');
+            if (!tableBody) return;
+
+            const unknownInspectors = {{ unknown_inspectors|safe }};
+
+            if (!unknownInspectors || unknownInspectors.length === 0) {
+                return;
+            }
+
+            let html = '';
+            unknownInspectors.forEach(inspector => {
+                const inspectorId = inspector.inspector_id !== null ? inspector.inspector_id : 'NULL';
+                const inspectorName = inspector.inspector_name || 'Unknown';
+                const totalInspections = inspector.total_inspections || 0;
+                const latestInspection = inspector.latest_inspection
+                    ? new Date(inspector.latest_inspection).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'N/A';
+                const earliestInspection = inspector.earliest_inspection
+                    ? new Date(inspector.earliest_inspection).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'N/A';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 0.75rem; font-weight: 600; color: #f59e0b; font-size: 0.875rem;">
+                            <i class="fas fa-id-badge"></i> ${inspectorId}
+                        </td>
+                        <td style="padding: 0.75rem; color: var(--text-light); font-size: 0.875rem; font-style: italic;">
+                            ${inspectorName}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: var(--text); font-size: 0.875rem;">
+                            ${totalInspections}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center; color: var(--text); font-size: 0.875rem;">
+                            ${latestInspection}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center; color: var(--text); font-size: 0.875rem;">
+                            ${earliestInspection}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableBody.innerHTML = html;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing All Inspectors Analytics Dashboard...');
+
+            // Populate unknown inspectors table
+            try {
+                populateUnknownInspectorsTable();
+                console.log('Unknown inspectors table populated');
+            } catch (error) {
+                console.error('Error populating unknown inspectors table:', error);
+            }
+
+            // Create all charts
+            try {
+                createInspectionsChart();
+                console.log('Inspections chart created');
+            } catch (error) {
+                console.error('Error creating inspections chart:', error);
+            }
+
+            try {
+                createInspectorsChart();
+                console.log('Inspectors chart created');
+            } catch (error) {
+                console.error('Error creating inspectors chart:', error);
+            }
+
+            try {
+                createComplianceChart();
+                console.log('Compliance chart created');
+            } catch (error) {
+                console.error('Error creating compliance chart:', error);
+            }
+
+            try {
+                createCommodityChart();
+                console.log('Commodity chart created');
+            } catch (error) {
+                console.error('Error creating commodity chart:', error);
+            }
+
+            try {
+                createInspectorComparisonChart();
+                console.log('Inspector comparison chart created');
+            } catch (error) {
+                console.error('Error creating inspector comparison chart:', error);
+            }
+
+            // Setup time range selector
+            handleTimeRangeChange();
+
+            console.log('All Inspectors Analytics Dashboard initialization complete');
+        });
+
+        // Mobile Menu Toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('show');
+            sidebarOverlay.classList.toggle('show');
+
+            const icon = mobileMenuBtn.querySelector('i');
+            if (sidebar.classList.contains('show')) {
+                icon.className = 'fas fa-times text-xl';
+            } else {
+                icon.className = 'fas fa-bars text-xl';
+            }
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', toggleSidebar);
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+        }
+
+        const navLinks = sidebar.querySelectorAll('a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 1024) {
+                    toggleSidebar();
+                }
+            });
+        });
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 1024) {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+                if (mobileMenuBtn) {
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            }
+        });
+
+        // ================================================================
+        // NOTIFICATION SYSTEM
+        // ================================================================
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        let notificationModal = null;
+
+        // Fetch notifications from server
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                if (!response.ok) throw new Error('Failed to fetch notifications');
+                const data = await response.json();
+                updateNotificationBell(data.unread_count);
+                return data.notifications;
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+                return [];
+            }
+        }
+
+        // Update notification bell badge
+        function updateNotificationBell(count) {
+            const badge = document.getElementById('notification-badge');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // Show notification modal
+        async function showNotificationModal() {
+            const notifications = await fetchNotifications();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="notification-modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Notifications</h3>
+                            <button onclick="closeNotificationModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
+                        </div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            ${notifications.length > 0 ? notifications.map(n => `
+                                <div style="padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; ${n.is_read ? 'background: #f9fafb;' : 'background: #fff;'}">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            <p style="margin: 0 0 0.5rem 0; font-weight: ${n.is_read ? '400' : '600'};">${n.message}</p>
+                                            <small style="color: #6b7280;">${new Date(n.created_at).toLocaleString()}</small>
+                                        </div>
+                                        <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+                                            ${!n.is_read ? `<button onclick="markAsRead(${n.id})" style="padding: 0.25rem 0.5rem; background: #007890; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Mark Read</button>` : ''}
+                                            <button onclick="deleteNotification(${n.id})" style="padding: 0.25rem 0.5rem; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('') : '<p style="padding: 2rem; text-align: center; color: #6b7280;">No notifications</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Close notification modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            if (modal) modal.remove();
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/mark-read/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                if (response.ok) {
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/delete/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                if (response.ok) {
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Initialize notification system
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.addEventListener('click', showNotificationModal);
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

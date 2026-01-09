@@ -1,0 +1,87 @@
+MEDIA FILES INVENTORY
+Generated: 2025-11-30 21:16:42
+Media Root: C:\Users\Ethan\Desktop\Inspection-System-master\Inspection-System-master\media
+====================================================================================================
+
+COMPLETE FILE LIST (20 files)
+====================================================================================================
+
+    1. inspection\2025\November\Boxer Superstore Standerton\Inspection-3181\Compliance\EGGS\Egg-Label-RE-COR-RAW-BXR-3181-Boxer Superstore Standerton-16982.pdf
+       Size: 544.11 KB       Modified: 2025-11-19 02:22:52
+
+    2. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Grade-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-426.pdf
+       Size: 1.02 MB         Modified: 2025-11-19 02:22:47
+
+    3. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Label-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-6346.pdf
+       Size: 690.15 KB       Modified: 2025-11-19 02:22:47
+
+    4. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Label-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-6347.pdf
+       Size: 614.76 KB       Modified: 2025-11-19 02:22:47
+
+    5. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Label-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-6348.pdf
+       Size: 595.58 KB       Modified: 2025-11-19 02:22:47
+
+    6. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Label-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-6349.pdf
+       Size: 617.22 KB       Modified: 2025-11-19 02:22:47
+
+    7. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-Label-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-6350.pdf
+       Size: 653.00 KB       Modified: 2025-11-19 02:22:47
+
+    8. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-QUID-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-326.pdf
+       Size: 290.39 KB       Modified: 2025-11-19 02:22:47
+
+    9. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-QUID-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-327.pdf
+       Size: 283.57 KB       Modified: 2025-11-19 02:22:47
+
+   10. inspection\2025\November\Rainbow Chicken Rustenburg\Inspection-4544\Compliance\POULTRY\Poultry-QUID-RE-IND-PLT-NA-4544-Rainbow Chicken Rustenburg-328.pdf
+       Size: 278.59 KB       Modified: 2025-11-19 02:22:47
+
+   11. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\PMP\PMP_Report.pdf
+       Size: 18.00 B         Modified: 2025-11-19 06:18:55
+
+   12. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\POULTRY\POULTRY_2025.pdf
+       Size: 35.00 B         Modified: 2025-11-19 06:18:55
+
+   13. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\POULTRY\POULTRY_Certificate.pdf
+       Size: 35.00 B         Modified: 2025-11-19 06:18:55
+
+   14. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\RAW\RAW_Analysis.pdf
+       Size: 20.00 B         Modified: 2025-11-19 06:18:55
+
+   15. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\RAW\RAW_Certificate_2025.pdf
+       Size: 20.00 B         Modified: 2025-11-19 06:18:55
+
+   16. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\Compliance\RAW\RAW_Test_Results.pdf
+       Size: 20.00 B         Modified: 2025-11-19 06:18:55
+
+   17. inspection\2025\November\Roots Butchery Tzaneen\Inspection-2784\lab results\Lab_Report_2025.pdf
+       Size: 26.00 B         Modified: 2025-11-19 06:19:08
+
+   18. inspection\2025\November\SUPERSPAR - Bridge City\Inspection-0842\Compliance\EGGS\Egg-Label-RE-COR-RAW-SSP-0842-SUPERSPAR - Bridge City-16974.pdf
+       Size: 453.81 KB       Modified: 2025-11-19 02:22:57
+
+   19. inspection\2025\November\SUPERSPAR - Bridge City\Inspection-0842\Compliance\EGGS\Egg-Label-RE-COR-RAW-SSP-0842-SUPERSPAR - Bridge City-16975.pdf
+       Size: 435.99 KB       Modified: 2025-11-19 02:22:57
+
+   20. inspection\2025\November\frio_foods_springs_meat_world\rfi\FSA-RFI-DU-251127.pdf
+       Size: 592.17 KB       Modified: 2025-11-27 20:18:05
+
+
+====================================================================================================
+SUMMARY STATISTICS
+====================================================================================================
+
+Total Files: 20
+Total Size:  6.93 MB
+
+FILES BY TYPE
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  .pdf                :     20 files (100.0%)
+
+FILES BY YEAR
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  2025                :     20 files (100.0%)
+
+FILES BY MONTH
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  2025/November       :     20 files (100.0%)

@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Home - Food Safety Agency</title>
+
+    <!-- Favicon - Food Safety Agency Logo -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Async Font Awesome loading for better performance -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"
+        media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    </noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            /* Light theme (default) */
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --spacing: 5px;
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #1f2937;
+            --sidebar-hover: #f3f4f6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --primary: #007890;
+            --primary-light: #1a3a40;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+            --sidebar-bg: #1a1a1a;
+            --sidebar-text: #ffffff;
+            --sidebar-hover: #404040;
+            --input-bg: #2d2d2d;
+            --input-border: #404040;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+            height: 100%;
+        }
+
+        /* Prevent horizontal scroll and fix background */
+        body {
+            overflow-x: hidden;
+            position: relative;
+            height: 100%;
+        }
+
+        /* Sidebar theme styles */
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        #sidebar .border-slate-600 {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        #sidebar .text-sidebar-text {
+            color: var(--sidebar-text) !important;
+        }
+
+        /* Force sidebar colors based on theme */
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+
+        /* Dark mode text overrides */
+        [data-theme="dark"] .text-gray-800,
+        [data-theme="dark"] .text-gray-600,
+        [data-theme="dark"] .text-gray-500 {
+            color: #ffffff !important;
+        }
+
+        /* Quick Actions links - keep black in dark mode */
+        [data-theme="dark"] .quick-action-link span {
+            color: #000000 !important;
+        }
+
+        /* Smooth transitions */
+        body,
+        .container,
+        .theme-toggle,
+        .bg-white,
+        .bg-card-bg,
+        .text-gray-800,
+        .text-gray-600,
+        #sidebar,
+        #sidebar *,
+        #sidebar a,
+        #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Theme-aware background */
+        .bg-card-bg {
+            background-color: var(--card-bg);
+        }
+
+        body {
+            background: var(--background);
+            /* Fallback color while image loads */
+            color: var(--text);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Load background image after page loads for better performance */
+        body.bg-loaded::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center fixed;
+            background-size: cover;
+            opacity: 1.0;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Mobile menu button - ABSOLUTE FIXED POSITIONING */
+        .mobile-menu-btn,
+        #mobile-menu-btn,
+        button#mobile-menu-btn {
+            display: none;
+        }
+
+        .mobile-menu-btn {
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 99999 !important;
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+            border: none !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            width: 48px !important;
+            height: 48px !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+
+        .mobile-menu-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.95);
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: var(--sidebar-hover) !important;
+        }
+
+        /* Force fixed positioning on mobile */
+        @media (max-width: 1024px) {
+
+            .mobile-menu-btn,
+            #mobile-menu-btn,
+            button#mobile-menu-btn {
+                display: flex !important;
+                position: fixed !important;
+                top: 12px !important;
+                left: 12px !important;
+                z-index: 99999 !important;
+                transform: translate3d(0, 0, 0) !important;
+            }
+        }
+
+        /* Sidebar mobile positioning */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 9998;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Logout button styling */
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+
+        /* Mobile styles */
+        @media (max-width: 1024px) {
+
+            /* Show mobile menu button */
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+
+            /* Hide sidebar by default on mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                width: 280px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            }
+
+            /* Show sidebar when active */
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            /* Remove left margin on main content */
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
+            /* Sidebar overlay */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 9997;
+                display: none;
+                backdrop-filter: blur(2px);
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+
+            /* Mobile background - keep it fixed */
+            body::before {
+                position: fixed;
+                background-attachment: fixed;
+            }
+
+            /* Header mobile adjustments */
+            .header-section {
+                padding-top: 5rem !important;
+                padding-bottom: 1.5rem !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+
+            .header-title {
+                font-size: 1.5rem !important;
+                line-height: 1.3 !important;
+            }
+
+            .header-subtitle {
+                font-size: 0.95rem !important;
+                line-height: 1.4 !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+
+            /* Full width sidebar on tablet */
+            #sidebar {
+                width: 85%;
+                max-width: 320px;
+            }
+
+            /* Content spacing */
+            .content-container {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+
+            /* Welcome section */
+            .welcome-section {
+                padding: 1.25rem !important;
+                margin: 0 0.75rem 1rem 0.75rem !important;
+            }
+
+            .welcome-title {
+                font-size: 1.25rem !important;
+            }
+
+            .welcome-text {
+                font-size: 0.875rem !important;
+                line-height: 1.6 !important;
+            }
+
+            /* Sync buttons */
+            .sync-buttons {
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+            }
+
+            .sync-button {
+                width: 100% !important;
+                min-height: 48px !important;
+                font-size: 0.9rem !important;
+            }
+
+            /* Statistics grid */
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.75rem !important;
+                margin: 0 0.75rem 1rem 0.75rem !important;
+            }
+
+            .stat-card {
+                padding: 1.25rem !important;
+            }
+
+            .stat-number {
+                font-size: 2.25rem !important;
+            }
+
+            .stat-label {
+                font-size: 0.8rem !important;
+            }
+
+            /* Content grid */
+            .content-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+                margin: 0 0.75rem !important;
+                padding-bottom: 2rem !important;
+            }
+
+            .content-card {
+                padding: 1.25rem !important;
+            }
+
+            .card-title {
+                font-size: 1.1rem !important;
+            }
+
+            /* Quick actions */
+            .quick-action-link {
+                padding: 0.875rem !important;
+                min-height: 48px !important;
+            }
+
+            .quick-action-icon {
+                font-size: 1.1rem !important;
+            }
+
+            .quick-action-text {
+                font-size: 0.9rem !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+
+            /* Small mobile */
+            .mobile-menu-btn {
+                top: 10px !important;
+                left: 10px !important;
+                width: 44px !important;
+                height: 44px !important;
+            }
+
+            #sidebar {
+                width: 90%;
+            }
+
+            .header-section {
+                padding-top: 4rem !important;
+            }
+
+            .header-title {
+                font-size: 1.25rem !important;
+            }
+
+            .header-subtitle {
+                font-size: 0.875rem !important;
+            }
+
+            .welcome-section,
+            .stats-grid,
+            .content-grid {
+                margin-left: 0.5rem !important;
+                margin-right: 0.5rem !important;
+            }
+
+            .welcome-section {
+                padding: 1rem !important;
+            }
+
+            .stat-card,
+            .content-card {
+                padding: 1rem !important;
+            }
+
+            .stat-number {
+                font-size: 2rem !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            /* Extra small devices */
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .mobile-menu-btn {
+                top: 8px !important;
+                left: 8px !important;
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .header-section {
+                padding-top: 3.5rem !important;
+                padding-bottom: 1rem !important;
+            }
+
+            .header-title {
+                font-size: 1.125rem !important;
+            }
+
+            .header-subtitle {
+                font-size: 0.8rem !important;
+            }
+
+            .welcome-section,
+            .stats-grid,
+            .content-grid {
+                margin-left: 0.5rem !important;
+                margin-right: 0.5rem !important;
+            }
+
+            .welcome-section {
+                padding: 0.875rem !important;
+            }
+
+            .welcome-title {
+                font-size: 1rem !important;
+            }
+
+            .welcome-text {
+                font-size: 0.8rem !important;
+            }
+
+            .sync-button {
+                min-height: 44px !important;
+                font-size: 0.85rem !important;
+            }
+
+            .stat-card {
+                padding: 0.875rem !important;
+            }
+
+            .stat-number {
+                font-size: 1.75rem !important;
+            }
+
+            .stat-label {
+                font-size: 0.7rem !important;
+            }
+
+            .content-card {
+                padding: 0.875rem !important;
+            }
+
+            .card-title {
+                font-size: 0.95rem !important;
+            }
+
+            .quick-action-link {
+                padding: 0.75rem !important;
+            }
+
+            .quick-action-text {
+                font-size: 0.85rem !important;
+            }
+
+            .status-item,
+            .activity-item {
+                font-size: 0.8rem !important;
+            }
+        }
+
+        /* Touch-friendly adjustments */
+        @media (hover: none) and (pointer: coarse) {
+
+            /* Increase touch targets */
+            button,
+            a,
+            .quick-action-link,
+            .sync-button {
+                min-height: 44px !important;
+            }
+
+            /* Remove hover effects on touch devices */
+            #sidebar a:hover {
+                background-color: transparent !important;
+            }
+
+            #sidebar a:active {
+                background-color: rgba(255, 255, 255, 0.1) !important;
+            }
+        }
+
+        /* Floating Notification Bell - Top Right */
+        .notification-bell-float {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #007890 0%, #005a6d 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 120, 144, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell-float:hover {
+            background: linear-gradient(135deg, #005a6d 0%, #004050 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 120, 144, 0.4);
+        }
+
+        .notification-bell-float:active {
+            transform: translateY(0);
+        }
+
+        .notification-bell-float i {
+            color: white;
+            font-size: 16px;
+        }
+
+        .notification-bell-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #EC343C;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 10px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Mobile responsiveness for notification bell */
+        @media (max-width: 768px) {
+            .notification-bell-float {
+                top: 15px;
+                right: 15px;
+                width: 36px;
+                height: 36px;
+            }
+
+            .notification-bell-float i {
+                font-size: 15px;
+            }
+
+            .notification-bell-badge {
+                font-size: 9px;
+                min-width: 16px;
+                height: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .notification-bell-float {
+                top: 10px;
+                right: 60px; /* Move left to avoid menu button */
+                width: 34px;
+                height: 34px;
+            }
+
+            .notification-bell-float i {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-gray-800">
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+    {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+    <div id="notification-bell" class="notification-bell-float" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+    </div>
+    {% endif %}
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo"
+                        class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <!-- 1. Home Center -->
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+
+                    {% if request.user.role == 'inspector' %}
+                    <!-- Inspector-specific menu -->
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <!-- 2. Client Allocation -->
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <!-- 3. Inspection Records -->
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    <!-- 4. User Management -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    <!-- 5. System Logs -->
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <!-- 6. Support Tickets -->
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- 7. Submit Ticket (visible to all) -->
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+
+                    <!-- 8. OneDrive View (developer only) -->
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 9. Server View -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 10. Export Sheet -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 11. Inspector Analytics -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 12. Settings (visible to all) -->
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="flex-1 w-full lg:ml-64">
+            <!-- Header -->
+            <div class="header-section pt-16 lg:pt-16 pb-8 text-center mb-4 lg:mb-8 px-4">
+                <h1 class="header-title text-2xl sm:text-3xl lg:text-4xl font-semibold mb-2" style="color: #ffffff;">
+                    Welcome to Food Safety Agency</h1>
+                <h2 class="header-subtitle text-base sm:text-lg lg:text-xl font-normal" style="color: #ffffff;">Your
+                    comprehensive food safety management platform</h2>
+            </div>
+
+            <!-- Welcome Section -->
+            <div class="welcome-section bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6 mb-6 mx-4 lg:mx-8">
+                <h2 class="welcome-title text-xl font-semibold text-gray-800 mb-4">Getting Started</h2>
+                <p class="welcome-text text-gray-600 leading-relaxed mb-6">
+                    Welcome to the Food Safety Agency management system. Use the sidebar navigation to access different
+                    sections of the platform.
+                    You can manage clients, track inspections, handle inspections, and integrate with SQL Server for
+                    data management.
+                </p>
+
+                {% if request.user.role != 'admin' %}
+                <div class="sync-buttons flex flex-col gap-4">
+                    <button id="sync-inspections-btn" onclick="syncInspections()"
+                        class="sync-button flex items-center justify-center gap-2 px-6 py-3 bg-secondary text-white rounded-lg font-semibold hover:bg-red-600 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:transform-none">
+                        <i class="fas fa-sync-alt"></i>
+                        <span id="sync-inspections-text">Sync Everything</span>
+                    </button>
+                    <p class="text-sm text-gray-600">
+                        Syncs SQL Server clients + inspections in one go!
+                    </p>
+                </div>
+                {% endif %}
+
+                <div id="sync-status" class="mt-4"></div>
+
+                <!-- Progress Bar -->
+                <div id="sync-progress-container" class="mt-4 hidden">
+                    <div class="bg-gray-200 rounded-full h-6 overflow-hidden shadow-inner">
+                        <div id="sync-progress-bar"
+                            class="bg-gradient-to-r from-primary to-blue-600 h-full transition-all duration-300 flex items-center justify-center text-white text-xs font-semibold"
+                            style="width: 0%">
+                            <span id="sync-progress-text">0%</span>
+                        </div>
+                    </div>
+                    <div id="sync-progress-details" class="text-sm text-gray-600 mt-2 text-center"></div>
+                </div>
+            </div>
+
+            <!-- Statistics Grid -->
+            <div class="stats-grid grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 mx-4 lg:mx-8">
+                <div class="stat-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+                    <h3 class="stat-number text-primary text-3xl lg:text-4xl font-bold mb-2">{{ total_clients|default:"0" }}</h3>
+                    <p class="stat-label text-gray-500 text-sm uppercase tracking-wide font-medium">Total Clients</p>
+                </div>
+                <div class="stat-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+                    <h3 class="stat-number text-primary text-3xl lg:text-4xl font-bold mb-2">{{ total_inspections|default:"0" }}</h3>
+                    <p class="stat-label text-gray-500 text-sm uppercase tracking-wide font-medium">Total Inspections</p>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mx-4 lg:mx-8 pb-8">
+                <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="card-title text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+                    <div class="quick-actions space-y-3">
+                        <a href="{% url 'client_list' %}"
+                            class="quick-action-link block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                            <div class="flex items-center gap-3">
+                                <i class="quick-action-icon fas fa-users text-primary"></i>
+                                <span class="quick-action-text font-medium">View All Clients</span>
+                            </div>
+                        </a>
+                        <a href="{% url 'shipment_list' %}"
+                            class="quick-action-link block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                            <div class="flex items-center gap-3">
+                                <i class="quick-action-icon fas fa-clipboard-check text-primary"></i>
+                                <span class="quick-action-text font-medium">View All Inspections</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="card-title text-lg font-semibold text-gray-800">System Status</h3>
+                        <a href="?refresh_status=true"
+                            class="btn btn-sm bg-blue-500 text-white hover:bg-blue-600 px-3 py-1 rounded text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i> Refresh
+                        </a>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="status-item flex items-center justify-between">
+                            <span class="status-label text-gray-600">PostgreSQL</span>
+                            <span
+                                class="status-value flex items-center gap-2 {% if system_status.postgresql_online %}text-green-600{% else %}text-red-600{% endif %}">
+                                <i class="fas fa-circle text-xs"></i>
+                                <span>{% if system_status.postgresql_online %}Online{% else %}Offline{% endif %}</span>
+                            </span>
+                        </div>
+                        <div class="status-item flex items-center justify-between">
+                            <span class="status-label text-gray-600">SQL Server</span>
+                            <span
+                                class="status-value flex items-center gap-2 {% if system_status.sql_server_online %}text-green-600{% else %}text-red-600{% endif %}">
+                                <i class="fas fa-circle text-xs"></i>
+                                <span>{% if system_status.sql_server_online %}Online{% else %}Offline{% endif %}</span>
+                            </span>
+                        </div>
+                        <div class="status-item flex items-center justify-between">
+                            <span class="status-label text-gray-600">Sync Service</span>
+                            <span
+                                class="status-value flex items-center gap-2 {% if system_status.sync_service_running %}text-green-600{% else %}text-red-600{% endif %}">
+                                <i class="fas fa-circle text-xs"></i>
+                                <span>{% if system_status.sync_service_running %}Running{% else %}Stopped{% endif %}</span>
+                            </span>
+                        </div>
+                        <div class="status-item flex items-center justify-between">
+                            <span class="status-label text-gray-600">Last Sync</span>
+                            <span class="status-value text-gray-500 text-sm">{{ system_status.last_sync }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="card-title text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+                    <div class="space-y-3">
+                        {% if recent_activities %}
+                        {% for activity in recent_activities %}
+                        <div class="activity-item text-sm text-gray-600">
+                            {% if activity.action == 'SYNC' %}
+                            <i class="fas fa-sync text-green-500 mr-2"></i>
+                            Data synced successfully
+                            {% elif activity.action == 'CREATE' %}
+                            {% if 'client' in activity.description|lower or 'client' in activity.object_type|lower %}
+                            <i class="fas fa-user-plus text-green-500 mr-2"></i>
+                            New client added to system
+                            {% elif 'inspection' in activity.description|lower or 'inspection' in activity.object_type|lower %}
+                            <i class="fas fa-clipboard-check text-blue-500 mr-2"></i>
+                            New inspection created
+                            {% else %}
+                            <i class="fas fa-plus text-green-500 mr-2"></i>
+                            New record created
+                            {% endif %}
+                            {% elif activity.action == 'LOGIN' %}
+                            <i class="fas fa-sign-in-alt text-blue-500 mr-2"></i>
+                            User logged in
+                            {% elif activity.action == 'LOGOUT' %}
+                            <i class="fas fa-sign-out-alt text-gray-500 mr-2"></i>
+                            User logged out
+                            {% elif activity.action == 'UPDATE' %}
+                            <i class="fas fa-edit text-yellow-500 mr-2"></i>
+                            Record updated
+                            {% elif activity.action == 'DELETE' %}
+                            <i class="fas fa-trash text-red-500 mr-2"></i>
+                            Record deleted
+                            {% elif activity.action == 'EXPORT' %}
+                            <i class="fas fa-download text-blue-500 mr-2"></i>
+                            Data exported
+                            {% elif activity.action == 'IMPORT' %}
+                            <i class="fas fa-upload text-green-500 mr-2"></i>
+                            Data imported
+                            {% elif activity.action == 'FILE_UPLOAD' %}
+                            <i class="fas fa-file-upload text-blue-500 mr-2"></i>
+                            File uploaded
+                            {% elif activity.action == 'SETTINGS' %}
+                            <i class="fas fa-cog text-gray-500 mr-2"></i>
+                            Settings updated
+                            {% else %}
+                            <i class="fas fa-info-circle text-gray-500 mr-2"></i>
+                            {{ activity.action|title }}
+                            {% endif %}
+                            <span class="text-gray-400 text-xs ml-2">
+                                {{ activity.timestamp|timesince }} ago
+                            </span>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="activity-item text-sm text-gray-500 italic">
+                            No recent activity
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% csrf_token %}
+
+    <script>
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function () {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Mobile Menu Toggle
+        document.addEventListener('DOMContentLoaded', function () {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+
+                const icon = mobileMenuBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times';
+                } else {
+                    icon.className = 'fas fa-bars';
+                }
+            }
+
+            mobileMenuBtn.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            const navLinks = sidebar.querySelectorAll('a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 1024) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'fas fa-bars';
+                }
+            });
+
+            initTheme();
+            clearStuckSyncStatus();
+        });
+
+        // Sync Functions
+        function syncClients() {
+            const btn = document.getElementById('sync-clients-btn');
+            const text = document.getElementById('sync-clients-text');
+            const statusDiv = document.getElementById('sync-status');
+
+            btn.disabled = true;
+            text.textContent = 'Syncing...';
+            btn.style.opacity = '0.7';
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+            fetch('{% url "refresh_clients" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (response.status === 302 || response.status === 401 || response.status === 403) {
+                        throw new Error('Authentication required. Please refresh the page and log in again.');
+                    }
+
+                    if (response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            throw new Error('Session expired. Please refresh the page and log in again.');
+                        }
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        statusDiv.innerHTML = `
+                        <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            ❌ Sync failed: ${data.error || 'Unknown error occurred'}
+                        </div>
+                    `;
+                    }
+                    resetClientButton();
+                })
+                .catch(error => {
+                    console.error('Error syncing clients:', error);
+                    statusDiv.innerHTML = `
+                    <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        ❌ Error: ${error.message}
+                    </div>
+                `;
+                    resetClientButton();
+                });
+
+            function resetClientButton() {
+                btn.disabled = false;
+                text.textContent = 'Sync Clients';
+                btn.style.opacity = '1';
+            }
+        }
+
+        function syncInspections() {
+            const btn = document.getElementById('sync-inspections-btn');
+            const text = document.getElementById('sync-inspections-text');
+            const statusDiv = document.getElementById('sync-status');
+
+            // Check if background sync is running
+            if (text.textContent.includes('Data Refresh in Progress')) {
+                alert('A background data refresh is currently in progress. Please wait for it to complete.');
+                return;
+            }
+
+            if (text.textContent.includes('Syncing')) {
+                const userConfirm = confirm('The sync button appears to be stuck. Would you like to reset it and try again?');
+                if (userConfirm) {
+                    resetButton();
+                    return;
+                } else {
+                    return;
+                }
+            }
+
+            btn.disabled = true;
+            text.textContent = 'Syncing Everything...';
+            btn.style.opacity = '0.7';
+            statusDiv.innerHTML = `
+                <div class="bg-blue-50 border-l-4 border-primary p-4 rounded">
+                    <p class="text-sm text-primary font-semibold">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>
+                        Step 1/3: Syncing SQL Server clients...
+                    </p>
+                </div>
+            `;
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+            // Step 1: Sync clients from SQL Server first
+            fetch('{% url "refresh_clients" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.status === 302 || response.status === 401 || response.status === 403) {
+                    throw new Error('Authentication required. Please refresh the page and log in again.');
+                }
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        throw new Error('Session expired. Please refresh the page and log in again.');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            })
+            .then(data => {
+                console.log('Client sync response:', data);
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to sync clients');
+                }
+
+                console.log('Client sync successful, transitioning to inspection sync...');
+
+                // Clients synced successfully, now sync inspections
+                statusDiv.innerHTML = `
+                    <div class="bg-blue-50 border-l-4 border-primary p-4 rounded">
+                        <p class="text-sm text-primary font-semibold">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Step 1/3: Clients synced successfully!
+                        </p>
+                        <p class="text-sm text-primary font-semibold mt-2">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Step 2/3: Now syncing inspections...
+                        </p>
+                    </div>
+                `;
+
+                // Continue with inspection sync
+                console.log('About to call startInspectionSync()...');
+                startInspectionSync();
+                console.log('startInspectionSync() called successfully');
+            })
+            .catch(error => {
+                console.error('Error syncing clients:', error);
+                statusDiv.innerHTML = `
+                    <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        Error syncing clients: ${error.message}
+                    </div>
+                `;
+                resetButton();
+            });
+        }
+
+        function startInspectionSync() {
+            console.log('startInspectionSync() called');
+
+            try {
+                const text = document.getElementById('sync-inspections-text');
+                const statusDiv = document.getElementById('sync-status');
+
+                console.log('Updating status to show Step 2/3...');
+                statusDiv.innerHTML = `
+                    <div class="bg-blue-50 border-l-4 border-primary p-4 rounded">
+                        <p class="text-sm text-primary font-semibold">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Step 2/3: Syncing SQL Server inspections...
+                        </p>
+                    </div>
+                `;
+
+                // Show and initialize progress bar
+                console.log('Initializing progress bar elements...');
+                const progressContainer = document.getElementById('sync-progress-container');
+                const progressBar = document.getElementById('sync-progress-bar');
+                const progressText = document.getElementById('sync-progress-text');
+                const progressDetails = document.getElementById('sync-progress-details');
+
+                if (!progressContainer || !progressBar || !progressText || !progressDetails) {
+                    throw new Error('Progress bar elements not found in DOM');
+                }
+
+                progressContainer.classList.remove('hidden');
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+                progressDetails.textContent = 'Starting sync...';
+
+                let pollCount = 0;
+                const maxPolls = 1800;
+
+                const maxTimeout = setTimeout(() => {
+                    console.log('Sync timeout reached - resetting button');
+                    resetButton();
+            }, 3600000);
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+            console.log('Calling refresh_inspections endpoint...');
+            fetch('{% url "refresh_inspections" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    console.log('Received response from refresh_inspections:', response.status, response.statusText);
+
+                    if (response.status === 302 || response.status === 401 || response.status === 403) {
+                        throw new Error('Authentication required. Please refresh the page and log in again.');
+                    }
+
+                    if (response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        console.log('Response content-type:', contentType);
+
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            throw new Error('Session expired. Please refresh the page and log in again.');
+                        }
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .then(data => {
+                    console.log('Parsed inspection sync response:', data);
+                    console.log('data.success:', data.success, 'data.status:', data.status);
+
+                    if (data.success && data.status === 'started') {
+                        console.log('Sync started successfully, beginning to poll status...');
+                        pollSyncStatus();
+                    } else if (data.success) {
+                        console.log('Sync completed immediately (no polling needed)');
+                        resetButton();
+                    } else {
+                        console.log('Sync failed with error:', data.error);
+                        statusDiv.innerHTML = `
+                        <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            ${data.error || 'Failed to start sync'}
+                        </div>
+                    `;
+                        resetButton();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error in fetch chain for refresh_inspections:', error);
+                    console.error('Error message:', error.message);
+                    console.error('Error stack:', error.stack);
+                    statusDiv.innerHTML = `
+                    <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+                    resetButton();
+                });
+
+            function pollSyncStatus() {
+                pollCount++;
+                if (pollCount > maxPolls) {
+                    resetButton();
+                    return;
+                }
+
+                if (pollCount % 5 === 0) {
+                    fetch('{% url "session_status" %}', { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(() => { });
+                }
+
+                fetch('{% url "check_sync_status" %}', { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    })
+                    .then(data => {
+                        console.log(`[POLL ${pollCount}] Sync status:`, data);
+
+                        if (data.success && data.message) {
+                            // Sync completed successfully
+                            const progressContainer = document.getElementById('sync-progress-container');
+                            const progressBar = document.getElementById('sync-progress-bar');
+                            const progressText = document.getElementById('sync-progress-text');
+
+                            // Set to 100% before hiding
+                            progressBar.style.width = '100%';
+                            progressText.textContent = '100%';
+
+                            statusDiv.innerHTML = `
+                            <div class="p-4 mt-4 rounded-lg bg-green-50 border border-green-200 text-green-700">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                ✅ ${data.message}
+                                <br>Deleted: ${data.deleted_count || 0} old inspections
+                                <br>Created: ${data.created_count || 0} new inspections
+                                <br>Total processed: ${data.total_processed || 0} records
+                            </div>
+                        `;
+
+                            // Hide progress bar after a short delay
+                            setTimeout(() => {
+                                progressContainer.classList.add('hidden');
+                            }, 1000);
+
+                            clearTimeout(maxTimeout);
+                            resetButton();
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        } else if (data.success === false && data.error) {
+                            // Sync failed
+                            const progressContainer = document.getElementById('sync-progress-container');
+                            progressContainer.classList.add('hidden');
+
+                            statusDiv.innerHTML = `
+                            <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                                <i class="fas fa-exclamation-circle mr-2"></i>
+                                ❌ Sync failed: ${data.error}
+                            </div>
+                        `;
+                            clearTimeout(maxTimeout);
+                            resetButton();
+                        } else if (data.status === 'running' || data.message === 'Sync is still running...') {
+                            // Sync still running - update progress bar
+                            text.textContent = 'Syncing...';
+
+                            const progressContainer = document.getElementById('sync-progress-container');
+                            const progressBar = document.getElementById('sync-progress-bar');
+                            const progressText = document.getElementById('sync-progress-text');
+                            const progressDetails = document.getElementById('sync-progress-details');
+
+                            // Show progress bar container
+                            progressContainer.classList.remove('hidden');
+
+                            // Update progress if available
+                            if (data.progress) {
+                                const percent = data.progress.percent || 0;
+                                const message = data.progress.message || 'Processing...';
+
+                                console.log(`[POLL ${pollCount}] Progress: ${percent}% - ${message}`);
+
+                                // Update progress bar width
+                                progressBar.style.width = percent + '%';
+
+                                // Update percentage text
+                                progressText.textContent = percent + '%';
+
+                                // Update details message
+                                progressDetails.textContent = message;
+
+                                // Update status div with current step
+                                statusDiv.innerHTML = `
+                                <div class="bg-blue-50 border-l-4 border-primary p-4 rounded">
+                                    <p class="text-sm text-primary font-semibold">
+                                        <i class="fas fa-spinner fa-spin mr-2"></i>
+                                        ${message}
+                                    </p>
+                                </div>
+                            `;
+                            } else {
+                                // No progress data yet - show waiting message but keep progress bar visible
+                                console.log(`[POLL ${pollCount}] No progress data yet, keeping progress bar at current state`);
+                                progressDetails.textContent = data.message || 'Starting sync...';
+                            }
+
+                            setTimeout(pollSyncStatus, 2000);
+                        } else {
+                            resetButton();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error polling sync status:', error);
+                        resetButton();
+                    });
+            }
+            } catch (error) {
+                console.error('Error in startInspectionSync():', error);
+                const statusDiv = document.getElementById('sync-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = `
+                        <div class="p-4 mt-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            Error starting inspection sync: ${error.message}
+                        </div>
+                    `;
+                }
+                resetButton();
+            }
+        }
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = '{{ settings.dark_mode|yesno:"dark,light" }}';
+
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+            }
+
+            document.documentElement.setAttribute('data-theme', activeTheme);
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        }
+
+        async function saveThemeToServer(theme) {
+            try {
+                const response = await fetch(window.location.pathname, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=save_theme&theme_mode=${theme === 'dark' ? 'on' : ''}`
+                });
+            } catch (error) {
+                // Silent fail
+            }
+        }
+
+        // Check if background sync is running and update UI accordingly
+        function checkBackgroundSync() {
+            fetch('{% url "check_sync_status" %}', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const btn = document.getElementById('sync-inspections-btn');
+                const text = document.getElementById('sync-inspections-text');
+                const progressContainer = document.getElementById('sync-progress-container');
+                const progressBar = document.getElementById('sync-progress-bar');
+                const progressText = document.getElementById('sync-progress-text');
+                const progressDetails = document.getElementById('sync-progress-details');
+
+                if (data.is_running) {
+                    // Background sync is running - update button and show progress
+                    if (btn && text) {
+                        btn.disabled = true;
+                        text.textContent = 'Data Refresh in Progress...';
+                        btn.style.opacity = '0.7';
+                    }
+
+                    // Show progress if available
+                    if (data.progress && Object.keys(data.progress).length > 0) {
+                        const progress = data.progress;
+
+                        if (progressContainer) {
+                            progressContainer.classList.remove('hidden');
+                        }
+
+                        if (progressBar && progress.percent !== undefined) {
+                            progressBar.style.width = progress.percent + '%';
+                        }
+
+                        if (progressText && progress.message) {
+                            progressText.textContent = progress.message;
+                        }
+
+                        if (progressDetails) {
+                            let details = '';
+                            if (progress.current !== undefined && progress.total !== undefined) {
+                                details += `Processing ${progress.current} of ${progress.total}`;
+                            }
+                            if (progress.elapsed !== undefined) {
+                                details += ` • ${progress.elapsed}`;
+                            }
+                            progressDetails.textContent = details;
+                        }
+                    }
+
+                    // Continue checking while sync is running
+                    setTimeout(checkBackgroundSync, 2000);
+                } else {
+                    // No sync running - reset button to normal state
+                    if (btn && text && text.textContent === 'Data Refresh in Progress...') {
+                        btn.disabled = false;
+                        text.textContent = 'Sync Everything';
+                        btn.style.opacity = '1';
+                    }
+
+                    // Hide progress bar
+                    if (progressContainer) {
+                        progressContainer.classList.add('hidden');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking sync status:', error);
+                // On error, check again after a longer delay
+                setTimeout(checkBackgroundSync, 5000);
+            });
+        }
+
+        // Start checking for background sync on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkBackgroundSync();
+        });
+
+        function resetButton() {
+            const inspectionsBtn = document.getElementById('sync-inspections-btn');
+            const inspectionsText = document.getElementById('sync-inspections-text');
+            const statusDiv = document.getElementById('sync-status');
+            const progressContainer = document.getElementById('sync-progress-container');
+
+            if (inspectionsBtn && inspectionsText) {
+                inspectionsBtn.disabled = false;
+                inspectionsText.textContent = 'Sync Everything';
+                inspectionsBtn.style.opacity = '1';
+            }
+
+            if (statusDiv) {
+                statusDiv.innerHTML = '';
+            }
+
+            // Hide progress bar
+            if (progressContainer) {
+                progressContainer.classList.add('hidden');
+            }
+
+            // Restart background sync checking
+            checkBackgroundSync();
+        }
+
+        function resetClientsButton() {
+            const clientsBtn = document.getElementById('sync-clients-btn');
+            const clientsText = document.getElementById('sync-clients-text');
+
+            if (clientsBtn && clientsText) {
+                clientsBtn.disabled = false;
+                clientsText.textContent = 'Sync Clients';
+                clientsBtn.style.opacity = '1';
+            }
+        }
+
+        function clearStuckSyncStatus() {
+            const syncInspectionsBtn = document.getElementById('sync-inspections-text');
+            const syncClientsBtn = document.getElementById('sync-clients-text');
+
+            if (syncInspectionsBtn && syncInspectionsBtn.textContent === 'Syncing...') {
+                resetButton();
+            }
+
+            if (syncClientsBtn && syncClientsBtn.textContent === 'Syncing...') {
+                resetClientsButton();
+            }
+        }
+
+        // ================================================================
+        // NOTIFICATION SYSTEM
+        // ================================================================
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        let notificationModal = null;
+
+        // Fetch notifications and update badge
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateNotificationBadge(data.unread_count);
+                    return data.notifications;
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+            return [];
+        }
+
+        // Update notification badge
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        // Show notification modal
+        async function showNotificationModal() {
+            const notifications = await fetchNotifications();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="notification-modal" class="fixed inset-0 z-50 flex items-start justify-center p-4" style="background: rgba(0, 0, 0, 0.5); padding-top: 60px;">
+                    <div class="rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden" style="background-color: var(--card-bg);">
+                        <div class="flex items-center justify-between p-4" style="border-bottom: 1px solid var(--border);">
+                            <h3 class="text-lg font-semibold" style="color: var(--text);">
+                                Notifications
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllAsRead()" class="text-sm" style="color: var(--info);">
+                                    Mark All Read
+                                </button>
+                                <button onclick="closeNotificationModal()" class="text-xl" style="color: var(--text-light);">
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-y-auto max-h-[75vh]" id="notification-list">
+                            ${notifications.length === 0 ? `
+                                <div class="p-8 text-center" style="color: var(--text-light);">
+                                    <p>No notifications</p>
+                                </div>
+                            ` : notifications.map(notif => createNotificationHTML(notif)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existing = document.getElementById('notification-modal');
+            if (existing) existing.remove();
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Create HTML for a single notification
+        function createNotificationHTML(notif) {
+            const timeAgo = getTimeAgo(notif.created_at);
+            const opacity = notif.is_read ? 'opacity-60' : '';
+
+            return `
+                <div class="p-4 ${opacity}" data-notification-id="${notif.id}" style="border-bottom: 1px solid var(--border);">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-sm font-semibold" style="color: var(--text);">${notif.title}</h4>
+                                ${!notif.is_read ? '<span style="background: var(--info); width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>' : ''}
+                            </div>
+                            <p class="text-sm mb-2" style="color: var(--text-light);">${notif.message}</p>
+                            <div class="flex items-center justify-between text-xs" style="color: var(--text-light);">
+                                <span>${timeAgo}</span>
+                                <div class="flex gap-2">
+                                    ${!notif.is_read ? `<button onclick="markAsRead(${notif.id})" style="color: var(--info);">
+                                        Mark Read
+                                    </button>` : ''}
+                                    <button onclick="deleteNotification(${notif.id})" style="color: var(--danger);">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get time ago string
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' days ago';
+            return date.toLocaleDateString();
+        }
+
+        // Close notification modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all notifications as read
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/api/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    closeNotificationModal();
+                    updateNotificationBadge(0);
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            if (!confirm('Are you sure you want to delete this notification?')) return;
+
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Initialize notification system
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showNotificationModal();
+                });
+
+                // Fetch notifications every 30 seconds
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+
+</html>

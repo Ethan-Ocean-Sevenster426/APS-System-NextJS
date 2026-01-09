@@ -1,0 +1,49 @@
+Subject: Inspections Missing Internal Account Codes - Action Required
+
+To: Eclick Team
+From: Food Safety Inspection System
+Date: November 17, 2025
+
+Dear Eclick Team,
+
+We have identified 8 inspections in our system that cannot be matched to clients due to missing or invalid internal account codes.
+
+ISSUE 1: November 3, 2025 (5 inspections)
+Inspector: KUTLWANO KUNTWANE
+Problem: No internal account code on the server - shows as "-"
+
+Remote IDs: 6117, 8274, 9642, 9644, 9647
+
+These inspections have no account code in the SQL Server database. The account code field contains only "-" which prevents us from matching them to clients in our Google Sheets database.
+
+
+ISSUE 2: November 14, 2025 (3 inspections)
+Inspector: MOKGADI SELONE
+Problem: Account code "RE-COR-RAW-FLM-1805" not found in Google Sheets client database
+
+Remote IDs: 6320, 8472, 9910
+
+These inspections have the account code "RE-COR-RAW-FLM-1805" on the server, but this account code does not exist in our Google Sheets client list.
+
+
+IMPACT:
+- Client name shows as "-" instead of actual client information
+- Lab results cannot be properly linked to clients
+- These inspections cannot be included in client-specific reports
+
+
+REQUIRED ACTION:
+
+For November 3 inspections:
+Please update the SQL Server database with the correct internal account codes for these 5 inspections.
+
+For November 14 inspections:
+Please either add the client with account code "RE-COR-RAW-FLM-1805" to the Google Sheets client database, OR provide the correct account code if "RE-COR-RAW-FLM-1805" is incorrect.
+
+
+Once updated, our next sync will automatically correct the client associations.
+
+Please let us know if you need any additional information.
+
+Best regards,
+Food Safety Inspection System Team

@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ action }} Inspection - Food Safety Agency</title>
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --border: #e5e7eb;
+        }
+        body {
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center fixed;
+            background-size: cover;
+            font-family: system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: -1;
+        }
+        .wizard-container {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            backdrop-filter: blur(10px);
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+            background: white;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(0, 120, 144, 0.15);
+        }
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 15px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #005a6b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 120, 144, 0.3);
+        }
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        .btn-outline {
+            background: rgba(255,255,255,0.9);
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover {
+            background: white;
+            border-color: var(--primary);
+        }
+
+        /* Wizard Steps */
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        .wizard-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50px;
+            right: 50px;
+            height: 3px;
+            background: var(--border);
+            z-index: 0;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+        .step-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--border);
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        .step.active .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 4px rgba(0, 120, 144, 0.2);
+        }
+        .step.completed .step-circle {
+            background: #10b981;
+            color: white;
+        }
+        .step-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #9ca3af;
+            text-align: center;
+        }
+        .step.active .step-label,
+        .step.completed .step-label {
+            color: var(--text);
+        }
+
+        /* Wizard Content */
+        .wizard-step-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .wizard-step-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Checkbox styling */
+        .checkbox-card {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        .checkbox-card:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .checkbox-card input:checked + .checkbox-content {
+            color: var(--primary);
+        }
+        .checkbox-card input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+            margin-right: 12px;
+        }
+
+        .alert {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+        }
+
+        /* Commodity Cards */
+        .commodity-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .commodity-card {
+            padding: 24px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            background: white;
+        }
+        .commodity-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .commodity-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
+        }
+        .commodity-card i {
+            font-size: 36px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+        .commodity-card h4 {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        /* Header styling */
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 16px 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        /* Client autocomplete dropdown */
+        .client-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid var(--primary);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .client-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+        }
+        .client-dropdown-item:hover,
+        .client-dropdown-item.highlighted {
+            background: var(--primary-light);
+        }
+        .client-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .client-dropdown-item .client-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .client-dropdown-item .client-code {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .client-dropdown-item.new-client {
+            background: #f0fdf4;
+            border-top: 2px solid #10b981;
+        }
+        .client-dropdown-item.new-client:hover {
+            background: #dcfce7;
+        }
+        .client-dropdown-item.new-client .add-icon {
+            color: #10b981;
+            margin-right: 8px;
+        }
+        .no-results {
+            padding: 16px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        /* ===== FILE UPLOAD STYLES ===== */
+        .file-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .file-upload-card {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            position: relative;
+        }
+
+        .file-upload-card:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .file-upload-card.uploaded {
+            border-color: #10b981;
+            border-style: solid;
+            background: #f0fdf4;
+        }
+
+        .file-upload-card.uploaded .upload-icon {
+            color: #10b981;
+        }
+
+        .file-upload-card.error {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .file-upload-card .upload-icon {
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .file-upload-card .upload-label {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .file-upload-card .upload-hint {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .file-upload-card .upload-status {
+            font-size: 11px;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .file-upload-card .upload-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .file-upload-card .upload-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .file-upload-card .upload-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .file-upload-card input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-card .file-name {
+            font-size: 11px;
+            color: #059669;
+            margin-top: 6px;
+            word-break: break-all;
+            max-width: 100%;
+        }
+
+        .file-upload-card .remove-file {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .file-upload-card.uploaded .remove-file {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-progress {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .upload-progress.active {
+            display: block;
+        }
+
+        .upload-progress-bar {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== RESPONSIVE STYLES ===== */
+        /* Tablet and smaller */
+        @media (max-width: 768px) {
+            .max-w-3xl {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+
+            .wizard-container {
+                padding: 20px !important;
+                border-radius: 12px;
+                margin: 0 5px;
+            }
+
+            /* Wizard steps - horizontal scroll on mobile */
+            .wizard-steps {
+                margin-bottom: 24px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 10px;
+            }
+
+            .wizard-steps::before {
+                left: 30px;
+                right: 30px;
+            }
+
+            .step-circle {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            .step-label {
+                font-size: 11px;
+                white-space: nowrap;
+            }
+
+            /* Commodity cards - 2 column on tablet, 1 column on small mobile */
+            .commodity-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .commodity-card {
+                padding: 16px;
+            }
+
+            .commodity-card i {
+                font-size: 28px;
+                margin-bottom: 8px;
+            }
+
+            .commodity-card h4 {
+                font-size: 14px;
+            }
+
+            /* Form controls */
+            .form-control {
+                padding: 10px 12px;
+                font-size: 16px; /* Prevent iOS zoom on focus */
+            }
+
+            .form-label {
+                font-size: 13px;
+            }
+
+            .form-group {
+                margin-bottom: 16px;
+            }
+
+            /* Header */
+            .header-card {
+                padding: 12px 16px;
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .header-card h1 {
+                font-size: 1.25rem !important;
+            }
+
+            .header-card img {
+                height: 40px;
+            }
+
+            /* Navigation buttons */
+            .flex.justify-between {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .flex.gap-3 {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 14px 20px;
+            }
+
+            #prevBtn {
+                order: 2;
+                visibility: visible !important;
+            }
+
+            /* Review grid */
+            .grid.grid-cols-2 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Checkbox cards */
+            .checkbox-card {
+                padding: 12px;
+            }
+
+            .grid.grid-cols-2.gap-4 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* File upload responsive */
+            .file-upload-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .file-upload-card {
+                padding: 16px;
+            }
+
+            .file-upload-card .upload-icon {
+                font-size: 28px;
+            }
+        }
+
+        /* Small mobile */
+        @media (max-width: 480px) {
+            body {
+                padding: 0;
+            }
+
+            .max-w-3xl {
+                padding: 0 5px;
+            }
+
+            .wizard-container {
+                padding: 15px !important;
+                border-radius: 8px;
+                margin: 0;
+            }
+
+            /* Single column commodity cards on small screens */
+            .commodity-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .commodity-card {
+                padding: 14px;
+                display: flex;
+                align-items: center;
+                text-align: left;
+                gap: 12px;
+            }
+
+            .commodity-card i {
+                font-size: 24px;
+                margin-bottom: 0;
+            }
+
+            .commodity-card h4 {
+                margin: 0;
+            }
+
+            /* Wizard steps - compact on small screens */
+            .wizard-steps {
+                justify-content: center;
+                gap: 5px;
+            }
+
+            .step {
+                flex: 0 0 auto;
+                min-width: 50px;
+            }
+
+            .step-circle {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+
+            .step-label {
+                font-size: 9px;
+            }
+
+            /* Form */
+            .form-control {
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            h3 {
+                font-size: 1.1rem !important;
+            }
+
+            /* Client dropdown */
+            .client-dropdown {
+                max-height: 200px;
+            }
+
+            .client-dropdown-item {
+                padding: 10px 12px;
+            }
+
+            /* Review section */
+            .bg-gray-50 {
+                padding: 15px !important;
+            }
+
+            .p-3 {
+                padding: 10px !important;
+            }
+
+            /* Buttons */
+            .btn {
+                font-size: 14px;
+                padding: 12px 16px;
+            }
+        }
+
+        /* Ensure inputs don't lose focus or values */
+        input, select, textarea {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        /* Prevent zoom on iOS when focusing inputs */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            select,
+            textarea,
+            input[type="text"],
+            input[type="date"],
+            input[type="number"] {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="max-w-3xl mx-auto py-8 px-4">
+        <!-- Header -->
+        <div class="header-card flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Logo" class="h-14">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">{{ action }} Inspection</h1>
+                    <p class="text-gray-500">Food Safety Agency (Pty) Ltd</p>
+                </div>
+            </div>
+            <a href="{% url 'shipment_list' %}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Wizard Form -->
+        <div class="wizard-container p-8">
+            <!-- Progress Steps -->
+            <div class="wizard-steps">
+                <div class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <span class="step-label">Basic Info</span>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-circle">2</div>
+                    <span class="step-label">Product</span>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-circle">3</div>
+                    <span class="step-label">Sample & Travel</span>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-circle">4</div>
+                    <span class="step-label">Testing</span>
+                </div>
+                <div class="step" data-step="5">
+                    <div class="step-circle">5</div>
+                    <span class="step-label">Documents</span>
+                </div>
+                <div class="step" data-step="6">
+                    <div class="step-circle">6</div>
+                    <span class="step-label">Review</span>
+                </div>
+            </div>
+
+            <form method="post" id="inspectionForm" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <!-- Step 1: Basic Information -->
+                <div class="wizard-step-content active" data-step="1">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-info-circle text-[var(--primary)] mr-2"></i>Basic Information
+                    </h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Commodity Type *</label>
+                        <div class="commodity-grid">
+                            <div class="commodity-card" data-value="POULTRY" onclick="selectCommodity(this)">
+                                <i class="fas fa-drumstick-bite"></i>
+                                <h4>Poultry</h4>
+                            </div>
+                            <div class="commodity-card" data-value="RAW" onclick="selectCommodity(this)">
+                                <i class="fas fa-bacon"></i>
+                                <h4>Raw Meat</h4>
+                            </div>
+                            <div class="commodity-card" data-value="PMP" onclick="selectCommodity(this)">
+                                <i class="fas fa-hamburger"></i>
+                                <h4>PMP (Processed)</h4>
+                            </div>
+                            <div class="commodity-card" data-value="EGGS" onclick="selectCommodity(this)">
+                                <i class="fas fa-egg"></i>
+                                <h4>Eggs</h4>
+                            </div>
+                        </div>
+                        <select name="commodity" id="commoditySelect" style="display:none;">
+                            <option value="">-- Select --</option>
+                            <option value="POULTRY">Poultry</option>
+                            <option value="RAW">Raw</option>
+                            <option value="PMP">PMP</option>
+                            <option value="EGGS">Eggs</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date of Inspection *</label>
+                        {{ form.date_of_inspection }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Client *</label>
+                        <div class="client-search-container" style="position: relative;">
+                            <input type="text"
+                                   name="client_name"
+                                   id="client_name"
+                                   class="form-control"
+                                   placeholder="Start typing to search or add new client..."
+                                   autocomplete="off"
+                                   required>
+                            <div id="clientDropdown" class="client-dropdown" style="display: none;">
+                                <!-- Results will be populated by JS -->
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Type to search existing clients or enter a new client name
+                        </p>
+                    </div>
+
+                    <!-- Hidden fields -->
+                    <input type="hidden" name="internal_account_code" id="internal_account_code" value="">
+                    <input type="hidden" name="inspector_name" id="inspector_name" value="{{ default_inspector }}">
+                </div>
+
+                <!-- Step 2: Product Information -->
+                <div class="wizard-step-content" data-step="2">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-box text-[var(--primary)] mr-2"></i>Product Information
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label">Product Name</label>
+                            {{ form.product_name }}
+                            <p class="text-sm text-gray-500 mt-1">e.g., Mince, Eggs, Burger Patties</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product Class</label>
+                            {{ form.product_class }}
+                            <p class="text-sm text-gray-500 mt-1">e.g., Class A, Grade 1</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Laboratory</label>
+                        {{ form.lab }}
+                    </div>
+                </div>
+
+                <!-- Step 3: Sample & Travel -->
+                <div class="wizard-step-content" data-step="3">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-vial text-[var(--primary)] mr-2"></i>Sample & Travel Details
+                    </h3>
+
+                    <div class="form-group">
+                        <label class="checkbox-card">
+                            {{ form.is_sample_taken }}
+                            <span class="checkbox-content font-medium">Sample was taken during inspection</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="form-group">
+                            <label class="form-label">Bought Sample Amount (R)</label>
+                            {{ form.bought_sample }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Kilometers Traveled</label>
+                            {{ form.km_traveled }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hours Worked</label>
+                            {{ form.hours }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Testing Parameters -->
+                <div class="wizard-step-content" data-step="4">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-flask text-[var(--primary)] mr-2"></i>Testing Parameters
+                    </h3>
+
+                    <p class="text-gray-600 mb-6">Select which tests are required for this inspection:</p>
+
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <label class="checkbox-card">
+                            {{ form.fat }}
+                            <span class="checkbox-content">
+                                <span class="font-medium">Fat Testing</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            {{ form.protein }}
+                            <span class="checkbox-content">
+                                <span class="font-medium">Protein Testing</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            {{ form.calcium }}
+                            <span class="checkbox-content">
+                                <span class="font-medium">Calcium Testing</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            {{ form.dna }}
+                            <span class="checkbox-content">
+                                <span class="font-medium">DNA Testing</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="max-width: 250px;">
+                        <label class="form-label">Needs Retest?</label>
+                        {{ form.needs_retest }}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Comments / Notes</label>
+                        {{ form.comment }}
+                    </div>
+                </div>
+
+                <!-- Step 5: Documents -->
+                <div class="wizard-step-content" data-step="5">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-file-upload text-[var(--primary)] mr-2"></i>Upload Documents
+                    </h3>
+
+                    <p class="text-gray-600 mb-6">Upload required documents for this inspection. Click on each card to select a file.</p>
+
+                    <div class="file-upload-grid">
+                        <!-- RFI Document -->
+                        <div class="file-upload-card" id="upload-rfi" onclick="triggerFileUpload('rfi')">
+                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('rfi')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <i class="fas fa-file-invoice upload-icon"></i>
+                            <div class="upload-label">RFI Document</div>
+                            <div class="upload-hint">Request for Information</div>
+                            <input type="file" id="file-rfi" name="rfi_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'rfi')">
+                            <div class="file-name" id="filename-rfi"></div>
+                            <div class="upload-progress" id="progress-rfi">
+                                <div class="upload-progress-bar" id="progress-bar-rfi"></div>
+                            </div>
+                            <div class="upload-status pending" id="status-rfi">Not uploaded</div>
+                        </div>
+
+                        <!-- Invoice Document -->
+                        <div class="file-upload-card" id="upload-invoice" onclick="triggerFileUpload('invoice')">
+                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('invoice')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <i class="fas fa-file-invoice-dollar upload-icon"></i>
+                            <div class="upload-label">Invoice</div>
+                            <div class="upload-hint">Invoice document</div>
+                            <input type="file" id="file-invoice" name="invoice_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'invoice')">
+                            <div class="file-name" id="filename-invoice"></div>
+                            <div class="upload-progress" id="progress-invoice">
+                                <div class="upload-progress-bar" id="progress-bar-invoice"></div>
+                            </div>
+                            <div class="upload-status pending" id="status-invoice">Not uploaded</div>
+                        </div>
+
+                        <!-- Lab Form -->
+                        <div class="file-upload-card" id="upload-labform" onclick="triggerFileUpload('labform')">
+                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('labform')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <i class="fas fa-flask upload-icon"></i>
+                            <div class="upload-label">Lab Form</div>
+                            <div class="upload-hint">Laboratory submission form</div>
+                            <input type="file" id="file-labform" name="labform_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'labform')">
+                            <div class="file-name" id="filename-labform"></div>
+                            <div class="upload-progress" id="progress-labform">
+                                <div class="upload-progress-bar" id="progress-bar-labform"></div>
+                            </div>
+                            <div class="upload-status pending" id="status-labform">Not uploaded</div>
+                        </div>
+
+                        <!-- COA (Certificate of Analysis) -->
+                        <div class="file-upload-card" id="upload-coa" onclick="triggerFileUpload('coa')">
+                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('coa')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <i class="fas fa-certificate upload-icon"></i>
+                            <div class="upload-label">COA</div>
+                            <div class="upload-hint">Certificate of Analysis</div>
+                            <input type="file" id="file-coa" name="coa_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'coa')">
+                            <div class="file-name" id="filename-coa"></div>
+                            <div class="upload-progress" id="progress-coa">
+                                <div class="upload-progress-bar" id="progress-bar-coa"></div>
+                            </div>
+                            <div class="upload-status pending" id="status-coa">Not uploaded</div>
+                        </div>
+
+                        <!-- Composition Document -->
+                        <div class="file-upload-card" id="upload-composition" onclick="triggerFileUpload('composition')">
+                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('composition')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <i class="fas fa-list-alt upload-icon"></i>
+                            <div class="upload-label">Composition</div>
+                            <div class="upload-hint">Product composition document</div>
+                            <input type="file" id="file-composition" name="composition_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'composition')">
+                            <div class="file-name" id="filename-composition"></div>
+                            <div class="upload-progress" id="progress-composition">
+                                <div class="upload-progress-bar" id="progress-bar-composition"></div>
+                            </div>
+                            <div class="upload-status pending" id="status-composition">Not uploaded</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-sm mt-6">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Documents are optional but recommended. You can upload PDF, Word documents, or images.
+                    </div>
+                </div>
+
+                <!-- Step 6: Review -->
+                <div class="wizard-step-content" data-step="6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-check-circle text-[var(--primary)] mr-2"></i>Review & Submit
+                    </h3>
+
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <h4 class="font-semibold text-gray-700 mb-4">Inspection Summary</h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Commodity</span>
+                                <span id="reviewCommodity" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Date</span>
+                                <span id="reviewDate" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Client</span>
+                                <span id="reviewClient" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Inspector</span>
+                                <span id="reviewInspector" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Product</span>
+                                <span id="reviewProduct" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">KM / Hours</span>
+                                <span id="reviewKmHours" class="font-semibold text-gray-800">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documents Summary -->
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <h4 class="font-semibold text-gray-700 mb-4">Documents Uploaded</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm" id="reviewDocuments">
+                            <div class="p-2 rounded border flex items-center gap-2" id="review-rfi">
+                                <i class="fas fa-times-circle text-red-500"></i>
+                                <span>RFI: Not uploaded</span>
+                            </div>
+                            <div class="p-2 rounded border flex items-center gap-2" id="review-invoice">
+                                <i class="fas fa-times-circle text-red-500"></i>
+                                <span>Invoice: Not uploaded</span>
+                            </div>
+                            <div class="p-2 rounded border flex items-center gap-2" id="review-labform">
+                                <i class="fas fa-times-circle text-red-500"></i>
+                                <span>Lab Form: Not uploaded</span>
+                            </div>
+                            <div class="p-2 rounded border flex items-center gap-2" id="review-coa">
+                                <i class="fas fa-times-circle text-red-500"></i>
+                                <span>COA: Not uploaded</span>
+                            </div>
+                            <div class="p-2 rounded border flex items-center gap-2" id="review-composition">
+                                <i class="fas fa-times-circle text-red-500"></i>
+                                <span>Composition: Not uploaded</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Please review all information before submitting. This inspection will be saved as a manual entry.
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between mt-8 pt-6 border-t">
+                    <button type="button" id="prevBtn" class="btn btn-outline" onclick="changeStep(-1)" style="visibility: hidden;">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    <div class="flex gap-3">
+                        <a href="{% url 'shipment_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" id="nextBtn" class="btn btn-primary" onclick="changeStep(1)">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary" style="display: none;">
+                            <i class="fas fa-save"></i> Save Inspection
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-white text-sm opacity-80">
+            Food Safety Agency (Pty) Ltd - Inspection Management System
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 6;
+
+        // Track uploaded files
+        const uploadedFiles = {
+            rfi: null,
+            invoice: null,
+            labform: null,
+            coa: null,
+            composition: null
+        };
+
+        function selectCommodity(card) {
+            document.querySelectorAll('.commodity-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            document.getElementById('commoditySelect').value = card.dataset.value;
+        }
+
+        function changeStep(direction) {
+            // Validation for step 1
+            if (direction === 1 && currentStep === 1) {
+                const commodity = document.getElementById('commoditySelect').value;
+                const date = document.querySelector('[name="date_of_inspection"]').value;
+                const client = document.querySelector('[name="client_name"]').value;
+
+                if (!commodity) {
+                    alert('Please select a commodity type');
+                    return;
+                }
+                if (!date) {
+                    alert('Please enter the inspection date');
+                    return;
+                }
+                if (!client) {
+                    alert('Please select a client');
+                    return;
+                }
+            }
+
+            // Update current step
+            currentStep += direction;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > totalSteps) currentStep = totalSteps;
+
+            // Update steps UI
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    step.classList.add('completed');
+                } else if (index + 1 === currentStep) {
+                    step.classList.add('active');
+                }
+            });
+
+            // Update content
+            document.querySelectorAll('.wizard-step-content').forEach(content => {
+                content.classList.remove('active');
+                if (parseInt(content.dataset.step) === currentStep) {
+                    content.classList.add('active');
+                }
+            });
+
+            // Update buttons
+            document.getElementById('prevBtn').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+            document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
+            document.getElementById('submitBtn').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
+
+            // Update review on last step
+            if (currentStep === totalSteps) {
+                updateReview();
+            }
+        }
+
+        // ===== FILE UPLOAD FUNCTIONS =====
+        function triggerFileUpload(type) {
+            document.getElementById('file-' + type).click();
+        }
+
+        function handleFileSelect(input, type) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const card = document.getElementById('upload-' + type);
+            const filenameEl = document.getElementById('filename-' + type);
+            const statusEl = document.getElementById('status-' + type);
+
+            // Store the file
+            uploadedFiles[type] = file;
+
+            // Update UI
+            card.classList.add('uploaded');
+            card.classList.remove('error');
+            filenameEl.textContent = file.name;
+            statusEl.textContent = 'Selected';
+            statusEl.className = 'upload-status success';
+
+            // Save to localStorage
+            saveFormToStorage();
+
+            console.log(`✅ File selected for ${type}:`, file.name);
+        }
+
+        function removeFile(type) {
+            const card = document.getElementById('upload-' + type);
+            const fileInput = document.getElementById('file-' + type);
+            const filenameEl = document.getElementById('filename-' + type);
+            const statusEl = document.getElementById('status-' + type);
+
+            // Clear the file
+            uploadedFiles[type] = null;
+            fileInput.value = '';
+
+            // Update UI
+            card.classList.remove('uploaded', 'error');
+            filenameEl.textContent = '';
+            statusEl.textContent = 'Not uploaded';
+            statusEl.className = 'upload-status pending';
+
+            // Save to localStorage
+            saveFormToStorage();
+
+            console.log(`🗑️ File removed for ${type}`);
+        }
+
+        function updateDocumentReview() {
+            const docTypes = ['rfi', 'invoice', 'labform', 'coa', 'composition'];
+            const labels = {
+                rfi: 'RFI',
+                invoice: 'Invoice',
+                labform: 'Lab Form',
+                coa: 'COA',
+                composition: 'Composition'
+            };
+
+            docTypes.forEach(type => {
+                const reviewEl = document.getElementById('review-' + type);
+                if (reviewEl) {
+                    const hasFile = uploadedFiles[type] !== null;
+                    if (hasFile) {
+                        reviewEl.innerHTML = `
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span>${labels[type]}: ${uploadedFiles[type].name}</span>
+                        `;
+                        reviewEl.style.background = '#f0fdf4';
+                        reviewEl.style.borderColor = '#10b981';
+                    } else {
+                        reviewEl.innerHTML = `
+                            <i class="fas fa-times-circle text-red-500"></i>
+                            <span>${labels[type]}: Not uploaded</span>
+                        `;
+                        reviewEl.style.background = '#fef2f2';
+                        reviewEl.style.borderColor = '#ef4444';
+                    }
+                }
+            });
+        }
+
+        function updateReview() {
+            const commodityCard = document.querySelector('.commodity-card.selected');
+            document.getElementById('reviewCommodity').textContent = commodityCard ? commodityCard.querySelector('h4').textContent : '-';
+            document.getElementById('reviewDate').textContent = document.querySelector('[name="date_of_inspection"]').value || '-';
+            document.getElementById('reviewClient').textContent = document.querySelector('[name="client_name"]').value || '-';
+            document.getElementById('reviewInspector').textContent = document.querySelector('[name="inspector_name"]').value || '-';
+            document.getElementById('reviewProduct').textContent = document.querySelector('[name="product_name"]').value || 'Not specified';
+
+            const km = document.querySelector('[name="km_traveled"]').value || '0';
+            const hours = document.querySelector('[name="hours"]').value || '0';
+            document.getElementById('reviewKmHours').textContent = `${km} km / ${hours} hrs`;
+
+            // Update document review
+            updateDocumentReview();
+        }
+
+        // Client data from database
+        const clientsData = [
+            {% for client in clients %}
+            {
+                name: "{{ client.name|escapejs }}",
+                code: "{{ client.internal_account_code|default:''|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        // Client autocomplete functionality
+        const clientInput = document.getElementById('client_name');
+        const clientDropdown = document.getElementById('clientDropdown');
+        const accountCodeInput = document.getElementById('internal_account_code');
+        let highlightedIndex = -1;
+
+        clientInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+
+            if (query.length === 0) {
+                clientDropdown.style.display = 'none';
+                accountCodeInput.value = '';
+                return;
+            }
+
+            // Filter clients
+            const matches = clientsData.filter(c =>
+                c.name.toLowerCase().includes(query)
+            );
+
+            // Build dropdown HTML
+            let html = '';
+
+            if (matches.length > 0) {
+                matches.forEach((client, index) => {
+                    html += `
+                        <div class="client-dropdown-item" data-name="${client.name}" data-code="${client.code}" data-index="${index}">
+                            <div class="client-name">${highlightMatch(client.name, query)}</div>
+                            ${client.code ? `<div class="client-code">${client.code}</div>` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            // Always show "Add new" option
+            const exactMatch = clientsData.some(c => c.name.toLowerCase() === query);
+            if (!exactMatch && query.length > 0) {
+                html += `
+                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-code="" data-index="${matches.length}">
+                        <i class="fas fa-plus-circle add-icon"></i>
+                        <span class="client-name">Add "${this.value}" as new client</span>
+                    </div>
+                `;
+            }
+
+            if (html === '') {
+                html = '<div class="no-results">No clients found</div>';
+            }
+
+            clientDropdown.innerHTML = html;
+            clientDropdown.style.display = 'block';
+            highlightedIndex = -1;
+
+            // Add click handlers
+            clientDropdown.querySelectorAll('.client-dropdown-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    selectClient(this.dataset.name, this.dataset.code);
+                });
+            });
+        });
+
+        function highlightMatch(text, query) {
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<strong style="color: var(--primary);">$1</strong>');
+        }
+
+        function selectClient(name, code) {
+            clientInput.value = name;
+            accountCodeInput.value = code || '';
+            clientDropdown.style.display = 'none';
+        }
+
+        // Keyboard navigation
+        clientInput.addEventListener('keydown', function(e) {
+            const items = clientDropdown.querySelectorAll('.client-dropdown-item');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+                updateHighlight(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                updateHighlight(items);
+            } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+                e.preventDefault();
+                const item = items[highlightedIndex];
+                if (item) {
+                    selectClient(item.dataset.name, item.dataset.code);
+                }
+            } else if (e.key === 'Escape') {
+                clientDropdown.style.display = 'none';
+            }
+        });
+
+        function updateHighlight(items) {
+            items.forEach((item, index) => {
+                item.classList.toggle('highlighted', index === highlightedIndex);
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.client-search-container')) {
+                clientDropdown.style.display = 'none';
+            }
+        });
+
+        // Show dropdown on focus if there's text
+        clientInput.addEventListener('focus', function() {
+            if (this.value.length > 0) {
+                this.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // ===== LOCAL STORAGE BACKUP FOR FORM VALUES =====
+        const FORM_STORAGE_KEY = 'fsa_inspection_form_draft';
+
+        // Save all form values to localStorage
+        function saveFormToStorage() {
+            const formData = {
+                commodity: document.getElementById('commoditySelect').value,
+                date_of_inspection: document.querySelector('[name="date_of_inspection"]')?.value || '',
+                client_name: document.querySelector('[name="client_name"]')?.value || '',
+                internal_account_code: document.getElementById('internal_account_code')?.value || '',
+                product_name: document.querySelector('[name="product_name"]')?.value || '',
+                product_class: document.querySelector('[name="product_class"]')?.value || '',
+                lab: document.querySelector('[name="lab"]')?.value || '',
+                is_sample_taken: document.querySelector('[name="is_sample_taken"]')?.checked || false,
+                bought_sample: document.querySelector('[name="bought_sample"]')?.value || '',
+                km_traveled: document.querySelector('[name="km_traveled"]')?.value || '',
+                hours: document.querySelector('[name="hours"]')?.value || '',
+                fat: document.querySelector('[name="fat"]')?.checked || false,
+                protein: document.querySelector('[name="protein"]')?.checked || false,
+                calcium: document.querySelector('[name="calcium"]')?.checked || false,
+                dna: document.querySelector('[name="dna"]')?.checked || false,
+                needs_retest: document.querySelector('[name="needs_retest"]')?.value || '',
+                comment: document.querySelector('[name="comment"]')?.value || '',
+                currentStep: currentStep
+            };
+            localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+        }
+
+        // Restore form values from localStorage
+        function restoreFormFromStorage() {
+            const saved = localStorage.getItem(FORM_STORAGE_KEY);
+            if (!saved) return false;
+
+            try {
+                const formData = JSON.parse(saved);
+
+                // Restore commodity
+                if (formData.commodity) {
+                    document.getElementById('commoditySelect').value = formData.commodity;
+                    const card = document.querySelector(`.commodity-card[data-value="${formData.commodity}"]`);
+                    if (card) card.classList.add('selected');
+                }
+
+                // Restore text inputs
+                if (formData.date_of_inspection) {
+                    const dateInput = document.querySelector('[name="date_of_inspection"]');
+                    if (dateInput) dateInput.value = formData.date_of_inspection;
+                }
+                if (formData.client_name) {
+                    const clientInput = document.querySelector('[name="client_name"]');
+                    if (clientInput) clientInput.value = formData.client_name;
+                }
+                if (formData.internal_account_code) {
+                    const codeInput = document.getElementById('internal_account_code');
+                    if (codeInput) codeInput.value = formData.internal_account_code;
+                }
+                if (formData.product_name) {
+                    const productInput = document.querySelector('[name="product_name"]');
+                    if (productInput) productInput.value = formData.product_name;
+                }
+                if (formData.product_class) {
+                    const classInput = document.querySelector('[name="product_class"]');
+                    if (classInput) classInput.value = formData.product_class;
+                }
+                if (formData.lab) {
+                    const labInput = document.querySelector('[name="lab"]');
+                    if (labInput) labInput.value = formData.lab;
+                }
+                if (formData.bought_sample) {
+                    const sampleInput = document.querySelector('[name="bought_sample"]');
+                    if (sampleInput) sampleInput.value = formData.bought_sample;
+                }
+                if (formData.km_traveled) {
+                    const kmInput = document.querySelector('[name="km_traveled"]');
+                    if (kmInput) kmInput.value = formData.km_traveled;
+                }
+                if (formData.hours) {
+                    const hoursInput = document.querySelector('[name="hours"]');
+                    if (hoursInput) hoursInput.value = formData.hours;
+                }
+                if (formData.needs_retest) {
+                    const retestInput = document.querySelector('[name="needs_retest"]');
+                    if (retestInput) retestInput.value = formData.needs_retest;
+                }
+                if (formData.comment) {
+                    const commentInput = document.querySelector('[name="comment"]');
+                    if (commentInput) commentInput.value = formData.comment;
+                }
+
+                // Restore checkboxes
+                const sampleCheckbox = document.querySelector('[name="is_sample_taken"]');
+                if (sampleCheckbox) sampleCheckbox.checked = formData.is_sample_taken;
+                const fatCheckbox = document.querySelector('[name="fat"]');
+                if (fatCheckbox) fatCheckbox.checked = formData.fat;
+                const proteinCheckbox = document.querySelector('[name="protein"]');
+                if (proteinCheckbox) proteinCheckbox.checked = formData.protein;
+                const calciumCheckbox = document.querySelector('[name="calcium"]');
+                if (calciumCheckbox) calciumCheckbox.checked = formData.calcium;
+                const dnaCheckbox = document.querySelector('[name="dna"]');
+                if (dnaCheckbox) dnaCheckbox.checked = formData.dna;
+
+                // Restore current step
+                if (formData.currentStep && formData.currentStep > 1) {
+                    currentStep = formData.currentStep;
+                    // Update UI to show correct step
+                    document.querySelectorAll('.step').forEach((step, index) => {
+                        step.classList.remove('active', 'completed');
+                        if (index + 1 < currentStep) {
+                            step.classList.add('completed');
+                        } else if (index + 1 === currentStep) {
+                            step.classList.add('active');
+                        }
+                    });
+                    document.querySelectorAll('.wizard-step-content').forEach(content => {
+                        content.classList.remove('active');
+                        if (parseInt(content.dataset.step) === currentStep) {
+                            content.classList.add('active');
+                        }
+                    });
+                    document.getElementById('prevBtn').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+                    document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
+                    document.getElementById('submitBtn').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Error restoring form from storage:', e);
+                return false;
+            }
+        }
+
+        // Clear saved form data
+        function clearFormStorage() {
+            localStorage.removeItem(FORM_STORAGE_KEY);
+        }
+
+        // Set initial commodity if editing
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to restore from localStorage first
+            const restored = restoreFormFromStorage();
+
+            if (!restored) {
+                // No saved data, set defaults
+                const select = document.getElementById('commoditySelect');
+                if (select.value) {
+                    const card = document.querySelector(`.commodity-card[data-value="${select.value}"]`);
+                    if (card) card.classList.add('selected');
+                }
+
+                // Set today's date as default
+                const dateInput = document.querySelector('[name="date_of_inspection"]');
+                if (!dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+            }
+
+            // Add change listeners to save form data
+            const form = document.getElementById('inspectionForm');
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                input.addEventListener('change', saveFormToStorage);
+                input.addEventListener('input', saveFormToStorage);
+            });
+
+            // Clear storage on successful form submission
+            form.addEventListener('submit', function() {
+                clearFormStorage();
+            });
+
+            // Save form when navigating between steps
+            const originalChangeStep = window.changeStep;
+            if (typeof originalChangeStep === 'function') {
+                // changeStep already defined above, just add storage save
+            }
+        });
+
+        // Override changeStep to also save to storage
+        const originalChangeStepFunc = changeStep;
+        changeStep = function(direction) {
+            originalChangeStepFunc(direction);
+            saveFormToStorage();
+        };
+    </script>
+</body>
+</html>

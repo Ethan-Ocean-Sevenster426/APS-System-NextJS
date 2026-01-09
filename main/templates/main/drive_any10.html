@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 16px; background: #f7f7f9; }
+    .container { max-width: 1100px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    h2 { margin: 0 0 8px; }
+    p { margin: 0 0 16px; color: #6b7280; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
+    th { background: #f3f4f6; color: #374151; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+  </head>
+<body>
+  <div class="container">
+    <h2>{{ page_title }}</h2>
+    <p>Showing up to 10 files from the Drive folder.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>MIME Type</th>
+          <th>Open</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in files %}
+        <tr>
+          <td>{{ f.name }}</td>
+          <td>{{ f.mimeType }}</td>
+          <td>
+            {% if f.webViewLink %}
+              <a href="{{ f.webViewLink }}" target="_blank" rel="noopener">View</a>
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
+
+

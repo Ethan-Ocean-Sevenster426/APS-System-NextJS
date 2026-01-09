@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Inspector Dashboard - Food Safety Agency</title>
+
+    <!-- Favicon - Food Safety Agency Logo -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+    <!-- Async Font Awesome loading for better performance -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#0f172a',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #1f2937;
+            --sidebar-hover: #f3f4f6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        [data-theme="dark"] {
+            --primary: #007890;
+            --primary-light: #1a3a40;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: transparent;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-light: #cbd5e1;
+            --border: #475569;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.6), 0 2px 4px -1px rgba(0,0,0,0.4);
+            --sidebar-bg: #0f172a;
+            --sidebar-text: #f1f5f9;
+            --sidebar-hover: #1e293b;
+            --input-bg: #1e293b;
+            --input-border: #475569;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+        
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        #sidebar .border-slate-600 {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        #sidebar .text-sidebar-text {
+            color: #f1f5f9 !important;
+        }
+        
+        #sidebar div {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar div {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="dark"] #sidebar {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] #sidebar div {
+            color: #ffffff !important;
+        }
+        
+        #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+        }
+        
+        [data-theme="dark"] .text-gray-800,
+        [data-theme="dark"] .text-gray-600,
+        [data-theme="dark"] .text-gray-500 {
+            color: var(--text) !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-50 {
+            background-color: #334155 !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-100 {
+            background-color: #475569 !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-200 {
+            background-color: #64748b !important;
+        }
+        
+        [data-theme="dark"] .border-gray-200 {
+            border-color: var(--border) !important;
+        }
+        
+        body, .container, .bg-white, .bg-card-bg, .text-gray-800, .text-gray-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .bg-card-bg {
+            background-color: var(--card-bg);
+        }
+        
+        body {
+            background: var(--background);  /* Fallback color while image loads */
+            color: var(--text);
+        }
+
+        /* Load background image after page loads for better performance */
+        body.bg-loaded::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            opacity: 1.0;
+            z-index: -1;
+        }
+
+        /* Loading Screen Styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loading-screen.active {
+            display: flex;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #007890;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .loading-subtext {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Dashboard card styles */
+        .dashboard-card {
+            background-color: var(--card-bg);
+            border-color: var(--border);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .dashboard-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        [data-theme="dark"] .dashboard-card {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        [data-theme="dark"] .dashboard-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        }
+        
+        .dashboard-card h3 {
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dashboard-card p,
+        .dashboard-card label,
+        .dashboard-card span {
+            color: var(--text);
+        }
+        
+        .dashboard-card .text-gray-300,
+        .dashboard-card .text-gray-400 {
+            color: var(--text-light);
+        }
+        
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 120, 144, 0.15);
+        }
+        
+        [data-theme="dark"] .stat-card {
+            background: #1e293b;
+            border: 1px solid #475569;
+        }
+        
+        [data-theme="dark"] .stat-card:hover {
+            box-shadow: 0 8px 25px rgba(0, 120, 144, 0.3);
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring-circle {
+            stroke-dasharray: 251.2;
+            stroke-dashoffset: 251.2;
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+        
+        /* Mobile menu button - ABSOLUTE FIXED POSITIONING */
+        .mobile-menu-btn,
+        #mobile-menu-btn,
+        button#mobile-menu-btn {
+            display: none;
+        }
+
+        .mobile-menu-btn {
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 99999 !important;
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+            border: none !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            width: 48px !important;
+            height: 48px !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+
+        .mobile-menu-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.95);
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: var(--sidebar-hover) !important;
+        }
+
+        /* Force fixed positioning on mobile */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn,
+            #mobile-menu-btn,
+            button#mobile-menu-btn {
+                display: flex !important;
+                position: fixed !important;
+                top: 12px !important;
+                left: 12px !important;
+                z-index: 99999 !important;
+                transform: translate3d(0, 0, 0) !important;
+            }
+        }
+
+        /* Sidebar mobile positioning */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 9998;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Logout button styling */
+        .logout-btn {
+            width: 100%;
+            background: #ef4444;
+            color: #ffffff;
+            border: 1px solid #dc2626;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.625rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            border-color: #b91c1c;
+            color: #ffffff;
+        }
+
+        .logout-btn:active {
+            background: #b91c1c;
+            transform: scale(0.98);
+        }
+        
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .stat-card:hover,
+            .dashboard-card:hover {
+                transform: none;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+            
+            [data-theme="dark"] .stat-card:hover,
+            [data-theme="dark"] .dashboard-card:hover {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+            
+            .stat-card:active,
+            .dashboard-card:active {
+                transform: scale(0.98);
+            }
+        }
+        
+        /* Extra Large Screens */
+        @media (min-width: 1536px) {
+            .max-w-7xl {
+                max-width: 90rem;
+            }
+            
+            .chart-container {
+                height: 350px;
+            }
+            
+            .stat-number {
+                font-size: 2.5rem;
+            }
+        }
+        
+        /* Large Screens */
+        @media (max-width: 1280px) {
+            .grid-cols-4 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            
+            .chart-container {
+                height: 280px;
+            }
+        }
+        
+        /* Medium Screens (Tablets) */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                width: 320px;
+                z-index: 50;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0);
+            }
+            
+            #main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+                display: none;
+                backdrop-filter: blur(2px);
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            .grid-cols-4 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+            
+            .dashboard-card {
+                padding: 1.5rem;
+            }
+            
+            .stat-number {
+                font-size: 1.75rem;
+            }
+        }
+        
+        /* Small Screens (Large Mobile) */
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 100%;
+                max-width: 320px;
+            }
+            
+            .mobile-content-padding {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .dashboard-card {
+                padding: 1.25rem !important;
+            }
+            
+            .dashboard-card h3 {
+                font-size: 1.125rem;
+            }
+            
+            .stat-number {
+                font-size: 1.5rem;
+            }
+            
+            .grid-cols-4 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+            
+            .text-2xl {
+                font-size: 1.5rem;
+            }
+            
+            .text-3xl {
+                font-size: 1.875rem;
+            }
+            
+            .text-4xl {
+                font-size: 2.25rem;
+            }
+            
+            .text-5xl {
+                font-size: 2.5rem;
+            }
+        }
+        
+        /* Extra Small Screens (Mobile) */
+        @media (max-width: 640px) {
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .dashboard-card {
+                padding: 1rem !important;
+                margin-bottom: 1rem;
+            }
+            
+            .dashboard-card h3 {
+                font-size: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .chart-container {
+                height: 200px;
+            }
+            
+            .stat-card {
+                padding: 1rem;
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+            
+            .stat-number {
+                font-size: 1.25rem;
+            }
+            
+            .text-2xl {
+                font-size: 1.25rem;
+            }
+            
+            .text-3xl {
+                font-size: 1.5rem;
+            }
+            
+            .text-4xl {
+                font-size: 1.875rem;
+            }
+            
+            .text-5xl {
+                font-size: 2rem;
+            }
+            
+            .px-4 {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .py-2 {
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+            
+            .space-y-4 > * + * {
+                margin-top: 0.75rem;
+            }
+            
+            .space-y-6 > * + * {
+                margin-top: 1rem;
+            }
+        }
+        
+        /* Very Small Screens */
+        @media (max-width: 480px) {
+            .dashboard-card {
+                padding: 0.75rem !important;
+            }
+            
+            .chart-container {
+                height: 180px;
+            }
+            
+            .stat-card {
+                padding: 0.75rem;
+            }
+            
+            .stat-number {
+                font-size: 1.125rem;
+            }
+            
+            .text-sm {
+                font-size: 0.75rem;
+            }
+            
+            .text-xs {
+                font-size: 0.625rem;
+            }
+            
+            .px-4 {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            
+            .py-2 {
+                padding-top: 0.25rem;
+                padding-bottom: 0.25rem;
+            }
+            
+            .mobile-menu-btn {
+                top: 0.75rem;
+                left: 0.75rem;
+                padding: 0.5rem;
+            }
+            
+            .pt-16 {
+                padding-top: 3.5rem;
+            }
+        }
+        
+        /* Ultra Small Screens */
+        @media (max-width: 360px) {
+            .dashboard-card {
+                padding: 0.5rem !important;
+            }
+
+            .stat-card {
+                padding: 0.5rem;
+            }
+
+            .chart-container {
+                height: 160px;
+            }
+
+            .stat-number {
+                font-size: 1rem;
+            }
+
+            .stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+
+            .text-xl {
+                font-size: 1rem;
+            }
+
+            .text-lg {
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Touch-friendly adjustments */
+        @media (hover: none) and (pointer: coarse) {
+            /* Increase touch targets */
+            button, a {
+                min-height: 44px !important;
+            }
+
+            /* Remove hover effects on touch devices */
+            #sidebar a:hover {
+                background-color: transparent !important;
+            }
+
+            #sidebar a:active {
+                background-color: rgba(255, 255, 255, 0.1) !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            /* Small mobile */
+            .mobile-menu-btn {
+                top: 10px !important;
+                left: 10px !important;
+                width: 44px !important;
+                height: 44px !important;
+            }
+
+            #sidebar {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Extra small devices */
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .mobile-menu-btn {
+                top: 8px !important;
+                left: 8px !important;
+                width: 40px !important;
+                height: 40px !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Inspections</div>
+            <div class="loading-subtext">Please wait...</div>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'inspector_settings' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cog mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button - Fixed at bottom -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="flex-1 w-full lg:ml-64">
+            <!-- Header -->
+            <div class="header-section pt-16 lg:pt-16 pb-8 text-center mb-4 lg:mb-8 px-4">
+                <h1 class="header-title text-2xl sm:text-3xl lg:text-4xl font-semibold mb-2" style="color: #ffffff;">Food Safety Agency (Pty) Ltd</h1>
+                <h2 class="header-subtitle text-base sm:text-lg lg:text-xl font-normal" style="color: #ffffff;">Inspector Analytics Dashboard</h2>
+            </div>
+
+            <!-- Messages Section -->
+            {% if messages %}
+            <div class="mx-4 lg:mx-8 mb-6">
+                {% for message in messages %}
+                    <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-700 px-4 py-3 rounded mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Stats Overview -->
+            <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pb-6 lg:pb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+                    
+                    <!-- Total Inspections -->
+                    <div class="stat-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="stat-icon bg-blue-100 text-blue-600">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="stat-number text-blue-600">{{ total_inspections|default:0 }}</div>
+                                <div class="text-sm opacity-70">Total Inspections</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-arrow-up text-green-500 mr-1"></i>
+                            <span class="text-green-500 font-medium">{{ this_month_inspections|default:0 }}</span>
+                            <span class="ml-2 opacity-70">this month</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="stat-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="stat-icon bg-green-100 text-green-600">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="stat-number text-green-600">{{ recent_inspections|default:0 }}</div>
+                                <div class="text-sm opacity-70">Last 30 Days</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-calendar text-blue-500 mr-1"></i>
+                            <span class="text-blue-500 font-medium">{{ avg_monthly_inspections|default:0 }}</span>
+                            <span class="ml-2 opacity-70">avg/month</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Compliance Rate -->
+                    <div class="stat-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="stat-icon bg-purple-100 text-purple-600">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="stat-number text-purple-600">{{ compliance_rate|default:0 }}%</div>
+                                <div class="text-sm opacity-70">Compliance Rate</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                            <span class="text-green-500 font-medium">{{ compliant_inspections|default:0 }}</span>
+                            <span class="ml-2 opacity-70">compliant</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Non-Compliant -->
+                    <div class="stat-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="stat-icon bg-red-100 text-red-600">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="stat-number text-red-600">{{ non_compliant_inspections|default:0 }}</div>
+                                <div class="text-sm opacity-70">Non-Compliant</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-arrow-down text-red-500 mr-1"></i>
+                            <span class="text-red-500 font-medium">{{ non_compliant_inspections|default:0 }}</span>
+                            <span class="ml-2 opacity-70">need attention</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity and Performance Metrics -->
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+                    
+                    <!-- Recent Inspections -->
+                    <div class="dashboard-card rounded-xl border p-4 sm:p-6 lg:p-8">
+                        <h3 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6">
+                            <i class="fas fa-history text-primary mr-2"></i>
+                            <span>Recent Inspections</span>
+                        </h3>
+                        <div class="space-y-3 sm:space-y-4">
+                            {% for inspection in recent_inspections_list|slice:":5" %}
+                            <div class="flex items-center justify-between p-2 sm:p-3 rounded-lg" style="background: rgba(0, 120, 144, 0.05);">
+                                <div class="flex items-center flex-1 min-w-0">
+                                    <div class="w-2.5 sm:w-3 h-2.5 sm:h-3 {% if not inspection.is_direction_present_for_this_inspection %}bg-green-500{% else %}bg-red-500{% endif %} rounded-full mr-2 sm:mr-3 flex-shrink-0"></div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-medium text-xs sm:text-sm truncate">{{ inspection.client_name|default:"Unknown Client" }}</div>
+                                        <div class="text-xs opacity-70 truncate">{{ inspection.date_of_inspection|date:"M d, Y" }} - {{ inspection.commodity|default:"N/A" }}</div>
+                                    </div>
+                                </div>
+                                <span class="{% if not inspection.is_direction_present_for_this_inspection %}text-green-600{% else %}text-red-600{% endif %} text-xs sm:text-sm font-medium flex-shrink-0 ml-2">
+                                    {% if not inspection.is_direction_present_for_this_inspection %}Compliant{% else %}Non-Compliant{% endif %}
+                                </span>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-clipboard-list text-4xl mb-4"></i>
+                                <p>No recent inspections found</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Metrics -->
+                    <div class="dashboard-card rounded-xl border p-4 sm:p-6 lg:p-8">
+                        <h3 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6">
+                            <i class="fas fa-trophy text-primary mr-2"></i>
+                            <span>Performance Metrics</span>
+                        </h3>
+                        <div class="space-y-4 sm:space-y-6">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs sm:text-sm font-medium">Compliance Rate</span>
+                                    <span class="text-xs sm:text-sm font-bold text-green-600">{{ compliance_rate|default:0 }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                    <div class="bg-green-500 h-1.5 sm:h-2 rounded-full" style="width: 85%"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs sm:text-sm font-medium">Total Inspections</span>
+                                    <span class="text-xs sm:text-sm font-bold text-blue-600">{{ total_inspections|default:0 }}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                    <div class="bg-blue-500 h-1.5 sm:h-2 rounded-full" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs sm:text-sm font-medium">This Month</span>
+                                    <span class="text-xs sm:text-sm font-bold text-purple-600">{{ this_month_inspections|default:0 }}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                    <div class="bg-purple-500 h-1.5 sm:h-2 rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs sm:text-sm font-medium">Average Monthly</span>
+                                    <span class="text-xs sm:text-sm font-bold text-orange-600">{{ avg_monthly_inspections|default:0 }}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                    <div class="bg-orange-500 h-1.5 sm:h-2 rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile Menu Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+
+                const icon = mobileMenuBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times text-xl';
+                } else {
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            }
+
+            mobileMenuBtn.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            const navLinks = sidebar.querySelectorAll('a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 1024) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            });
+
+            initTheme();
+        });
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = 'light';
+
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+            }
+
+            document.documentElement.setAttribute('data-theme', activeTheme);
+        }
+
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+
+            // Add loading screen functionality for navigation links
+            try {
+                const inspectionsLink = document.querySelector('a[href*="shipment_list"]');
+                if (inspectionsLink) {
+                    inspectionsLink.addEventListener('click', function(e) {
+                        try {
+                            const loadingScreen = document.getElementById('loadingScreen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.add('active');
+                                console.log('Loading screen activated');
+                            } else {
+                                console.warn('Loading screen element not found');
+                            }
+                        } catch (error) {
+                            console.error('Error activating loading screen:', error);
+                        }
+                    });
+                } else {
+                    console.warn('Inspections link not found');
+                }
+            } catch (error) {
+                console.error('Error setting up loading screen:', error);
+            }
+        });
+    </script>
+</body>
+</html>

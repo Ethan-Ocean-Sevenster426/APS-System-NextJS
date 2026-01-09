@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Food Safety Agency</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Light theme (default) - matching settings.html exactly */
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --sidebar-bg: #1e293b;
+            --sidebar-text: #f1f5f9;
+            --sidebar-hover: #f3f4f6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        /* Dark theme - matching settings.html exactly */
+        [data-theme="dark"] {
+            --primary: #007890;
+            --primary-light: #1a3a40;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #2D2D2D;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
+            --sidebar-bg: #2D2D2D;
+            --sidebar-text: #ffffff;
+            --sidebar-hover: #404040;
+            --input-bg: #1a1a1a;
+            --input-border: #404040;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.5;
+            padding: var(--spacing);
+            position: relative;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Ensure smooth transitions between themes */
+        body, .container, .theme-toggle, .stat-card, .content-card,
+        .btn, .nav-bar, .header, .logo, .table, .table th, .table td {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Background overlay for light mode */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            opacity: 0.1;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Dark mode background */
+        [data-theme="dark"] body::before {
+            opacity: 0.05;
+        }
+        
+        .container {
+            width: calc(100% - var(--spacing)*2);
+            margin: 0 auto;
+            padding: 5px 0;
+            position: relative;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .logo img {
+            max-height: 80px;
+        }
+        
+        .header {
+            padding: 10px 5px 20px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+        
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        
+        .btn:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #059669;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+        }
+        
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        .btn-info {
+            background-color: #0ea5e9;
+        }
+        
+        .btn-info:hover {
+            background-color: #0284c7;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card p {
+            color: var(--text-light);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1rem;
+        }
+        
+        .content-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1.5rem;
+        }
+        
+        .content-card h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+        
+        .table th {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .table tr:hover {
+            background-color: var(--primary-light);
+        }
+        
+        .logout-form {
+            display: inline;
+        }
+
+        /* Theme toggle switch - matching settings.html */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            min-width: 60px;
+            min-height: 34px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Theme toggle container */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            padding: 10px 15px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle label {
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .theme-toggle {
+            position: relative;
+        }
+        
+        .theme-toggle::after {
+            content: "Toggle theme (syncs with Settings page)";
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-bg);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        
+        .theme-toggle:hover::after {
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .nav-bar {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <label for="theme_mode">🌙</label>
+        <label class="switch">
+            <input type="checkbox" id="theme_mode" {% if settings.dark_mode %}checked{% endif %} onchange="toggleTheme()">
+            <span class="slider"></span>
+        </label>
+        <label for="theme_mode">☀️</label>
+    </div>
+
+    <div class="container">
+        <!-- CSRF Token for theme saving -->
+        {% csrf_token %}
+        
+        <div class="logo">
+            <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
+        </div>
+        
+        <div class="header">
+            <h1>Food Safety Agency (Pty) Ltd</h1>
+            <h2>Dashboard</h2>
+        </div>
+
+        <!-- Messages Section -->
+        <!-- Messages - Disabled -->
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Navigation Bar -->
+        <div class="nav-bar">
+            {% if request.user.role == 'inspector' %}
+            <a href="{% url 'inspector_dashboard' %}" class="btn btn-info">
+                <i class="fas fa-chart-line"></i> My Analytics
+            </a>
+            <a href="{% url 'shipment_list' %}" class="btn btn-secondary">
+                <i class="fas fa-clipboard-check"></i> Inspections
+            </a>
+            <a href="{% url 'submit_ticket' %}" class="btn btn-danger">
+                <i class="fas fa-ticket-alt"></i> Submit Ticket
+            </a>
+            <a href="{% url 'settings' %}" class="btn btn-info">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            {% else %}
+            <a href="{% url 'client_list' %}" class="btn btn-secondary">
+                <i class="fas fa-users"></i> Manage Clients
+            </a>
+            <a href="{% url 'inspection_list' %}" class="btn btn-warning">
+                <i class="fas fa-clipboard-check"></i> Manage Inspections
+            </a>
+            <a href="{% url 'shipment_list' %}" class="btn btn-secondary">
+                <i class="fas fa-shipping-fast"></i> Shipments
+            </a>
+            {% if request.user.role != 'admin' %}
+            <a href="{% url 'analytics_dashboard' %}" class="btn btn-info">
+                <i class="fas fa-chart-bar"></i> Analytics Dashboard
+            </a>
+            {% endif %}
+            <a href="{% url 'client_allocation' %}" class="btn btn-primary">
+                <i class="fas fa-database"></i> Google Sheets Data
+            </a>
+            {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+            <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
+                <i class="fas fa-file-export"></i> Export Sheet
+            </a>
+            {% endif %}
+            <a href="{% url 'submit_ticket' %}" class="btn btn-danger">
+                <i class="fas fa-ticket-alt"></i> Submit Ticket
+            </a>
+            <a href="{% url 'settings' %}" class="btn btn-info">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            {% endif %}
+
+            <!-- Logout Button -->
+            <form action="{% url 'logout' %}" method="post" class="logout-form">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+        
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ total_clients }}</h3>
+                <p>Total Clients</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ total_inspections }}</h3>
+                <p>Total Inspections</p>
+            </div>
+        </div>
+        
+        <!-- Content Grid -->
+        <div class="content-grid">
+            <!-- Recent Inspections -->
+            <div class="content-card">
+                <h3>
+                    <i class="fas fa-clock"></i>
+                    Recent Inspections
+                </h3>
+                {% if recent_inspections %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Inspector</th>
+                                <th>Facility</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inspection in recent_inspections %}
+                            <tr>
+                                <td>{{ inspection.inspector }}</td>
+                                <td>{{ inspection.facility_client_name }}</td>
+                                <td>{{ inspection.inspection_date|date:"M d, Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No inspections found.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Top Inspectors -->
+            <div class="content-card">
+                <h3>
+                    <i class="fas fa-user-tie"></i>
+                    Top Inspectors
+                </h3>
+                {% if inspector_stats %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Inspector</th>
+                                <th>Inspections</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in inspector_stats %}
+                            <tr>
+                                <td>{{ stat.inspector }}</td>
+                                <td>{{ stat.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No inspector data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Dashboard JavaScript is loading...');
+        
+        // Test immediate execution
+        console.log('Immediate test log');
+        
+        // Theme management - simplified test version
+        function initTheme() {
+            console.log('initTheme function called');
+            const savedTheme = localStorage.getItem('theme');
+            console.log('savedTheme:', savedTheme);
+            
+            // Apply dark theme for testing
+            document.documentElement.setAttribute('data-theme', 'dark');
+            console.log('Applied dark theme for testing');
+            
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+                console.log('Using savedTheme:', activeTheme);
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+                console.log('Using serverTheme:', activeTheme);
+            } else {
+                console.log('Using default theme:', activeTheme);
+            }
+            
+            console.log('Final activeTheme:', activeTheme);
+            document.documentElement.setAttribute('data-theme', activeTheme);
+            console.log('Applied data-theme attribute:', document.documentElement.getAttribute('data-theme'));
+            
+            // Update the toggle checkbox
+            const themeMode = document.getElementById('theme_mode');
+            if (themeMode) {
+                themeMode.checked = activeTheme === 'dark';
+                console.log('Toggle checkbox checked:', themeMode.checked);
+            } else {
+                console.log('Theme toggle checkbox not found!');
+            }
+            console.log('=== END DASHBOARD THEME DEBUG ===');
+        }
+        
+        function toggleTheme() {
+            const themeMode = document.getElementById('theme_mode');
+            console.log('=== DASHBOARD TOGGLE DEBUG ===');
+            console.log('themeMode element:', themeMode);
+            
+            if (themeMode) {
+                const newTheme = themeMode.checked ? 'dark' : 'light';
+                console.log('New theme from toggle:', newTheme);
+                console.log('Checkbox checked:', themeMode.checked);
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                console.log('Applied data-theme:', document.documentElement.getAttribute('data-theme'));
+                
+                try {
+                    localStorage.setItem('theme', newTheme);
+                    console.log('Saved to localStorage:', newTheme);
+                } catch (e) {
+                    console.log('Could not save theme to localStorage:', e);
+                }
+                
+                // Save to server to sync with settings page
+                saveThemeToServer(newTheme);
+            } else {
+                console.log('Theme toggle checkbox not found!');
+            }
+            console.log('=== END DASHBOARD TOGGLE DEBUG ===');
+        }
+        
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        }
+        
+        async function saveThemeToServer(theme) {
+            try {
+                const response = await fetch(window.location.pathname, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=save_theme&theme_mode=${theme === 'dark' ? 'on' : ''}`
+                });
+                
+                if (response.ok) {
+                    console.log('Theme saved to server:', theme);
+                }
+            } catch (error) {
+                console.log('Could not save theme to server:', error);
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+        });
+    </script>
+</body>
+</html>

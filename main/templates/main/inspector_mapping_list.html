@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspector Mappings - Food Safety Agency</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: rgba(0, 120, 144, 0.1);
+            --secondary: #10b981;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --card-bg: #ffffff;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+            --spacing: 1rem;
+        }
+
+        [data-theme="dark"] {
+            --text: #f9fafb;
+            --text-light: #d1d5db;
+            --border: #374151;
+            --card-bg: #1f2937;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: var(--text);
+            line-height: 1.5;
+            padding: var(--spacing);
+            position: relative;
+        }
+
+        .container {
+            width: calc(100% - var(--spacing)*2);
+            margin: 0 auto;
+            padding: 5px 0;
+            position: relative;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .logo img {
+            max-height: 80px;
+        }
+
+        .header {
+            padding: 10px 5px 20px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            border: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #005a6b;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .messages {
+            margin-bottom: var(--spacing);
+            width: 100%;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            margin-bottom: var(--spacing);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .message.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+            border-left: 3px solid var(--secondary);
+        }
+
+        .message.error {
+            background-color: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+            border-left: 3px solid #dc2626;
+        }
+
+        .filters {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+            color: var(--text);
+            background-color: var(--card-bg);
+            width: 100%;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            text-align: left;
+            padding: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        [data-theme="dark"] tr:nth-child(even) {
+            background-color: #374151;
+        }
+
+        tr:hover {
+            background-color: var(--primary-light);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px 20px;
+            background-color: #f8fafc;
+        }
+
+        [data-theme="dark"] .empty-message {
+            background-color: #374151;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination a {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.15s ease;
+        }
+
+        .pagination a:hover {
+            background-color: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .pagination .current {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .actions {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .btn-sm {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
+        </div>
+        
+        <div class="header">
+            <h1>Food Safety Agency (Pty) Ltd</h1>
+            <h2>Inspector Mappings Management</h2>
+        </div>
+
+        <!-- Messages Section -->
+        <!-- Messages - Disabled -->
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-users"></i>
+                    Inspector Mappings ({{ total_mappings }})
+                </h3>
+                <a href="{% url 'add_inspector_mapping' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Inspector Mapping
+                </a>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <form method="GET" style="display: flex; gap: 16px; align-items: end; flex-wrap: wrap;">
+                    <div class="form-group">
+                        <label class="form-label">Search</label>
+                        <input type="text" name="search" value="{{ search_query }}" class="form-control" 
+                               placeholder="Search by name or ID...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select name="active" class="form-control">
+                            <option value="">All</option>
+                            <option value="true" {% if active_filter == 'true' %}selected{% endif %}>Active</option>
+                            <option value="false" {% if active_filter == 'false' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-secondary">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                    
+                    <a href="{% url 'inspector_mapping_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </form>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Inspector ID</th>
+                            <th>Inspector Name</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mapping in mappings %}
+                        <tr>
+                            <td><strong>{{ mapping.inspector_id }}</strong></td>
+                            <td>{{ mapping.inspector_name }}</td>
+                            <td>
+                                <span class="status-badge {% if mapping.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                    {% if mapping.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ mapping.created_at|date:"m/d/y H:i" }}</td>
+                            <td>{{ mapping.updated_at|date:"m/d/y H:i" }}</td>
+                            <td class="actions">
+                                <a href="{% url 'edit_inspector_mapping' mapping.pk %}" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <form action="{% url 'delete_inspector_mapping' mapping.pk %}" method="post" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm" 
+                                            onclick="return confirm('Are you sure you want to delete this inspector mapping?')">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="empty-message">
+                                <i class="fas fa-info-circle"></i>
+                                No inspector mappings found. 
+                                <a href="{% url 'add_inspector_mapping' %}">Add your first mapping</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if mappings.has_other_pages %}
+            <div class="pagination">
+                {% if mappings.has_previous %}
+                    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                    <a href="?page={{ mappings.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                {% endif %}
+
+                <span class="current">
+                    Page {{ mappings.number }} of {{ mappings.paginator.num_pages }}
+                </span>
+
+                {% if mappings.has_next %}
+                    <a href="?page={{ mappings.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="?page={{ mappings.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Navigation -->
+        <div style="text-align: center; margin-top: 20px;">
+            {% if request.user.role != 'admin' %}
+            <a href="{% url 'home' %}" class="btn btn-secondary">
+                <i class="fas fa-home"></i> Back to Home
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+        }
+    </script>
+</body>
+</html>

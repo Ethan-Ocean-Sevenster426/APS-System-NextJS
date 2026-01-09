@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Excel Header Export</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .info {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Header Export Test</h1>
+
+    <div class="info">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Click the "Export to Excel" button below</li>
+            <li>Open the downloaded Excel file</li>
+            <li>Go to Data → Sort in Excel</li>
+            <li>Check if the sort dialog shows actual column names (ContactName, InvoiceDate, etc.) or generic names (Column A, Column B, etc.)</li>
+        </ol>
+        <p><strong>Expected:</strong> Sort dialog should show: ContactName, EmailAddress, InvoiceNumber, InvoiceDate, Description, Quantity, UnitAmount, AccountCode, TaxType</p>
+        <p><strong>Problem:</strong> If it shows Column A, Column B, Column C - the headers aren't being recognized</p>
+    </div>
+
+    <button onclick="exportToExcel()">Export to Excel</button>
+
+    <h3>Sample Data Preview:</h3>
+    <table id="previewTable">
+        <thead>
+            <tr>
+                <th>ContactName</th>
+                <th>EmailAddress</th>
+                <th>InvoiceNumber</th>
+                <th>InvoiceDate</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>UnitAmount</th>
+                <th>AccountCode</th>
+                <th>TaxType</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Test Client 1</td>
+                <td>test1@example.com</td>
+                <td>INV-001</td>
+                <td>2025-01-15</td>
+                <td>PMP 120 - Inspector Travel</td>
+                <td>1</td>
+                <td>150.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+            <tr>
+                <td>Test Client 1</td>
+                <td>test1@example.com</td>
+                <td>INV-001</td>
+                <td>2025-01-15</td>
+                <td>PMP 062 - Fat Test</td>
+                <td>1</td>
+                <td>450.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+            <tr>
+                <td>Test Client 2</td>
+                <td>test2@example.com</td>
+                <td>INV-002</td>
+                <td>2025-01-15</td>
+                <td>RAW 052 - Fat Test</td>
+                <td>1</td>
+                <td>450.00</td>
+                <td>200</td>
+                <td>Tax Exempt (0%)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        function getSampleData() {
+            // This matches the structure from export_sheet.html
+            return [
+                // Header row
+                [
+                    '*ContactName',
+                    'EmailAddress',
+                    'POAddressLine1',
+                    'POAddressLine2',
+                    'POAddressLine3',
+                    'POAddressLine4',
+                    'POCity',
+                    'PORegion',
+                    'POPostalCode',
+                    'POCountry',
+                    '*InvoiceNumber',
+                    'Reference',
+                    '*InvoiceDate',
+                    '*DueDate',
+                    'Total',
+                    'InventoryItemCode',
+                    '*Description',
+                    '*Quantity',
+                    '*UnitAmount',
+                    'Discount',
+                    '*AccountCode',
+                    '*TaxType',
+                    'Tax Amount',
+                    'TrackingName1',
+                    'TrackingOption1',
+                    'TrackingName2',
+                    'TrackingOption2',
+                    'Currency',
+                    'BrandingTheme'
+                ],
+                // Data rows
+                [
+                    'Test Client 1',
+                    'test1@example.com',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'Johannesburg',
+                    'Gauteng',
+                    '2000',
+                    'South Africa',
+                    'INV-001',
+                    'REF-001',
+                    '2025-01-15',
+                    '2025-02-14',
+                    '',
+                    '',
+                    'PMP 120 - Inspector Travel (Johannesburg)',
+                    '1',
+                    '150.00',
+                    '',
+                    '200',
+                    'Tax Exempt (0%)',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'ZAR',
+                    ''
+                ],
+                [
+                    'Test Client 1',
+                    'test1@example.com',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'Johannesburg',
+                    'Gauteng',
+                    '2000',
+                    'South Africa',
+                    'INV-001',
+                    'REF-001',
+                    '2025-01-15',
+                    '2025-02-14',
+                    '',
+                    '',
+                    'PMP 062 - Fat Test (Lancet Labs)',
+                    '1',
+                    '450.00',
+                    '',
+                    '200',
+                    'Tax Exempt (0%)',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'ZAR',
+                    ''
+                ],
+                [
+                    'Test Client 2',
+                    'test2@example.com',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'Pretoria',
+                    'Gauteng',
+                    '0001',
+                    'South Africa',
+                    'INV-002',
+                    'REF-002',
+                    '2025-01-15',
+                    '2025-02-14',
+                    '',
+                    '',
+                    'RAW 052 - Fat Test (Lancet Labs)',
+                    '1',
+                    '450.00',
+                    '',
+                    '200',
+                    'Tax Exempt (0%)',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    'ZAR',
+                    ''
+                ]
+            ];
+        }
+
+        function exportToExcel() {
+            console.log('Starting Excel export test...');
+
+            const exportData = getSampleData();
+
+            // Create a new workbook
+            const wb = XLSX.utils.book_new();
+
+            // METHOD 1: Current approach from export_sheet.html
+            console.log('Testing with aoa_to_sheet method...');
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+            // Set column widths
+            const colWidths = [
+                { wch: 25 }, // *ContactName
+                { wch: 20 }, // EmailAddress
+                { wch: 20 }, // POAddressLine1
+                { wch: 20 }, // POAddressLine2
+                { wch: 20 }, // POAddressLine3
+                { wch: 20 }, // POAddressLine4
+                { wch: 15 }, // POCity
+                { wch: 15 }, // PORegion
+                { wch: 12 }, // POPostalCode
+                { wch: 15 }, // POCountry
+                { wch: 20 }, // *InvoiceNumber
+                { wch: 20 }, // Reference
+                { wch: 12 }, // *InvoiceDate
+                { wch: 12 }, // *DueDate
+                { wch: 12 }, // Total
+                { wch: 15 }, // InventoryItemCode
+                { wch: 50 }, // *Description
+                { wch: 10 }, // *Quantity
+                { wch: 12 }, // *UnitAmount
+                { wch: 10 }, // Discount
+                { wch: 15 }, // *AccountCode
+                { wch: 25 }, // *TaxType
+                { wch: 12 }, // Tax Amount
+                { wch: 15 }, // TrackingName1
+                { wch: 15 }, // TrackingOption1
+                { wch: 15 }, // TrackingName2
+                { wch: 15 }, // TrackingOption2
+                { wch: 10 }, // Currency
+                { wch: 15 }  // BrandingTheme
+            ];
+            ws['!cols'] = colWidths;
+
+            // Enable auto-filter
+            ws['!autofilter'] = { ref: ws['!ref'] };
+
+            console.log('Worksheet range:', ws['!ref']);
+            console.log('Autofilter ref:', ws['!autofilter'].ref);
+
+            // Add the worksheet to the workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Invoice Data');
+
+            // Generate filename with current date
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            const filename = `Test_Invoice_Export_${dateStr}.xlsx`;
+
+            // Write the workbook and trigger download
+            XLSX.writeFile(wb, filename);
+
+            console.log('Excel file exported successfully:', filename);
+            alert('Excel file downloaded! Check if column headers appear correctly in Data → Sort dialog.');
+        }
+    </script>
+</body>
+</html>

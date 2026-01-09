@@ -1,0 +1,259 @@
+================================================================================
+DATABASE ISSUE REPORT FOR SQL SERVER TEAM
+Generated: 2025-12-02 23:02:12
+================================================================================
+
+[Connected to SQL Server: 102.67.140.12:1053/AFS]
+
+================================================================================
+ISSUE: INSPECTION IDs ARE REUSED ACROSS DIFFERENT COMMODITY TABLES
+================================================================================
+
+The same Inspection ID exists in multiple tables with DIFFERENT data:
+- Different inspection dates
+- Different clients
+- Different products
+
+This causes data integrity issues when querying across tables.
+
+================================================================================
+EXAMPLE: INSPECTION ID 8487
+================================================================================
+
+--- TABLE: RawRMPInspectionRecordTypes ---
+FOUND - Inspection exists in RAW table:
+  Inspection ID:        8487
+  Date:                 2025-09-03 00:00:00
+  Time:                 2025-09-03 08:27:22.580000 - 2025-09-03 08:27:22.580000
+  Client:               Pick 'n Pay - Galleria
+  Account Number:       RE-IND-RAW-OTH-0982
+  Product:              Heroes Braaiwors 
+  Inspector ID:         174
+  Active:               True
+
+--- TABLE: PMPInspectionRecordTypes ---
+FOUND - Inspection exists in PMP table:
+  Inspection ID:        8487
+  Date:                 2025-11-17 02:00:00
+  Time:                 2025-11-17 09:41:43.160000 - 2025-11-17 09:43:39.097000
+  Client:               Feiner's - Bloemfontein Central Park
+  Account Number:       BU-IND-RAW-NA-1453
+  Product:              Sun French sliced polony
+  Inspector ID:         166
+  Active:               True
+
+--- TABLE: PoultryLabelInspectionChecklistRecords ---
+
+--- ANALYSIS ---
+[ERROR] Inspection ID 8487 found in 2 tables: RAW, PMP
+[ERROR] DIFFERENT DATES - This proves these are DIFFERENT inspections!
+        RAW: 2025-09-03 00:00:00
+        PMP: 2025-11-17 02:00:00
+[ERROR] DIFFERENT CLIENTS - This proves these are DIFFERENT inspections!
+        RAW: Pick 'n Pay - Galleria
+        PMP: Feiner's - Bloemfontein Central Park
+
+================================================================================
+EXAMPLE: INSPECTION ID 8488
+================================================================================
+
+--- TABLE: RawRMPInspectionRecordTypes ---
+FOUND - Inspection exists in RAW table:
+  Inspection ID:        8488
+  Date:                 2025-09-03 00:00:00
+  Time:                 2025-09-03 08:33:34.120000 - 2025-09-03 08:33:34.120000
+  Client:               Pick 'n Pay - Galleria
+  Account Number:       RE-IND-RAW-OTH-0982
+  Product:              C Choice Induna wors 
+  Inspector ID:         174
+  Active:               True
+
+--- TABLE: PMPInspectionRecordTypes ---
+FOUND - Inspection exists in PMP table:
+  Inspection ID:        8488
+  Date:                 2025-11-17 02:00:00
+  Time:                 2025-11-17 10:49:38.557000 - 2025-11-17 10:54:29.817000
+  Client:               Roots Butchery Heidedal
+  Account Number:       BU-IND-RAW-RTS-2472
+  Product:              Deli Viennas
+  Inspector ID:         166
+  Active:               True
+
+--- TABLE: PoultryLabelInspectionChecklistRecords ---
+
+--- ANALYSIS ---
+[ERROR] Inspection ID 8488 found in 2 tables: RAW, PMP
+[ERROR] DIFFERENT DATES - This proves these are DIFFERENT inspections!
+        RAW: 2025-09-03 00:00:00
+        PMP: 2025-11-17 02:00:00
+[ERROR] DIFFERENT CLIENTS - This proves these are DIFFERENT inspections!
+        RAW: Pick 'n Pay - Galleria
+        PMP: Roots Butchery Heidedal
+
+================================================================================
+EXAMPLE: INSPECTION ID 6342
+================================================================================
+
+--- TABLE: RawRMPInspectionRecordTypes ---
+FOUND - Inspection exists in RAW table:
+  Inspection ID:        6342
+  Date:                 2025-05-02 00:00:00
+  Time:                 2025-05-02 11:43:02.423000 - 2025-05-02 11:47:32.813000
+  Client:               New RMP Retailer
+  Account Number:       RE-COR-RAW-NA-0789
+  Product:              Ground Beef
+  Inspector ID:         188
+  Active:               True
+
+--- TABLE: PMPInspectionRecordTypes ---
+FOUND - Inspection exists in PMP table:
+  Inspection ID:        6342
+  Date:                 2025-04-25 00:00:00
+  Time:                 2025-04-25 11:33:45.107000 - 2025-04-25 11:40:43.223000
+  Client:               New Processed Meat Producer
+  Account Number:       RE-IND-RAW-NA-0223
+  Product:              Cheese grillers
+  Inspector ID:         124
+  Active:               True
+
+--- TABLE: PoultryLabelInspectionChecklistRecords ---
+FOUND - Inspection exists in POULTRY table:
+  Inspection ID:        6342
+  Date:                 2025-11-17 02:00:00
+  Time:                 2025-11-17 11:01:48.290000 - 2025-11-17 11:02:41.450000
+  Client:               Roots Butchery Heidedal
+  Account Number:       BU-IND-RAW-RTS-2472
+  Product:              Deli Viennas
+  Inspector ID:         166
+  Active:               True
+
+--- ANALYSIS ---
+[ERROR] Inspection ID 6342 found in 3 tables: RAW, PMP, POULTRY
+[ERROR] DIFFERENT DATES - This proves these are DIFFERENT inspections!
+        RAW: 2025-05-02 00:00:00
+        PMP: 2025-04-25 00:00:00
+        POULTRY: 2025-11-17 02:00:00
+[ERROR] DIFFERENT CLIENTS - This proves these are DIFFERENT inspections!
+        RAW: New RMP Retailer
+        PMP: New Processed Meat Producer
+        POULTRY: Roots Butchery Heidedal
+
+================================================================================
+TABLE STRUCTURES
+================================================================================
+
+RawRMPInspectionRecordTypes:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  InspectorId                    bigint                NOT NULL
+
+PMPInspectionRecordTypes:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  InspectorId                    bigint                NOT NULL
+
+PoultryLabelInspectionChecklistRecords:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  ClientId                       bigint                NOT NULL
+  InspectorId                    bigint                NOT NULL
+
+PoultryQuidInspectionRecordTypes:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  ClientId                       bigint                NOT NULL
+  InspectorId                    bigint                NOT NULL
+
+PoultryGradingInspectionRecordTypes:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  ClientId                       bigint                NOT NULL
+  InspectorId                    bigint                NOT NULL
+
+PoultryEggInspectionRecords:
+  Id                             bigint                NOT NULL
+  IsActive                       bit                NOT NULL
+  DateOfInspection               datetime                NOT NULL
+  InspectorId                    bigint                NOT NULL
+  ClientId                       bigint                NOT NULL
+
+================================================================================
+INSPECTION ID RANGES BY TABLE (Last 90 days)
+================================================================================
+RawRMPInspectionRecordTypes:
+  ID Range: 8487 to 10193
+  Total Active Inspections: 1707
+  Overlap Risk: HIGH (IDs 8487-10193 may exist in other tables)
+PMPInspectionRecordTypes:
+  ID Range: 7577 to 8680
+  Total Active Inspections: 1104
+  Overlap Risk: HIGH (IDs 7577-8680 may exist in other tables)
+PoultryLabelInspectionChecklistRecords:
+  ID Range: 5435 to 6594
+  Total Active Inspections: 1159
+  Overlap Risk: HIGH (IDs 5435-6594 may exist in other tables)
+PoultryQuidInspectionRecordTypes:
+  ID Range: 260 to 345
+  Total Active Inspections: 86
+  Overlap Risk: HIGH (IDs 260-345 may exist in other tables)
+PoultryGradingInspectionRecordTypes:
+  ID Range: 376 to 437
+  Total Active Inspections: 62
+  Overlap Risk: HIGH (IDs 376-437 may exist in other tables)
+PoultryEggInspectionRecords:
+  ID Range: 16369 to 17120
+  Total Active Inspections: 752
+  Overlap Risk: HIGH (IDs 16369-17120 may exist in other tables)
+
+================================================================================
+RECOMMENDATIONS FOR DATABASE TEAM
+================================================================================
+
+ISSUE SUMMARY:
+- Inspection IDs are NOT globally unique across commodity tables
+- Each table (RAW, PMP, POULTRY, EGGS) uses its own ID sequence
+- This causes the SAME ID to represent DIFFERENT inspections in different tables
+
+EVIDENCE:
+- Inspection 8487 in RAW table: Sep 3, 2025, Pick n Pay, Braaiwors
+- Inspection 8487 in PMP table: Nov 17, 2025, Feiners, Polony
+- These are DIFFERENT inspections with DIFFERENT dates and clients!
+
+IMPACT:
+- Data integrity issues when querying across tables
+- Cannot reliably join data using only Inspection ID
+- Reporting systems get confused about which inspection is which
+
+RECOMMENDED SOLUTIONS:
+
+Option 1: Create Global Inspection ID Sequence
+- Create a single sequence/identity that all tables share
+- ALTER TABLE statements to use SEQUENCE object
+- Ensures globally unique IDs
+
+Option 2: Add Composite Primary Key
+- Use (TableName + InspectionID) as unique identifier
+- Add a "SourceTable" column to track which table the record came from
+- Update all queries to use composite key
+
+Option 3: Prefix IDs by Commodity
+- RAW inspections: 1000000 - 1999999
+- PMP inspections: 2000000 - 2999999
+- POULTRY inspections: 3000000 - 3999999
+- EGGS inspections: 4000000 - 4999999
+
+URGENT ACTION NEEDED:
+This is a fundamental database design issue that must be resolved at the
+SQL Server level. Application-level workarounds are not sustainable.
+
+
+================================================================================
+END OF REPORT
+================================================================================
+
+Save this report and send to the SQL Server database team.

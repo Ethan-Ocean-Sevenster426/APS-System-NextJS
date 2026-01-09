@@ -1,0 +1,2583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Client Allocation Sheet - Food Safety Agency</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect hints for faster CDN connections -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Async Font Awesome loading -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --light-black: #333333;
+            --import-color: #446f1e;
+            --grey: #777777;
+            --analytics: #7c3aed;
+        }
+
+        /* Dark mode variables */
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --primary-light: #1a3a40;
+            --light-black: #ffffff;
+            --grey: #b0b0b0;
+        }
+
+        /* Dark mode specific overrides */
+        [data-theme="dark"] .table-container {
+            border: 1px solid #374151;
+            background-color: #1f2937;
+        }
+
+        [data-theme="dark"] table {
+            background-color: #1f2937;
+        }
+
+        [data-theme="dark"] th {
+            background-color: #111827;
+            color: #f9fafb;
+            border-bottom: 1px solid #374151;
+        }
+
+        [data-theme="dark"] th.row-number {
+            background-color: #111827;
+            color: #9ca3af;
+        }
+
+        [data-theme="dark"] tr:nth-child(even) {
+            background-color: #1a1f2e;
+        }
+
+        [data-theme="dark"] tr:nth-child(odd) {
+            background-color: #1f2937;
+        }
+
+        [data-theme="dark"] tr:hover {
+            background-color: rgba(77, 184, 209, 0.1);
+        }
+
+        [data-theme="dark"] td {
+            border-bottom: 1px solid #2d3748;
+            color: #e5e7eb;
+        }
+
+        [data-theme="dark"] td.row-number {
+            color: #6b7280;
+        }
+
+        [data-theme="dark"] .account-code-cell {
+            color: #9ca3af;
+        }
+
+        [data-theme="dark"] tbody tr.selected {
+            background: rgba(77, 184, 209, 0.15) !important;
+            border-left-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .filter-section {
+            background-color: #2d2d2d !important;
+            border-color: #404040 !important;
+        }
+
+        [data-theme="dark"] .filter-section label {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .filter-section input,
+        [data-theme="dark"] .filter-section select {
+            background-color: #3a3a3a !important;
+            color: #ffffff !important;
+            border-color: #404040 !important;
+        }
+
+        [data-theme="dark"] .filter-section input::placeholder {
+            color: #b0b0b0 !important;
+        }
+
+        /* Dark mode sidebar styles */
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .sidebar-header {
+            border-bottom: 1px solid #404040;
+        }
+
+        [data-theme="dark"] .company-name {
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .nav-link {
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        [data-theme="dark"] .nav-link:active {
+            background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        [data-theme="dark"] .nav-link.active {
+            background-color: rgba(77, 184, 209, 0.2);
+            border-color: rgba(77, 184, 209, 0.4);
+            color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .logout-section {
+            border-top: 1px solid #404040;
+        }
+
+        [data-theme="dark"] .mobile-menu-btn {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--background);  /* Fallback color */
+            color: var(--text);
+            line-height: 1.5;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Lazy load background image */
+        body.bg-loaded::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            z-index: -1;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* Page Container */
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Flex container for layout */
+        .flex {
+            display: flex;
+        }
+
+        .min-h-screen {
+            min-height: 100vh;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Sidebar */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 256px;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid #334155;
+            text-align: center;
+        }
+
+        .logo-container {
+            margin-bottom: 1rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .logo-accent {
+            color: var(--primary);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+            opacity: 0.9;
+        }
+
+        .company-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #94a3b8;
+            letter-spacing: 0.3px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #f1f5f9;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            margin: 0.25rem 0.5rem;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .nav-link:active {
+            background-color: rgba(255, 255, 255, 0.12);
+            transform: scale(0.98);
+        }
+
+        .nav-link.active {
+            background-color: rgba(77, 184, 209, 0.15);
+            border-color: rgba(77, 184, 209, 0.3);
+            color: #4db8d1;
+        }
+
+        .nav-link i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .logout-section {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            border-top: 1px solid #334155;
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: #ef4444;
+            color: #ffffff;
+            border: 1px solid #dc2626;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.625rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            border-color: #b91c1c;
+            color: #ffffff;
+        }
+
+        .logout-btn:active {
+            background: #b91c1c;
+            transform: scale(0.98);
+        }
+
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 256px;
+            padding: var(--spacing);
+            transition: margin-left 0.3s ease;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        .header h2 {
+            font-size: 1.25rem;
+            color: white;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            margin-bottom: 0;
+            color: white;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+            border-color: #004a57;
+        }
+
+        .btn-primary:active {
+            background: #004450;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: 1px solid #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            border-color: #374151;
+        }
+
+        .btn-secondary:active {
+            background: #374151;
+            transform: scale(0.98);
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #4db8d1;
+            color: #ffffff;
+            border-color: #4db8d1;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: #6ec9dd;
+            border-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .btn-primary:active {
+            background: #3da7bd;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: #4b5563;
+            color: #f3f4f6;
+            border-color: #4b5563;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background: #6b7280;
+            border-color: #6b7280;
+        }
+
+        [data-theme="dark"] .btn-secondary:active {
+            background: #374151;
+        }
+
+        /* Table Container */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+            background: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            min-width: 800px;
+            background: white;
+        }
+
+        /* Mobile card layout */
+        .mobile-cards {
+            display: none;
+        }
+
+        .client-card {
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.875rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+            -webkit-touch-callout: none;
+            tap-highlight-color: rgba(0, 0, 0, 0) !important;
+            opacity: 1 !important;
+        }
+
+        .client-card *,
+        .client-card * {
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+            tap-highlight-color: rgba(0, 0, 0, 0) !important;
+        }
+
+        .client-card:active,
+        .client-card:focus,
+        .client-card:hover {
+            background-color: var(--card-bg) !important;
+            opacity: 1 !important;
+        }
+
+        .client-card.selected {
+            background-color: var(--card-bg) !important;
+            border-left: 3px solid #4db8d1;
+            opacity: 1 !important;
+        }
+
+        .client-card.selected:active,
+        .client-card.selected:focus {
+            background-color: var(--card-bg) !important;
+            opacity: 1 !important;
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title-text {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+            line-height: 1.3;
+            flex: 1;
+            margin-right: 0.5rem;
+        }
+
+        .card-id-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.625rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .card-body-content {
+            display: grid;
+            gap: 0.625rem;
+        }
+
+        .card-field-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .card-label-text {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-weight: 500;
+            min-width: 100px;
+            flex-shrink: 0;
+        }
+
+        .card-value-text {
+            font-size: 0.875rem;
+            color: var(--text);
+            text-align: right;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .card-value-text.allocated-yes {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .card-value-text.allocated-no {
+            color: #6b7280;
+        }
+
+        .card-value-text.account-code {
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            font-size: 0.8125rem;
+        }
+
+        [data-theme="dark"] .client-card {
+            background-color: var(--card-bg) !important;
+            border-color: var(--border);
+        }
+
+        [data-theme="dark"] .client-card.selected {
+            background-color: var(--card-bg) !important;
+            border-left-color: #6ec9dd;
+        }
+
+        thead {
+            background: transparent;
+        }
+
+        th {
+            background-color: #111827;
+            color: #f9fafb;
+            text-align: left;
+            padding: 10px 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 1px solid #374151;
+            font-size: 0.75rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th.row-number {
+            background-color: #111827;
+            color: #9ca3af;
+            font-weight: 600;
+            min-width: 50px;
+            width: 50px;
+            text-align: center;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        tr:nth-child(odd) {
+            background-color: white;
+        }
+
+        tr:hover {
+            background-color: rgba(0, 115, 135, 0.04);
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #374151;
+        }
+
+        td.row-number {
+            background: transparent;
+            color: #9ca3af;
+            font-weight: 500;
+            text-align: center;
+            padding: 10px 12px;
+            min-width: 50px;
+            width: 50px;
+            font-size: 0.7rem;
+        }
+
+        tbody tr.selected {
+            background: rgba(77, 184, 209, 0.08) !important;
+            border-left: 2px solid #4db8d1;
+        }
+
+        tbody tr.selected td {
+            background: transparent !important;
+        }
+
+        .account-code-cell {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .business-name-cell {
+        }
+
+        .email-cell {
+        }
+
+        th.business-name-header,
+        th.account-code-header,
+        th.email-header {
+            background-color: #111827 !important;
+            color: #f9fafb;
+        }
+
+        .filter-section {
+            background: white;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 2% auto;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 0.5rem 0.5rem 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.1);
+        }
+
+        .custom-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-dropdown input {
+            width: 100%;
+            padding-right: 2.5rem;
+        }
+
+        .custom-dropdown-arrow {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            margin-top: 0.25rem;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-dropdown-menu.show {
+            display: block;
+        }
+
+        .custom-dropdown-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.15s;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .custom-dropdown-item.selected {
+            background-color: #e6f3f7;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 2000;
+            display: none;
+            min-width: 180px;
+        }
+
+        .context-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.15s;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .context-menu-item:first-child {
+            border-radius: 0.375rem 0.375rem 0 0;
+        }
+
+        .context-menu-item:last-child {
+            border-radius: 0 0 0.375rem 0.375rem;
+        }
+
+        .context-menu-item.danger {
+            color: var(--danger);
+        }
+
+        .context-menu-item.danger:hover {
+            background-color: #fee2e2;
+        }
+
+        .required {
+            color: var(--danger);
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            background: #f9fafb;
+            border-radius: 0 0 0.5rem 0.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+
+            #sidebar {
+                transform: translateX(-100%);
+            }
+
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+                padding: 1rem !important;
+                width: 100% !important;
+            }
+
+            .header {
+                padding-top: 4rem !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+
+            .filter-section {
+                padding: 1rem !important;
+            }
+
+            .flex.min-h-screen {
+                flex-direction: row;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+
+            .modal-header h3 {
+                font-size: 1.25rem;
+            }
+
+            .modal-body {
+                padding: 1.5rem;
+            }
+
+            .main-content {
+                padding: 0.5rem !important;
+            }
+
+            .header {
+                padding: 1rem 0.75rem !important;
+                padding-top: 4rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.35rem !important;
+                margin-bottom: 0.25rem !important;
+            }
+
+            .header h2 {
+                font-size: 1.05rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .header p {
+                font-size: 0.8rem !important;
+            }
+
+            .action-bar {
+                flex-direction: column !important;
+                gap: 0.625rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .btn {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 0.75rem 1rem !important;
+                font-size: 0.9rem !important;
+                min-height: 48px !important;
+            }
+
+            .filter-section {
+                padding: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            /* Override inline styles for filter grid */
+            .filter-section form > div[style*="display: grid"] {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 0.875rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .filter-section label {
+                font-size: 0.8125rem !important;
+                margin-bottom: 0.375rem !important;
+            }
+
+            .filter-section input,
+            .filter-section select {
+                padding: 0.625rem !important;
+                font-size: 0.875rem !important;
+                min-height: 44px !important;
+                width: 100% !important;
+            }
+
+            /* Override inline styles for filter buttons */
+            .filter-section form > div[style*="display: flex"] {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.625rem !important;
+            }
+
+            .filter-section .btn {
+                width: 100% !important;
+            }
+
+            /* Hide table, show cards on mobile */
+            .table-container {
+                display: none !important;
+            }
+
+            .mobile-cards {
+                display: block !important;
+            }
+
+            .client-card {
+                margin-bottom: 0.75rem;
+                padding: 0.875rem;
+            }
+
+            .card-title-text {
+                font-size: 0.9375rem;
+            }
+
+            .card-label-text {
+                font-size: 0.7rem;
+                min-width: 90px;
+            }
+
+            .card-value-text {
+                font-size: 0.8125rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 0.375rem !important;
+            }
+
+            .header {
+                padding: 0.875rem 0.5rem !important;
+                padding-top: 3.5rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.15rem !important;
+                line-height: 1.3 !important;
+            }
+
+            .header h2 {
+                font-size: 0.95rem !important;
+                margin-bottom: 0.375rem !important;
+            }
+
+            .header p {
+                font-size: 0.75rem !important;
+            }
+
+            .action-bar {
+                gap: 0.5rem !important;
+                margin-bottom: 0.875rem !important;
+            }
+
+            .btn {
+                padding: 0.65rem 0.875rem !important;
+                font-size: 0.85rem !important;
+                min-height: 44px !important;
+            }
+
+            .filter-section {
+                padding: 0.875rem !important;
+                margin-bottom: 0.875rem !important;
+            }
+
+            .filter-section label {
+                font-size: 0.75rem !important;
+            }
+
+            .filter-section input,
+            .filter-section select {
+                padding: 0.5rem !important;
+                font-size: 0.8125rem !important;
+            }
+
+            /* Smaller cards on very small screens */
+            .client-card {
+                padding: 0.75rem;
+                margin-bottom: 0.625rem;
+            }
+
+            .card-title-text {
+                font-size: 0.875rem;
+            }
+
+            .card-id-badge {
+                font-size: 0.6875rem;
+                padding: 0.1875rem 0.5rem;
+            }
+
+            .card-label-text {
+                font-size: 0.6875rem;
+                min-width: 85px;
+            }
+
+            .card-value-text {
+                font-size: 0.75rem;
+            }
+
+            .modal-content {
+                width: 98%;
+                margin: 2% auto;
+                max-height: 95vh;
+            }
+
+            .modal-header {
+                padding: 1rem;
+            }
+
+            .modal-header h3 {
+                font-size: 1.125rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .modal-footer {
+                padding: 1rem;
+                flex-direction: column-reverse;
+                gap: 0.5rem;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+            }
+
+            table {
+                min-width: 900px;
+            }
+
+            th {
+                padding: 0.5rem 0.375rem;
+                font-size: 0.65rem;
+            }
+
+            td {
+                font-size: 0.65rem;
+                padding: 0.4rem 0.3rem;
+            }
+
+            td.row-number, th.row-number {
+                min-width: 40px;
+                width: 40px;
+                font-size: 0.6rem;
+            }
+
+            .context-menu {
+                min-width: 160px;
+            }
+
+            .context-menu-item {
+                padding: 0.65rem 0.875rem;
+                font-size: 0.8125rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .header h1 {
+                font-size: 1rem !important;
+            }
+
+            .header h2 {
+                font-size: 0.875rem !important;
+            }
+
+            .btn {
+                font-size: 0.8rem !important;
+                padding: 0.6rem 0.75rem !important;
+            }
+
+            .filter-section {
+                padding: 0.75rem !important;
+            }
+
+            .filter-section input,
+            .filter-section select {
+                font-size: 0.75rem !important;
+            }
+
+            .modal-header h3 {
+                font-size: 1rem !important;
+            }
+
+            table {
+                min-width: 1000px !important;
+            }
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+            .header {
+                padding-top: 3rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .main-content {
+                padding: 0.5rem;
+            }
+
+            .table-container {
+                max-height: calc(100vh - 200px);
+                overflow-y: auto;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .btn,
+            .nav-link,
+            .context-menu-item {
+                min-height: 44px;
+            }
+
+            .filter-section input,
+            .filter-section select {
+                min-height: 44px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            tbody tr {
+                cursor: default;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Prevent text selection on mobile during scrolling */
+        @media (max-width: 768px) {
+            tbody tr {
+                -webkit-user-select: none;
+                user-select: none;
+                -webkit-tap-highlight-color: rgba(0, 115, 135, 0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+
+                    <li>
+                  <a href="{% url 'client_allocation' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+    <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+    Client Allocation
+</a>
+
+                    </li>
+                    <li>
+                       <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+    <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+    Inspection Records
+</a>
+
+                    </li>
+                    <li>
+                        <a href="{% url 'client_allocation_sheet' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] active">
+                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
+                            Client Allocation Sheet
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                           class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                  <li>
+    <a href="{% url 'system_logs' %}"
+       class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+        <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+        System Logs
+    </a>
+</li>
+                  <li>
+    <a href="{% url 'fsa_operations_board' %}"
+       class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+        <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+        Support Tickets
+    </a>
+</li>
+                    {% endif %}
+
+                {% if request.user.role == 'developer' %}
+<li>
+    <a href="{% url 'onedrive_view' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+        <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+        OneDrive View
+    </a>
+</li>
+{% endif %}
+
+                   {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+<li>
+  <a href="{% url 'server_view' %}"
+     class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+      <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+      Server View
+  </a>
+</li>
+{% endif %}
+
+                   {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+<li>
+  <a href="{% url 'export_sheet' %}"
+     class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+      <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+      Export Sheet
+  </a>
+</li>
+{% endif %}
+
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+   class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+    <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+    Inspector Analytics
+</a>
+
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'settings' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>Food Safety Agency (Pty) Ltd</h1>
+                <h2>Client Allocation Sheet</h2>
+                {% if total_count %}
+                <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+                    <i class="fas fa-database"></i> Displaying {{ displayed_count }} of {{ total_count }} total record{{ total_count|pluralize }} (Latest 100)
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="action-bar">
+                <a href="{% url 'home' %}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <button type="button" class="btn btn-primary" onclick="openAddClientModal()">
+                    <i class="fas fa-plus"></i> Add New Client
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="openManageOptionsModal()">
+                    <i class="fas fa-cog"></i> Manage Dropdown Options
+                </button>
+            </div>
+
+            {% if not has_data %}
+            <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 1rem; margin: 1rem 0; border-radius: 0.5rem;">
+                <p style="margin: 0; color: #856404;">
+                    <i class="fas fa-info-circle"></i> <strong>No data loaded yet.</strong>
+                    Click "Sync from Google Sheets" above to pull data from Google Sheets into the PostgreSQL database.
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Filter Section -->
+            <div class="filter-section">
+                <form method="GET" action="{% url 'client_allocation_sheet' %}">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Client Name</label>
+                            <input type="text" name="client_name" value="{{ request.GET.client_name }}" placeholder="Search by name..." style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Commodity</label>
+                            <select name="commodity" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All</option>
+                                <option value="EGG" {% if request.GET.commodity == 'EGG' %}selected{% endif %}>EGG</option>
+                                <option value="PMP" {% if request.GET.commodity == 'PMP' %}selected{% endif %}>PMP</option>
+                                <option value="RAW" {% if request.GET.commodity == 'RAW' %}selected{% endif %}>RAW</option>
+                                <option value="PLT" {% if request.GET.commodity == 'PLT' %}selected{% endif %}>PLT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Corporate Group</label>
+                            <select name="corporate_group" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All</option>
+                                <option value="Pick n Pay - Franchise" {% if request.GET.corporate_group == 'Pick n Pay - Franchise' %}selected{% endif %}>Pick n Pay - Franchise</option>
+                                <option value="Pick n Pay - Corporate" {% if request.GET.corporate_group == 'Pick n Pay - Corporate' %}selected{% endif %}>Pick n Pay - Corporate</option>
+                                <option value="Spar" {% if request.GET.corporate_group == 'Spar' %}selected{% endif %}>Spar</option>
+                                <option value="SuperSpar" {% if request.GET.corporate_group == 'SuperSpar' %}selected{% endif %}>SuperSpar</option>
+                                <option value="Shoprite" {% if request.GET.corporate_group == 'Shoprite' %}selected{% endif %}>Shoprite</option>
+                                <option value="Checkers" {% if request.GET.corporate_group == 'Checkers' %}selected{% endif %}>Checkers</option>
+                                <option value="Boxer" {% if request.GET.corporate_group == 'Boxer' %}selected{% endif %}>Boxer</option>
+                                <option value="Woolworths" {% if request.GET.corporate_group == 'Woolworths' %}selected{% endif %}>Woolworths</option>
+                                <option value="Food Lovers Market" {% if request.GET.corporate_group == 'Food Lovers Market' %}selected{% endif %}>Food Lovers Market</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Has Email</label>
+                            <select name="has_email" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All</option>
+                                <option value="yes" {% if request.GET.has_email == 'yes' %}selected{% endif %}>With Email</option>
+                                <option value="no" {% if request.GET.has_email == 'no' %}selected{% endif %}>Without Email</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Has Phone</label>
+                            <select name="has_phone" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All</option>
+                                <option value="yes" {% if request.GET.has_phone == 'yes' %}selected{% endif %}>With Phone</option>
+                                <option value="no" {% if request.GET.has_phone == 'no' %}selected{% endif %}>Without Phone</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-filter"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'client_allocation_sheet' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem; text-decoration: none;">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="row-number">#</th>
+                            <th>Client ID</th>
+                            <th class="business-name-header">Business Name</th>
+                            <th>Facility Type</th>
+                            <th>Province</th>
+                            <th>Corporate Group</th>
+                            <th class="account-code-header">Account Code</th>
+                            <th>Allocated</th>
+                            <th class="email-header">Email</th>
+                            <th>Phone Number</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <!-- Data Rows from Database -->
+                        {% for allocation in allocations %}
+                        <tr onclick="selectRow(this)" oncontextmenu="showContextMenu(event, this)"
+                            data-client-id="{{ allocation.client_id }}"
+                            data-business-name="{{ allocation.eclick_name }}"
+                            data-facility-type="{{ allocation.facility_type }}"
+                            data-group-type="{{ allocation.group_type }}"
+                            data-commodity="{{ allocation.commodity }}"
+                            data-province="{{ allocation.province }}"
+                            data-corporate-group="{{ allocation.corporate_group }}"
+                            data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
+                            data-email="{{ allocation.representative_email }}"
+                            data-phone="{{ allocation.phone_number }}"
+                            data-active-status="{{ allocation.active_status }}">
+                            <td class="row-number">{{ forloop.counter }}</td>
+                            <td style="text-align: center; padding: 0.5rem; font-weight: 500;">{{ allocation.client_id }}</td>
+                            <td class="business-name-cell" style="padding: 0.5rem;">{{ allocation.eclick_name|default:'-' }}</td>
+                            <td style="padding: 0.5rem;">{{ allocation.facility_type|default:'-' }}</td>
+                            <td style="padding: 0.5rem;">{{ allocation.province|default:'-' }}</td>
+                            <td style="padding: 0.5rem;">{{ allocation.corporate_group|default:'-' }}</td>
+                            <td class="account-code-cell">{{ allocation.internal_account_code|default:'-' }}</td>
+                            <td style="text-align: center; padding: 0.5rem;">
+                                {% if allocation.allocated %}
+                                    <span style="color: #10b981; font-weight: 600;">✓ Yes</span>
+                                {% else %}
+                                    <span style="color: #6b7280;">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="email-cell" style="padding: 0.5rem; font-size: 0.75rem;">{{ allocation.representative_email|default:'-' }}</td>
+                            <td style="padding: 0.5rem;">{{ allocation.phone_number|default:'-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Cards View -->
+            <div class="mobile-cards">
+                {% for allocation in allocations %}
+                <div class="client-card" onclick="selectCard(this)" oncontextmenu="showContextMenuCard(event, this)"
+                    data-client-id="{{ allocation.client_id }}"
+                    data-business-name="{{ allocation.eclick_name }}"
+                    data-facility-type="{{ allocation.facility_type }}"
+                    data-group-type="{{ allocation.group_type }}"
+                    data-commodity="{{ allocation.commodity }}"
+                    data-province="{{ allocation.province }}"
+                    data-corporate-group="{{ allocation.corporate_group }}"
+                    data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
+                    data-email="{{ allocation.representative_email }}"
+                    data-phone="{{ allocation.phone_number }}"
+                    data-active-status="{{ allocation.active_status }}">
+
+                    <div class="card-header-row">
+                        <div class="card-title-text">{{ allocation.eclick_name|default:'Unnamed Client' }}</div>
+                        <div class="card-id-badge">ID: {{ allocation.client_id }}</div>
+                    </div>
+
+                    <div class="card-body-content">
+                        {% if allocation.facility_type %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Facility Type:</span>
+                            <span class="card-value-text">{{ allocation.facility_type }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if allocation.province %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Province:</span>
+                            <span class="card-value-text">{{ allocation.province }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if allocation.corporate_group %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Corporate Group:</span>
+                            <span class="card-value-text">{{ allocation.corporate_group }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if allocation.internal_account_code %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Account Code:</span>
+                            <span class="card-value-text account-code">{{ allocation.internal_account_code }}</span>
+                        </div>
+                        {% endif %}
+
+                        <div class="card-field-row">
+                            <span class="card-label-text">Allocated:</span>
+                            {% if allocation.allocated %}
+                                <span class="card-value-text allocated-yes">✓ Yes</span>
+                            {% else %}
+                                <span class="card-value-text allocated-no">No</span>
+                            {% endif %}
+                        </div>
+
+                        {% if allocation.representative_email %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Email:</span>
+                            <span class="card-value-text">{{ allocation.representative_email }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if allocation.phone_number %}
+                        <div class="card-field-row">
+                            <span class="card-label-text">Phone:</span>
+                            <span class="card-value-text">{{ allocation.phone_number }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Client Modal -->
+    <div id="addClientModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Client</h3>
+                <button type="button" class="modal-close" onclick="closeAddClientModal()">&times;</button>
+            </div>
+            <form id="addClientForm" method="POST" action="{% url 'add_client_allocation' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="business_name">Business Name (E-Click)</label>
+                            <input type="text" id="business_name" name="business_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="facility_type">Facility Type</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="facility_type" name="facility_type" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('facility_type_dropdown')" oninput="filterDropdown('facility_type', 'facility_type_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="facility_type_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Retailer', 'facility_type_dropdown')">Retailer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Butchery', 'facility_type_dropdown')">Butchery</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Re-Packer', 'facility_type_dropdown')">Re-Packer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Production Plant', 'facility_type_dropdown')">Production Plant</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Farm', 'facility_type_dropdown')">Farm</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('facility_type', 'Abattoir', 'facility_type_dropdown')">Abattoir</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="group_type">Group Type</label>
+                            <select id="group_type" name="group_type">
+                                <option value="">Select...</option>
+                                <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                                <option value="Corporate Store">Corporate Store</option>
+                                <option value="Franchise Store">Franchise Store</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="commodity">Commodity</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="commodity" name="commodity" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('commodity_dropdown')" oninput="filterDropdown('commodity', 'commodity_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="commodity_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('commodity', 'EGG', 'commodity_dropdown')">EGG</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('commodity', 'PMP', 'commodity_dropdown')">PMP</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('commodity', 'RAW', 'commodity_dropdown')">RAW</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('commodity', 'PLT', 'commodity_dropdown')">PLT</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="province">Province</label>
+                            <select id="province" name="province">
+                                <option value="">Select...</option>
+                                <option value="TBC">TBC</option>
+                                <option value="Gauteng">Gauteng</option>
+                                <option value="North West">North West</option>
+                                <option value="Eastern Cape">Eastern Cape</option>
+                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                <option value="Limpopo">Limpopo</option>
+                                <option value="Mpumalanga">Mpumalanga</option>
+                                <option value="Northern Cape">Northern Cape</option>
+                                <option value="Western Cape">Western Cape</option>
+                                <option value="Free State">Free State</option>
+                                <option value="Unknown/Other">Unknown/Other</option>
+                                <option value="To be declared">To be declared</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="corporate_group">Corporate Group</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="corporate_group" name="corporate_group" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('corporate_group_dropdown')" oninput="filterDropdown('corporate_group', 'corporate_group_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="corporate_group_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Not Applicable (None)', 'corporate_group_dropdown')">Not Applicable (None)</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Pick n Pay - Franchise', 'corporate_group_dropdown')">Pick n Pay - Franchise</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Pick n Pay - Corporate', 'corporate_group_dropdown')">Pick n Pay - Corporate</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Fruit & Veg', 'corporate_group_dropdown')">Fruit & Veg</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'OK Foods', 'corporate_group_dropdown')">OK Foods</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Checkers', 'corporate_group_dropdown')">Checkers</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Spar', 'corporate_group_dropdown')">Spar</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'SuperSpar', 'corporate_group_dropdown')">SuperSpar</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Spar - Northrand', 'corporate_group_dropdown')">Spar - Northrand</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Shoprite', 'corporate_group_dropdown')">Shoprite</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Massmart', 'corporate_group_dropdown')">Massmart</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Chester Butcheries', 'corporate_group_dropdown')">Chester Butcheries</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Boxer', 'corporate_group_dropdown')">Boxer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Food Lovers Market', 'corporate_group_dropdown')">Food Lovers Market</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Cambridge', 'corporate_group_dropdown')">Cambridge</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Woolworths', 'corporate_group_dropdown')">Woolworths</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Jwayelani', 'corporate_group_dropdown')">Jwayelani</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Usave', 'corporate_group_dropdown')">Usave</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Other (Unlisted Group)', 'corporate_group_dropdown')">Other (Unlisted Group)</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'OBC', 'corporate_group_dropdown')">OBC</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Roots', 'corporate_group_dropdown')">Roots</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Meat World', 'corporate_group_dropdown')">Meat World</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Quantum Foods Nulaid', 'corporate_group_dropdown')">Quantum Foods Nulaid</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Bluff Meat Supply', 'corporate_group_dropdown')">Bluff Meat Supply</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Eat Sum Meat', 'corporate_group_dropdown')">Eat Sum Meat</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Waltloo Meat and Chicken', 'corporate_group_dropdown')">Waltloo Meat and Chicken</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Choppies', 'corporate_group_dropdown')">Choppies</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Econo Foods', 'corporate_group_dropdown')">Econo Foods</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Makro', 'corporate_group_dropdown')">Makro</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Boma Vleismark', 'corporate_group_dropdown')">Boma Vleismark</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Eskort', 'corporate_group_dropdown')">Eskort</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('corporate_group', 'Nesta Foods', 'corporate_group_dropdown')">Nesta Foods</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="allocated">Allocated</label>
+                            <select id="allocated" name="allocated">
+                                <option value="">Select...</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="representative_email">Representative Email</label>
+                            <input type="email" id="representative_email" name="representative_email">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone_number">Phone Number</label>
+                            <input type="text" id="phone_number" name="phone_number">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddClientModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Client Modal -->
+    <div id="editClientModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Client</h3>
+                <button type="button" class="modal-close" onclick="closeEditClientModal()">&times;</button>
+            </div>
+            <form id="editClientForm" method="POST" action="{% url 'edit_client_allocation' %}">
+                {% csrf_token %}
+                <input type="hidden" id="edit_client_id" name="client_id">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_business_name">Business Name (E-Click)</label>
+                            <input type="text" id="edit_business_name" name="business_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_facility_type">Facility Type</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="edit_facility_type" name="facility_type" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('edit_facility_type_dropdown')" oninput="filterDropdown('edit_facility_type', 'edit_facility_type_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="edit_facility_type_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Retailer', 'edit_facility_type_dropdown')">Retailer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Butchery', 'edit_facility_type_dropdown')">Butchery</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Re-Packer', 'edit_facility_type_dropdown')">Re-Packer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Production Plant', 'edit_facility_type_dropdown')">Production Plant</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Farm', 'edit_facility_type_dropdown')">Farm</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_facility_type', 'Abattoir', 'edit_facility_type_dropdown')">Abattoir</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_group_type">Group Type</label>
+                            <select id="edit_group_type" name="group_type">
+                                <option value="">Select...</option>
+                                <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                                <option value="Corporate Store">Corporate Store</option>
+                                <option value="Franchise Store">Franchise Store</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_commodity">Commodity</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="edit_commodity" name="commodity" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('edit_commodity_dropdown')" oninput="filterDropdown('edit_commodity', 'edit_commodity_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="edit_commodity_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_commodity', 'EGG', 'edit_commodity_dropdown')">EGG</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_commodity', 'PMP', 'edit_commodity_dropdown')">PMP</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_commodity', 'RAW', 'edit_commodity_dropdown')">RAW</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_commodity', 'PLT', 'edit_commodity_dropdown')">PLT</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_province">Province</label>
+                            <select id="edit_province" name="province">
+                                <option value="">Select...</option>
+                                <option value="TBC">TBC</option>
+                                <option value="Gauteng">Gauteng</option>
+                                <option value="North West">North West</option>
+                                <option value="Eastern Cape">Eastern Cape</option>
+                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                <option value="Limpopo">Limpopo</option>
+                                <option value="Mpumalanga">Mpumalanga</option>
+                                <option value="Northern Cape">Northern Cape</option>
+                                <option value="Western Cape">Western Cape</option>
+                                <option value="Free State">Free State</option>
+                                <option value="Unknown/Other">Unknown/Other</option>
+                                <option value="To be declared">To be declared</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_corporate_group">Corporate Group</label>
+                            <div class="custom-dropdown">
+                                <input type="text" id="edit_corporate_group" name="corporate_group" placeholder="Select or type new..." autocomplete="off" onfocus="showDropdown('edit_corporate_group_dropdown')" oninput="filterDropdown('edit_corporate_group', 'edit_corporate_group_dropdown')">
+                                <i class="fas fa-chevron-down custom-dropdown-arrow"></i>
+                                <div id="edit_corporate_group_dropdown" class="custom-dropdown-menu">
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Not Applicable (None)', 'edit_corporate_group_dropdown')">Not Applicable (None)</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Pick n Pay - Franchise', 'edit_corporate_group_dropdown')">Pick n Pay - Franchise</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Pick n Pay - Corporate', 'edit_corporate_group_dropdown')">Pick n Pay - Corporate</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Fruit & Veg', 'edit_corporate_group_dropdown')">Fruit & Veg</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'OK Foods', 'edit_corporate_group_dropdown')">OK Foods</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Checkers', 'edit_corporate_group_dropdown')">Checkers</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Spar', 'edit_corporate_group_dropdown')">Spar</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'SuperSpar', 'edit_corporate_group_dropdown')">SuperSpar</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Spar - Northrand', 'edit_corporate_group_dropdown')">Spar - Northrand</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Shoprite', 'edit_corporate_group_dropdown')">Shoprite</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Massmart', 'edit_corporate_group_dropdown')">Massmart</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Chester Butcheries', 'edit_corporate_group_dropdown')">Chester Butcheries</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Boxer', 'edit_corporate_group_dropdown')">Boxer</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Food Lovers Market', 'edit_corporate_group_dropdown')">Food Lovers Market</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Cambridge', 'edit_corporate_group_dropdown')">Cambridge</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Woolworths', 'edit_corporate_group_dropdown')">Woolworths</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Jwayelani', 'edit_corporate_group_dropdown')">Jwayelani</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Usave', 'edit_corporate_group_dropdown')">Usave</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Other (Unlisted Group)', 'edit_corporate_group_dropdown')">Other (Unlisted Group)</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'OBC', 'edit_corporate_group_dropdown')">OBC</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Roots', 'edit_corporate_group_dropdown')">Roots</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Meat World', 'edit_corporate_group_dropdown')">Meat World</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Quantum Foods Nulaid', 'edit_corporate_group_dropdown')">Quantum Foods Nulaid</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Bluff Meat Supply', 'edit_corporate_group_dropdown')">Bluff Meat Supply</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Eat Sum Meat', 'edit_corporate_group_dropdown')">Eat Sum Meat</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Waltloo Meat and Chicken', 'edit_corporate_group_dropdown')">Waltloo Meat and Chicken</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Choppies', 'edit_corporate_group_dropdown')">Choppies</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Econo Foods', 'edit_corporate_group_dropdown')">Econo Foods</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Makro', 'edit_corporate_group_dropdown')">Makro</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Boma Vleismark', 'edit_corporate_group_dropdown')">Boma Vleismark</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Eskort', 'edit_corporate_group_dropdown')">Eskort</div>
+                                    <div class="custom-dropdown-item" onclick="selectDropdownItem('edit_corporate_group', 'Nesta Foods', 'edit_corporate_group_dropdown')">Nesta Foods</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_allocated">Allocated</label>
+                            <select id="edit_allocated" name="allocated">
+                                <option value="">Select...</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_active_status">Active Status</label>
+                            <select id="edit_active_status" name="active_status">
+                                <option value="">Select...</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive / Deactivated</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit_representative_email">Representative Email</label>
+                            <input type="email" id="edit_representative_email" name="representative_email">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_phone_number">Phone Number</label>
+                            <input type="text" id="edit_phone_number" name="phone_number">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditClientModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="editClientFromContext()">
+            <i class="fas fa-edit"></i>
+            <span>Edit Client</span>
+        </div>
+        <div class="context-menu-item" onclick="exportClientFromContext()">
+            <i class="fas fa-file-excel"></i>
+            <span>Export to Excel</span>
+        </div>
+        <div class="context-menu-item danger" onclick="deleteClientFromContext()">
+            <i class="fas fa-trash"></i>
+            <span>Delete Client</span>
+        </div>
+    </div>
+
+    <!-- Manage Dropdown Options Modal -->
+    <div id="manageOptionsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manage Dropdown Options</h3>
+                <button type="button" class="modal-close" onclick="closeManageOptionsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: var(--primary); margin-bottom: 1rem;">Facility Types</h4>
+                    <div id="facilityTypesList" style="display: grid; gap: 0.5rem;">
+                        <p style="color: #6b7280;">Loading...</p>
+                    </div>
+                </div>
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: var(--primary); margin-bottom: 1rem;">Commodities</h4>
+                    <div id="commoditiesList" style="display: grid; gap: 0.5rem;">
+                        <p style="color: #6b7280;">Loading...</p>
+                    </div>
+                </div>
+                <div style="margin-bottom: 2rem;">
+                    <h4 style="color: var(--primary); margin-bottom: 1rem;">Corporate Groups</h4>
+                    <div id="corporateGroupsList" style="display: grid; gap: 0.5rem;">
+                        <p style="color: #6b7280;">Loading...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeManageOptionsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme management - compatible with settings page
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = '{{ settings.dark_mode|yesno:"dark,light" }}';
+
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+            }
+
+            document.documentElement.setAttribute('data-theme', activeTheme);
+        }
+
+        // Mobile Menu Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+
+                sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+
+            const icon = mobileBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                icon.className = 'fas fa-times';
+                } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        // Lazy load background image
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Apply theme on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+
+            // Mobile menu functionality
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleSidebar);
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+
+            // Close sidebar when clicking on nav links on mobile
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 1024) {
+                    const sidebar = document.getElementById('sidebar');
+                    const overlay = document.getElementById('sidebar-overlay');
+                    const mobileBtn = document.getElementById('mobile-menu-btn');
+
+                    sidebar.classList.remove('show');
+                    overlay.classList.remove('show');
+
+                    if (mobileBtn) {
+                        const icon = mobileBtn.querySelector('i');
+                        icon.className = 'fas fa-bars';
+                    }
+                }
+            });
+        });
+
+        // Listen for theme changes from settings page
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'theme') {
+                document.documentElement.setAttribute('data-theme', e.newValue || 'light');
+            }
+        });
+
+        // Selected row tracking
+        let selectedRow = null;
+        let contextMenuRow = null;
+
+        function selectRow(row) {
+            if (selectedRow) {
+                selectedRow.classList.remove('selected');
+            }
+            row.classList.add('selected');
+            selectedRow = row;
+        }
+
+        function showContextMenu(event, row) {
+            event.preventDefault();
+            contextMenuRow = row;
+
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+
+            const menuWidth = contextMenu.offsetWidth;
+            const menuHeight = contextMenu.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let left = event.clientX;
+            let top = event.clientY;
+
+            if (left + menuWidth > viewportWidth) {
+                left = viewportWidth - menuWidth - 5;
+            }
+
+            if (top + menuHeight > viewportHeight) {
+                top = viewportHeight - menuHeight - 5;
+            }
+
+            contextMenu.style.left = left + 'px';
+            contextMenu.style.top = top + 'px';
+
+            return false;
+        }
+
+        // Mobile card selection and context menu
+        function selectCard(card) {
+            // Remove selection from all cards and rows
+            document.querySelectorAll('.client-card.selected').forEach(c => {
+                c.classList.remove('selected');
+            });
+            if (selectedRow) {
+                selectedRow.classList.remove('selected');
+            }
+
+            // Select the clicked card
+            card.classList.add('selected');
+            selectedRow = card; // Use the same variable for consistency
+        }
+
+        function showContextMenuCard(event, card) {
+            event.preventDefault();
+
+            // Select the card
+            selectCard(card);
+            contextMenuRow = card;
+
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+
+            const menuWidth = contextMenu.offsetWidth;
+            const menuHeight = contextMenu.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let left = event.clientX;
+            let top = event.clientY;
+
+            if (left + menuWidth > viewportWidth) {
+                left = viewportWidth - menuWidth - 5;
+            }
+
+            if (top + menuHeight > viewportHeight) {
+                top = viewportHeight - menuHeight - 5;
+            }
+
+            contextMenu.style.left = left + 'px';
+            contextMenu.style.top = top + 'px';
+
+            return false;
+        }
+
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function editClientFromContext() {
+            if (contextMenuRow) {
+                selectedRow = contextMenuRow;
+                selectedRow.classList.add('selected');
+                openEditClientModal();
+            }
+            hideContextMenu();
+        }
+
+        function exportClientFromContext() {
+            if (!contextMenuRow) {
+                hideContextMenu();
+                return;
+            }
+
+            const clientId = contextMenuRow.dataset.clientId;
+            const businessName = contextMenuRow.dataset.businessName;
+
+            const exportUrl = '{% url "export_client_allocations" %}' + '?client_id=' + encodeURIComponent(clientId);
+            window.location.href = exportUrl;
+
+            hideContextMenu();
+        }
+
+        function deleteClientFromContext() {
+            if (!contextMenuRow) {
+                hideContextMenu();
+                return;
+            }
+
+            const clientId = contextMenuRow.dataset.clientId;
+            const businessName = contextMenuRow.dataset.businessName;
+
+            if (!confirm(`Are you sure you want to delete "${businessName}" (Client ID: ${clientId})?\n\nThis action cannot be undone.`)) {
+                hideContextMenu();
+                return;
+            }
+
+            fetch('{% url "delete_client_allocation" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    client_id: clientId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    contextMenuRow.style.transition = 'opacity 0.3s';
+                    contextMenuRow.style.opacity = '0';
+
+                    setTimeout(() => {
+                        contextMenuRow.remove();
+
+                        const rows = document.querySelectorAll('tbody tr');
+                        rows.forEach((row, index) => {
+                            const rowNumberCell = row.querySelector('.row-number');
+                            if (rowNumberCell) {
+                                rowNumberCell.textContent = index + 1;
+                            }
+                        });
+
+                        selectedRow = null;
+                        contextMenuRow = null;
+                    }, 300);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting client');
+            });
+
+            hideContextMenu();
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.context-menu')) {
+                hideContextMenu();
+            }
+        });
+
+        function openAddClientModal() {
+            document.getElementById('addClientModal').style.display = 'block';
+            loadDropdownOptionsForForms();
+        }
+
+        function closeAddClientModal() {
+            document.getElementById('addClientModal').style.display = 'none';
+            document.getElementById('addClientForm').reset();
+        }
+
+        function openEditClientModal() {
+            if (!selectedRow) {
+                alert('Please select a client row to edit');
+                return;
+            }
+
+            document.getElementById('edit_client_id').value = selectedRow.dataset.clientId;
+            document.getElementById('edit_business_name').value = selectedRow.dataset.businessName || '';
+            document.getElementById('edit_facility_type').value = selectedRow.dataset.facilityType || '';
+            document.getElementById('edit_group_type').value = selectedRow.dataset.groupType || '';
+            document.getElementById('edit_commodity').value = selectedRow.dataset.commodity || '';
+            document.getElementById('edit_province').value = selectedRow.dataset.province || '';
+            document.getElementById('edit_corporate_group').value = selectedRow.dataset.corporateGroup || '';
+            document.getElementById('edit_allocated').value = selectedRow.dataset.allocated || '';
+            document.getElementById('edit_representative_email').value = selectedRow.dataset.email || '';
+            document.getElementById('edit_phone_number').value = selectedRow.dataset.phone || '';
+            document.getElementById('edit_active_status').value = selectedRow.dataset.activeStatus || '';
+
+            document.getElementById('editClientModal').style.display = 'block';
+            loadDropdownOptionsForForms();
+        }
+
+        function closeEditClientModal() {
+            document.getElementById('editClientModal').style.display = 'none';
+            document.getElementById('editClientForm').reset();
+        }
+
+        function openManageOptionsModal() {
+            document.getElementById('manageOptionsModal').style.display = 'block';
+            loadDropdownOptions();
+        }
+
+        function closeManageOptionsModal() {
+            document.getElementById('manageOptionsModal').style.display = 'none';
+        }
+
+        function loadDropdownOptions() {
+            fetch('{% url "get_dropdown_options" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const facilityTypesList = document.getElementById('facilityTypesList');
+                    facilityTypesList.innerHTML = '';
+                    data.facility_types.forEach(item => {
+                        facilityTypesList.innerHTML += createOptionItem('facility_type', item.value, item.count);
+                    });
+
+                    const commoditiesList = document.getElementById('commoditiesList');
+                    commoditiesList.innerHTML = '';
+                    data.commodities.forEach(item => {
+                        commoditiesList.innerHTML += createOptionItem('commodity', item.value, item.count);
+                    });
+
+                    const corporateGroupsList = document.getElementById('corporateGroupsList');
+                    corporateGroupsList.innerHTML = '';
+                    data.corporate_groups.forEach(item => {
+                        corporateGroupsList.innerHTML += createOptionItem('corporate_group', item.value, item.count);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading options:', error);
+                    alert('Error loading dropdown options');
+                });
+        }
+
+        function createOptionItem(fieldType, value, count) {
+            if (!value) return '';
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb;">
+                    <div>
+                        <span style="font-weight: 500;">${value}</span>
+                        <span style="color: #6b7280; font-size: 0.875rem; margin-left: 0.5rem;">(${count} client${count !== 1 ? 's' : ''})</span>
+                    </div>
+                    <button type="button" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;" onclick="deleteOption('${fieldType}', '${value.replace(/'/g, "\\'")}', ${count})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+        }
+
+        function deleteOption(fieldType, value, count) {
+            if (count > 0) {
+                if (!confirm(`This ${fieldType.replace('_', ' ')} is used by ${count} client(s). Deleting it will set those clients to empty. Continue?`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`Delete "${value}"?`)) {
+                    return;
+                }
+            }
+
+            fetch('{% url "delete_dropdown_option" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    field_type: fieldType,
+                    value: value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadDropdownOptions();
+                    alert('Option deleted successfully');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting option');
+            });
+        }
+
+        function loadDropdownOptionsForForms() {
+            fetch('{% url "get_dropdown_options" %}')
+                .then(response => response.json())
+                .then(data => {
+                    updateCustomDropdown('facility_type_dropdown', data.facility_types);
+                    updateCustomDropdown('edit_facility_type_dropdown', data.facility_types);
+
+                    updateCustomDropdown('commodity_dropdown', data.commodities);
+                    updateCustomDropdown('edit_commodity_dropdown', data.commodities);
+
+                    updateCustomDropdown('corporate_group_dropdown', data.corporate_groups);
+                    updateCustomDropdown('edit_corporate_group_dropdown', data.corporate_groups);
+                })
+                .catch(error => {
+                    console.error('Error loading dropdown options:', error);
+                });
+        }
+
+        function updateCustomDropdown(dropdownId, options) {
+            const dropdown = document.getElementById(dropdownId);
+            if (!dropdown) return;
+
+            dropdown.innerHTML = '';
+
+            options.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'custom-dropdown-item';
+                div.textContent = option.value;
+
+                const inputId = dropdownId.replace('_dropdown', '');
+                div.onclick = function() {
+                    selectDropdownItem(inputId, option.value, dropdownId);
+                };
+
+                dropdown.appendChild(div);
+            });
+        }
+
+        function showDropdown(dropdownId) {
+            document.querySelectorAll('.custom-dropdown-menu').forEach(menu => {
+                if (menu.id !== dropdownId) {
+                    menu.classList.remove('show');
+                }
+            });
+            document.getElementById(dropdownId).classList.add('show');
+        }
+
+        function hideDropdown(dropdownId) {
+            document.getElementById(dropdownId).classList.remove('show');
+        }
+
+        function selectDropdownItem(inputId, value, dropdownId) {
+            document.getElementById(inputId).value = value;
+            hideDropdown(dropdownId);
+        }
+
+        function filterDropdown(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toUpperCase();
+            const dropdown = document.getElementById(dropdownId);
+            const items = dropdown.getElementsByClassName('custom-dropdown-item');
+
+            for (let i = 0; i < items.length; i++) {
+                const txtValue = items[i].textContent || items[i].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    items[i].style.display = '';
+                } else {
+                    items[i].style.display = 'none';
+                }
+            }
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.custom-dropdown')) {
+                document.querySelectorAll('.custom-dropdown-menu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        window.onclick = function(event) {
+            const addModal = document.getElementById('addClientModal');
+            const editModal = document.getElementById('editClientModal');
+            if (event.target == addModal) {
+                closeAddClientModal();
+            } else if (event.target == editModal) {
+                closeEditClientModal();
+            }
+        }
+    </script>
+</body>
+</html>

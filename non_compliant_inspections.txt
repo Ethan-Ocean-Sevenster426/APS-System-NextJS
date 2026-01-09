@@ -1,0 +1,114 @@
+NON-COMPLIANT INSPECTIONS REPORT
+================================
+Generated: 2025-01-27
+Total Non-Compliant Inspections: 4,191 (52.5% of all inspections)
+
+DEFINITION: Non-compliant inspections are those where directions were issued 
+during the inspection, indicating compliance issues were found.
+
+RECENT NON-COMPLIANT INSPECTIONS (First 100):
+=============================================
+
+#   Client Name                    Date       Inspector           Commodity   Status
+---  ----------------------------- ---------- ------------------- ----------  -----------
+1    Pick & Choose Meat            09/22/25   CINGA NGONGO        RAW        Non-Compliant
+2    Northcrest Superspar          09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+3    Northcrest Superspar          09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+4    Frontline Hyper - Hammanskraal 09/22/25  CINGA NGONGO        RAW        Non-Compliant
+5    Frontline Hyper - Hammanskraal 09/22/25  CINGA NGONGO        RAW        Non-Compliant
+6    New RMP Butchery              09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+7    New RMP Butchery              09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+8    New RMP Butchery              09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+9    New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+10   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+11   New RMP Retailer              09/22/25   Unknown             RAW        Non-Compliant
+12   New RMP Retailer              09/22/25   GLADYS MANGANYE     RAW        Non-Compliant
+13   New RMP Retailer              09/22/25   MOKGADI SELONE      RAW        Non-Compliant
+14   OBC Meat & Chicken - Circus   09/22/25   SANDISIWE DLISANI   RAW        Non-Compliant
+15   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+16   Big Save - Hammanskraal       09/22/25   CINGA NGONGO        RAW        Non-Compliant
+17   Big Save - Hammanskraal       09/22/25   CINGA NGONGO        RAW        Non-Compliant
+18   Chester Buchery Pietermaritz  09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+19   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+20   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+21   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+22   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+23   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+24   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+25   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+26   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+27   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+28   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+29   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+30   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+31   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+32   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+33   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+34   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+35   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+36   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+37   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+38   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+39   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+40   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+41   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+42   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+43   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+44   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+45   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+46   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+47   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+48   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+49   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+50   New RMP Retailer              09/22/25   LWANDILE MAQINA     RAW        Non-Compliant
+
+... and 4,141 more non-compliant inspections
+
+STATISTICS BY INSPECTOR:
+========================
+LWANDILE MAQINA      : 507 (12.1%)
+PERCY MALEKA         : 465 (11.1%)
+SANDISIWE DLISANI    : 436 (10.4%)
+CINGA NGONGO         : 429 (10.2%)
+NELISA NTOYAPHI      : 342 (8.2%)
+KUTLWANO KUNTWANE    : 311 (7.4%)
+GLADYS MANGANYE      : 304 (7.3%)
+Unknown              : 304 (7.3%)
+MOKGADI SELONE       : 302 (7.2%)
+THATO SEKHOTHO       : 269 (6.4%)
+XOLA MPELUZA         : 233 (5.6%)
+JOFRED STEYN         : 169 (4.0%)
+NEO NOE              : 95 (2.3%)
+BEN VISAGIE          : 88 (2.1%)
+
+STATISTICS BY COMMODITY:
+========================
+RAW                  : 2,172 (51.8%)
+PMP                  : 1,022 (24.4%)
+POULTRY              : 613 (14.6%)
+EGGS                 : 447 (10.7%)
+
+RECENT ACTIVITY (Last 30 Days):
+===============================
+2025-09-22: 47 non-compliant inspections
+2025-09-19: 33 non-compliant inspections
+2025-09-18: 28 non-compliant inspections
+2025-09-17: 66 non-compliant inspections
+2025-09-16: 31 non-compliant inspections
+2025-09-15: 32 non-compliant inspections
+2025-09-12: 6 non-compliant inspections
+2025-09-11: 27 non-compliant inspections
+2025-09-10: 15 non-compliant inspections
+2025-09-09: 21 non-compliant inspections
+
+SUMMARY:
+========
+- Total Non-Compliant Inspections: 4,191
+- This represents 52.5% of all inspections
+- Non-compliant means directions were issued during inspection
+- These inspections require follow-up or corrective actions
+- High non-compliance rate indicates significant compliance challenges
+
+NOTE: This report shows inspections from the last 6 months only.
+For the complete list, use the web interface filter at:
+http://127.0.0.1:8000/inspections/

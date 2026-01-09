@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>{{ page_title }} - Food Safety Agency</title>
+
+    <!-- Favicon - Food Safety Agency Logo -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Async Font Awesome loading for better performance -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                        success: '#10b981',
+                        info: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --sidebar-bg: #1e293b;
+            --sidebar-text: #f1f5f9;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+
+        /* Dark mode variables */
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --sidebar-bg: #1a1a1a;
+            --sidebar-text: #ffffff;
+            --primary-light: #1a3a40;
+        }
+        
+        /* Sidebar theme styles */
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        #sidebar .border-slate-600 {
+            border-color: #334155 !important;
+        }
+        
+        #sidebar .text-sidebar-text {
+            color: var(--sidebar-text) !important;
+        }
+        
+        /* Force sidebar to be dark in both themes */
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="dark"] #sidebar {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+        
+        /* Ensure smooth sidebar transitions */
+        #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+        }
+        
+        /* Additional theme-specific styles */
+        [data-theme="dark"] .card {
+            background: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #404040 !important;
+        }
+        
+        [data-theme="dark"] .folder-item {
+            background: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #404040 !important;
+        }
+        
+        [data-theme="dark"] .folder-item:hover {
+            background: #3a3a3a !important;
+        }
+        
+        [data-theme="dark"] .btn {
+            background: var(--primary) !important;
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] .btn:hover {
+            background: #005a6b !important;
+        }
+        
+        [data-theme="dark"] .mobile-menu-btn {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        [data-theme="dark"] .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--background);  /* Fallback color while image loads */
+            color: var(--text);
+            line-height: 1.5;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Load background image after page loads for better performance */
+        body.bg-loaded {
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        /* Mobile-first layout */
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Sidebar responsive behavior */
+        #sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        #sidebar.open {
+            transform: translateX(0);
+        }
+        
+        .sidebar-overlay.open {
+            display: block;
+        }
+        
+        /* Main Content - Full width on mobile */
+        .main-content {
+            flex: 1;
+            width: 100%;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            margin-left: 0;
+        }
+        
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+
+        .header {
+            padding: 4rem 0 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+
+        .card-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-body {
+            padding: 10px 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 4px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.6875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            white-space: nowrap;
+        }
+
+        .btn i {
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+            border-color: #004a57;
+        }
+
+        .btn-primary:active {
+            background: #004450;
+            transform: scale(0.98);
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #4db8d1;
+            color: #ffffff;
+            border-color: #4db8d1;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: #6ec9dd;
+            border-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .btn-primary:active {
+            background: #3da7bd;
+        }
+
+        .status-connected { color: var(--success); }
+        .status-disconnected { color: var(--danger); }
+        .status-warning { color: var(--warning); }
+
+        /* Statistics Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: var(--sidebar-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 1.5rem;
+        }
+
+        .chart-container h3 {
+            display: flex;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--sidebar-text);
+            margin-bottom: 1rem;
+        }
+
+        .chart-container h3 i {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+            color: var(--sidebar-text);
+        }
+
+        /* Directory Tree Styles */
+        .directory-tree {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--sidebar-text);
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tree-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding-left: 0.5rem;
+        }
+
+        .tree-item:last-child {
+            border-bottom: none;
+        }
+
+        .tree-indent {
+            display: inline-block;
+            width: 1.5rem;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .tree-icon {
+            margin-right: 0.75rem;
+            width: 1.25rem;
+            text-align: center;
+        }
+
+        .tree-name {
+            flex: 1;
+            color: var(--sidebar-text);
+            font-weight: 500;
+        }
+
+        .tree-count {
+            margin-left: auto;
+            padding-left: 1rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+        }
+
+        .tree-size {
+            margin-left: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+            font-weight: normal;
+        }
+
+        .folder-collapsed > .tree-children {
+            display: none;
+        }
+
+        .folder-expanded > .tree-children {
+            display: block;
+        }
+
+        .tree-children {
+            margin-left: 1.5rem;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding-left: 0.5rem;
+        }
+
+        .toggle-icon {
+            width: 1rem;
+            text-align: center;
+            margin-right: 0.5rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .folder-row {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Search and Filter Styles */
+        .search-filter-container {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 0.625rem 0.75rem;
+            margin-bottom: 5px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+        }
+
+        .filter-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .form-label {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+        }
+
+        .form-control {
+            padding: 0.4rem 0.55rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+            color: var(--text);
+            background-color: var(--card-bg);
+            width: 100%;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        select.form-control {
+            padding-right: 30px;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23333" d="M6 8L0 0h12z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            cursor: pointer;
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
+        }
+
+        [data-theme="dark"] select.form-control {
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23e0e0e0" d="M6 8L0 0h12z"/></svg>');
+        }
+
+        [data-theme="dark"] .search-filter-container {
+            background-color: #2d2d2d;
+            border-color: #404040;
+        }
+
+        [data-theme="dark"] .filter-title {
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .form-label {
+            color: #ffffff;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .search-input {
+            padding-left: 35px !important;
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            cursor: pointer;
+            display: none;
+            font-size: 14px;
+        }
+
+        .clear-search:hover {
+            color: var(--text);
+        }
+
+        .clear-search.show {
+            display: block;
+        }
+
+        .hidden-item {
+            display: none !important;
+        }
+
+        .control-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            color: var(--sidebar-text);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Tablet and Desktop Responsive */
+        @media (min-width: 768px) {
+            .main-content {
+                padding: 2rem;
+            }
+            
+            .header {
+                padding: 2rem 0;
+            }
+            
+            .header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .header h2 {
+                font-size: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
+            }
+            
+            .folder-item .flex {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .folder-item .flex.items-center.gap-4 {
+                flex-direction: row;
+                flex-wrap: nowrap;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            #sidebar {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 16rem;
+            }
+            
+            .mobile-menu-btn {
+                display: none;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+            }
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 1023px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        
+        /* MOBILE RESPONSIVE - CLEAN APPROACH */
+        @media (max-width: 1024px) {
+            /* Main content full width */
+            .main-content {
+                padding: 1rem !important;
+                width: 100% !important;
+            }
+
+            /* Cards full width */
+            .card {
+                width: 100% !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .card-body {
+                padding: 1rem !important;
+            }
+
+            .card-header {
+                padding: 0.875rem 1rem !important;
+            }
+
+            /* ALL buttons in main content - full width and centered */
+            .main-content .btn {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                text-align: center !important;
+            }
+
+            /* Stats grid responsive */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem;
+            }
+
+            /* Folder items stack */
+            .folder-item .flex.items-center.justify-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 0.75rem;
+            }
+
+            .folder-item .flex.items-center.gap-4 {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            /* Flex wrap containers */
+            .flex.flex-wrap {
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+            }
+
+            .flex.flex-wrap > * {
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 0.5rem !important;
+            }
+
+            .header {
+                padding: 3.5rem 0.75rem 1.5rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.35rem !important;
+            }
+
+            .header h2 {
+                font-size: 0.95rem !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 0.375rem !important;
+            }
+
+            .header {
+                padding: 3rem 0.5rem 1rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.15rem !important;
+            }
+
+            .header h2 {
+                font-size: 0.875rem !important;
+            }
+
+            .card-body {
+                padding: 0.875rem !important;
+            }
+
+            .card-header {
+                padding: 0.75rem !important;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.75rem;
+            }
+
+            .stat-card {
+                padding: 0.875rem;
+            }
+
+            .folder-item {
+                padding: 0.75rem;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .btn,
+            .folder-item {
+                min-height: 44px;
+            }
+
+            * {
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+                tap-highlight-color: rgba(0, 0, 0, 0) !important;
+            }
+        }
+
+        /* ========================================
+           COMPREHENSIVE MOBILE RESPONSIVE DESIGN
+           ======================================== */
+
+        /* ALL SCREENS BELOW 1024px (Tablets & Mobile) */
+        @media screen and (max-width: 1024px) {
+            /* Reset box-sizing for everything */
+            * {
+                box-sizing: border-box !important;
+            }
+
+            /* Main container */
+            .page-container {
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                overflow-x: hidden !important;
+            }
+
+            /* Main content area */
+            .main-content {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 1rem !important;
+                margin-left: 0 !important;
+                overflow-x: hidden !important;
+            }
+
+            /* Header responsive */
+            .header {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 4rem 1rem 1.5rem !important;
+                text-align: center !important;
+            }
+
+            .header h1 {
+                font-size: 1.5rem !important;
+                line-height: 1.3 !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .header h2 {
+                font-size: 1.125rem !important;
+                line-height: 1.4 !important;
+            }
+
+            /* Cards full width */
+            .card {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-bottom: 1.25rem !important;
+                border-radius: 8px !important;
+                overflow: hidden !important;
+            }
+
+            .card-header {
+                width: 100% !important;
+                padding: 1rem !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+            }
+
+            .card-title {
+                font-size: 0.9375rem !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.5rem !important;
+            }
+
+            .card-body {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 1rem !important;
+                overflow-x: hidden !important;
+            }
+
+            /* Status messages */
+            .flex.items-center.gap-2 {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+                width: 100% !important;
+            }
+
+            /* Text sizing */
+            .text-sm {
+                font-size: 0.875rem !important;
+            }
+
+            .text-xs {
+                font-size: 0.75rem !important;
+            }
+
+            /* Stats grid */
+            .stats-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem !important;
+                width: 100% !important;
+                margin-bottom: 1.5rem !important;
+            }
+
+            .stat-card {
+                width: 100% !important;
+                padding: 1.25rem !important;
+                text-align: center !important;
+            }
+
+            .stat-value {
+                font-size: 1.75rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .stat-label {
+                font-size: 0.875rem !important;
+            }
+
+            /* Folder items */
+            .folder-item {
+                width: 100% !important;
+                padding: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .folder-item .flex {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+            }
+
+            .folder-item .flex.items-center {
+                align-items: flex-start !important;
+            }
+
+            /* ALL BUTTONS - FULL WIDTH */
+            .main-content .btn,
+            .main-content a.btn,
+            .main-content button.btn,
+            .card-body .btn,
+            .card-body a.btn,
+            .card-body button.btn,
+            div.mt-4 .btn,
+            div.mt-4 a.btn,
+            div.mt-2 .btn,
+            div.mt-2 a.btn {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0.5rem 0 !important;
+                padding: 0.875rem 1.25rem !important;
+                text-align: center !important;
+                box-sizing: border-box !important;
+                font-size: 0.9375rem !important;
+            }
+
+            /* Button containers */
+            .mt-4,
+            .mt-2,
+            .mt-3 {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-top: 1rem !important;
+            }
+
+            /* Flex containers */
+            .flex.flex-wrap {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                width: 100% !important;
+            }
+
+            .flex.flex-wrap > * {
+                width: 100% !important;
+            }
+
+            /* Space helpers */
+            .space-y-3 > * + * {
+                margin-top: 0.75rem !important;
+            }
+
+            /* Gap helpers */
+            .gap-3 {
+                gap: 0.75rem !important;
+            }
+
+            .gap-2 {
+                gap: 0.5rem !important;
+            }
+        }
+
+        /* MOBILE ONLY (Below 768px) */
+        @media screen and (max-width: 768px) {
+            .main-content {
+                padding: 0.75rem !important;
+            }
+
+            .header {
+                padding: 3.5rem 0.75rem 1.25rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.375rem !important;
+            }
+
+            .header h2 {
+                font-size: 1rem !important;
+            }
+
+            .card {
+                margin-bottom: 1rem !important;
+            }
+
+            .card-body {
+                padding: 0.875rem !important;
+            }
+
+            .card-header {
+                padding: 0.875rem !important;
+            }
+        }
+
+        /* SMALL MOBILE (Below 640px) */
+        @media screen and (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.75rem !important;
+            }
+        }
+
+        /* EXTRA SMALL MOBILE (Below 480px) */
+        @media screen and (max-width: 480px) {
+            .main-content {
+                padding: 0.5rem !important;
+            }
+
+            .header {
+                padding: 3rem 0.5rem 1rem !important;
+            }
+
+            .header h1 {
+                font-size: 1.25rem !important;
+            }
+
+            .header h2 {
+                font-size: 0.9375rem !important;
+            }
+
+            .card-body {
+                padding: 0.75rem !important;
+            }
+
+            .card-header {
+                padding: 0.75rem !important;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.625rem !important;
+            }
+
+            .stat-card {
+                padding: 1rem !important;
+            }
+
+            .stat-value {
+                font-size: 1.5rem !important;
+            }
+
+            .folder-item {
+                padding: 0.75rem !important;
+            }
+
+            .main-content .btn,
+            .card-body .btn {
+                padding: 0.75rem 1rem !important;
+                font-size: 0.875rem !important;
+            }
+        }
+
+    /* Floating Notification Bell - Top Right */
+    .notification-bell-float {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #007890 0%, #005a6d 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 120, 144, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .notification-bell-float:hover {
+        background: linear-gradient(135deg, #005a6d 0%, #004050 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 120, 144, 0.4);
+    }
+
+    .notification-bell-float:active {
+        transform: translateY(0);
+    }
+
+    .notification-bell-float i {
+        color: white;
+        font-size: 16px;
+    }
+
+    .notification-bell-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #EC343C;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        border-radius: 10px;
+        min-width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Mobile responsiveness for notification bell */
+    @media (max-width: 768px) {
+        .notification-bell-float {
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+        }
+
+        .notification-bell-float i {
+            font-size: 15px;
+        }
+
+        .notification-bell-badge {
+            font-size: 9px;
+            min-width: 16px;
+            height: 16px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .notification-bell-float {
+            top: 10px;
+            right: 60px; /* Move left to avoid menu button */
+            width: 34px;
+            height: 34px;
+        }
+
+        .notification-bell-float i {
+            font-size: 14px;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+
+        <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        <div id="notification-bell" class="notification-bell-float" title="Notifications">
+            <i class="fas fa-bell"></i>
+            <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+        </div>
+        {% endif %}
+
+        <!-- Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            {% if onedrive_data.connected %}
+            <!-- Quick Stats -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem;">
+                <div class="card" style="padding: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">Folders</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">{{ onedrive_data.folders|length }}</div>
+                </div>
+                <div class="card" style="padding: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">Files</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #f59e0b;">{{ onedrive_data.total_files }}</div>
+                </div>
+                <div class="card" style="padding: 0.5rem; text-align: center;">
+                    <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">Status</div>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #10b981;"><i class="fas fa-check-circle"></i></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Connection Status -->
+            <div class="card" style="max-width: 900px; margin-left: -1rem; margin-right: auto;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-cloud"></i>
+                        <span>OneDrive Connection Status</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if onedrive_data.connected %}
+                        <div class="flex items-center gap-2 status-connected">
+                            <i class="fas fa-check-circle"></i>
+                            <span class="font-semibold">Connected to OneDrive</span>
+                            {% if onedrive_data.token_refreshed %}
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full ml-2">
+                                    <i class="fas fa-sync-alt mr-1"></i>
+                                    Token Refreshed
+                                </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm mt-2" style="color: var(--text-light);">
+                            Successfully connected to Microsoft OneDrive (Business Account). You can view the folder structure below.
+                            {% if onedrive_data.token_refreshed %}
+                                <br><span class="status-connected font-medium">✅ Access token was automatically refreshed!</span>
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        <div style="text-align: center; padding: 2rem 0;">
+                            <div class="status-disconnected" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span class="font-semibold">Not Connected to OneDrive</span>
+                            </div>
+                            <p class="text-sm" style="color: var(--text-light); margin-bottom: 1.5rem; text-align: center;">
+                                {% if onedrive_data.error %}
+                                    {{ onedrive_data.error }}
+                                {% else %}
+                                    OneDrive not connected. Please connect in Settings.
+                                {% endif %}
+                            </p>
+                            <button onclick="connectOneDrive()" style="
+                                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                                color: #ffffff;
+                                border: none;
+                                padding: 0.625rem 1rem;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 0.5rem;
+                                font-weight: 600;
+                                font-size: 0.875rem;
+                                box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+                            " onmouseover="this.style.background='linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(220, 38, 38, 0.4)';" onmouseout="this.style.background='linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(220, 38, 38, 0.3)';">
+                                <i class="fas fa-cloud"></i>
+                                <span>Connect to OneDrive</span>
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if onedrive_data.connected %}
+            <!-- Search and Filter Section -->
+            <div class="search-filter-container">
+                <div class="filter-title">
+                    <i class="fas fa-filter"></i> Filter Files & Folders (Real-Time)
+                </div>
+
+                <div class="filter-grid">
+                    <!-- Search Box -->
+                    <div class="form-field">
+                        <label class="form-label">Search</label>
+                        <div class="search-input-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" class="form-control search-input" id="searchBox" placeholder="Search files and folders...">
+                            <i class="fas fa-times clear-search" id="clearSearch"></i>
+                        </div>
+                    </div>
+
+                    <!-- File Type Filter -->
+                    <div class="form-field">
+                        <label class="form-label">File Type</label>
+                        <select class="form-control" id="fileTypeFilter">
+                            <option value="all">All Files</option>
+                            <option value="folder">Folders Only</option>
+                            <option value="image">Images</option>
+                            <option value="pdf">PDFs</option>
+                            <option value="document">Documents</option>
+                            <option value="spreadsheet">Spreadsheets</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                    <button class="control-btn" id="expandAllBtn">
+                        <i class="fas fa-plus-square"></i> Expand All
+                    </button>
+                    <button class="control-btn" id="collapseAllBtn">
+                        <i class="fas fa-minus-square"></i> Collapse All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Directory Tree Section -->
+            <div class="chart-container">
+                <h3>
+                    <i class="fas fa-sitemap"></i>
+                    OneDrive Directory Structure
+                </h3>
+                <div class="directory-tree" id="directoryTree">
+                    {% if onedrive_data.folders %}
+                        <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.7);">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                            <p>Loading directory structure...</p>
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.7);">
+                            <i class="fas fa-folder-open" style="font-size: 2rem;"></i>
+                            <p>No folders found in OneDrive</p>
+                            <p style="font-size: 0.85rem; margin-top: 0.5rem;">Files will appear here once they are uploaded to OneDrive</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = '{{ settings.dark_mode|yesno:"dark,light" }}';
+
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme) {
+                activeTheme = serverTheme;
+            }
+
+            document.documentElement.setAttribute('data-theme', activeTheme);
+        }
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            {% if onedrive_data.connected and onedrive_data.folders %}
+            loadDirectoryTree();
+            {% endif %}
+        });
+
+        function connectOneDrive() {
+            // Redirect to OneDrive OAuth authentication
+            window.location.href = '/onedrive/auth';
+        }
+
+        {% if onedrive_data.connected and onedrive_data.folders %}
+        // Load directory tree
+        function loadDirectoryTree() {
+            // Convert Django template data to tree structure
+            const onedriveData = {{ onedrive_data.folders|safe }};
+            const tree = convertToTreeStructure(onedriveData);
+            renderDirectoryTree(tree);
+        }
+
+        function convertToTreeStructure(folders) {
+            // Convert flat folder list to hierarchical tree
+            if (!folders || folders.length === 0) return null;
+
+            // For now, create a simple tree structure
+            // This assumes the data is already structured
+            return {
+                type: 'folder',
+                name: 'OneDrive Root',
+                children: folders.map(folder => ({
+                    type: 'folder',
+                    name: folder.name,
+                    file_count: folder.file_count || 0,
+                    children: (folder.subfolders || []).map(sub => ({
+                        type: 'folder',
+                        name: sub.name,
+                        file_count: sub.file_count || 0,
+                        children: []
+                    }))
+                }))
+            };
+        }
+
+        let globalTree = null;
+        let currentFilter = 'all';
+        let searchTerm = '';
+
+        function renderDirectoryTree(tree) {
+            globalTree = tree;
+            const container = document.getElementById('directoryTree');
+            container.innerHTML = renderNode(tree, 0);
+            updateStats();
+            initializeSearchAndFilters();
+        }
+
+        function renderNode(node, level) {
+            let html = '';
+
+            if (node.type === 'folder') {
+                const hasChildren = node.children && node.children.length > 0;
+                const toggleIcon = hasChildren ? '<i class="fas fa-chevron-down"></i>' : '<i class="fas fa-minus"></i>';
+
+                html += `
+                    <div class="folder-item folder-expanded" data-level="${level}">
+                        <div class="tree-item folder-row" onclick="toggleFolder(this.parentElement)">
+                            <span class="toggle-icon">${hasChildren ? toggleIcon : ''}</span>
+                            <span class="tree-icon"><i class="fas fa-folder" style="color: #f59e0b;"></i></span>
+                            <span class="tree-name">${node.name}</span>
+                            <span class="tree-count">${node.file_count || 0} files</span>
+                        </div>
+                        <div class="tree-children">
+                `;
+
+                if (hasChildren) {
+                    node.children.forEach(child => {
+                        html += renderNode(child, level + 1);
+                    });
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            } else {
+                const iconColor = getFileIconColor(node.extension);
+                const icon = getFileIcon(node.extension);
+
+                html += `
+                    <div class="tree-item" data-level="${level}">
+                        <span class="toggle-icon"></span>
+                        <span class="tree-icon"><i class="${icon}" style="color: ${iconColor};"></i></span>
+                        <span class="tree-name">${node.name}</span>
+                        <span class="tree-size">${node.size || ''}</span>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function toggleFolder(folderElement) {
+            folderElement.classList.toggle('folder-expanded');
+            folderElement.classList.toggle('folder-collapsed');
+
+            const toggleIcon = folderElement.querySelector('.toggle-icon i');
+            if (toggleIcon) {
+                if (folderElement.classList.contains('folder-expanded')) {
+                    toggleIcon.className = 'fas fa-chevron-down';
+                } else {
+                    toggleIcon.className = 'fas fa-chevron-right';
+                }
+            }
+        }
+
+        function getFileIcon(extension) {
+            const ext = extension ? extension.toLowerCase() : '';
+            if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(ext)) {
+                return 'fas fa-image';
+            } else if (ext === '.pdf') {
+                return 'fas fa-file-pdf';
+            } else if (['.doc', '.docx'].includes(ext)) {
+                return 'fas fa-file-word';
+            } else if (['.xls', '.xlsx'].includes(ext)) {
+                return 'fas fa-file-excel';
+            } else if (['.zip', '.rar', '.7z'].includes(ext)) {
+                return 'fas fa-file-archive';
+            } else if (['.txt', '.log'].includes(ext)) {
+                return 'fas fa-file-alt';
+            } else {
+                return 'fas fa-file';
+            }
+        }
+
+        function getFileIconColor(extension) {
+            const ext = extension ? extension.toLowerCase() : '';
+            if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(ext)) {
+                return '#ec4899';
+            } else if (ext === '.pdf') {
+                return '#dc2626';
+            } else if (['.doc', '.docx'].includes(ext)) {
+                return '#2563eb';
+            } else if (['.xls', '.xlsx'].includes(ext)) {
+                return '#059669';
+            } else if (['.zip', '.rar', '.7z'].includes(ext)) {
+                return '#7c3aed';
+            } else {
+                return '#6b7280';
+            }
+        }
+
+        // Search and Filter Functions
+        function initializeSearchAndFilters() {
+            const searchBox = document.getElementById('searchBox');
+            const clearSearch = document.getElementById('clearSearch');
+            const fileTypeFilter = document.getElementById('fileTypeFilter');
+            const expandAllBtn = document.getElementById('expandAllBtn');
+            const collapseAllBtn = document.getElementById('collapseAllBtn');
+
+            // Search functionality
+            searchBox.addEventListener('input', function(e) {
+                searchTerm = e.target.value.toLowerCase();
+                if (searchTerm) {
+                    clearSearch.classList.add('show');
+                } else {
+                    clearSearch.classList.remove('show');
+                }
+                applyFilters();
+            });
+
+            clearSearch.addEventListener('click', function() {
+                searchBox.value = '';
+                searchTerm = '';
+                clearSearch.classList.remove('show');
+                applyFilters();
+            });
+
+            // File type filter dropdown
+            fileTypeFilter.addEventListener('change', function() {
+                currentFilter = this.value;
+                applyFilters();
+            });
+
+            // Expand/Collapse all
+            expandAllBtn.addEventListener('click', expandAll);
+            collapseAllBtn.addEventListener('click', collapseAll);
+        }
+
+        function applyFilters() {
+            const allItems = document.querySelectorAll('.folder-item, .tree-item');
+
+            // First pass: Determine which items match the filters
+            allItems.forEach(item => {
+                const isFolder = item.classList.contains('folder-item');
+                const treeName = item.querySelector('.tree-name');
+
+                if (!treeName) return;
+
+                const itemName = treeName.textContent.toLowerCase();
+                let matches = true;
+
+                // Apply search filter
+                if (searchTerm && !itemName.includes(searchTerm)) {
+                    matches = false;
+                }
+
+                // Apply type filter (only for non-folders when filtering by file type)
+                if (currentFilter !== 'all' && currentFilter !== 'folder') {
+                    // When filtering by file type, hide folders initially
+                    if (isFolder) {
+                        matches = false;
+                    } else {
+                        const extension = item.querySelector('.tree-name').textContent.split('.').pop().toLowerCase();
+
+                        if (currentFilter === 'image') {
+                            if (!['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                                matches = false;
+                            }
+                        } else if (currentFilter === 'pdf') {
+                            if (extension !== 'pdf') {
+                                matches = false;
+                            }
+                        } else if (currentFilter === 'document') {
+                            if (!['doc', 'docx'].includes(extension)) {
+                                matches = false;
+                            }
+                        } else if (currentFilter === 'spreadsheet') {
+                            if (!['xls', 'xlsx'].includes(extension)) {
+                                matches = false;
+                            }
+                        }
+                    }
+                } else if (currentFilter === 'folder') {
+                    // When filtering by folders only, hide all files
+                    if (!isFolder) {
+                        matches = false;
+                    }
+                }
+
+                // Store the match result as a data attribute
+                item.dataset.matches = matches;
+            });
+
+            // Second pass: Show items that match OR are folders containing matching items
+            allItems.forEach(item => {
+                const isFolder = item.classList.contains('folder-item');
+                const matches = item.dataset.matches === 'true';
+
+                let shouldShow = matches;
+
+                if (isFolder) {
+                    // For folders: show if they match OR if they contain any matching descendants
+                    const childrenContainer = item.querySelector('.tree-children');
+                    if (childrenContainer) {
+                        const descendants = childrenContainer.querySelectorAll('.folder-item, .tree-item');
+                        const hasMatchingDescendants = Array.from(descendants).some(
+                            descendant => descendant.dataset.matches === 'true'
+                        );
+
+                        if (hasMatchingDescendants || matches) {
+                            shouldShow = true;
+                        }
+                    }
+
+                    // If searching for a folder name and it matches, show all its children
+                    if (searchTerm && matches) {
+                        const childrenContainer = item.querySelector('.tree-children');
+                        if (childrenContainer) {
+                            const allChildren = childrenContainer.querySelectorAll('.folder-item, .tree-item');
+                            allChildren.forEach(child => {
+                                child.dataset.showAsChild = 'true';
+                            });
+                        }
+                    }
+                }
+
+                // If this item is marked to be shown as a child of a matching folder, show it
+                if (item.dataset.showAsChild === 'true') {
+                    shouldShow = true;
+                }
+
+                // Show/hide item
+                if (shouldShow) {
+                    item.classList.remove('hidden-item');
+                } else {
+                    item.classList.add('hidden-item');
+                }
+            });
+
+            // Third pass: Expand folders that contain matching items
+            if (searchTerm || currentFilter !== 'all') {
+                document.querySelectorAll('.folder-item').forEach(folder => {
+                    if (folder.classList.contains('hidden-item')) return;
+
+                    const childrenContainer = folder.querySelector('.tree-children');
+                    if (childrenContainer) {
+                        const visibleChildren = Array.from(
+                            childrenContainer.querySelectorAll('.folder-item, .tree-item')
+                        ).filter(child => !child.classList.contains('hidden-item'));
+
+                        if (visibleChildren.length > 0) {
+                            folder.classList.add('folder-expanded');
+                            folder.classList.remove('folder-collapsed');
+                            const toggleIcon = folder.querySelector('.toggle-icon i');
+                            if (toggleIcon) {
+                                toggleIcon.className = 'fas fa-chevron-down';
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Clean up temporary data attributes
+            allItems.forEach(item => {
+                delete item.dataset.showAsChild;
+            });
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const allFolders = document.querySelectorAll('.folder-item').length;
+            const allFiles = document.querySelectorAll('.tree-item:not(.folder-row)').length;
+            const visibleItems = document.querySelectorAll('.folder-item:not(.hidden-item), .tree-item:not(.hidden-item):not(.folder-row)').length;
+
+            // Note: Stats cards are populated from Django template, not updated dynamically
+        }
+
+        function expandAll() {
+            document.querySelectorAll('.folder-item').forEach(folder => {
+                if (!folder.classList.contains('hidden-item')) {
+                    folder.classList.add('folder-expanded');
+                    folder.classList.remove('folder-collapsed');
+                    const toggleIcon = folder.querySelector('.toggle-icon i');
+                    if (toggleIcon) {
+                        toggleIcon.className = 'fas fa-chevron-down';
+                    }
+                }
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.folder-item').forEach(folder => {
+                folder.classList.add('folder-collapsed');
+                folder.classList.remove('folder-expanded');
+                const toggleIcon = folder.querySelector('.toggle-icon i');
+                if (toggleIcon) {
+                    toggleIcon.className = 'fas fa-chevron-right';
+                }
+            });
+        }
+        {% endif %}
+
+        // ================================================================
+        // NOTIFICATION SYSTEM
+        // ================================================================
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        let notificationModal = null;
+
+        // Fetch notifications and update badge
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateNotificationBadge(data.unread_count);
+                    return data.notifications;
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+            return [];
+        }
+
+        // Update notification badge
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        // Show notification modal
+        async function showNotificationModal() {
+            const notifications = await fetchNotifications();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="notification-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0, 0, 0, 0.5);">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-bell text-yellow-400 mr-2"></i>
+                                Notifications
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllAsRead()" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                    <i class="fas fa-check-double mr-1"></i>Mark All Read
+                                </button>
+                                <button onclick="closeNotificationModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-y-auto max-h-[60vh]" id="notification-list">
+                            ${notifications.length === 0 ? `
+                                <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-bell-slash text-4xl mb-2"></i>
+                                    <p>No notifications</p>
+                                </div>
+                            ` : notifications.map(notif => createNotificationHTML(notif)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existing = document.getElementById('notification-modal');
+            if (existing) existing.remove();
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Create HTML for a single notification
+        function createNotificationHTML(notif) {
+            const typeColors = {
+                'error': 'bg-red-100 border-red-500 text-red-900 dark:bg-red-900 dark:text-red-100',
+                'warning': 'bg-yellow-100 border-yellow-500 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100',
+                'info': 'bg-blue-100 border-blue-500 text-blue-900 dark:bg-blue-900 dark:text-blue-100',
+                'success': 'bg-green-100 border-green-500 text-green-900 dark:bg-green-900 dark:text-green-100',
+                'sync': 'bg-purple-100 border-purple-500 text-purple-900 dark:bg-purple-900 dark:text-purple-100',
+                'system': 'bg-gray-100 border-gray-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+            };
+
+            const typeIcons = {
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle',
+                'success': 'fa-check-circle',
+                'sync': 'fa-sync',
+                'system': 'fa-cog',
+            };
+
+            const bgColor = typeColors[notif.type] || typeColors['info'];
+            const icon = typeIcons[notif.type] || typeIcons['info'];
+            const timeAgo = getTimeAgo(notif.created_at);
+            const opacity = notif.is_read ? 'opacity-60' : '';
+
+            return `
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${opacity}" data-notification-id="${notif.id}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full ${bgColor} flex items-center justify-center">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">${notif.title}</h4>
+                                ${!notif.is_read ? '<span class="bg-blue-500 w-2 h-2 rounded-full"></span>' : ''}
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">${notif.message}</p>
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span><i class="far fa-clock mr-1"></i>${timeAgo}</span>
+                                <div class="flex gap-2">
+                                    ${!notif.is_read ? `<button onclick="markAsRead(${notif.id})" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                        <i class="fas fa-check mr-1"></i>Mark Read
+                                    </button>` : ''}
+                                    <button onclick="deleteNotification(${notif.id})" class="text-red-600 hover:text-red-800 dark:text-red-400">
+                                        <i class="fas fa-trash mr-1"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get time ago string
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' days ago';
+            return date.toLocaleDateString();
+        }
+
+        // Close notification modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all notifications as read
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/api/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    closeNotificationModal();
+                    updateNotificationBadge(0);
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            if (!confirm('Are you sure you want to delete this notification?')) return;
+
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Initialize notification system
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showNotificationModal();
+                });
+
+                // Fetch notifications every 30 seconds
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+        {% endif %}
+
+        // Mobile sidebar functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+            
+            const icon = mobileBtn.querySelector('i');
+            if (sidebar.classList.contains('open')) {
+                icon.className = 'fas fa-times text-xl';
+            } else {
+                icon.className = 'fas fa-bars text-xl';
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+            
+            const icon = mobileBtn.querySelector('i');
+            icon.className = 'fas fa-bars text-xl';
+        }
+        
+        // Close sidebar when clicking on a link (mobile)
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarLinks = document.querySelectorAll('#sidebar a');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth < 1024) {
+                        closeSidebar();
+                    }
+                });
+            });
+            
+            // Mobile menu functionality
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleSidebar);
+            }
+            
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', closeSidebar);
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+                
+                if (mobileBtn) {
+                    const icon = mobileBtn.querySelector('i');
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

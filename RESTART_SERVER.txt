@@ -1,0 +1,33 @@
+IMPORTANT: RESTART DJANGO SERVER
+=================================
+
+The duplicate inspection fix (OUTER APPLY) has been committed and pushed to GitHub,
+but your Django server needs to be restarted for the changes to take effect.
+
+STEPS TO RESTART:
+1. Stop your current Django server (Ctrl+C in the terminal where it's running)
+2. Pull the latest changes from GitHub (if on production server):
+   git pull origin master
+3. Start the Django server again:
+   python manage.py runserver
+
+WHY THIS IS NEEDED:
+- Django loads Python code into memory when it starts
+- Code changes don't take effect until the server is restarted
+- Your server is currently running the OLD query with JOIN
+- After restart, it will use the NEW query with OUTER APPLY
+
+WHAT TO EXPECT AFTER RESTART:
+- Web sync button will use the fixed query
+- Syncing will create ~3.1k inspections (correct)
+- No more duplicates from GPS records
+- Direction data will sync properly
+
+Current Status:
+✅ Fix committed: 5b798a4 "Fix duplicate inspection records caused by GPS table JOIN"
+✅ OUTER APPLY in all 6 commodity queries
+❌ Server still running old code from memory
+→  RESTART NEEDED!
+
+After restarting, test by clicking "Sync Everything" button.
+It should maintain ~3.1k inspections instead of jumping to 6.8k.

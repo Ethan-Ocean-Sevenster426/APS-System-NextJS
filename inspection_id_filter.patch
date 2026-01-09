@@ -1,0 +1,18 @@
+--- a/main/views/core_views.py
++++ b/main/views/core_views.py
+@@ -2616,6 +2616,13 @@ def list_uploaded_files(request):
+                                                 else:
+                                                     actual_doc_type = 'lab'
+                                             
++                                            # Filter by inspection ID if provided
++                                            if inspection_id:
++                                                # Check if filename starts with the inspection ID
++                                                if not filename.startswith(f"{inspection_id}_"):
++                                                    print(f"🔍 Skipping file {filename} - doesn't match inspection ID {inspection_id}")
++                                                    continue
++                                                else:
++                                                    print(f"✅ File {filename} matches inspection ID {inspection_id}")
++                                            
+                                             file_info = get_file_info(file_path, actual_doc_type)
+                                             files.append(file_info)
+                                             print(f"✅ Added unique file: {filename} as {actual_doc_type}")

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Status - Food Safety Agency</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-item {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #007890;
+            background-color: #f8f9fa;
+        }
+        .warning {
+            border-left-color: #f59e0b;
+            background-color: #fff3cd;
+        }
+        .danger {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .refresh-btn {
+            background-color: #007890;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .refresh-btn:hover {
+            background-color: #005a6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Session Status Debug</h1>
+        <p>This page shows the current session timeout status for debugging purposes.</p>
+        
+        <button class="refresh-btn" onclick="location.reload()">Refresh Status</button>
+        
+        <div class="status-item">
+            <strong>Current Time:</strong> {{ current_time|date:"Y-m-d H:i:s" }}
+        </div>
+        
+        <div class="status-item">
+            <strong>Session Timeout Setting:</strong> {{ session_timeout_minutes }} minutes
+        </div>
+        
+        {% if last_activity %}
+            <div class="status-item">
+                <strong>Last Activity:</strong> {{ last_activity|date:"Y-m-d H:i:s" }}
+            </div>
+            
+            <div class="status-item">
+                <strong>Time Since Last Activity:</strong> 
+                {% if time_since_activity %}
+                    {{ time_since_activity.seconds }} seconds 
+                    ({{ time_since_activity.seconds|floatformat:0 }} minutes)
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+            
+            <div class="status-item">
+                <strong>Timeout Threshold:</strong> {{ timeout_threshold|date:"Y-m-d H:i:s" }}
+            </div>
+            
+            {% if time_until_timeout %}
+                <div class="status-item {% if time_until_timeout.total_seconds < 0 %}danger{% elif time_until_timeout.total_seconds < 300 %}warning{% else %}success{% endif %}">
+                    <strong>Time Until Timeout:</strong> 
+                    {% if time_until_timeout.total_seconds < 0 %}
+                        EXPIRED! ({{ time_until_timeout.total_seconds|floatformat:0 }} seconds ago)
+                    {% else %}
+                        {{ time_until_timeout.total_seconds|floatformat:0 }} seconds 
+                        ({% widthratio time_until_timeout.total_seconds 60 1 %} minutes)
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="status-item warning">
+                <strong>No last activity recorded!</strong> This might indicate a session issue.
+            </div>
+        {% endif %}
+        
+        <div class="status-item">
+            <strong>Session Status:</strong> 
+            {% if is_expired %}
+                <span style="color: red;">EXPIRED</span>
+            {% else %}
+                <span style="color: green;">ACTIVE</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>How to Test Session Timeout</h2>
+        <ol>
+            <li>Set session timeout to a low value (e.g., 1 minute) in Settings</li>
+            <li>Don't interact with the system for the specified time</li>
+            <li>Try to access any page - you should be logged out</li>
+            <li>Check this page to see the timeout status</li>
+        </ol>
+    </div>
+    
+    <div class="card">
+        <a href="{% url 'settings' %}" style="color: #007890; text-decoration: none;">
+            ← Back to Settings
+        </a>
+    </div>
+</body>
+</html>

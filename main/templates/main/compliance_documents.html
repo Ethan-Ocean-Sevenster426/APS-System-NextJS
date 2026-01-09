@@ -1,0 +1,73 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        :root { --primary: #007890; --border:#e5e7eb; --text:#111827; --card:#ffffff; }
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#f6f7fb; color:var(--text); }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .title { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .card { background:var(--card); border:1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+        .card-header { padding: 12px 16px; border-bottom:1px solid var(--border); font-weight:600; }
+        .card-body { padding: 16px; }
+        .muted { color:#6b7280; font-size: 12px; }
+        .btn { display:inline-block; padding:8px 12px; border-radius:6px; background:var(--primary); color:#fff; text-decoration:none; border:none; cursor:pointer }
+        .list { margin-top:12px }
+        .item { padding:8px 10px; border:1px solid var(--border); border-radius:6px; margin-bottom:8px; background:#fff }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">Compliance Documents (Developer Only)</div>
+            <div class="muted">Restricted to Super Admin</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Overview</div>
+            <div class="card-body">
+                <p class="muted">Developer utilities for compliance documents.</p>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <a href="{% url 'compliance_linking_page' %}" class="btn" style="background: #10b981;">
+                        🔗 Document Linking System
+                    </a>
+                    <button class="btn" id="fetchBtn">Fetch & Store First 50</button>
+                </div>
+                <div id="result" class="list"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+    document.getElementById('fetchBtn').addEventListener('click', function() {
+        const btn = this; btn.disabled = true; btn.textContent = 'Working...';
+        fetch('{% url "fetch_store_first_50" %}', { credentials: 'same-origin' })
+        .then(r => r.json()).then(data => {
+            const cont = document.getElementById('result');
+            cont.innerHTML = '';
+            if (!data.success) { cont.textContent = data.error || 'Failed'; return; }
+            data.items.forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                if (it.file) {
+                    div.textContent = (it.client_name || 'Unknown') + ' — ' + it.file;
+                } else {
+                    div.textContent = (it.client_name || 'Unknown') + ' — ERROR: ' + (it.error || 'Unknown');
+                }
+                cont.appendChild(div);
+            });
+            btn.textContent = 'Fetch & Store First 50'; btn.disabled = false;
+        }).catch(e => {
+            alert(e?.message || e);
+            btn.textContent = 'Fetch & Store First 50'; btn.disabled = false;
+        });
+    });
+    </script>
+</body>
+</html>
+
+

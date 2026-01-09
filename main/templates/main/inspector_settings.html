@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Inspector Settings - Food Safety Agency</title>
+
+    <!-- Favicon - Food Safety Agency Logo -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect to CDNs for faster loading -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Async Font Awesome loading for better performance -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#0f172a',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --spacing: 5px;
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #1f2937;
+            --sidebar-hover: #f3f4f6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        [data-theme="dark"] {
+            --primary: #007890;
+            --primary-light: #1a3a40;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: transparent;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-light: #cbd5e1;
+            --border: #475569;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.6), 0 2px 4px -1px rgba(0,0,0,0.4);
+            --sidebar-bg: #0f172a;
+            --sidebar-text: #f1f5f9;
+            --sidebar-hover: #1e293b;
+            --input-bg: #1e293b;
+            --input-border: #475569;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+        
+        #sidebar {
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a {
+            color: var(--sidebar-text) !important;
+        }
+        
+        #sidebar a:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        #sidebar .border-slate-600 {
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        #sidebar .text-sidebar-text {
+            color: #f1f5f9 !important;
+        }
+        
+        #sidebar div {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar a {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="light"] #sidebar div {
+            color: #f1f5f9 !important;
+        }
+        
+        [data-theme="dark"] #sidebar {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] #sidebar a {
+            color: #ffffff !important;
+        }
+        
+        [data-theme="dark"] #sidebar div {
+            color: #ffffff !important;
+        }
+        
+        #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+        }
+        
+        [data-theme="dark"] .text-gray-800,
+        [data-theme="dark"] .text-gray-600,
+        [data-theme="dark"] .text-gray-500 {
+            color: var(--text) !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-50 {
+            background-color: #334155 !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-100 {
+            background-color: #475569 !important;
+        }
+        
+        [data-theme="dark"] .bg-gray-200 {
+            background-color: #64748b !important;
+        }
+        
+        [data-theme="dark"] .border-gray-200 {
+            border-color: var(--border) !important;
+        }
+        
+        body, .container, .bg-white, .bg-card-bg, .text-gray-800, .text-gray-600 {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .bg-card-bg {
+            background-color: var(--card-bg);
+        }
+        
+        body {
+            background: var(--background);  /* Fallback color while image loads */
+            color: var(--text);
+        }
+
+        /* Load background image after page loads for better performance */
+        body.bg-loaded::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            opacity: 1.0;
+            z-index: -1;
+        }
+
+        /* Settings card styles */
+        .settings-card {
+            background-color: var(--card-bg);
+            border-color: var(--border);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .settings-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        [data-theme="dark"] .settings-card {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        [data-theme="dark"] .settings-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        }
+        
+        .settings-card h3 {
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .settings-card p,
+        .settings-card label,
+        .settings-card span {
+            color: var(--text);
+        }
+        
+        .settings-card .text-gray-300,
+        .settings-card .text-gray-400 {
+            color: var(--text-light);
+        }
+        
+        .settings-card input:not([type="checkbox"]) {
+            background-color: var(--input-bg);
+            border-color: var(--input-border);
+            color: var(--text);
+            transition: all 0.2s ease;
+            min-height: 44px; /* Better touch target */
+        }
+        
+        .settings-card input:not([type="checkbox"]):focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.1);
+        }
+        
+        .settings-card input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Better touch targets for mobile */
+        @media (max-width: 768px) {
+            .settings-card button[type="submit"] {
+                min-height: 48px;
+                font-size: 1rem;
+            }
+            
+            .settings-card input:not([type="checkbox"]) {
+                min-height: 48px;
+                font-size: 1rem;
+            }
+            
+            .settings-card label {
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .theme-toggle {
+                min-height: 48px;
+            }
+            
+            .switch {
+                min-height: 48px;
+                display: flex;
+                align-items: center;
+            }
+        }
+        
+        [data-theme="dark"] .settings-card input:not([type="checkbox"]) {
+            background-color: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        [data-theme="light"] .settings-card input:not([type="checkbox"]) {
+            background-color: #ffffff;
+            border-color: #d1d5db;
+            color: #1f2937;
+        }
+        
+        .settings-card .border-b {
+            border-color: var(--border);
+        }
+        
+        .settings-card button[type="submit"] {
+            transition: all 0.2s ease;
+        }
+        
+        .settings-card button[type="submit"]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 120, 144, 0.3);
+        }
+        
+        .settings-card button[type="submit"]:active {
+            transform: translateY(0);
+        }
+        
+        .card-icon {
+            font-size: 1.1rem;
+        }
+        
+        .info-row {
+            transition: background-color 0.2s ease;
+            padding: 12px 0;
+        }
+        
+        .info-row:hover {
+            background-color: rgba(0, 120, 144, 0.03);
+            padding-left: 8px;
+            padding-right: 8px;
+            margin-left: -8px;
+            margin-right: -8px;
+            border-radius: 6px;
+        }
+        
+        [data-theme="dark"] .info-row:hover {
+            background-color: rgba(0, 120, 144, 0.1);
+        }
+
+        /* Loading Screen Styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loading-screen.active {
+            display: flex;
+        }
+        
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #007890;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        
+        .loading-subtext {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Mobile menu button - ABSOLUTE FIXED POSITIONING */
+        .mobile-menu-btn,
+        #mobile-menu-btn,
+        button#mobile-menu-btn {
+            display: none;
+        }
+
+        .mobile-menu-btn {
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 99999 !important;
+            background-color: var(--sidebar-bg) !important;
+            color: var(--sidebar-text) !important;
+            border: none !important;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            width: 48px !important;
+            height: 48px !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+
+        .mobile-menu-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.95);
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: var(--sidebar-hover) !important;
+        }
+
+        /* Force fixed positioning on mobile */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn,
+            #mobile-menu-btn,
+            button#mobile-menu-btn {
+                display: flex !important;
+                position: fixed !important;
+                top: 12px !important;
+                left: 12px !important;
+                z-index: 99999 !important;
+                transform: translate3d(0, 0, 0) !important;
+            }
+        }
+
+        /* Sidebar mobile positioning */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 9998;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Logout button styling */
+        .logout-btn {
+            width: 100%;
+            background: #ef4444;
+            color: #ffffff;
+            border: 1px solid #dc2626;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.625rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            border-color: #b91c1c;
+            color: #ffffff;
+        }
+
+        .logout-btn:active {
+            background: #b91c1c;
+            transform: scale(0.98);
+        }
+
+        /* Touch-friendly adjustments */
+        @media (hover: none) and (pointer: coarse) {
+            /* Increase touch targets */
+            button, a {
+                min-height: 44px !important;
+            }
+
+            /* Remove hover effects on touch devices */
+            #sidebar a:hover {
+                background-color: transparent !important;
+            }
+
+            #sidebar a:active {
+                background-color: rgba(255, 255, 255, 0.1) !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            /* Small mobile */
+            .mobile-menu-btn {
+                top: 10px !important;
+                left: 10px !important;
+                width: 44px !important;
+                height: 44px !important;
+            }
+
+            #sidebar {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Extra small devices */
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .mobile-menu-btn {
+                top: 8px !important;
+                left: 8px !important;
+                width: 40px !important;
+                height: 40px !important;
+            }
+        }
+
+        /* Large screens (1024px and up) */
+        @media (min-width: 1025px) {
+            .settings-card {
+                padding: 2rem;
+            }
+            
+            .grid-responsive {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 2rem;
+            }
+            
+            .mobile-menu-btn {
+                display: none !important;
+            }
+            
+            #sidebar {
+                transform: translateX(0) !important;
+                position: fixed !important;
+            }
+            
+            #main-content {
+                margin-left: 16rem !important; /* 256px = w-64 */
+            }
+        }
+        
+        /* Tablet landscape (768px to 1024px) */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .mobile-menu-btn {
+                display: block !important;
+            }
+            
+            #sidebar {
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out;
+                position: fixed !important;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0) !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+                display: none;
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            .grid-responsive {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+            
+            .settings-card {
+                padding: 1.75rem;
+            }
+            
+            .header-title {
+                font-size: 2.5rem;
+            }
+            
+            .header-subtitle {
+                font-size: 1.25rem;
+            }
+        }
+        
+        /* Tablet portrait (481px to 768px) */
+        @media (max-width: 768px) and (min-width: 481px) {
+            .mobile-menu-btn {
+                display: block !important;
+            }
+            
+            #sidebar {
+                width: 280px;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out;
+                position: fixed !important;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0) !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            .mobile-content-padding {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 1.25rem;
+            }
+            
+            .settings-card {
+                padding: 1.5rem;
+            }
+            
+            .settings-card h3 {
+                font-size: 1.125rem;
+            }
+            
+            .header-title {
+                font-size: 2rem;
+            }
+            
+            .header-subtitle {
+                font-size: 1.125rem;
+            }
+            
+            .theme-toggle {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 1rem;
+                min-height: auto;
+                align-items: center;
+            }
+            
+            .theme-toggle .switch {
+                margin: 0.5rem 0;
+                order: 2;
+            }
+            
+            .theme-toggle span {
+                order: 1;
+                text-align: center;
+            }
+            
+            .form-grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+        
+        /* Mobile landscape (481px to 640px) */
+        @media (max-width: 640px) and (min-width: 481px) {
+            .mobile-menu-btn {
+                display: block !important;
+            }
+            
+            #sidebar {
+                width: 100%;
+                max-width: 300px;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out;
+                position: fixed !important;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0) !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            .grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .settings-card {
+                padding: 1.25rem;
+            }
+            
+            .settings-card h3 {
+                font-size: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .card-icon {
+                font-size: 1rem;
+            }
+            
+            .header-title {
+                font-size: 1.75rem;
+            }
+            
+            .header-subtitle {
+                font-size: 1rem;
+            }
+            
+            .theme-toggle {
+                padding: 0.75rem;
+                gap: 0.5rem;
+                min-height: auto;
+                align-items: center;
+            }
+            
+            .theme-toggle span {
+                font-size: 0.875rem;
+            }
+            
+            .switch {
+                width: 50px;
+                height: 24px;
+            }
+            
+            .slider:before {
+                height: 16px;
+                width: 16px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(24px);
+            }
+        }
+        
+        /* Mobile portrait (up to 480px) */
+        @media (max-width: 480px) {
+            .mobile-menu-btn {
+                display: block !important;
+            }
+            
+            #sidebar {
+                width: 100%;
+                max-width: 280px;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out;
+                position: fixed !important;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0) !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            .grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .settings-card {
+                padding: 1rem;
+                margin: 0.5rem;
+            }
+            
+            .settings-card h3 {
+                font-size: 0.875rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 2px;
+            }
+            
+            .card-icon {
+                font-size: 0.875rem;
+            }
+            
+            .header-title {
+                font-size: 1.5rem;
+                line-height: 1.2;
+            }
+            
+            .header-subtitle {
+                font-size: 0.875rem;
+                line-height: 1.3;
+            }
+            
+            .theme-toggle {
+                padding: 0.5rem;
+                gap: 0.25rem;
+                flex-direction: column;
+                min-height: auto;
+                align-items: center;
+            }
+            
+            .theme-toggle .switch {
+                order: 2;
+                margin: 0.25rem 0;
+            }
+            
+            .theme-toggle span {
+                order: 1;
+                text-align: center;
+            }
+            
+            .theme-toggle span {
+                font-size: 0.75rem;
+            }
+            
+            .switch {
+                width: 45px;
+                height: 22px;
+            }
+            
+            .slider:before {
+                height: 14px;
+                width: 14px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(21px);
+            }
+            
+            .form-grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .info-row {
+                padding: 8px 0;
+                font-size: 0.875rem;
+            }
+            
+            .info-row span:first-child {
+                font-size: 0.75rem;
+            }
+            
+            .info-row span:last-child {
+                font-size: 0.75rem;
+            }
+            
+            /* Additional mobile improvements */
+            .settings-card button[type="submit"] {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+            }
+            
+            .settings-card input {
+                padding: 0.75rem;
+                font-size: 0.875rem;
+            }
+            
+            .settings-card label {
+                font-size: 0.875rem;
+            }
+            
+            .settings-card p {
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* Extra small screens (up to 320px) */
+        @media (max-width: 320px) {
+            .mobile-menu-btn {
+                display: block !important;
+            }
+            
+            #sidebar {
+                width: 100%;
+                max-width: 280px;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease-in-out;
+                position: fixed !important;
+            }
+            
+            #sidebar.show {
+                transform: translateX(0) !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
+            
+            .settings-card {
+                padding: 0.75rem;
+                margin: 0.25rem;
+            }
+            
+            .header-title {
+                font-size: 1.25rem;
+            }
+            
+            .header-subtitle {
+                font-size: 0.75rem;
+            }
+            
+            .settings-card h3 {
+                font-size: 0.75rem;
+            }
+            
+            .card-icon {
+                font-size: 0.75rem;
+            }
+            
+            .theme-toggle {
+                padding: 0.25rem;
+                min-height: auto;
+                align-items: center;
+                flex-direction: column;
+            }
+            
+            .theme-toggle .switch {
+                order: 2;
+                margin: 0.125rem 0;
+            }
+            
+            .theme-toggle span {
+                order: 1;
+                text-align: center;
+            }
+            
+            .theme-toggle span {
+                font-size: 0.625rem;
+            }
+            
+            .switch {
+                width: 40px;
+                height: 20px;
+            }
+            
+            .slider:before {
+                height: 12px;
+                width: 12px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(18px);
+            }
+        }
+        
+        /* Theme Toggle Styles */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 12px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            flex-wrap: nowrap;
+            justify-content: center;
+            min-height: 48px;
+            position: relative;
+        }
+        
+        @media (max-width: 640px) {
+            .theme-toggle {
+                padding: 10px 16px;
+                gap: 8px;
+                min-height: 44px;
+            }
+            
+            .theme-toggle span {
+                font-size: 12px;
+                white-space: nowrap;
+            }
+        }
+        
+        [data-theme="light"] .theme-toggle {
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+        
+        [data-theme="dark"] .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .theme-toggle span {
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0;
+            transition: color 0.3s ease, opacity 0.3s ease;
+        }
+        
+        [data-theme="light"] .theme-toggle span {
+            color: #1f2937;
+        }
+        
+        [data-theme="dark"] .theme-toggle span {
+            color: #f1f5f9;
+        }
+        
+        /* Ensure better contrast for inactive text */
+        .theme-toggle span:not(.active) {
+            opacity: 0.6;
+        }
+        
+        .theme-toggle span.active {
+            opacity: 1;
+            font-weight: 600;
+        }
+        
+        /* Toggle Switch - Copied from settings.html */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            min-width: 60px;
+            min-height: 34px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .switch {
+                width: 55px;
+                height: 30px;
+            }
+            
+            .slider:before {
+                height: 22px;
+                width: 22px;
+                left: 4px;
+                bottom: 4px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(23px);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .switch {
+                width: 50px;
+                height: 28px;
+            }
+            
+            .slider:before {
+                height: 20px;
+                width: 20px;
+                left: 4px;
+                bottom: 4px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(20px);
+            }
+        }
+        
+        [data-theme="light"] .slider {
+            background-color: #d1d5db;
+        }
+        
+        [data-theme="light"] input:checked + .slider {
+            background-color: #007890;
+        }
+        
+        [data-theme="dark"] .slider {
+            background-color: #6b7280;
+        }
+        
+        [data-theme="dark"] input:checked + .slider {
+            background-color: #007890;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 overflow-x-hidden">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Inspections</div>
+            <div class="loading-subtext">Please wait...</div>
+        </div>
+    </div>
+    
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'inspector_settings' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-cog mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button - Fixed at bottom -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div id="main-content" class="flex-1 w-full lg:ml-64 transition-all duration-300">
+            
+            <!-- Header -->
+            <div class="pt-16 lg:pt-20 pb-6 lg:pb-10 text-center mb-4 lg:mb-6 px-4">
+                <div class="max-w-4xl mx-auto">
+                    <h1 class="header-title font-bold mb-3 tracking-tight" style="color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">Inspector Settings</h1>
+                    <h2 class="header-subtitle font-light mb-4" style="color: #ffffff; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">Manage your preferences and account settings</h2>
+                    <div class="mt-4 lg:mt-6 inline-block px-4 lg:px-6 py-2 rounded-full" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);">
+                        <div class="text-xs sm:text-sm lg:text-base font-semibold" style="color: #ffffff !important;">
+                            Food Safety Agency (Pty) Ltd
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Messages Section -->
+            {% if messages %}
+            <div class="mx-4 lg:mx-8 mb-6">
+                {% for message in messages %}
+                    <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-700 px-4 py-3 rounded mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Settings Cards -->
+            <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pb-8 lg:pb-12">
+                <div class="grid grid-responsive">
+                    
+                    <!-- Theme Settings -->
+                    <div class="settings-card rounded-xl border p-8">
+                        <h3 class="text-xl font-bold mb-2">
+                            <i class="fas fa-palette text-primary card-icon"></i>
+                            <span>Theme Preferences</span>
+                        </h3>
+                        <p class="text-sm mb-6 opacity-80">
+                            Choose your preferred theme for the application interface.
+                        </p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex flex-col space-y-4">
+                            <div>
+                                <label class="text-sm font-medium block">Theme Preference</label>
+                                <p class="text-xs opacity-70">Choose your preferred interface theme</p>
+                            </div>
+                            <div class="theme-toggle flex items-center justify-center w-full">
+                                <span class="text-sm">Light/Dark</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="theme_mode" name="theme_mode" {% if system_settings.dark_mode %}checked{% endif %} onchange="toggleTheme()">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Profile Settings -->
+                <div class="settings-card rounded-xl border p-8">
+                    <h3 class="text-xl font-bold mb-2">
+                        <i class="fas fa-user text-primary card-icon"></i>
+                        <span>Profile Information</span>
+                    </h3>
+                    <p class="text-sm mb-6 opacity-80">
+                        Update your personal information and account details.
+                    </p>
+                    
+                    <form method="post" class="space-y-4">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_profile">
+                        
+                        <div class="form-grid-responsive grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="first_name" class="block text-sm font-medium mb-1">First Name</label>
+                                <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" 
+                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            </div>
+                            <div>
+                                <label for="last_name" class="block text-sm font-medium mb-1">Last Name</label>
+                                <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" 
+                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="email" class="block text-sm font-medium mb-1">Email Address</label>
+                            <input type="email" id="email" name="email" value="{{ user.email }}" 
+                                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Username</label>
+                            <input type="text" value="{{ user.username }}" disabled 
+                                   class="w-full px-3 py-2 border rounded-lg">
+                            <p class="text-xs mt-1 opacity-70">Username cannot be changed</p>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Profile
+                        </button>
+                    </form>
+                </div>
+                
+                
+                <!-- Account Information -->
+                <div class="settings-card rounded-xl border p-8">
+                    <h3 class="text-xl font-bold mb-2">
+                        <i class="fas fa-info-circle text-primary card-icon"></i>
+                        <span>Account Information</span>
+                    </h3>
+                    <p class="text-sm mb-6 opacity-80">
+                        View your account details and role information.
+                    </p>
+                    
+                    <div class="space-y-2">
+                        <div class="info-row flex justify-between items-center border-b">
+                            <span class="text-sm font-semibold">Role</span>
+                            <span class="text-sm capitalize">{{ user.role|default:"Inspector" }}</span>
+                        </div>
+                        <div class="info-row flex justify-between items-center border-b">
+                            <span class="text-sm font-semibold">Account Status</span>
+                            <span class="text-sm text-green-600 font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Active
+                            </span>
+                        </div>
+                        <div class="info-row flex justify-between items-center border-b">
+                            <span class="text-sm font-semibold">Last Login</span>
+                            <span class="text-sm">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</span>
+                        </div>
+                        <div class="info-row flex justify-between items-center">
+                            <span class="text-sm font-semibold">Date Joined</span>
+                            <span class="text-sm">{{ user.date_joined|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile Menu Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+
+                const icon = mobileMenuBtn.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times text-xl';
+                } else {
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            }
+
+            mobileMenuBtn.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            const navLinks = sidebar.querySelectorAll('a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 1024) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                    const icon = mobileMenuBtn.querySelector('i');
+                    icon.className = 'fas fa-bars text-xl';
+                }
+            });
+
+            initTheme();
+        });
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const serverTheme = '{{ system_settings.dark_mode|yesno:"dark,light" }}';
+            
+            // Default to light mode first
+            let activeTheme = 'light';
+            if (savedTheme) {
+                activeTheme = savedTheme;
+            } else if (serverTheme && serverTheme !== 'light') {
+                activeTheme = serverTheme;
+            }
+            
+            document.documentElement.setAttribute('data-theme', activeTheme);
+            
+            // Set theme toggle checkbox state
+            const themeToggle = document.getElementById('theme_mode');
+            if (themeToggle) {
+                themeToggle.checked = activeTheme === 'dark';
+                
+                // Update text label opacity based on current theme
+                const lightModeText = themeToggle.parentElement.previousElementSibling;
+                const darkModeText = themeToggle.parentElement.nextElementSibling;
+                
+                if (activeTheme === 'dark') {
+                    lightModeText.style.opacity = '0.6';
+                    darkModeText.style.opacity = '1';
+                } else {
+                    lightModeText.style.opacity = '1';
+                    darkModeText.style.opacity = '0.6';
+                }
+            }
+        }
+        
+        function toggleTheme() {
+            const themeMode = document.getElementById('theme_mode');
+            if (themeMode) {
+                const newTheme = themeMode.checked ? 'dark' : 'light';
+                console.log('Switching to theme:', newTheme);
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                
+                try {
+                    localStorage.setItem('theme', newTheme);
+                    console.log('Theme saved to localStorage:', newTheme);
+                } catch (e) {
+                    console.log('Could not save theme to localStorage:', e);
+                }
+                
+                // Update the text labels to show current state
+                const lightModeText = themeMode.parentElement.previousElementSibling;
+                const darkModeText = themeMode.parentElement.nextElementSibling;
+                
+                if (newTheme === 'dark') {
+                    lightModeText.classList.remove('active');
+                    darkModeText.classList.add('active');
+                } else {
+                    lightModeText.classList.add('active');
+                    darkModeText.classList.remove('active');
+                }
+            }
+        }
+        
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+
+            // Add loading screen functionality for navigation links
+            try {
+                const inspectionsLink = document.querySelector('a[href*="shipment_list"]');
+                if (inspectionsLink) {
+                    inspectionsLink.addEventListener('click', function(e) {
+                        try {
+                            const loadingScreen = document.getElementById('loadingScreen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.add('active');
+                                console.log('Loading screen activated');
+                            } else {
+                                console.warn('Loading screen element not found');
+                            }
+                        } catch (error) {
+                            console.error('Error activating loading screen:', error);
+                        }
+                    });
+                } else {
+                    console.warn('Inspections link not found');
+                }
+            } catch (error) {
+                console.error('Error setting up loading screen:', error);
+            }
+        });
+    </script>
+</body>
+</html>

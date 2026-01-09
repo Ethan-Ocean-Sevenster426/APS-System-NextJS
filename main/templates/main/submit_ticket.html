@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Submit Ticket - Food Safety Agency</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <!-- Preconnect hints -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin">
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"
+        media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    </noscript>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --spacing: 5px;
+        }
+
+        /* Dark mode variables */
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text: #ffffff;
+            --text-light: #b0b0b0;
+            --border: #404040;
+            --primary-light: #1a3a40;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Lazy load background image */
+        body.bg-loaded::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            z-index: -1;
+        }
+
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Sidebar */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 256px;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        /* Dark mode sidebar */
+        [data-theme="dark"] #sidebar {
+            background-color: #1A1A1A;
+            border-right: 1px solid #1f2937;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 256px;
+            padding: var(--spacing);
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .content-wrapper {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        .header {
+            padding: 10px 5px 20px;
+            margin-bottom: var(--spacing);
+            width: 100%;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header h2 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .form-label.required::after {
+            content: '*';
+            color: #ef4444;
+            margin-left: 0.25rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        select.form-control {
+            appearance: none;
+            padding-right: 2.5rem;
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23666" d="M6 8L0 0h12z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 12px;
+            cursor: pointer;
+        }
+
+        [data-theme="dark"] select.form-control {
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23e0e0e0" d="M6 8L0 0h12z"/></svg>');
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border-color: #404040;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
+        }
+
+        [data-theme="dark"] .card {
+            border: 1px solid #404040;
+        }
+
+        [data-theme="dark"] .card-header {
+            border-bottom: 1px solid #404040;
+        }
+
+        [data-theme="dark"] .card-title {
+            color: #ffffff;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        [data-theme="dark"] .form-actions {
+            border-top-color: #404040;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #005a6b;
+            border-color: #004a57;
+        }
+
+        .btn-primary:active {
+            background: #004450;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: 1px solid #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            border-color: #374151;
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: #4db8d1;
+            color: #ffffff;
+            border-color: #4db8d1;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: #6ec9dd;
+            border-color: #6ec9dd;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: #4b5563;
+            color: #f3f4f6;
+            border-color: #4b5563;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background: #6b7280;
+            border-color: #6b7280;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .message.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border-left: 3px solid #10b981;
+        }
+
+        .message.error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border-left: 3px solid #ef4444;
+        }
+
+        [data-theme="dark"] .message.success {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        [data-theme="dark"] .message.error {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            #sidebar {
+                transform: translateX(-100%);
+            }
+
+            #sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 0.25rem;
+            }
+
+            .content-wrapper {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .logout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #ffffff;
+            border: none;
+            padding: 0.625rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+        }
+
+        .logout-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .logout-btn i {
+            font-size: 1rem;
+        }
+
+        /* Dark mode logout button */
+        [data-theme="dark"] .logout-btn {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            box-shadow: 0 2px 4px rgba(248, 113, 113, 0.3);
+        }
+
+        [data-theme="dark"] .logout-btn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 8px rgba(248, 113, 113, 0.4);
+        }
+
+        [data-theme="dark"] .logout-btn:active {
+            box-shadow: 0 1px 2px rgba(248, 113, 113, 0.3);
+        }
+
+    /* Floating Notification Bell - Top Right */
+    .notification-bell-float {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #007890 0%, #005a6d 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 120, 144, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .notification-bell-float:hover {
+        background: linear-gradient(135deg, #005a6d 0%, #004050 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 120, 144, 0.4);
+    }
+
+    .notification-bell-float:active {
+        transform: translateY(0);
+    }
+
+    .notification-bell-float i {
+        color: white;
+        font-size: 16px;
+    }
+
+    .notification-bell-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #EC343C;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        border-radius: 10px;
+        min-width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Mobile responsiveness for notification bell */
+    @media (max-width: 768px) {
+        .notification-bell-float {
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+        }
+
+        .notification-bell-float i {
+            font-size: 15px;
+        }
+
+        .notification-bell-badge {
+            font-size: 9px;
+            min-width: 16px;
+            height: 16px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .notification-bell-float {
+            top: 10px;
+            right: 60px; /* Move left to avoid menu button */
+            width: 34px;
+            height: 34px;
+        }
+
+        .notification-bell-float i {
+            font-size: 14px;
+        }
+    }
+    </style>
+</head>
+
+<body>
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+    {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+    <div id="notification-bell" class="notification-bell-float" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+    </div>
+    {% endif %}
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="page-container">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo"
+                        class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+                    {% if request.user.role == 'inspector' %}
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="{% url 'client_allocation' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
+                            Client Allocation
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+                    {% if request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'onedrive_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
+                            OneDrive View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="header">
+                    <h1>Submit a Ticket</h1>
+                    <h2>Report an issue or request assistance</h2>
+                </div>
+
+                {% if messages %}
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    <i
+                        class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Ticket Form Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-ticket-alt"></i>
+                            Submit a New Ticket
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'submit_ticket' %}" id="ticketForm">
+                            {% csrf_token %}
+
+                            <!-- Basic Information Section -->
+                            <div style="margin-bottom: 2rem;">
+                                <h3
+                                    style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem;">
+                                    <i class="fas fa-info-circle" style="color: var(--primary);"></i> Basic Information
+                                </h3>
+
+                                <div class="form-group">
+                                    <label class="form-label required">Issue Type</label>
+                                    <select name="issue_type" class="form-control" required>
+                                        <option value="">Select issue type...</option>
+                                        <option value="bug">System Error/Bug</option>
+                                        <option value="inspection">Inspection Not Showing/Missing</option>
+                                        <option value="export">Report Generation/Export Issue</option>
+                                        <option value="performance">Performance/Speed Issue</option>
+                                        <option value="access">Access/Permission Issue</option>
+                                        <option value="feature">Feature Request</option>
+                                        <option value="question">Question/Help</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label required">Title/Summary</label>
+                                    <input type="text" name="title" id="ticketTitle" class="form-control"
+                                        placeholder="Brief, descriptive summary of the issue" required maxlength="200">
+                                    <small
+                                        style="color: var(--text-light); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                                        <span id="titleCounter">0</span>/200 characters
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Description Section -->
+                            <div style="margin-bottom: 2rem;">
+                                <h3
+                                    style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem;">
+                                    <i class="fas fa-align-left" style="color: var(--primary);"></i> Detailed
+                                    Description
+                                </h3>
+
+                                <div class="form-group">
+                                    <label class="form-label required">What happened?</label>
+                                    <textarea name="description" id="ticketDescription" class="form-control"
+                                        placeholder="Provide a detailed description of the issue. Include what you were trying to do, what happened, and any error messages you saw."
+                                        required style="min-height: 120px;"></textarea>
+                                    <small
+                                        style="color: var(--text-light); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                                        <span id="descCounter">0</span> characters • Be as detailed as possible
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Additional Information Section -->
+                            <div style="margin-bottom: 2rem;">
+                                <h3
+                                    style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem;">
+                                    <i class="fas fa-plus-circle" style="color: var(--primary);"></i> Additional
+                                    Information
+                                </h3>
+
+                                <div class="form-group">
+                                    <label class="form-label">Browser/Device Information</label>
+                                    <input type="text" name="browser_info" class="form-control"
+                                        placeholder="e.g., Chrome on Windows, Safari on iPhone, etc.">
+                                    <small
+                                        style="color: var(--text-light); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                                        Optional but helpful for troubleshooting
+                                    </small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Any other relevant details or notes?</label>
+                                    <textarea name="additional_notes" class="form-control"
+                                        placeholder="Screenshots descriptions, workarounds you tried, related tickets, etc."
+                                        style="min-height: 80px;"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Submit Actions -->
+                            <div class="form-actions"
+                                style="background: var(--background); padding: 1.5rem; margin: 0 -1.5rem -1.5rem -1.5rem; border-radius: 0 0 6px 6px;">
+                                <button type="submit" class="btn btn-primary"
+                                    style="padding: 0.75rem 2rem; font-size: 0.9375rem;">
+                                    <i class="fas fa-paper-plane"></i>
+                                    Submit Ticket
+                                </button>
+                                <a href="{% url 'home' %}" class="btn btn-secondary"
+                                    style="padding: 0.75rem 2rem; font-size: 0.9375rem;">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </a>
+                                <div style="flex: 1;"></div>
+                                <small style="color: var(--text-light); font-size: 0.8125rem;">
+                                    <i class="fas fa-info-circle"></i> All fields marked with * are required
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+            // Initialize theme from localStorage
+            (function () {
+                const savedTheme = localStorage.getItem('theme');
+                const activeTheme = savedTheme ? savedTheme : 'light';
+                document.documentElement.setAttribute('data-theme', activeTheme);
+            })();
+
+        // Listen for theme changes from other tabs/windows
+        window.addEventListener('storage', function (e) {
+            if (e.key === 'theme') {
+                document.documentElement.setAttribute('data-theme', e.newValue || 'light');
+            }
+        });
+
+        // Load background image after page loads for better performance
+        window.addEventListener('load', function () {
+            document.body.classList.add('bg-loaded');
+        });
+
+        // Mobile sidebar functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+
+            const icon = mobileBtn.querySelector('i');
+            if (sidebar.classList.contains('show')) {
+                icon.className = 'fas fa-times';
+            } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+
+            const icon = mobileBtn.querySelector('i');
+            icon.className = 'fas fa-bars';
+        }
+
+        // Close sidebar when clicking on a link (mobile)
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebarLinks = document.querySelectorAll('#sidebar a');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth < 1024) {
+                        closeSidebar();
+                    }
+                });
+            });
+
+            // Mobile menu functionality
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleSidebar);
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', closeSidebar);
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function () {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+
+                if (mobileBtn) {
+                    const icon = mobileBtn.querySelector('i');
+                    icon.className = 'fas fa-bars';
+                }
+            }
+        });
+
+        // ================================================================
+        // NOTIFICATION SYSTEM
+        // ================================================================
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        let notificationModal = null;
+
+        // Fetch notifications and update badge
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications/');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateNotificationBadge(data.unread_count);
+                    return data.notifications;
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+            return [];
+        }
+
+        // Update notification badge
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        // Show notification modal
+        async function showNotificationModal() {
+            const notifications = await fetchNotifications();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div id="notification-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0, 0, 0, 0.5);">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-bell text-yellow-400 mr-2"></i>
+                                Notifications
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllAsRead()" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                    <i class="fas fa-check-double mr-1"></i>Mark All Read
+                                </button>
+                                <button onclick="closeNotificationModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-y-auto max-h-[60vh]" id="notification-list">
+                            ${notifications.length === 0 ? `
+                                <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-bell-slash text-4xl mb-2"></i>
+                                    <p>No notifications</p>
+                                </div>
+                            ` : notifications.map(notif => createNotificationHTML(notif)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existing = document.getElementById('notification-modal');
+            if (existing) existing.remove();
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Create HTML for a single notification
+        function createNotificationHTML(notif) {
+            const typeColors = {
+                'error': 'bg-red-100 border-red-500 text-red-900 dark:bg-red-900 dark:text-red-100',
+                'warning': 'bg-yellow-100 border-yellow-500 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100',
+                'info': 'bg-blue-100 border-blue-500 text-blue-900 dark:bg-blue-900 dark:text-blue-100',
+                'success': 'bg-green-100 border-green-500 text-green-900 dark:bg-green-900 dark:text-green-100',
+                'sync': 'bg-purple-100 border-purple-500 text-purple-900 dark:bg-purple-900 dark:text-purple-100',
+                'system': 'bg-gray-100 border-gray-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+            };
+
+            const typeIcons = {
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle',
+                'success': 'fa-check-circle',
+                'sync': 'fa-sync',
+                'system': 'fa-cog',
+            };
+
+            const bgColor = typeColors[notif.type] || typeColors['info'];
+            const icon = typeIcons[notif.type] || typeIcons['info'];
+            const timeAgo = getTimeAgo(notif.created_at);
+            const opacity = notif.is_read ? 'opacity-60' : '';
+
+            return `
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${opacity}" data-notification-id="${notif.id}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full ${bgColor} flex items-center justify-center">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">${notif.title}</h4>
+                                ${!notif.is_read ? '<span class="bg-blue-500 w-2 h-2 rounded-full"></span>' : ''}
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">${notif.message}</p>
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span><i class="far fa-clock mr-1"></i>${timeAgo}</span>
+                                <div class="flex gap-2">
+                                    ${!notif.is_read ? `<button onclick="markAsRead(${notif.id})" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                        <i class="fas fa-check mr-1"></i>Mark Read
+                                    </button>` : ''}
+                                    <button onclick="deleteNotification(${notif.id})" class="text-red-600 hover:text-red-800 dark:text-red-400">
+                                        <i class="fas fa-trash mr-1"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get time ago string
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' days ago';
+            return date.toLocaleDateString();
+        }
+
+        // Close notification modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notification-modal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Mark notification as read
+        async function markAsRead(notificationId) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all notifications as read
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/api/notifications/mark-all-read/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    closeNotificationModal();
+                    updateNotificationBadge(0);
+                }
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            if (!confirm('Are you sure you want to delete this notification?')) return;
+
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // Refresh the modal
+                    closeNotificationModal();
+                    showNotificationModal();
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Initialize notification system
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notification-bell');
+            if (notificationBell) {
+                notificationBell.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showNotificationModal();
+                });
+
+                // Fetch notifications every 30 seconds
+                fetchNotifications();
+                setInterval(fetchNotifications, 30000);
+            }
+        });
+        {% endif %}
+
+        // Character counters for form fields
+        document.addEventListener('DOMContentLoaded', function () {
+            const titleInput = document.getElementById('ticketTitle');
+            const titleCounter = document.getElementById('titleCounter');
+            const descriptionInput = document.getElementById('ticketDescription');
+            const descCounter = document.getElementById('descCounter');
+
+            if (titleInput && titleCounter) {
+                titleInput.addEventListener('input', function () {
+                    titleCounter.textContent = this.value.length;
+                });
+            }
+
+            if (descriptionInput && descCounter) {
+                descriptionInput.addEventListener('input', function () {
+                    descCounter.textContent = this.value.length;
+                });
+            }
+
+            // Form validation feedback
+            const form = document.getElementById('ticketForm');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    const requiredFields = form.querySelectorAll('[required]');
+                    let allFilled = true;
+
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            allFilled = false;
+                            field.style.borderColor = '#ef4444';
+                        } else {
+                            field.style.borderColor = '';
+                        }
+                    });
+
+                    if (!allFilled) {
+                        e.preventDefault();
+                        alert('Please fill in all required fields (marked with *)');
+                        // Scroll to first empty required field
+                        const firstEmpty = Array.from(requiredFields).find(f => !f.value.trim());
+                        if (firstEmpty) {
+                            firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            firstEmpty.focus();
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
