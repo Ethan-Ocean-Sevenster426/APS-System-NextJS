@@ -882,7 +882,7 @@ class ClientAllocation(models.Model):
         ]
         constraints = [
             # Ensure client_id is unique and positive
-            models.CheckConstraint(check=models.Q(client_id__gt=0), name='client_id_positive'),
+            models.CheckConstraint(condition=models.Q(client_id__gt=0), name='client_id_positive'),
         ]
 
     def __str__(self):
