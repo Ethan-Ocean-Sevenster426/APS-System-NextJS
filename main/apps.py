@@ -9,12 +9,11 @@ class MainConfig(AppConfig):
     def ready(self):
         import main.signals
 
-        # Auto-start sync service on server startup (only in main process)
-        # Skip during migrations or when running management commands
-        if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-            # Use threading to defer sync service start until Django is fully loaded
-            import threading
-            threading.Thread(target=self._start_sync_service_on_startup, daemon=True).start()
+        # Auto-start sync service disabled for demo
+        # if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        #     import threading
+        #     threading.Thread(target=self._start_sync_service_on_startup, daemon=True).start()
+        pass
 
     def _start_sync_service_on_startup(self):
         """Start the scheduled sync service automatically - ALWAYS ENABLED."""
