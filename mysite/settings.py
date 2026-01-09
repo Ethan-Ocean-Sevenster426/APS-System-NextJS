@@ -113,8 +113,15 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 # Use SQLite for local development - easy fresh start with empty database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_wizard.sqlite3',
+        'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
+        'NAME': env('DB_NAME', default='v4_worksheet'),
+        'USER': env('DB_USER', default='v4_user'),
+        'PASSWORD': env('DB_PASSWORD', default='v4_password'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     },
     # SQL Server disabled - we only want local/manual inspections
     # 'sql_server': {
