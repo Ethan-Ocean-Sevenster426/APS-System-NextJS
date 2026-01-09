@@ -24,7 +24,7 @@ else:
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-@=2jh*jwvj#7=oh+4+ae2)y9j4ixy@f4l^5sf-3iv$2elvp4y#')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=False)
+DEBUG = env.bool('DEBUG', default=True)  # Set to True for demo
 
 LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
@@ -60,7 +60,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', '82.25.97.159'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', '82.25.97.159', '167.88.43.168'])
 
 # Application definition
 INSTALLED_APPS = [
