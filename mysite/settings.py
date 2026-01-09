@@ -116,7 +116,7 @@ DATABASES = {
         'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
         'NAME': env('DB_NAME', default='v4_worksheet'),
         'USER': env('DB_USER', default='v4_user'),
-        'PASSWORD': env('DB_PASSWORD', default='v4_password'),
+        'PASSWORD': env('DB_PASSWORD', default='V4_Secure@2024!'),
         'HOST': env('DB_HOST', default='localhost'),
         'PORT': env('DB_PORT', default='3306'),
         'OPTIONS': {

@@ -24,8 +24,7 @@ def create_dev_user():
         user = User.objects.create_user(username=username, email=email, password=password)
         print(f"Created user '{username}'")
 
-    # Set role and permissions
-    user.role = 'developer'
+    # Set permissions
     user.is_staff = True
     user.is_superuser = True
     user.save()
@@ -33,7 +32,7 @@ def create_dev_user():
     print(f"\nDeveloper user created/updated:")
     print(f"  Username: {username}")
     print(f"  Password: {password}")
-    print(f"  Role: developer")
+    print(f"  Superuser: True")
     print(f"\nLogin at: https://v4-project.moc-pty.com/login")
 
 if __name__ == '__main__':
