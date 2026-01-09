@@ -57,6 +57,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost:8000',
     'https://portal.fsa-pty.co.za',
     'http://portal.fsa-pty.co.za',
+    'https://v4-project.moc-pty.com',
+    'http://v4-project.moc-pty.com',
 ]
 
 
