@@ -80,12 +80,21 @@ User.add_to_class('has_role_permission', has_role_permission)
 class ClientManager(models.Manager):
     def get_next_client_id(self):
         """Generate next sequential client ID (CL00001, CL00002, etc.)"""
-        last_client = self.order_by('-id').first()
-        if last_client:
-            last_id = int(last_client.client_id[2:])
-            return f"CL{(last_id + 1):05d}"
-        else:
-            return "CL00001"
+        # Find the highest valid client_id that follows the CLxxxxx format
+        clients_with_valid_ids = self.filter(client_id__startswith='CL').exclude(client_id__isnull=True)
+        max_id = 0
+        for client in clients_with_valid_ids:
+            try:
+                # Extract the numeric part after "CL"
+                numeric_part = client.client_id[2:]
+                if numeric_part.isdigit():
+                    client_num = int(numeric_part)
+                    if client_num > max_id:
+                        max_id = client_num
+            except (ValueError, IndexError):
+                # Skip clients with invalid client_id format
+                continue
+        return f"CL{(max_id + 1):05d}"
 
 class InspectorMapping(models.Model):
     """Model to store inspector ID mappings for the server"""
@@ -393,7 +402,17 @@ class FoodSafetyAgencyInspection(models.Model):
     # Reference information
     remote_id = models.IntegerField(blank=True, null=True, help_text="Original ID from remote system")
     client_name = models.CharField(max_length=200, blank=True, null=True, help_text="Client name (updated from Google Sheets if match found)")
+    client = models.ForeignKey('Client', on_delete=models.SET_NULL, blank=True, null=True, related_name='inspections', help_text="Link to Client record for file storage")
     internal_account_code = models.CharField(max_length=100, blank=True, null=True, db_index=True, help_text="Internal Account Code from SQL Server (used to match with Google Sheets)")
+    town = models.CharField(max_length=100, blank=True, null=True, help_text="Town/location of inspection")
+
+    # Inspection activities
+    inspected = models.BooleanField(default=False, help_text="Was inspection conducted?")
+
+    # Documentation and follow-up
+    follow_up = models.BooleanField(default=False, help_text="Follow-up required")
+    occurrence_report = models.BooleanField(default=False, help_text="Occurrence report required")
+    dispensation_application = models.BooleanField(default=False, help_text="Dispensation application required")
 
     # Testing parameters
     fat = models.BooleanField(default=False, help_text="Fat testing required")

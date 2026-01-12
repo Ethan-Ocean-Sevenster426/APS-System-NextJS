@@ -137,7 +137,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary: #007890;
             --primary-light: #e6f3f7;
             --secondary: #EC343C;
             --danger: #EC343C;
@@ -170,6 +169,18 @@
             --sidebar-bg: #0f172a;
             --sidebar-text: #f1f5f9;
             --sidebar-hover: #1e293b;
+        }
+
+        /* Force all document type buttons to be full width */
+        button[id^="composition-"],
+        button[id^="occurrence-"],
+        button[id^="composition-"].btn,
+        button[id^="occurrence-"].btn {
+            width: 100% !important;
+            display: block !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
         }
 
         /* Dark mode specific overrides */
@@ -4263,7 +4274,6 @@
 
         /* Desktop Occurrence buttons - fixed width for table with smaller font */
         button[id^="occurrence-"]:not([id*="mobile"]) {
-            min-width: 85px !important;
             width: 85px !important;
             max-width: 85px !important;
             text-align: center !important;
@@ -4276,7 +4286,6 @@
 
         /* Desktop Composition buttons - fixed width for table */
         button[id^="composition-"]:not([id*="mobile"]) {
-            min-width: 80px !important;
             width: 80px !important;
             max-width: 80px !important;
             text-align: center !important;
@@ -7124,8 +7133,8 @@
                 window.currentFilesClient = clientName;
                 window.currentFilesDate = inspectionDate;
                 window.currentFilesGroupId = groupId;
-                if (typeof loadInspectionFiles === 'function') {
-                    loadInspectionFiles(groupId, clientName, inspectionDate);
+                if (typeof window.loadInspectionFiles === 'function') {
+                    window.loadInspectionFiles(groupId, clientName, inspectionDate);
                 }
             } else {
                 console.error('filesModal not found');
@@ -7139,7 +7148,21 @@
 
         // Generic upload function for all document types
         window.uploadDocumentForInspection = function (productId, groupId, documentType) {
-            console.log('uploadDocumentForInspection called:', productId, groupId, documentType);
+            console.log('='.repeat(80));
+            console.log('[UPLOAD DEBUG] uploadDocumentForInspection CALLED');
+            console.log('='.repeat(80));
+            console.log('[UPLOAD DEBUG] Parameters received:');
+            console.log('[UPLOAD DEBUG]   productId:', productId);
+            console.log('[UPLOAD DEBUG]   productId type:', typeof productId);
+            console.log('[UPLOAD DEBUG]   productId is null:', productId === null);
+            console.log('[UPLOAD DEBUG]   productId is undefined:', productId === undefined);
+            console.log('[UPLOAD DEBUG]   productId stringified:', JSON.stringify(productId));
+            console.log('[UPLOAD DEBUG]   groupId:', groupId);
+            console.log('[UPLOAD DEBUG]   groupId type:', typeof groupId);
+            console.log('[UPLOAD DEBUG]   groupId length:', groupId ? groupId.length : 'N/A');
+            console.log('[UPLOAD DEBUG]   documentType:', documentType);
+            console.log('-'.repeat(80));
+
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = '.pdf';
@@ -7147,20 +7170,41 @@
 
             fileInput.onchange = function (e) {
                 const file = e.target.files[0];
+                console.log('[UPLOAD DEBUG] File selected:', file ? file.name : 'NO FILE');
+
                 if (file) {
                     if (!file.name.toLowerCase().endsWith('.pdf')) {
                         alert('Only PDF files are allowed. Please select a PDF document.');
                         return;
                     }
 
+                    console.log('[UPLOAD DEBUG] Building FormData...');
                     const formData = new FormData();
                     formData.append('file', file);
-                    formData.append('inspection_id', productId);
                     formData.append('document_type', documentType);
-                    formData.append('group_id', groupId);
+                    // Only send values if they're truthy (not empty string, null, undefined)
+                    if (productId) formData.append('inspection_id', productId);
+                    if (groupId) formData.append('group_id', groupId);
+
+                    // Log what we're sending
+                    console.log('[UPLOAD DEBUG] FormData contents:');
+                    console.log('[UPLOAD DEBUG]   file:', file.name, '(' + file.size + ' bytes)');
+                    console.log('[UPLOAD DEBUG]   inspection_id being sent:', productId);
+                    console.log('[UPLOAD DEBUG]   inspection_id type:', typeof productId);
+                    console.log('[UPLOAD DEBUG]   document_type:', documentType);
+                    console.log('[UPLOAD DEBUG]   group_id:', groupId);
+
+                    // Extra validation check
+                    if (productId && typeof productId === 'string' && !/^\d+$/.test(productId)) {
+                        console.error('[UPLOAD DEBUG] WARNING: inspection_id is NOT numeric!');
+                        console.error('[UPLOAD DEBUG] inspection_id value:', productId);
+                        console.error('[UPLOAD DEBUG] This will cause an error on the server!');
+                    }
 
                     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
                     formData.append('csrfmiddlewaretoken', csrfToken);
+
+                    console.log('[UPLOAD DEBUG] Sending POST to /upload-document/...');
 
                     fetch('/upload-document/', {
                         method: 'POST',
@@ -7169,10 +7213,15 @@
                             'X-CSRFToken': csrfToken
                         }
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('[UPLOAD DEBUG] Response status:', response.status);
+                            console.log('[UPLOAD DEBUG] Response ok:', response.ok);
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('[UPLOAD DEBUG] Response data:', JSON.stringify(data));
                             if (data.success) {
-                                console.log('✅ ' + documentType + ' uploaded for inspection ' + productId);
+                                console.log('[UPLOAD DEBUG] SUCCESS! ' + documentType + ' uploaded for inspection ' + productId);
 
                                 // Update button color to green immediately - no page reload
                                 if (documentType === 'rfi') {
@@ -7203,12 +7252,25 @@
                                 document.body.appendChild(toast);
                                 setTimeout(() => toast.remove(), 3000);
                             } else {
-                                console.error('❌ Error uploading ' + documentType + ':', data.error);
+                                console.error('[UPLOAD DEBUG] UPLOAD FAILED!');
+                                console.error('[UPLOAD DEBUG] Error message:', data.error);
+                                console.error('[UPLOAD DEBUG] Full response:', JSON.stringify(data));
+                                if (data.traceback) {
+                                    console.error('[UPLOAD DEBUG] SERVER TRACEBACK:');
+                                    console.error(data.traceback);
+                                }
+                                console.error('[UPLOAD DEBUG] Original parameters:');
+                                console.error('[UPLOAD DEBUG]   productId was:', productId);
+                                console.error('[UPLOAD DEBUG]   groupId was:', groupId);
+                                console.error('[UPLOAD DEBUG]   documentType was:', documentType);
                                 alert('Error uploading ' + documentType + ': ' + (data.error || 'Unknown error'));
                             }
                         })
                         .catch(error => {
-                            console.error('❌ Error uploading ' + documentType + ':', error);
+                            console.error('[UPLOAD DEBUG] FETCH ERROR!');
+                            console.error('[UPLOAD DEBUG] Error:', error);
+                            console.error('[UPLOAD DEBUG] Error message:', error.message);
+                            console.error('[UPLOAD DEBUG] Error stack:', error.stack);
                             alert('Error uploading ' + documentType + ': ' + error.message);
                         });
                 }
@@ -7220,6 +7282,7 @@
         };
 
         window.uploadComplianceForInspection = function (productId, groupId) {
+            console.log('[UPLOAD DEBUG] uploadComplianceForInspection called with productId:', productId, 'groupId:', groupId);
             window.uploadDocumentForInspection(productId, groupId, 'compliance');
         };
 
@@ -7241,6 +7304,11 @@
 
         window.uploadRfiForInspection = function (productId, groupId) {
             window.uploadDocumentForInspection(productId, groupId, 'rfi');
+        };
+
+        window.uploadRetestForInspection = function (productId, groupId) {
+            console.log('[UPLOAD DEBUG] uploadRetestForInspection called with productId:', productId, 'groupId:', groupId);
+            window.uploadDocumentForInspection(productId, groupId, 'retest');
         };
 
         window.uploadOtherForInspection = function (productId, groupId) {
@@ -7411,8 +7479,7 @@
                     </button>
                 </li>
 
-                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role ==
-                'financial_admin' %}
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
                 <li class="nav-item">
                     <a href="{% url 'export_sheet' %}" class="nav-link"
                         style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer; text-decoration: none;">
@@ -7492,8 +7559,7 @@
                     {% endif %}
 
                     <!-- Export Sheet Button -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role ==
-                    'financial_admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
                     <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
                         <i class="fas fa-file-export"></i> Export Sheet
                     </a>
@@ -7510,8 +7576,7 @@
                     </button>
 
                     <!-- Add Inspection Button -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role ==
-                    'admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                     <a href="{% url 'add_fsa_inspection' %}" class="btn" style="background: #22c55e; color: white;"
                         onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
                         <i class="fas fa-plus"></i> Add Inspection
@@ -7519,8 +7584,7 @@
                     {% endif %}
 
                     <!-- Sync Shipments Button - Hidden for administrators -->
-                    {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role !=
-                    'admin' %}
+                    {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin' %}
                     <form action="{% url 'refresh_inspections' %}" method="post" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn" style="background: #007890; color: white;"
@@ -7587,8 +7651,7 @@
                                     <select class="form-control" name="branch">
                                         <option value="">All Inspectors</option>
                                         {% for inspector in inspectors %}
-                                        <option value="{{ inspector }}" {% if request.GET.branch==inspector %}selected{%
-                                            endif %}>{{ inspector }}</option>
+                                        <option value="{{ inspector }}" {% if request.GET.branch == inspector %}selected{% endif %}>{{ inspector }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -7601,8 +7664,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_from_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_from %}{{ request.GET.inspection_date_from|date:"
-                                            d/m/Y" }}{% endif %}" readonly>
+                                            value="{% if request.GET.inspection_date_from %}{{ request.GET.inspection_date_from|date:"d/m/Y" }}{% endif %}" readonly>
                                         <input type="hidden" name="inspection_date_from"
                                             value="{{ request.GET.inspection_date_from }}">
                                         <button type="button" class="date-picker-btn"
@@ -7616,8 +7678,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_to_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_to %}{{ request.GET.inspection_date_to|date:"
-                                            d/m/Y" }}{% endif %}" readonly>
+                                            value="{% if request.GET.inspection_date_to %}{{ request.GET.inspection_date_to|date:"d/m/Y" }}{% endif %}" readonly>
                                         <input type="hidden" name="inspection_date_to"
                                             value="{{ request.GET.inspection_date_to }}">
                                         <button type="button" class="date-picker-btn"
@@ -7630,9 +7691,9 @@
                                     <label class="form-label">Sent Status</label>
                                     <select class="form-control" name="sent_status">
                                         <option value="">Not Sent</option>
-                                        <option value="YES" {% if request.GET.sent_status=='YES' %}selected{% endif %}>
+                                        <option value="YES" {% if request.GET.sent_status == 'YES' %}selected{% endif %}>
                                             Sent Only</option>
-                                        <option value="NO" {% if request.GET.sent_status=='NO' %}selected{% endif %}>Not
+                                        <option value="NO" {% if request.GET.sent_status == 'NO' %}selected{% endif %}>Not
                                             Sent Only</option>
                                     </select>
                                 </div>
@@ -7649,11 +7710,8 @@
                                     <label class="form-label">Compliance Status</label>
                                     <select class="form-control" name="compliance_status">
                                         <option value="">All Inspections</option>
-                                        <option value="COMPLIANT" {% if request.GET.compliance_status=='COMPLIANT'
-                                            %}selected{% endif %}>Compliant Only</option>
-                                        <option value="NON_COMPLIANT" {% if
-                                            request.GET.compliance_status=='NON_COMPLIANT' %}selected{% endif %}>
-                                            Non-Compliant Only</option>
+                                        <option value="COMPLIANT" {% if request.GET.compliance_status == 'COMPLIANT' %}selected{% endif %}>Compliant Only</option>
+                                        <option value="NON_COMPLIANT" {% if request.GET.compliance_status == 'NON_COMPLIANT' %}selected{% endif %}>Non-Compliant Only</option>
                                     </select>
                                 </div>
                                 <!-- Lab Form Status filter removed - show all inspections regardless of lab forms -->
@@ -7705,8 +7763,7 @@
                                 {% if show_all %}
                                 Showing all {{ total_shipments }} inspection{{ total_shipments|pluralize }}
                                 {% else %}
-                                Showing {{ shipments|length }} of {{ total_shipments }} inspection{{
-                                total_shipments|pluralize }}
+                                Showing {{ shipments|length }} of {{ total_shipments }} inspection{{ total_shipments|pluralize }}
                                 {% endif %}
                             </div>
                         </div>
@@ -7721,18 +7778,14 @@
                             <!-- Mobile Group Card -->
                             <div class="group-card bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 overflow-hidden"
                                 data-group-id="{{ fallback_group_id }}" data-client-name="{{ shipment.client_name }}"
-                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}" {% if
-                                shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif
-                                %}>
+                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif %}>
 
                                 <!-- Card Header -->
                                 <div class="bg-gradient-to-r from-primary to-primary-light p-4 text-white">
                                     <div class="flex items-center justify-between gap-3">
                                         <div class="flex-1 min-w-0">
-                                            <h3 class="font-bold text-lg truncate">{{ shipment.client_name|default:"-"
-                                                }}</h3>
-                                            <p class="text-sm opacity-90">{{
-                                                shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</p>
+                                            <h3 class="font-bold text-lg truncate">{{ shipment.client_name|default:"-" }}</h3>
+                                            <p class="text-sm opacity-90">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</p>
                                         </div>
                                         <button
                                             class="expand-btn p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors duration-200 flex-shrink-0"
@@ -7765,14 +7818,11 @@
                                         <div class="flex justify-between">
                                             <span class="text-gray-500">Account Code:</span>
                                             <span
-                                                class="font-mono text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">{{
-                                                shipment.internal_account_code|default:"-" }}</span>
+                                                class="font-mono text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">{{ shipment.internal_account_code|default:"-" }}</span>
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-gray-500">Inspector:</span>
-                                            <span class="font-medium">{{
-                                                shipment.inspector_name|display_inspector:shipment.inspector_id
-                                                }}</span>
+                                            <span class="font-medium">{{ shipment.inspector_name|display_inspector:shipment.inspector_id }}</span>
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <span class="text-gray-500">Distance:</span>
@@ -7823,10 +7873,8 @@
                                                btn-files-checking
                                            {% endif %}" data-group-id="{{ fallback_group_id }}"
                                             data-client-name="{{ shipment.client_name }}"
-                                            data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}"
-                                            onclick="if(typeof openFilesPopup === 'function') { openFilesPopup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"
-                                            Y-m-d"|escapejs }}'); } else { console.warn('openFilesPopup not loaded
-                                            yet'); }">
+                                            data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
+                                            onclick="if(typeof openFilesPopup === 'function') { openFilesPopup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d"|escapejs }}'); } else { console.warn('openFilesPopup not loaded yet'); }">
                                             <i class="fas fa-eye mr-2"></i> View Files
                                         </button>
                                         <div class="grid grid-cols-1 gap-2">
@@ -7842,7 +7890,7 @@
                                                 class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
                                                 onclick="uploadRFI('{{ fallback_group_id|escapejs }}')"
                                                 data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                 title="Upload RFI">
                                                 <i class="fas fa-file-alt mr-1"></i> RFI
                                             </button>
@@ -7862,13 +7910,34 @@
                                                 class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
                                                 onclick="uploadInvoice('{{ fallback_group_id|escapejs }}')"
                                                 data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                 title="Upload Invoice">
                                                 <i class="fas fa-file-invoice mr-1"></i> Invoice
                                             </button>
                                             {% endif %}
                                         </div>
                                         {% endif %}
+
+                                        <!-- Retest Button (mobile card) -->
+                                        <div class="mt-2">
+                                            {% if shipment.retest_uploaded %}
+                                            <button id="retest-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
+                                                style="background-color: #28a745; border-color: #28a745; color: white;"
+                                                disabled title="Retest file exists">
+                                                <i class="fas fa-check mr-1"></i> Retest
+                                            </button>
+                                            {% else %}
+                                            <button id="retest-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
+                                                onclick="uploadRetestForInspection(null, '{{ fallback_group_id|escapejs }}')"
+                                                data-client-name="{{ shipment.client_name }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
+                                                title="Upload Retest">
+                                                <i class="fas fa-redo mr-1"></i> Retest
+                                            </button>
+                                            {% endif %}
+                                        </div>
 
                                         <!-- Occurrence Button (mobile card) -->
                                         {% if request.user.role == 'inspector' or request.user.role != 'scientist' %}
@@ -7878,16 +7947,16 @@
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
                                                 disabled title="Occurrence file exists">
-                                                <i class="fas fa-check mr-1"></i> Occurrence
+                                                <i class="fas fa-check mr-1"></i> Upload
                                             </button>
                                             {% else %}
                                             <button id="occurrence-mobile-{{ fallback_group_id }}"
                                                 class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
                                                 onclick="uploadOccurrence('{{ fallback_group_id|escapejs }}')"
                                                 data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                 title="Upload Occurrence">
-                                                <i class="fas fa-exclamation-triangle mr-1"></i> Occurrence
+                                                <i class="fas fa-exclamation-triangle mr-1"></i> Upload
                                             </button>
                                             {% endif %}
                                         </div>
@@ -7901,20 +7970,41 @@
                                                 class="composition-btn w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
                                                 disabled title="Composition file exists">
-                                                <i class="fas fa-check mr-1"></i> Composition
+                                                <i class="fas fa-check mr-1"></i> Upload
                                             </button>
                                             {% else %}
                                             <button id="composition-mobile-{{ fallback_group_id }}"
                                                 class="composition-btn w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
                                                 onclick="uploadComposition('{{ fallback_group_id|escapejs }}')"
                                                 data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                 title="Upload Composition">
-                                                <i class="fas fa-flask mr-1"></i> Composition
+                                                <i class="fas fa-flask mr-1"></i> Upload
                                             </button>
                                             {% endif %}
                                         </div>
                                         {% endif %}
+
+                                        <!-- Compliance Button (mobile card) -->
+                                        <div class="mt-2">
+                                            {% if shipment.has_compliance %}
+                                            <button id="compliance-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
+                                                style="background-color: #28a745; border-color: #28a745; color: white;"
+                                                disabled title="Compliance file exists">
+                                                <i class="fas fa-check mr-1"></i> Compliance
+                                            </button>
+                                            {% else %}
+                                            <button id="compliance-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
+                                                onclick="uploadComplianceForInspection(null, '{{ fallback_group_id|escapejs }}')"
+                                                data-client-name="{{ shipment.client_name }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
+                                                title="Upload Compliance">
+                                                <i class="fas fa-shield-alt mr-1"></i> Compliance
+                                            </button>
+                                            {% endif %}
+                                        </div>
 
                                         <!-- Comment Input (mobile card) -->
                                         <div class="mt-3">
@@ -8035,13 +8125,11 @@
                                                     <div class="grid grid-cols-2 gap-2 text-xs mb-3">
                                                         <div>
                                                             <span class="text-gray-500">ID:</span>
-                                                            <span class="font-medium">{{ product.remote_id|default:"-"
-                                                                }}</span>
+                                                            <span class="font-medium">{{ product.remote_id|default:"-" }}</span>
                                                         </div>
                                                         <div>
                                                             <span class="text-gray-500">Commodity:</span>
-                                                            <span class="font-medium">{{ product.commodity|default:"-"
-                                                                }}</span>
+                                                            <span class="font-medium">{{ product.commodity|default:"-" }}</span>
                                                         </div>
                                                         <div>
                                                             <span class="text-gray-500">Status:</span>
@@ -8097,9 +8185,7 @@
                                                                 <input type="checkbox"
                                                                     class="test-checkbox mr-2 w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
                                                                     data-inspection-id="{{ product.remote_id }}"
-                                                                    data-test-type="fat" {% if product.fat %}checked{%
-                                                                    endif %} {% if not product.is_sample_taken
-                                                                    %}disabled{% endif %}
+                                                                    data-test-type="fat" {% if product.fat %}checked{% endif %} {% if not product.is_sample_taken %}disabled{% endif %}
                                                                     onchange="updateTestResult(this)">
                                                                 Fat
                                                             </label>
@@ -8107,9 +8193,7 @@
                                                                 <input type="checkbox"
                                                                     class="test-checkbox mr-2 w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
                                                                     data-inspection-id="{{ product.remote_id }}"
-                                                                    data-test-type="protein" {% if product.protein
-                                                                    %}checked{% endif %} {% if not
-                                                                    product.is_sample_taken %}disabled{% endif %}
+                                                                    data-test-type="protein" {% if product.protein %}checked{% endif %} {% if not product.is_sample_taken %}disabled{% endif %}
                                                                     onchange="updateTestResult(this)">
                                                                 Protein
                                                             </label>
@@ -8117,9 +8201,7 @@
                                                                 <input type="checkbox"
                                                                     class="test-checkbox mr-2 w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
                                                                     data-inspection-id="{{ product.remote_id }}"
-                                                                    data-test-type="calcium" {% if product.calcium
-                                                                    %}checked{% endif %} {% if not
-                                                                    product.is_sample_taken %}disabled{% endif %}
+                                                                    data-test-type="calcium" {% if product.calcium %}checked{% endif %} {% if not product.is_sample_taken %}disabled{% endif %}
                                                                     onchange="updateTestResult(this)">
                                                                 Calcium
                                                             </label>
@@ -8127,9 +8209,7 @@
                                                                 <input type="checkbox"
                                                                     class="test-checkbox mr-2 w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
                                                                     data-inspection-id="{{ product.remote_id }}"
-                                                                    data-test-type="dna" {% if product.dna %}checked{%
-                                                                    endif %} {% if not product.is_sample_taken
-                                                                    %}disabled{% endif %}
+                                                                    data-test-type="dna" {% if product.dna %}checked{% endif %} {% if not product.is_sample_taken %}disabled{% endif %}
                                                                     onchange="updateTestResult(this)">
                                                                 DNA
                                                             </label>
@@ -8148,11 +8228,9 @@
                                                                 value="{{ product.bought_sample|default:'' }}"
                                                                 placeholder="0.00" step="0.01" min="0"
                                                                 onchange="updateBoughtSample(this)"
-                                                                onblur="updateBoughtSample(this)" {% if not
-                                                                product.is_sample_taken %}disabled
+                                                                onblur="updateBoughtSample(this)" {% if not product.is_sample_taken %}disabled
                                                                 style="opacity: 0.5; cursor: not-allowed;"
-                                                                title="No sample taken - cannot enter bought sample" {%
-                                                                endif %}>
+                                                                title="No sample taken - cannot enter bought sample" {% endif %}>
                                                             <span class="text-xs text-gray-500">R</span>
                                                         </div>
                                                     </div>
@@ -8163,25 +8241,18 @@
                                                             class="block text-gray-600 font-medium mb-1 text-xs">Lab</label>
                                                         <select
                                                             class="w-full text-xs border border-gray-300 rounded px-2 py-1 lab-dropdown"
-                                                            data-inspection-id="{{ product.remote_id }}" {% if not
-                                                            product.is_sample_taken %}disabled
+                                                            data-inspection-id="{{ product.remote_id }}" {% if not product.is_sample_taken %}disabled
                                                             style="opacity: 0.5; cursor: not-allowed;"
                                                             title="No sample taken - lab selection disabled" {% endif %}
                                                             onchange="updateLab(this)">
                                                             <option value="">Select Lab</option>
-                                                            <option value="lab_b" {% if product.lab=='lab_b'
-                                                                %}selected{% endif %}>Merieux NutriSciences</option>
-                                                            <option value="lab_c" {% if product.lab=='lab_c'
-                                                                %}selected{% endif %}>AGRI Food Laboratory (SGS)
+                                                            <option value="lab_b" {% if product.lab == 'lab_b' %}selected{% endif %}>Merieux NutriSciences</option>
+                                                            <option value="lab_c" {% if product.lab == 'lab_c' %}selected{% endif %}>AGRI Food Laboratory (SGS)
                                                             </option>
-                                                            <option value="lab_d" {% if product.lab=='lab_d'
-                                                                %}selected{% endif %}>SANBI</option>
-                                                            <option value="lab_e" {% if product.lab=='lab_e'
-                                                                %}selected{% endif %}>SMT</option>
-                                                            <option value="lab_f" {% if product.lab=='lab_f'
-                                                                %}selected{% endif %}>ARC</option>
-                                                            <option value="lab_a" {% if product.lab=='lab_a'
-                                                                %}selected{% endif %}>Food Safety Laboratory</option>
+                                                            <option value="lab_d" {% if product.lab == 'lab_d' %}selected{% endif %}>SANBI</option>
+                                                            <option value="lab_e" {% if product.lab == 'lab_e' %}selected{% endif %}>SMT</option>
+                                                            <option value="lab_f" {% if product.lab == 'lab_f' %}selected{% endif %}>ARC</option>
+                                                            <option value="lab_a" {% if product.lab == 'lab_a' %}selected{% endif %}>Food Safety Laboratory</option>
                                                         </select>
                                                     </div>
 
@@ -8191,16 +8262,12 @@
                                                             class="block text-gray-600 font-medium mb-1 text-xs">Retest</label>
                                                         <select
                                                             class="w-full text-xs border border-gray-300 rounded px-2 py-1 needs-retest-dropdown"
-                                                            data-inspection-id="{{ product.remote_id }}" {% if not
-                                                            product.is_sample_taken %}disabled
+                                                            data-inspection-id="{{ product.remote_id }}" {% if not product.is_sample_taken %}disabled
                                                             style="opacity: 0.5; cursor: not-allowed;"
-                                                            title="No sample taken - retest options disabled" {% endif
-                                                            %} onchange="updateNeedsRetest(this)">
+                                                            title="No sample taken - retest options disabled" {% endif %} onchange="updateNeedsRetest(this)">
                                                             <option value="">Select Option</option>
-                                                            <option value="yes" {% if product.needs_retest=='yes'
-                                                                %}selected{% endif %}>Yes</option>
-                                                            <option value="no" {% if product.needs_retest=='no'
-                                                                %}selected{% endif %}>No</option>
+                                                            <option value="yes" {% if product.needs_retest == 'yes' %}selected{% endif %}>Yes</option>
+                                                            <option value="no" {% if product.needs_retest == 'no' %}selected{% endif %}>No</option>
                                                         </select>
                                                     </div>
 
@@ -8213,8 +8280,7 @@
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
                                                                {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
                                                                 {% if not product.is_sample_taken %}disabled
-                                                                title="No sample taken - lab form upload disabled" {%
-                                                                endif %}
+                                                                title="No sample taken - lab form upload disabled" {% endif %}
                                                                 onclick="{% if product.is_sample_taken %}uploadLabForm('{{ product.remote_id|escapejs }}'){% else %}alert('No sample taken - lab form upload disabled'){% endif %}">
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
@@ -8226,20 +8292,15 @@
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
                                                                {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
                                                                 {% if not product.is_sample_taken %}disabled
-                                                                title="No sample taken - lab upload disabled" {% endif
-                                                                %}
+                                                                title="No sample taken - lab upload disabled" {% endif %}
                                                                 onclick="{% if product.is_sample_taken %}uploadLabFile('{{ product.remote_id|escapejs }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('No sample taken - lab upload disabled'){% endif %}">
                                                                 <i class="fas fa-flask mr-1"></i> Lab
                                                             </button>
                                                             <button
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
                                                                {% if not product.is_sample_taken or product.needs_retest == 'no' or product.needs_retest == 'NO' %}opacity-50 cursor-not-allowed{% endif %}"
-                                                                {% if not product.is_sample_taken or
-                                                                product.needs_retest=='no' or product.needs_retest=='NO'
-                                                                %}disabled
-                                                                title="{% if not product.is_sample_taken %}No sample taken - retest upload disabled{% else %}Needs retest is 'No' - retest upload disabled{% endif %}"
-                                                                {% endif %}
-                                                                onclick="{% if product.is_sample_taken and product.needs_retest != 'no' and product.needs_retest != 'NO' %}uploadRetestFile('{{ product.remote_id|escapejs }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('{% if not product.is_sample_taken %}No sample taken - retest upload disabled{% else %}Needs retest is 'No' - retest upload disabled{% endif %}'){% endif %}">
+                                                                {% if not product.is_sample_taken or product.needs_retest == 'no' or product.needs_retest == 'NO' %}disabled title="{% if not product.is_sample_taken %}No sample taken - retest upload disabled{% else %}Needs retest is 'No' - retest upload disabled{% endif %}" {% endif %}
+                                                                onclick="{% if product.is_sample_taken and product.needs_retest != 'no' and product.needs_retest != 'NO' %}uploadRetestFile('{{ product.remote_id|escapejs }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('{% if not product.is_sample_taken %}No sample taken - retest upload disabled{% else %}Needs retest is No - retest upload disabled{% endif %}'){% endif %}">
                                                                 <i class="fas fa-redo mr-1"></i> Retest
                                                             </button>
                                                         </div>
@@ -8295,31 +8356,24 @@
                                     <tr class="group-row shipment-row bg-white hover:bg-gray-50 border-b border-gray-200 cursor-pointer"
                                         data-group-id="{{ fallback_group_id }}"
                                         data-client-name="{{ shipment.client_name }}"
-                                        data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}" {% if
-                                        shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {%
-                                        endif %} onclick="toggleGroup(event, '{{ fallback_group_id|escapejs }}')">
+                                        data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif %} onclick="toggleGroup(event, '{{ fallback_group_id|escapejs }}')">
                                         <td class="px-3 py-2">
-                                            <span class="font-semibold text-primary hover:text-primary-dark text-sm">{{
-                                                shipment.client_name|default:"-" }}</span>
+                                            <span class="font-semibold text-primary hover:text-primary-dark text-sm">{{ shipment.client_name|default:"-" }}</span>
+                                            <span style="font-size: 10px; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <button
                                                 style="padding: 3px 6px; background: #007890; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;"
-                                                onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"
-                                                Y-m-d" }}')" title="View All Files"><i
-                                                    class="fas fa-folder-open"></i></button>
+                                                onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d" }}')" title="View All Files"><i class="fas fa-folder-open"></i></button>
                                         </td>
-                                        <td class="px-2 py-2 text-xs text-center text-gray-600">{{
-                                            shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
+                                        <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
                                             <select class="approved-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
                                                 data-group-id="{{ fallback_group_id }}"
                                                 onchange="event.stopPropagation(); updateGroupApproved(this)">
-                                                <option value="PENDING" {% if shipment.approved_status=='PENDING' or not
-                                                    shipment.approved_status %}selected{% endif %}>Pending</option>
-                                                <option value="APPROVED" {% if shipment.approved_status=='APPROVED'
-                                                    %}selected{% endif %}>Approved</option>
+                                                <option value="PENDING" {% if shipment.approved_status == 'PENDING' or not shipment.approved_status %}selected{% endif %}>Pending</option>
+                                                <option value="APPROVED" {% if shipment.approved_status == 'APPROVED' %}selected{% endif %}>Approved</option>
                                             </select>
                                         </td>
                                         <td class="px-2 py-2 text-center">
@@ -8348,16 +8402,18 @@
                                                         style="display: flex; gap: 8px; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; margin-bottom: 8px;">
                                                         <!-- Facility -->
                                                         <div
-                                                            style="flex: 0 0 150px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
+                                                            style="flex: 0 0 170px; background: white; border-radius: 8px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
                                                             <div
                                                                 style="font-size: 10px; color: #007890; font-weight: 600; margin-bottom: 3px;">
                                                                 Facility</div>
                                                             <div
                                                                 style="font-size: 10px; color: #374151; font-weight: 500;">
                                                                 {{ shipment.client_name|truncatechars:18 }}</div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                            <div style="font-size: 9px; color: #6b7280;">
                                                                 {{ shipment.internal_account_code|default:"-" }}</div>
+                                                            <div
+                                                                style="font-size: 8px; color: #3b82f6; margin-bottom: 4px; word-break: break-all;">
+                                                                {% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}</div>
                                                             <div
                                                                 style="display: flex; flex-direction: column; gap: 3px;">
                                                                 <div
@@ -8384,19 +8440,47 @@
                                                                         onchange="updateGroupHours(this)"
                                                                         onclick="event.stopPropagation()">
                                                                 </div>
+                                                                <!-- DNA, Fat, Protein, Calcium display -->
+                                                                <div
+                                                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 3px;">
+                                                                    <div
+                                                                        style="display: flex; align-items: center; gap: 2px;">
+                                                                        <span
+                                                                            style="font-size: 9px; color: #374151; font-weight: 500;">DNA:</span>
+                                                                        <span
+                                                                            style="font-size: 9px; color: {% if product.dna %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.dna|yesno:"true,false" }}</span>
+                                                                    </div>
+                                                                    <div
+                                                                        style="display: flex; align-items: center; gap: 2px;">
+                                                                        <span
+                                                                            style="font-size: 9px; color: #374151; font-weight: 500;">Fat:</span>
+                                                                        <span
+                                                                            style="font-size: 9px; color: {% if product.fat %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.fat|yesno:"true,false" }}</span>
+                                                                    </div>
+                                                                    <div
+                                                                        style="display: flex; align-items: center; gap: 2px;">
+                                                                        <span
+                                                                            style="font-size: 9px; color: #374151; font-weight: 500;">Protein:</span>
+                                                                        <span
+                                                                            style="font-size: 9px; color: {% if product.protein %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.protein|yesno:"true,false" }}</span>
+                                                                    </div>
+                                                                    <div
+                                                                        style="display: flex; align-items: center; gap: 2px;">
+                                                                        <span
+                                                                            style="font-size: 9px; color: #374151; font-weight: 500;">Calcium:</span>
+                                                                        <span
+                                                                            style="font-size: 9px; color: {% if product.calcium %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.calcium|yesno:"true,false" }}</span>
+                                                                    </div>
+                                                                </div>
                                                                 {% if forloop.first %}
                                                                 <div style="display: flex; gap: 4px; margin-top: 4px;">
                                                                     <button id="rfi-btn-{{ fallback_group_id }}"
                                                                         style="flex: 1; padding: 3px 6px; background: {% if shipment.has_rfi %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 8px;"
-                                                                        onclick="event.stopPropagation(); uploadRfiForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{%
-                                                                        if shipment.has_rfi %}RFI ✓{% else %}RFI{% endif
-                                                                        %}</button>
+                                                                        onclick="event.stopPropagation(); uploadRfiForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{% if shipment.has_rfi %}RFI ✓{% else %}RFI{% endif %}</button>
                                                                     {% if request.user.role != 'inspector' %}
                                                                     <button id="invoice-btn-{{ fallback_group_id }}"
                                                                         style="flex: 1; padding: 3px 6px; background: {% if shipment.has_invoice %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 8px;"
-                                                                        onclick="event.stopPropagation(); uploadInvoiceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{%
-                                                                        if shipment.has_invoice %}Invoice ✓{% else
-                                                                        %}Invoice{% endif %}</button>
+                                                                        onclick="event.stopPropagation(); uploadInvoiceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{% if shipment.has_invoice %}Invoice ✓{% else %}Invoice{% endif %}</button>
                                                                     {% endif %}
                                                                 </div>
                                                                 {% endif %}
@@ -8404,381 +8488,91 @@
                                                         </div>
                                                         <!-- Commodity & Product -->
                                                         <div
-                                                            style="flex: 1; min-width: 115px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 8px;">
+                                                            style="flex: 0 0 115px; width: 115px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 8px; margin-right: 12px;">
                                                             <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
+                                                                style="font-size: 10px; color: #6b7280; margin-bottom: 3px;">
                                                                 Commodity: <span
-                                                                    style="font-weight: 600; color: #374151;">{{
-                                                                    product.commodity|default:"-"|truncatechars:10
-                                                                    }}</span></div>
+                                                                    style="font-weight: 600; color: #374151;">{{ product.commodity|default:"-"|truncatechars:10 }}</span></div>
                                                             <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                                style="font-size: 10px; color: #6b7280; margin-bottom: 5px;">
                                                                 Product: <span
-                                                                    style="font-weight: 600; color: #374151;">{{
-                                                                    product.product_name|default:"-"|truncatechars:10
-                                                                    }}</span></div>
+                                                                    style="font-weight: 600; color: #374151;">{{ product.product_name|default:"-"|truncatechars:10 }}</span></div>
                                                             <div
-                                                                style="display: flex; flex-direction: column; gap: 2px;">
+                                                                style="display: flex; flex-direction: column; gap: 3px;">
                                                                 {% if product.is_sample_taken %}<span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #3b82f6; color: white; border-radius: 2px; text-align: center;">Sampled</span>{%
-                                                                endif %}
-                                                                {% if product.is_direction_present_for_this_inspection
-                                                                %}<span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px; text-align: center;">Non-Compliant</span>{%
-                                                                else %}<span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px; text-align: center;">Compliant</span>{%
-                                                                endif %}
+                                                                    style="font-size: 8px; padding: 3px 5px; background: #3b82f6; color: white; border-radius: 2px; text-align: center;">Sampled</span>{% endif %}
+                                                                {% if product.is_direction_present_for_this_inspection %}<span
+                                                                    style="font-size: 8px; padding: 3px 5px; background: #ef4444; color: white; border-radius: 2px; text-align: center;">Non-Compliant</span>{% else %}<span
+                                                                    style="font-size: 8px; padding: 3px 5px; background: #22c55e; color: white; border-radius: 2px; text-align: center;">Compliant</span>{% endif %}
                                                             </div>
                                                         </div>
                                                         <!-- Compliance -->
                                                         <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
                                                             <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
                                                                 Compliance</div>
-                                                            <button data-upload-btn="compliance-{{ product.id }}"
-                                                                style="width: 100%; padding: 3px; background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
+                                                            <button id="compliance-{{ fallback_group_id }}"
+                                                                data-upload-btn="compliance-{{ product.id }}"
+                                                                style="width: 100%; padding: 4px 6px; background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
                                                                 onclick="event.stopPropagation(); uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
                                                         </div>
                                                         <!-- Composition -->
                                                         <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
                                                             <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
                                                                 Composition</div>
-                                                            <button data-upload-btn="composition-{{ product.id }}"
-                                                                style="width: 100%; padding: 3px; background: {% if shipment.has_composition %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{%
-                                                                if shipment.has_composition %}Upload ✓{% else %}Upload{%
-                                                                endif %}</button>
+                                                            <button id="composition-{{ fallback_group_id }}"
+                                                                data-upload-btn="composition-{{ product.id }}"
+                                                                style="width: 100%; padding: 4px 6px; background: {% if shipment.has_composition %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
+                                                                onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
                                                         </div>
                                                         <!-- COA/Lab -->
                                                         <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
                                                             <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
                                                                 COA/Lab</div>
-                                                            <button data-upload-btn="lab-{{ product.id }}"
-                                                                style="width: 100%; padding: 3px; background: {% if shipment.has_lab %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{%
-                                                                if shipment.has_lab %}Upload ✓{% else %}Upload{% endif
-                                                                %}</button>
+                                                            <button id="lab-{{ fallback_group_id }}"
+                                                                data-upload-btn="lab-{{ product.id }}"
+                                                                style="width: 100%; padding: 4px 6px; background: {% if shipment.has_lab %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
+                                                                onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
+                                                        </div>
+                                                        <!-- Retest -->
+                                                        <div
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
+                                                            <div
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
+                                                                Retest</div>
+                                                            <button id="retest-btn-{{ fallback_group_id }}"
+                                                                data-upload-btn="retest-{{ product.id }}"
+                                                                style="width: 100%; padding: 4px 6px; background: {% if shipment.has_retest %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
+                                                                onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
                                                         </div>
                                                         <!-- Occurrence -->
                                                         <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
                                                             <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
                                                                 Occurrence</div>
-                                                            <button data-upload-btn="occurrence-{{ product.id }}"
-                                                                style="width: 100%; padding: 3px; background: {% if shipment.has_occurrence %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">{%
-                                                                if shipment.has_occurrence %}Upload ✓{% else %}Upload{%
-                                                                endif %}</button>
+                                                            <button id="occurrence-{{ fallback_group_id }}"
+                                                                data-upload-btn="occurrence-{{ product.id }}"
+                                                                style="width: 100%; padding: 4px 6px; background: {% if shipment.has_occurrence %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
+                                                                onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
                                                         </div>
                                                         <!-- Other -->
                                                         <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                                            style="flex: 0 0 170px; width: 170px; height: 48px; background: white; border-radius: 8px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
                                                             <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                                                                style="font-size: 8px; color: #6b7280; font-weight: 600; text-align: center;">
                                                                 Other</div>
                                                             <button data-upload-btn="other-{{ product.id }}"
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
+                                                                style="width: 100%; padding: 4px 6px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px;"
                                                                 onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Upload</button>
                                                         </div>
                                                     </div>
                                                     {% endfor %}
-
-                                                    <!-- Demo Inspection Row 2 - RAW/Beef Mince -->
-                                                    <div
-                                                        style="display: flex; gap: 8px; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; margin-bottom: 8px;">
-                                                        <div
-                                                            style="flex: 0 0 150px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
-                                                            <div
-                                                                style="font-size: 10px; color: #007890; font-weight: 600; margin-bottom: 3px;">
-                                                                Facility</div>
-                                                            <div
-                                                                style="font-size: 10px; color: #374151; font-weight: 500;">
-                                                                {{ shipment.client_name|truncatechars:18 }}</div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                {{ shipment.internal_account_code|default:"-" }}</div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 3px;">
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Km:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Hours:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 115px; background: #fef2f2; border-radius: 4px; border-left: 3px solid #ef4444; padding: 8px;">
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
-                                                                Commodity: <span
-                                                                    style="font-weight: 600; color: #374151;">RAW</span>
-                                                            </div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                Product: <span
-                                                                    style="font-weight: 600; color: #374151;">Beef
-                                                                    Mince</span></div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 2px;">
-                                                                <span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px; text-align: center;">Non-Compliant</span>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Compliance</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Composition</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                COA/Lab</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Occurrence</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Other</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Demo Inspection Row 3 - PORK -->
-                                                    <div
-                                                        style="display: flex; gap: 8px; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; margin-bottom: 8px;">
-                                                        <div
-                                                            style="flex: 0 0 150px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
-                                                            <div
-                                                                style="font-size: 10px; color: #007890; font-weight: 600; margin-bottom: 3px;">
-                                                                Facility</div>
-                                                            <div
-                                                                style="font-size: 10px; color: #374151; font-weight: 500;">
-                                                                {{ shipment.client_name|truncatechars:18 }}</div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                {{ shipment.internal_account_code|default:"-" }}</div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 3px;">
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Km:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Hours:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 115px; background: #f0fdf4; border-radius: 4px; border-left: 3px solid #22c55e; padding: 8px;">
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
-                                                                Commodity: <span
-                                                                    style="font-weight: 600; color: #374151;">PMP</span>
-                                                            </div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                Product: <span
-                                                                    style="font-weight: 600; color: #374151;">Pork
-                                                                    Sausage</span></div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 2px;">
-                                                                <span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #3b82f6; color: white; border-radius: 2px; text-align: center;">Sampled</span>
-                                                                <span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px; text-align: center;">Compliant</span>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Compliance</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Composition</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                COA/Lab</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Occurrence</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Other</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Demo Inspection Row 4 - LAMB -->
-                                                    <div
-                                                        style="display: flex; gap: 8px; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; margin-bottom: 8px;">
-                                                        <div
-                                                            style="flex: 0 0 150px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
-                                                            <div
-                                                                style="font-size: 10px; color: #007890; font-weight: 600; margin-bottom: 3px;">
-                                                                Facility</div>
-                                                            <div
-                                                                style="font-size: 10px; color: #374151; font-weight: 500;">
-                                                                {{ shipment.client_name|truncatechars:18 }}</div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                {{ shipment.internal_account_code|default:"-" }}</div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 3px;">
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Km:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                                <div
-                                                                    style="display: flex; align-items: center; gap: 4px;">
-                                                                    <span
-                                                                        style="font-size: 9px; color: #374151; font-weight: 500; min-width: 35px;">Hours:</span>
-                                                                    <input type="number"
-                                                                        style="width: 60px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
-                                                                        value="" placeholder="0"
-                                                                        onclick="event.stopPropagation()">
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 115px; background: #f0fdf4; border-radius: 4px; border-left: 3px solid #22c55e; padding: 8px;">
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
-                                                                Commodity: <span
-                                                                    style="font-weight: 600; color: #374151;">EGGS</span>
-                                                            </div>
-                                                            <div
-                                                                style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                Product: <span
-                                                                    style="font-weight: 600; color: #374151;">Free
-                                                                    Range</span></div>
-                                                            <div
-                                                                style="display: flex; flex-direction: column; gap: 2px;">
-                                                                <span
-                                                                    style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px; text-align: center;">Compliant</span>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Compliance</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Composition</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                COA/Lab</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Occurrence</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                        <div
-                                                            style="flex: 1; min-width: 70px; background: white; border-radius: 4px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
-                                                            <div
-                                                                style="font-size: 10px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
-                                                                Other</div><button
-                                                                style="width: 100%; padding: 3px; background: #6b7280; color: white; border: none; border-radius: 2px; cursor: pointer; font-size: 9px;"
-                                                                onclick="event.stopPropagation();">Upload</button>
-                                                        </div>
-                                                    </div>
-
                                                     {% else %}
                                                     <div
                                                         style="flex: 1; background: white; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 8px; display: flex; align-items: center; justify-content: center;">
@@ -9184,6 +8978,16 @@
                     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
                 }
 
+                .btn-file.btn-danger {
+                    background: linear-gradient(135deg, #ef4444, #dc2626);
+                    color: white;
+                    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+                }
+
+                .btn-file.btn-danger:hover {
+                    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+                }
+
                 .empty-category {
                     padding: 24px;
                     text-align: center;
@@ -9206,13 +9010,13 @@
             <!-- Load sent status functionality from external file -->
             <script src="{% static 'js/sent_status.js' %}?v=20251003-FINAL-FIX"></script>
             <!-- Load clean upload functions -->
-            <script src="{% static 'js/upload_functions.js'%}?v=20251102-OCCURRENCE-SPELLING-FIX"></script>
+            <script src="{% static 'js/upload_functions.js'%}?v=20260110-V3"></script>
             <!-- Load bought sample functionality -->
             <script src="{% static 'js/bought_sample.js' %}?v=20251003-FINAL-FIX"></script>
             <!-- Load KM and Hours functions fix (before main JS to ensure functions are available) -->
             <script src="{% static 'js/km_hours_fix.js' %}?v=20251030-NO-X-BUTTON"></script>
             <!-- Load current rendered JavaScript functions -->
-            <script src="{% static 'js/current_rendered_js.js' %}?v=20251008-FIX"></script>
+            <script src="{% static 'js/current_rendered_js.js' %}?v=20260110-V3"></script>
             <script>
                 // CACHE BUST: 2025-10-28 - Email functions fix - MUST SEE THIS
                 console.log('🚀 SCRIPT LOADED - Cache busted at:', new Date().toISOString());
@@ -9658,8 +9462,8 @@
                         window.currentFilesClient = clientName;
                         window.currentFilesDate = inspectionDate;
                         window.currentFilesGroupId = groupId;
-                        if (typeof loadInspectionFiles === 'function') {
-                            loadInspectionFiles(groupId, clientName, inspectionDate);
+                        if (typeof window.loadInspectionFiles === 'function') {
+                            window.loadInspectionFiles(groupId, clientName, inspectionDate);
                         }
                     }
                 };
@@ -9697,6 +9501,11 @@
 
                 window.uploadRfiForInspection = window.uploadRfiForInspection || function (productId, groupId) {
                     console.log('Upload RFI for inspection:', productId, groupId);
+                    alert('Please wait - upload functions loading...');
+                };
+
+                window.uploadRetestForInspection = window.uploadRetestForInspection || function (productId, groupId) {
+                    console.log('Upload Retest for inspection:', productId, groupId);
                     alert('Please wait - upload functions loading...');
                 };
 
@@ -10163,7 +9972,7 @@
                     console.log('🚀 CACHE BUST: 2025-01-15 - Menu debugging version loaded');
 
                     // Initialize theme
-                    initTheme();
+                    if (typeof initTheme === 'function') initTheme();
 
                     // Mobile menu functionality
                     console.log('🍔 ===== SETTING UP MENU EVENT LISTENERS =====');
@@ -10265,14 +10074,18 @@
 
                 // CSRF functions now defined at top of script section
 
-                // Delete file function - Only compliance documents are protected from deletion
-                async function deleteFile(filePath, category) {
-                    // Prevent deletion of compliance documents only
-                    if (category === 'compliance' || (filePath && filePath.toLowerCase().includes('compliance'))) {
-                        alert('Compliance documents cannot be deleted for security and audit purposes.');
+                // Download file function
+                function downloadFile(url) {
+                    if (!url || url === '#') {
+                        console.error('Invalid download URL');
                         return;
                     }
+                    // Open in new tab to trigger download
+                    window.open(url, '_blank');
+                }
 
+                // Delete file function
+                async function deleteFile(filePath, category) {
                     if (!confirm('Are you sure you want to delete this ' + category + ' file? This action cannot be undone.')) {
                         return;
                     }
@@ -10297,11 +10110,22 @@
                             // Show success message
                             console.log('✅ File deleted successfully:', filePath);
 
+                            // IMMEDIATE: Set composition button to grey if composition file was deleted
+                            if (category === 'composition' || filePath.toLowerCase().includes('composition')) {
+                                window.compositionJustDeleted = true;
+                                const allCompBtns = document.querySelectorAll('[data-upload-btn*="composition"]');
+                                allCompBtns.forEach(btn => {
+                                    btn.style.background = '#6c757d';
+                                    btn.innerHTML = 'Upload';
+                                });
+                                // Clear flag after 2 seconds
+                                setTimeout(() => { window.compositionJustDeleted = false; }, 2000);
+                            }
+
                             // Re-enable RFI and Invoice buttons if their files were deleted
                             reEnableUploadButtons(filePath, category);
 
                             // Update View Files button colors after deletion
-                            console.log('🎨 Updating button colors after file deletion...');
                             updateAllViewFilesButtonColors();
 
                             // Also update RFI/Invoice button colors after deletion
@@ -10309,9 +10133,20 @@
                                 updateRFIAndInvoiceButtonColorsForClient(window.currentFilesClient);
                             }
 
-                            // Refresh the files display
+                            // Refresh the files display while preserving scroll position
                             if (window.currentFilesClient && window.currentFilesDate) {
+                                // Save current scroll position
+                                const modalBody = document.querySelector('#filesModal .modal-body');
+                                const scrollTop = modalBody ? modalBody.scrollTop : 0;
+
                                 openFilesPopup(window.currentFilesGroupId, window.currentFilesClient, window.currentFilesDate);
+
+                                // Restore scroll position after content loads
+                                setTimeout(() => {
+                                    if (modalBody) {
+                                        modalBody.scrollTop = scrollTop;
+                                    }
+                                }, 100);
                             }
                         } else {
                             console.error('❌ Failed to delete file:', result.error);
@@ -10350,13 +10185,13 @@
                     }
 
                     // Also handle data-upload-btn based buttons (composition, lab, compliance, other)
-                    const dataUploadCategories = ['composition', 'lab', 'compliance', 'other', 'coa'];
+                    const dataUploadCategories = ['composition', 'lab', 'compliance', 'other', 'coa', 'occurrence'];
                     if (dataUploadCategories.some(cat => category === cat || filePath.toLowerCase().includes(cat))) {
                         // Find all buttons with matching data-upload-btn that contains the category
                         const matchingButtons = document.querySelectorAll('[data-upload-btn*="' + category + '"]');
                         matchingButtons.forEach(btn => {
-                            console.log('🔴 Resetting data-upload-btn button to RED:', btn.getAttribute('data-upload-btn'));
-                            btn.style.background = '#ef4444';
+                            console.log('⚫ Resetting data-upload-btn button to GREY:', btn.getAttribute('data-upload-btn'));
+                            btn.style.background = '#6c757d';  // Grey color - no file
                             btn.innerHTML = 'Upload';
                             btn.disabled = false;
                         });
@@ -11004,7 +10839,7 @@
                     console.log('🔄 File overlay: View Files clicked - Starting files fetch for', clientName, 'on', inspectionDate);
 
                     // Load files for this specific inspection date only
-                    loadInspectionFiles(groupId, clientName, inspectionDate);
+                    window.loadInspectionFiles(groupId, clientName, inspectionDate);
                 }
 
                 function closeFilesPopup() {
@@ -11100,7 +10935,7 @@
                     }
                 };
 
-                async function loadInspectionFiles(groupId, clientName, inspectionDate) {
+                window.loadInspectionFiles = async function loadInspectionFiles(groupId, clientName, inspectionDate) {
                     try {
                         console.log('🔄 File fetch: Starting file fetch request...');
                         console.log('[DEBUG] DEBUG: Group ID:', groupId);
@@ -11570,7 +11405,8 @@
                         },
                         body: JSON.stringify({
                             client_name: clientName,
-                            inspection_date: inspectionDate
+                            inspection_date: inspectionDate,
+                            _force_refresh: true
                         })
                     })
                         .then(response => {
@@ -11717,8 +11553,53 @@
                                             mobileInvoiceButton.style.color = 'white';
                                             mobileInvoiceButton.disabled = false;
                                             mobileInvoiceButton.onclick = function () { uploadInvoice(groupId); };
-                                            console.log('🔴 [Invoice] Mobile button updated to RED (no file)');
                                         }
+                                    }
+
+                                    // Update composition, lab, and occurrence buttons based on API data
+                                    const compositionFiles = data.files.composition || [];
+                                    const labFiles = data.files.lab || [];
+                                    const occurrenceFiles = data.files.occurrence || [];
+
+                                    // Find all buttons with data-upload-btn in this row
+                                    if (targetRow) {
+                                        // Update Composition buttons - skip if just deleted
+                                        if (!window.compositionJustDeleted) {
+                                            const compositionBtns = targetRow.querySelectorAll('[data-upload-btn*="composition"]');
+                                            compositionBtns.forEach(btn => {
+                                                if (compositionFiles.length > 0) {
+                                                    btn.style.background = '#22c55e';
+                                                    btn.innerHTML = 'Upload ✓';
+                                                } else {
+                                                    btn.style.background = '#6c757d';
+                                                    btn.innerHTML = 'Upload';
+                                                }
+                                            });
+                                        }
+
+                                        // Update Lab/COA buttons
+                                        const labBtns = targetRow.querySelectorAll('[data-upload-btn*="lab"]');
+                                        labBtns.forEach(btn => {
+                                            if (labFiles.length > 0) {
+                                                btn.style.background = '#22c55e';
+                                                btn.innerHTML = 'Upload ✓';
+                                            } else {
+                                                btn.style.background = '#6c757d';
+                                                btn.innerHTML = 'Upload';
+                                            }
+                                        });
+
+                                        // Update Occurrence buttons
+                                        const occurrenceBtns = targetRow.querySelectorAll('[data-upload-btn*="occurrence"]');
+                                        occurrenceBtns.forEach(btn => {
+                                            if (occurrenceFiles.length > 0) {
+                                                btn.style.background = '#22c55e';
+                                                btn.innerHTML = 'Upload ✓';
+                                            } else {
+                                                btn.style.background = '#6c757d';
+                                                btn.innerHTML = 'Upload';
+                                            }
+                                        });
                                     }
                                 }
                             }
@@ -11820,9 +11701,14 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button class="btn btn-sm" onclick="downloadFile('${file.download_url}')" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
-                                    <i class="fas fa-download"></i> Download
-                                </button>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-sm" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center;">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button class="btn btn-sm" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" style="background: transparent; color: #605e5c; border: 1px solid #d2d0ce; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; transition: all 0.1s ease;" onmouseenter="this.style.background='#fde7e9'; this.style.borderColor='#d13438'; this.style.color='#a4262c';" onmouseleave="this.style.background='transparent'; this.style.borderColor='#d2d0ce'; this.style.color='#605e5c';">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
                             </div>
                         `;
                             });
@@ -11870,7 +11756,8 @@
                 }
 
                 function getFileIcon(filename) {
-                    const ext = filename.split('.').pop().toLowerCase();
+                    if (!filename) return 'file';
+                    const ext = String(filename).split('.').pop().toLowerCase();
                     const iconMap = {
                         'pdf': 'file-pdf',
                         'doc': 'file-word',
@@ -11985,8 +11872,7 @@
                     const documentCategories = [
                         { key: 'rfi', name: 'RFI Documents', icon: 'fas fa-file-alt' },
                         { key: 'invoice', name: 'Invoice Documents', icon: 'fas fa-file-invoice' },
-                        { key: 'lab', name: 'Lab Results', icon: 'fas fa-flask' },
-                        { key: 'coa', name: 'COA Documents', icon: 'fas fa-certificate' },
+                        { key: 'lab', name: 'COA', icon: 'fas fa-flask' },
                         { key: 'retest', name: 'Retest Documents', icon: 'fas fa-redo' },
                         { key: 'compliance', name: 'Compliance Documents', icon: 'fas fa-shield-alt' },
                         { key: 'composition', name: 'Composition Documents', icon: 'fas fa-vial' },
@@ -11996,7 +11882,7 @@
 
                     // Check if files are categorized by commodity type (like POULTRY, MEAT, etc.)
                     const fileKeys = Object.keys(files);
-                    const documentTypeKeys = ['rfi', 'invoice', 'lab', 'coa', 'retest', 'compliance', 'composition', 'occurrence', 'other'];
+                    const documentTypeKeys = ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'composition', 'occurrence', 'other'];
 
                     // Check if ALL keys are document types (not commodity-based)
                     const allKeysAreDocumentTypes = fileKeys.every(key =>
@@ -12052,17 +11938,16 @@
                                             <span>${file.modified || ''}</span>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="file-actions">
+                                <
+                                /div>
+                                <div class="file-actions" style="display: flex !important; gap: 8px !important; align-items: center;">
                                     ${getViewButton(file)}
-                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local')}" class="btn btn-file btn-secondary" title="Download File">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-file btn-secondary" style="background: #10b981 !important; color: white !important; padding: 6px 10px; border-radius: 6px; font-size: 12px;" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    ${category.key !== 'compliance' && !(file.relative_path && file.relative_path.toLowerCase().includes('compliance')) && !(file.path && file.path.toLowerCase().includes('compliance')) ? `
-                                    <button class="btn btn-file btn-danger" onclick="console.log('Delete file:', '${(file.relative_path || file.path).replace(/'/g, "\\'")}'); deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete File">
-                                        <i class="fas fa-trash"></i>
+                                    <button class="btn btn-file" style="background: transparent; color: #605e5c; padding: 6px 10px; border-radius: 4px; border: 1px solid #d2d0ce; transition: all 0.1s ease;" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete" onmouseenter="this.style.background='#fde7e9'; this.style.borderColor='#d13438'; this.style.color='#a4262c';" onmouseleave="this.style.background='transparent'; this.style.borderColor='#d2d0ce'; this.style.color='#605e5c';">
+                                        <i class="fas fa-trash-alt"></i>
                                     </button>
-                                    ` : ''}
                                 </div>
                             </div>
                         `;
@@ -12076,7 +11961,8 @@
                 }
 
                 function getFileIcon(filename) {
-                    const ext = filename.split('.').pop().toLowerCase();
+                    if (!filename) return 'fas fa-file';
+                    const ext = String(filename).split('.').pop().toLowerCase();
                     switch (ext) {
                         case 'pdf': return 'fas fa-file-pdf';
                         case 'xlsx': case 'xls': return 'fas fa-file-excel';
@@ -12088,45 +11974,35 @@
                 }
 
                 function getViewButton(file) {
-                    const filename = file.filename || file.name;
-                    const ext = filename.split('.').pop().toLowerCase();
-                    const filePath = file.relative_path || file.path;
+                    try {
+                        const filename = file.filename || file.name || 'unknown';
+                        const ext = filename.split('.').pop().toLowerCase();
+                        const filePath = file.relative_path || file.path || '';
 
-                    // DEBUG LOGGING
-                    console.log('[DEBUG] getViewButton called for file:', filename);
-                    console.log('[DEBUG] File object:', file);
-                    console.log('[DEBUG] file.relative_path:', file.relative_path);
-                    console.log('[DEBUG] file.path:', file.path);
-                    console.log('[DEBUG] Resolved filePath:', filePath);
+                        // If no valid file path, return empty string
+                        if (!filePath) {
+                            console.warn('[DEBUG] getViewButton: No valid file path for:', filename);
+                            return '';
+                        }
 
-                    // For ZIP files, show extract/contents button instead of view
-                    if (ext === 'zip' || ext === 'rar') {
-                        return `
-                    <button class="btn btn-file btn-warning" onclick="showZipContents('${filePath}', '${file.source || 'local'}')" title="Show ZIP Contents">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                `;
+                        // For ZIP files, show extract/contents button instead of view
+                        if (ext === 'zip' || ext === 'rar') {
+                            return `<button class="btn btn-file btn-warning" onclick="showZipContents('${filePath}', '${file.source || 'local'}')" title="Show ZIP Contents" style="background: #f59e0b !important; color: white !important; padding: 6px 10px; border-radius: 6px; border: none;"><i class="fas fa-eye"></i></button>`;
+                        }
+
+                        // For viewable files (PDF, images, etc.), show view button
+                        const viewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
+                        if (viewableTypes.includes(ext)) {
+                            const viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(filePath) + '&source=' + (file.source || 'local') + '&action=view';
+                            return `<a href="${viewUrl}" class="btn btn-file btn-primary" target="_blank" title="View File" style="background: #3b82f6 !important; color: white !important; padding: 6px 10px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center;"><i class="fas fa-eye"></i></a>`;
+                        }
+
+                        // For other files (Excel, Word), show info button
+                        return `<button class="btn btn-file btn-info" onclick="alert('This file type opens best when downloaded')" title="Download to View" style="background: #06b6d4 !important; color: white !important; padding: 6px 10px; border-radius: 6px; border: none;"><i class="fas fa-info"></i></button>`;
+                    } catch (e) {
+                        console.error('[DEBUG] getViewButton error:', e);
+                        return '';
                     }
-
-                    // For viewable files (PDF, images, etc.), show view button
-                    const viewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
-                    if (viewableTypes.includes(ext)) {
-                        // Always use download endpoint with action=view (don't use file.url as /media/ doesn't work)
-                        const viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(filePath) + '&source=' + (file.source || 'local') + '&action=view';
-                        console.log('[DEBUG] Generated viewUrl:', viewUrl);
-                        return `
-                    <a href="${viewUrl}" class="btn btn-file btn-primary" target="_blank" title="View File">
-                        <i class="fas fa-eye"></i>
-                    </a>
-                `;
-                    }
-
-                    // For other files (Excel, Word), show download-only
-                    return `
-                <button class="btn btn-file btn-info" onclick="alert('This file type opens best when downloaded')" title="Download to View">
-                    <i class="fas fa-info"></i>
-                </button>
-            `;
                 }
 
                 async function showZipContents(relativePath, source = 'local') {
@@ -13093,7 +12969,7 @@
                                                     button.style.backgroundColor = '#28a745';
                                                     button.style.borderColor = '#28a745';
                                                     button.style.color = 'white';
-                                                    button.innerHTML = '<i class="fas fa-check mr-1"></i> Occurrence';
+                                                    button.innerHTML = '<i class="fas fa-check mr-1"></i> Upload';
                                                     button.title = 'Occurrence file exists';
                                                 });
                                                 console.log(`✅ Updated ${buttonsToUpdate.length} Occurrence button(s) to green`);
@@ -13387,8 +13263,15 @@
                     document.body.removeChild(fileInput);
                 }
 
-                // Upload Retest function
-                window.uploadRetest = function uploadRetest(inspectionId) {
+                // Upload Retest function - accepts both groupId and inspectionId (same as other uploads)
+                window.uploadRetest = function uploadRetest(groupId, inspectionId) {
+                    console.log('window.uploadRetest called with groupId:', groupId, 'inspectionId:', inspectionId);
+
+                    if (!groupId && !inspectionId) {
+                        alert('Error: Group ID or Inspection ID is required');
+                        return;
+                    }
+
                     // Create a file input element
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
@@ -13403,26 +13286,20 @@
                                 alert('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
-                            // Get the group_id from the button's data attribute
-                            const button = document.getElementById('retest-' + inspectionId);
-                            let groupId = null;
-                            if (button) {
-                                groupId = button.getAttribute('data-group-id');
-                            }
 
-                            // Create form data
+                            // Create form data - send both group_id and inspection_id (same as other uploads)
                             const formData = new FormData();
                             formData.append('file', file);
-                            formData.append('inspection_id', inspectionId);
                             formData.append('document_type', 'retest');
-                            if (groupId) {
-                                formData.append('group_id', groupId);
-                            }
+                            if (groupId) formData.append('group_id', groupId);
+                            if (inspectionId) formData.append('inspection_id', inspectionId);
 
                             // Get CSRF token
                             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
                                 '{{ csrf_token|escapejs }}';
                             formData.append('csrfmiddlewaretoken', csrfToken);
+
+                            console.log('Uploading retest with group_id:', groupId);
 
                             // Upload file
                             fetch('/upload-document/', {
@@ -13433,28 +13310,33 @@
                                 .then(data => {
                                     console.log('Retest upload response:', data);
                                     if (data.success) {
+                                        alert(data.message || 'Retest document uploaded successfully!');
                                         console.log('✅ Retest report uploaded successfully!');
-                                        console.log('Marking retest button as uploaded:', 'retest-' + inspectionId);
-                                        markAsUploaded('retest-' + inspectionId);
 
-                                        // Auto-open files popup after successful upload
-                                        const button = document.getElementById('retest-' + inspectionId);
-                                        if (button) {
-                                            const groupId = button.getAttribute('data-group-id');
-                                            const clientName = button.getAttribute('data-client-name');
-                                            const inspectionDate = button.getAttribute('data-inspection-date');
-                                            if (groupId && clientName && inspectionDate) {
-                                                // Longer delay to ensure the upload is processed and indexed
-                                                setTimeout(() => {
-                                                    openFilesPopup(groupId, clientName, inspectionDate);
-                                                }, 2500);
+                                        // Update button to green
+                                        const desktopBtn = document.getElementById('retest-btn-' + groupId);
+                                        const mobileBtn = document.getElementById('retest-mobile-' + groupId);
+
+                                        [desktopBtn, mobileBtn].forEach(btn => {
+                                            if (btn) {
+                                                btn.style.backgroundColor = '#22c55e';
+                                                btn.style.borderColor = '#22c55e';
+                                                btn.disabled = true;
+                                                btn.title = 'Retest file uploaded';
                                             }
+                                        });
+
+                                        // Refresh button colors
+                                        if (typeof updateAllViewFilesButtonColors === 'function') {
+                                            setTimeout(() => updateAllViewFilesButtonColors(), 2000);
                                         }
                                     } else {
+                                        alert(data.error || 'Failed to upload retest document');
                                         console.error('❌ Error uploading Retest report:', data.error);
                                     }
                                 })
                                 .catch(error => {
+                                    alert('Error uploading retest document. Please try again.');
                                     console.error('❌ Error uploading Retest report:', error.message);
                                 });
                         }
@@ -13497,10 +13379,14 @@
                                 .then(data => {
                                     if (data.success) {
                                         console.log('✅ Compliance uploaded for inspection ' + productId);
-                                        // Turn button green
+                                        // Turn button green but keep enabled for multiple uploads
                                         const btn = document.querySelector('.upload-btn[data-type="compliance"][data-id="' + productId + '"]');
                                         if (btn) {
-                                            btn.style.background = '#22c55e';
+                                            btn.style.backgroundColor = '#22c55e';
+                                            btn.style.borderColor = '#22c55e';
+                                            btn.disabled = false;
+                                            btn.style.cursor = 'pointer';
+                                            btn.title = 'Compliance file exists - click to upload more';
                                             // Ensure this button can be found by id-based reset/check logic
                                             if (!btn.id) btn.id = 'compliance-' + productId;
                                             // Persist upload state so loadUploadStatus/check routines pick this up
@@ -13511,6 +13397,15 @@
                                             } catch (e) {
                                                 console.error('Error saving uploadStatus for compliance:', e);
                                             }
+                                        }
+                                        // Also update template-style button
+                                        const templateBtn = document.querySelector('[data-upload-btn="compliance-' + productId + '"]');
+                                        if (templateBtn) {
+                                            templateBtn.style.backgroundColor = '#22c55e';
+                                            templateBtn.style.borderColor = '#22c55e';
+                                            templateBtn.disabled = false;
+                                            templateBtn.style.cursor = 'pointer';
+                                            templateBtn.title = 'Compliance file exists - click to upload more';
                                         }
                                         alert('Compliance document uploaded successfully!');
                                     } else {
@@ -13754,9 +13649,15 @@
                                 .then(data => {
                                     if (data.success) {
                                         console.log('✅ Other file uploaded for inspection ' + productId);
-                                        // Turn button green
-                                        const btn = document.querySelector('.upload-btn[data-type="other"][data-id="' + productId + '"]');
-                                        if (btn) btn.style.background = '#22c55e';
+                                        // Turn button green but keep enabled for multiple uploads
+                                        const btn = document.querySelector('[data-upload-btn="other-' + productId + '"]');
+                                        if (btn) {
+                                            btn.style.backgroundColor = '#22c55e';
+                                            btn.style.borderColor = '#22c55e';
+                                            btn.disabled = false;
+                                            btn.style.cursor = 'pointer';
+                                            btn.title = 'Other file exists - click to upload more';
+                                        }
                                         alert('File uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading file:', data.error);
@@ -13790,7 +13691,9 @@
                             if (typeFiles.length > 0) {
                                 // Open the first file in a new tab
                                 const file = typeFiles[0];
-                                const url = file.url || (file.path ? '/media/' + file.path : null);
+                                // Use download endpoint with action=view instead of direct /media/ URL
+                                const filePath = file.relative_path || file.path;
+                                const url = filePath ? '/inspections/download-file/?file=' + encodeURIComponent(filePath) + '&action=view' : null;
                                 if (url) {
                                     window.open(url, '_blank');
                                 } else {
@@ -13829,7 +13732,7 @@
 
                             // Get the file to delete
                             const file = typeFiles[0];
-                            const filePath = file.path || file.url;
+                            const filePath = file.relative_path || file.path;
 
                             if (!filePath) {
                                 alert('Could not determine file path for deletion.');
@@ -14494,7 +14397,8 @@
                                 retestButton.disabled = false;
                                 retestButton.style.opacity = '1';
                                 retestButton.style.cursor = 'pointer';
-                                retestButton.onclick = function () { uploadRetest(inspectionId); };
+                                // DON'T override the onclick - keep the original template onclick handler
+                                // which already has the correct groupId. Just ensure button is enabled.
                                 retestButton.title = 'Retest required - Please upload retest document';
                             } else {
                                 retestButton.disabled = true;
@@ -15319,7 +15223,9 @@
                 }
 
                 // Initialize theme on page load
-                initTheme();
+                if (typeof window.initTheme === 'function') {
+                    window.initTheme();
+                }
 
                 // Email function is now defined in km_hours_fix.js as updateGroupAdditionalEmail (singular)
                 // No need for complex add/remove email row functions anymore
@@ -16334,7 +16240,7 @@
                             // Only modify non-uploaded buttons
                             // Show button if group has RAW OR PMP (or both)
                             if (hasPMP || hasRAW) {
-                                compositionBtn.style.display = 'inline-block';
+                                compositionBtn.style.display = 'block';
                                 if (compositionCell) {
                                     compositionCell.querySelector('.composition-indicator')?.remove();
                                 }
@@ -16343,7 +16249,7 @@
                                 if (hasPMP) commodityTypes.push('PMP');
                                 console.log(`[COMPOSITION] ✅ Showing composition button for ${groupId} (has ${commodityTypes.join(' and ')} commodities)`);
                             } else {
-                                compositionBtn.style.display = 'none';
+                                compositionBtn.style.display = 'block';
                                 if (compositionCell && !compositionCell.querySelector('.composition-indicator')) {
                                     // Add dash if not already present
                                     const indicator = document.createElement('span');
@@ -16361,7 +16267,7 @@
                                 compositionBtnMobile.style.display = 'block';
                                 console.log(`[COMPOSITION] ✅ Showing MOBILE composition button for ${groupId}`);
                             } else {
-                                compositionBtnMobile.style.display = 'none';
+                                compositionBtnMobile.style.display = 'block';
                                 console.log(`[COMPOSITION] ❌ Hiding MOBILE composition button for ${groupId}`);
                             }
                         }

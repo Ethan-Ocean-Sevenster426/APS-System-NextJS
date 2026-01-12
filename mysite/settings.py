@@ -110,7 +110,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
-# Use SQLite for local development - easy fresh start with empty database
+# MySQL database for development
 DATABASES = {
     'default': {
         'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
@@ -123,6 +123,11 @@ DATABASES = {
             'charset': 'utf8mb4',
         },
     },
+    # SQLite database - commented out
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # },
     # SQL Server disabled - we only want local/manual inspections
     # 'sql_server': {
     #     'ENGINE': env('SQL_SERVER_ENGINE', default='mssql'),

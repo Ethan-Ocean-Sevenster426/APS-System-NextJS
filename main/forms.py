@@ -268,12 +268,57 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
 
     LAB_CHOICES = [
         ('', '-- Select Lab --'),
-        ('lab_a', 'Lab A'),
-        ('lab_b', 'Lab B'),
-        ('lab_c', 'Lab C'),
-        ('lab_d', 'Lab D'),
-        ('lab_e', 'Lab E'),
-        ('lab_f', 'Lab F'),
+        ('lab_b', 'Merieux NutriSciences'),
+        ('lab_c', 'AGRI Food Laboratory (SGS)'),
+        ('lab_d', 'SANBI'),
+        ('lab_e', 'SMT'),
+        ('lab_f', 'ARC'),
+        ('lab_a', 'Food Safety Laboratory'),
+    ]
+
+    PRODUCT_CLASS_CHOICES = [
+        ('', '-- Select Product Class --'),
+        ('Raw species sausage / wors', 'Raw species sausage / wors'),
+        ('Extra Lean Mince', 'Extra Lean Mince'),
+        ('Lean Mince', 'Lean Mince'),
+        ('Regular Mince', 'Regular Mince'),
+        ('Raw Flavoured Ground Meat', 'Raw Flavoured Ground Meat'),
+        ('Raw Flavoured Ground Meat & Offal', 'Raw Flavoured Ground Meat & Offal'),
+        ('Raw Flavoured mixed species Ground Meat', 'Raw Flavoured mixed species Ground Meat'),
+        ('Raw Flavoured mixed species Ground Meat & Offal', 'Raw Flavoured mixed species Ground Meat & Offal'),
+        ('Raw Boerewors', 'Raw Boerewors'),
+        ('Raw mixed species sausage / wors', 'Raw mixed species sausage / wors'),
+        ('Ground Burger / Ground patty = Extra Lean', 'Ground Burger / Ground patty = Extra Lean'),
+        ('Ground Burger / Ground patty = Lean', 'Ground Burger / Ground patty = Lean'),
+        ('Ground Burger / Ground patty = Regular', 'Ground Burger / Ground patty = Regular'),
+        ('Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Extra Lean', 'Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Extra Lean'),
+        ('Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Lean', 'Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Lean'),
+        ('Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Regular', 'Burger / Patty / Hamburger Patty / Meatball / Frikkadel = Regular'),
+        ('Value burger / Value patty / Value hamburger / Value meatball / Value frikkadel', 'Value burger / Value patty / Value hamburger / Value meatball / Value frikkadel'),
+        ('Economy Burger / Econo Burger / Economy Patty / Econo Patty / Budget Burger', 'Economy Burger / Econo Burger / Economy Patty / Econo Patty / Budget Burger'),
+        ('Raw Banger / Griller', 'Raw Banger / Griller'),
+        ('Raw Bratwurst / Sizzler', 'Raw Bratwurst / Sizzler'),
+        ('Whole Muscle, uncured and heat / partial heat treated products', 'Whole Muscle, uncured and heat / partial heat treated products'),
+        ('Whole muscle, uncured, no or partial heat treated and air dried products', 'Whole muscle, uncured, no or partial heat treated and air dried products'),
+        ('Whole muscle, uncured, no or partial heat treated and air dried products undergoing a lengthy maturation period (minimum 21 days)', 'Whole muscle, uncured, no or partial heat treated and air dried products undergoing a lengthy maturation period (minimum 21 days)'),
+        ('Whole muscle, dry cured, no or partial heat treated products', 'Whole muscle, dry cured, no or partial heat treated products'),
+        ('Whole muscle, cured and no or partial heat treated products', 'Whole muscle, cured and no or partial heat treated products'),
+        ('Whole muscle, cured, no or partial heat treated and air dried products', 'Whole muscle, cured, no or partial heat treated and air dried products'),
+        ('Whole muscle, dry cured, no or partial heat treated and dried products', 'Whole muscle, dry cured, no or partial heat treated and dried products'),
+        ('Comminuted, cured and heat treated products', 'Comminuted, cured and heat treated products'),
+        ('Comminuted, uncured, no or partial heat treated and dried products', 'Comminuted, uncured, no or partial heat treated and dried products'),
+        ('Comminuted, cured, no or partial heat treated, dried and fermented products', 'Comminuted, cured, no or partial heat treated, dried and fermented products'),
+        ('Comminuted, uncured and heat treated products', 'Comminuted, uncured and heat treated products'),
+        ('Reformed, uncured and no or partial heat treated products', 'Reformed, uncured and no or partial heat treated products'),
+        ('Reformed, cured, heat treated products from single species', 'Reformed, cured, heat treated products from single species'),
+        ('Reformed, cured, heat treated products from mixed species', 'Reformed, cured, heat treated products from mixed species'),
+        ('Reformed, cured and no or partial heat treated products', 'Reformed, cured and no or partial heat treated products'),
+        ('Liver spreads, pâté and terrines', 'Liver spreads, pâté and terrines'),
+        ('Products in aspic: Brawn', 'Products in aspic: Brawn'),
+        ('Product in aspic: Souse, Other products containing cured meat pieces in aspic', 'Product in aspic: Souse, Other products containing cured meat pieces in aspic'),
+        ('Products made from blood', 'Products made from blood'),
+        ('Coated Processed Meat Products', 'Coated Processed Meat Products'),
+        ('Unspecified processed meat products', 'Unspecified processed meat products'),
     ]
 
     commodity = forms.ChoiceField(
@@ -316,6 +361,14 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
         })
     )
 
+    town = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Town/location'
+        })
+    )
+
     product_name = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -324,12 +377,17 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
         })
     )
 
-    product_class = forms.CharField(
+    product_class = forms.ChoiceField(
+        choices=PRODUCT_CLASS_CHOICES,
         required=False,
-        widget=forms.TextInput(attrs={
+        widget=forms.Select(attrs={
             'class': 'form-control',
-            'placeholder': 'Product class'
         })
+    )
+
+    inspected = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
 
     is_sample_taken = forms.BooleanField(
@@ -372,6 +430,21 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
         })
     )
 
+    follow_up = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+    occurrence_report = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+    dispensation_application = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
     comment = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -385,16 +458,20 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
         model = FoodSafetyAgencyInspection
         fields = [
             'commodity', 'date_of_inspection', 'client_name', 'internal_account_code',
-            'inspector_name', 'product_name', 'product_class',
-            'is_sample_taken', 'bought_sample', 'km_traveled', 'hours',
-            'lab', 'comment',
-            'fat', 'protein', 'calcium', 'dna', 'needs_retest'
+            'inspector_name', 'town', 'product_name', 'product_class',
+            'inspected', 'is_sample_taken', 'bought_sample', 'km_traveled', 'hours',
+            'lab', 'fat', 'protein', 'calcium', 'dna', 'needs_retest',
+            'follow_up', 'occurrence_report', 'dispensation_application', 'comment'
         ]
         widgets = {
+            'inspected': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'fat': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'protein': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'calcium': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'dna': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'follow_up': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'occurrence_report': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'dispensation_application': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'needs_retest': forms.Select(attrs={'class': 'form-control'}, choices=[
                 ('', '-- Select --'),
                 ('YES', 'Yes'),

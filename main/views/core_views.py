@@ -637,40 +637,113 @@ def add_fsa_inspection(request):
                 else:
                     inspection.remote_id = min_remote_id - 1
 
-                # Handle file uploads
+                # Handle file uploads - save to proper folder structure
                 from django.utils import timezone
+                from django.conf import settings
+                import os
+                import re
+
+                def create_folder_name(name):
+                    """Create Linux-friendly folder name - matches get_inspection_files_local"""
+                    if not name:
+                        return "unknown_client"
+                    clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
+                    clean_name = clean_name.replace(' ', '_').replace('-', '_')
+                    clean_name = re.sub(r'_+', '_', clean_name)
+                    clean_name = clean_name.strip('_').lower()
+                    return clean_name or "unknown_client"
+
+                def save_uploaded_file(uploaded_file, insp, category):
+                    """Save uploaded file to the proper folder structure.
+
+                    STANDARD FOLDER STRUCTURE (must match get_inspection_files_local):
+                    - Path: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
+                    - Categories: rfi, invoice, lab, compliance, composition, occurrence, retest
+                    - All lowercase folder names for consistency
+
+                    Uses database IDs for reliable, unique folder paths:
+                    - client_id: Client.id (auto-generated integer)
+                    - inspection_id: FoodSafetyAgencyInspection.id (auto-generated integer)
+                    """
+                    from main.models import Client
+
+                    # Ensure inspection has a linked Client
+                    if not insp.client:
+                        # Try to find existing client by name
+                        client = Client.objects.filter(name__iexact=insp.client_name).first()
+                        if not client:
+                            # Create new client
+                            client = Client.objects.create(name=insp.client_name or "Unknown Client")
+                            print(f"✅ Created new Client: {client.name} (ID: {client.id})")
+                        insp.client = client
+                        insp.save(update_fields=['client'])
+                        print(f"✅ Linked inspection {insp.id} to Client {client.id}")
+
+                    # Build folder path: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
+                    folder_path = os.path.join(
+                        settings.MEDIA_ROOT,
+                        'docs',
+                        str(insp.client.id),
+                        str(insp.id),
+                        category
+                    )
+
+                    # Create directories if they don't exist
+                    os.makedirs(folder_path, exist_ok=True)
+
+                    # Save the file
+                    file_path = os.path.join(folder_path, uploaded_file.name)
+                    with open(file_path, 'wb+') as destination:
+                        for chunk in uploaded_file.chunks():
+                            destination.write(chunk)
+
+                    print(f"✅ File saved to: {file_path}")
+                    return file_path
 
                 # RFI file
                 if 'rfi_file' in request.FILES:
+                    save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
                     inspection.rfi_uploaded_by = request.user
                     inspection.rfi_uploaded_date = timezone.now()
                     print(f"✅ RFI file uploaded: {request.FILES['rfi_file'].name}")
 
                 # Invoice file
                 if 'invoice_file' in request.FILES:
+                    save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
                     inspection.invoice_uploaded_by = request.user
                     inspection.invoice_uploaded_date = timezone.now()
                     print(f"✅ Invoice file uploaded: {request.FILES['invoice_file'].name}")
 
                 # Lab Form file
                 if 'labform_file' in request.FILES:
+                    save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
                     inspection.lab_form_uploaded_by = request.user
                     inspection.lab_form_uploaded_date = timezone.now()
                     print(f"✅ Lab Form file uploaded: {request.FILES['labform_file'].name}")
 
-                # COA file
+                # COA file (save to compliance folder as that's where get_inspection_files_local looks)
                 if 'coa_file' in request.FILES:
+                    save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
                     inspection.coa_uploaded_by = request.user
                     inspection.coa_uploaded_date = timezone.now()
                     print(f"✅ COA file uploaded: {request.FILES['coa_file'].name}")
 
                 # Composition file
                 if 'composition_file' in request.FILES:
+                    save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
                     inspection.composition_uploaded_by = request.user
                     inspection.composition_uploaded_date = timezone.now()
                     print(f"✅ Composition file uploaded: {request.FILES['composition_file'].name}")
 
                 inspection.save()
+
+                # Clear file cache so View Files shows the new files immediately
+                from django.core.cache import cache
+                if inspection.client:
+                    cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
+                    cache.delete(cache_key)
+                    cache.delete(f"{cache_key}_timestamp")
+                    print(f"🗑️ Cache cleared for: {cache_key}")
 
                 # Build success message with upload info
                 uploaded_docs = []
@@ -944,8 +1017,6 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
         import re
         import glob
         
-        print(f"[DEBUG] Starting compliance check for {client_name} on {date_of_inspection}")
-        
         # Initialize variables
         commodity_status = {}
         has_any_compliance = False
@@ -961,7 +1032,6 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
         commodities = set()
         for inspection in inspections:
             commodity = getattr(inspection, 'commodity', None)
-            print(f"   Inspection commodity: {commodity}")
             if commodity:
                 commodities.add(commodity)
             from django.conf import settings
@@ -977,8 +1047,6 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
             # Get unique commodities from inspections
             commodities = set()
             for inspection in inspections:
-                # Add debug for inspection commodity
-                print(f"   Inspection commodity: {getattr(inspection, 'commodity', None)}")
                 commodities.add(getattr(inspection, 'commodity', None))
 
             commodity_status = {}
@@ -1001,15 +1069,12 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
                 return clean_name or "unknown_client"
             
             client_folder = create_folder_name(client_name)
-            print(f"[DEBUG] Checking compliance for client: '{client_name}' (sanitized folder: '{client_folder}')")
 
         # Check both main compliance folder and inspection-specific folders
         client_base = os.path.join(settings.MEDIA_ROOT, 'inspection', year_folder, month_folder, client_folder)
-        print(f"   Checking client base path: {client_base}")
         
         # Check main Compliance folder
         main_compliance_path = os.path.join(client_base, 'compliance')
-        print(f"   Checking main compliance path: {main_compliance_path}")
         
         # Check Inspection-* folders for compliance files
         inspection_folders = []
@@ -1068,7 +1133,6 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
                 folders = os.listdir(client_base)
                 # Case-insensitive check for inspection folders
                 inspection_folders = [d for d in folders if d.lower().startswith('inspection-')]
-                print(f"   [DEBUG] Found inspection folders: {inspection_folders}")
                 
                 for folder in inspection_folders:
                     inspection_path = os.path.join(client_base, folder)
@@ -1076,18 +1140,14 @@ def check_compliance_documents_status_local(inspections, client_name, date_of_in
                         try:
                             files = os.listdir(inspection_path)
                             if files:
-                                print(f"   Found files in {folder}: {files}")
                                 has_any_compliance = True
-                        except Exception as e:
-                            print(f"   ERROR: Error listing {folder}: {e}")
-            except Exception as e:
-                print(f"   ERROR: Error listing inspection folders: {e}")
-        else:
-            print(f"   Client base path does not exist")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
         # ALSO check media/uploads/inspections folder for compliance files
         uploads_path = os.path.join(settings.MEDIA_ROOT, 'uploads', 'inspections')
-        print(f"   [FALLBACK] Checking uploads folder: {uploads_path}")
 
         if os.path.exists(uploads_path):
             try:
@@ -1608,98 +1668,112 @@ def shipment_list(request):
     
     # Helper function to check files for a single group (fast version for page load)
     def check_group_files(client_name, inspection_date):
-        """Check if files exist for this group - optimized for speed"""
+        """Check if files exist for this group - optimized for speed
+
+        Checks NEW structure first: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
+        Falls back to LEGACY structure: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/...
+        """
         import re
         from django.conf import settings
+        from main.models import FoodSafetyAgencyInspection
 
         try:
-            # Get inspection base path - use MEDIA_ROOT/inspection where files are actually uploaded
-            inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
-
-            # Sanitize client name to match folder structure
-            def create_folder_name(name):
-                if not name:
-                    return "unknown_client"
-                clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-                clean_name = clean_name.replace(' ', '_').replace('-', '_')
-                clean_name = re.sub(r'_+', '_', clean_name)
-                clean_name = clean_name.strip('_').lower()
-                return clean_name or "unknown_client"
-
-            sanitized_client_name = create_folder_name(client_name)
-            name_with_spaces_for_apostrophe = client_name.replace("'", ' ')
-            sanitized_with_apostrophe = create_folder_name(name_with_spaces_for_apostrophe)
-            # Include btn_ and group_ prefixed variations (from different upload paths)
-            client_folder_variations = [
-                sanitized_client_name,
-                sanitized_with_apostrophe,
-                f'btn_{sanitized_client_name}',
-                f'group_{sanitized_client_name}',
-                client_name
-            ]
-
-            # Get year and month from inspection date
-            year = inspection_date.strftime('%Y')
-            month = inspection_date.strftime('%B')
-            parent_path = os.path.join(inspection_base, year, month)
-
             has_rfi = has_invoice = has_lab = has_compliance = has_composition = has_occurrence = False
 
-            if os.path.exists(parent_path):
-                for folder_variation in client_folder_variations:
-                    test_path = os.path.join(parent_path, folder_variation)
-                    if os.path.exists(test_path):
-                        # Quick check for RFI (check main variations only)
-                        if not has_rfi:
-                            for rfi_var in ['RFI', 'rfi', 'Request For Invoice', 'request for invoice']:
-                                rfi_path = os.path.join(test_path, rfi_var)
-                                if os.path.exists(rfi_path) and os.listdir(rfi_path):
-                                    has_rfi = True
-                                    break
+            # === NEW STRUCTURE: Check docs/{client_id}/{inspection_id}/ ===
+            # Look up inspections for this client and date
+            inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=inspection_date
+            ).select_related('client')
 
-                        # Quick check for Invoice
-                        if not has_invoice:
-                            for inv_var in ['Invoice', 'invoice']:
-                                invoice_path = os.path.join(test_path, inv_var)
-                                if os.path.exists(invoice_path) and os.listdir(invoice_path):
-                                    has_invoice = True
-                                    break
+            docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
 
-                        # Quick check for Lab
-                        if not has_lab:
-                            for lab_var in ['Lab', 'lab', 'Lab Results', 'lab results']:
-                                lab_path = os.path.join(test_path, lab_var)
-                                if os.path.exists(lab_path) and os.listdir(lab_path):
-                                    has_lab = True
-                                    break
+            for inspection in inspections:
+                if inspection.client:
+                    insp_path = os.path.join(docs_base, str(inspection.client.id), str(inspection.id))
+                    if os.path.exists(insp_path):
+                        # Check each category
+                        for category in ['rfi', 'invoice', 'lab', 'compliance', 'composition', 'occurrence']:
+                            cat_path = os.path.join(insp_path, category)
+                            if os.path.exists(cat_path) and os.listdir(cat_path):
+                                if category == 'rfi': has_rfi = True
+                                elif category == 'invoice': has_invoice = True
+                                elif category == 'lab': has_lab = True
+                                elif category == 'compliance': has_compliance = True
+                                elif category == 'composition': has_composition = True
+                                elif category == 'occurrence': has_occurrence = True
 
-                        # Quick check for Compliance
-                        if not has_compliance:
-                            for comp_var in ['Compliance', 'compliance']:
-                                comp_path = os.path.join(test_path, comp_var)
-                                if os.path.exists(comp_path) and os.listdir(comp_path):
-                                    has_compliance = True
-                                    break
+            # === LEGACY STRUCTURE: Check inspection/YEAR/MONTH/CLIENT/ ===
+            # Only check if we haven't found all files yet
+            if not (has_rfi and has_invoice and has_lab and has_compliance and has_composition and has_occurrence):
+                inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
 
-                        # Quick check for Composition
-                        if not has_composition:
-                            for comp_var in ['Composition', 'composition']:
-                                comp_path = os.path.join(test_path, comp_var)
-                                if os.path.exists(comp_path) and os.listdir(comp_path):
-                                    has_composition = True
-                                    break
+                def create_folder_name(name):
+                    if not name:
+                        return "unknown_client"
+                    clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
+                    clean_name = clean_name.replace(' ', '_').replace('-', '_')
+                    clean_name = re.sub(r'_+', '_', clean_name)
+                    clean_name = clean_name.strip('_').lower()
+                    return clean_name or "unknown_client"
 
-                        # Quick check for Occurrence
-                        if not has_occurrence:
-                            for occ_var in ['Occurrence', 'occurrence']:
-                                occ_path = os.path.join(test_path, occ_var)
-                                if os.path.exists(occ_path) and os.listdir(occ_path):
-                                    has_occurrence = True
-                                    break
+                sanitized_client_name = create_folder_name(client_name)
+                client_folder_variations = [
+                    sanitized_client_name,
+                    f'btn_{sanitized_client_name}',
+                    client_name
+                ]
 
-                        # If we found all files, no need to check other variations
-                        if has_rfi and has_invoice and has_lab and has_compliance and has_composition and has_occurrence:
-                            break
+                year = inspection_date.strftime('%Y')
+                month = inspection_date.strftime('%B')
+                parent_path = os.path.join(inspection_base, year, month)
+
+                if os.path.exists(parent_path):
+                    for folder_variation in client_folder_variations:
+                        test_path = os.path.join(parent_path, folder_variation)
+                        if os.path.exists(test_path):
+                            if not has_rfi:
+                                for rfi_var in ['rfi', 'RFI', 'Request For Invoice']:
+                                    rfi_path = os.path.join(test_path, rfi_var)
+                                    if os.path.exists(rfi_path) and os.listdir(rfi_path):
+                                        has_rfi = True
+                                        break
+
+                            if not has_invoice:
+                                for inv_var in ['invoice', 'Invoice']:
+                                    invoice_path = os.path.join(test_path, inv_var)
+                                    if os.path.exists(invoice_path) and os.listdir(invoice_path):
+                                        has_invoice = True
+                                        break
+
+                            if not has_lab:
+                                for lab_var in ['lab', 'Lab', 'lab results']:
+                                    lab_path = os.path.join(test_path, lab_var)
+                                    if os.path.exists(lab_path) and os.listdir(lab_path):
+                                        has_lab = True
+                                        break
+
+                            if not has_compliance:
+                                for comp_var in ['compliance', 'Compliance']:
+                                    comp_path = os.path.join(test_path, comp_var)
+                                    if os.path.exists(comp_path) and os.listdir(comp_path):
+                                        has_compliance = True
+                                        break
+
+                            if not has_composition:
+                                for comp_var in ['composition', 'Composition']:
+                                    comp_path = os.path.join(test_path, comp_var)
+                                    if os.path.exists(comp_path) and os.listdir(comp_path):
+                                        has_composition = True
+                                        break
+
+                            if not has_occurrence:
+                                for occ_var in ['occurrence', 'Occurrence']:
+                                    occ_path = os.path.join(test_path, occ_var)
+                                    if os.path.exists(occ_path) and os.listdir(occ_path):
+                                        has_occurrence = True
+                                        break
 
             # Determine file status
             if has_rfi and has_invoice and has_lab and has_compliance:
@@ -1711,7 +1785,6 @@ def shipment_list(request):
             else:
                 file_status = 'no_files'  # Red
 
-            # Debug logging for file detection
             print(f"[FILE CHECK] {client_name}: RFI={has_rfi}, Invoice={has_invoice}, Lab={has_lab}, Compliance={has_compliance}, Composition={has_composition}, Occurrence={has_occurrence}")
 
             return {
@@ -1848,10 +1921,10 @@ def shipment_list(request):
         if client_name:
             norm_name = _norm(client_name)
             if group_internal_account_code:
-                print(f"[ACCOUNT CODE] ✓ Found for '{client_name}': {group_internal_account_code}")
+                safe_print(f"[ACCOUNT CODE] Found for '{client_name}': {group_internal_account_code}")
             else:
-                print(f"[ACCOUNT CODE] ✗ MISSING for '{client_name}' (normalized: '{norm_name}')")
-                print(f"[ACCOUNT CODE]   Keys in map: {list(_client_map.keys())[:10]}")
+                safe_print(f"[ACCOUNT CODE] MISSING for '{client_name}' (normalized: '{norm_name}')")
+                safe_print(f"[ACCOUNT CODE]   Keys in map: {list(_client_map.keys())[:10]}")
 
         # PERFORMANCE OPTIMIZATION: Use list comprehension for faster product building (2-3x faster than loop+append)
         # Product names are fetched by background sync service - just use what's in database
@@ -2311,7 +2384,12 @@ def upload_document(request):
             document_type = request.POST.get('document_type')
             inspection_number = request.POST.get('inspection_number')  # For individual inspection compliance files
             uploaded_file = request.FILES.get('file')
-            
+
+            # SAFETY: Ensure inspection_id is either None or a valid number string
+            if inspection_id and not str(inspection_id).isdigit():
+                print(f"[SAFETY] Invalid inspection_id received: '{inspection_id}' - setting to None")
+                inspection_id = None
+
             # Debug logging
             print(f"Upload request - Group ID: '{group_id}', Inspection ID: '{inspection_id}', Document Type: '{document_type}'")
             print(f"Group ID type: {type(group_id)}, Inspection ID type: {type(inspection_id)}")
@@ -2359,12 +2437,16 @@ def upload_document(request):
                     client_name = re.sub(r'_+', '_', client_name).strip('_')
                     date_str = parts[-1]
                     # Convert date format (e.g., 20230530 to 2023/May)
-                    if len(date_str) == 8:
-                        year = date_str[:4]
-                        month_num = int(date_str[4:6])
-                        month_name = datetime.strptime(f"2023-{month_num:02d}-01", "%Y-%m-%d").strftime("%B")
-                        year_folder = year
-                        month_folder = month_name
+                    if len(date_str) == 8 and date_str.isdigit():
+                        try:
+                            year = date_str[:4]
+                            month_num = int(date_str[4:6])
+                            month_name = datetime.strptime(f"2023-{month_num:02d}-01", "%Y-%m-%d").strftime("%B")
+                            year_folder = year
+                            month_folder = month_name
+                        except (ValueError, TypeError):
+                            year_folder = datetime.now().strftime("%Y")
+                            month_folder = datetime.now().strftime("%B")
                     else:
                         year_folder = datetime.now().strftime("%Y")
                         month_folder = datetime.now().strftime("%B")
@@ -2390,12 +2472,16 @@ def upload_document(request):
                     if len(parts) >= 2:
                         client_name = '_'.join(parts[:-1])
                         date_str = parts[-1]
-                        if len(date_str) == 8:
-                            year = date_str[:4]
-                            month_num = int(date_str[4:6])
-                            month_name = datetime.strptime(f"2023-{month_num:02d}-01", "%Y-%m-%d").strftime("%B")
-                            year_folder = year
-                            month_folder = month_name
+                        if len(date_str) == 8 and date_str.isdigit():
+                            try:
+                                year = date_str[:4]
+                                month_num = int(date_str[4:6])
+                                month_name = datetime.strptime(f"2023-{month_num:02d}-01", "%Y-%m-%d").strftime("%B")
+                                year_folder = year
+                                month_folder = month_name
+                            except (ValueError, TypeError):
+                                year_folder = datetime.now().strftime("%Y")
+                                month_folder = datetime.now().strftime("%B")
                         else:
                             year_folder = datetime.now().strftime("%Y")
                             month_folder = datetime.now().strftime("%B")
@@ -2410,7 +2496,9 @@ def upload_document(request):
                 else:
                     # For other cases or when no group_id, use individual inspection's client name
                     try:
-                        inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+                        inspection = None
+                        if inspection_id and str(inspection_id).isdigit():
+                            inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                         if inspection:
                             client_name = inspection.client_name or "Unknown Client"
                             # Keep original client name for folder structure (don't sanitize)
@@ -2511,76 +2599,105 @@ def upload_document(request):
                 # No group_id provided, client_name should already be set from earlier logic
                 print(f"[UPLOAD] No group_id provided, using client_name: '{client_name}'")
             
-            client_folder = create_folder_name(client_name)
-            
-            # Create folder structure: inspection/Year/Month/client name/document_type/
-            base_dir = os.path.join(settings.MEDIA_ROOT, 'inspection')
-            year_dir = os.path.join(base_dir, year_folder)
-            month_dir = os.path.join(year_dir, month_folder)
-            client_dir = os.path.join(month_dir, client_folder)
-            
-            # Enforce unified directory scheme
-            # - Grouped (unmatched): client-level rfi, invoice, compliance
-            # - Individual (matched): inspection-<id>/{rfi,invoice,compliance,lab,retest,form}
-            if document_type in ['rfi', 'invoice', 'compliance', 'lab', 'lab_form', 'retest', 'form', 'occurrence', 'composition', 'other', 'coa']:
+            # === NEW STRUCTURE: docs/{client_id}/{inspection_id}/{category}/ ===
+            # Look up inspection(s) to get IDs for folder path
+            from main.models import Client
+
+            STANDARD_FOLDER_MAP = {
+                'rfi': 'rfi',
+                'invoice': 'invoice',
+                'lab': 'lab',
+                'lab_form': 'lab',
+                'retest': 'retest',
+                'compliance': 'compliance',
+                'form': 'lab',
+                'occurrence': 'occurrence',
+                'composition': 'composition',
+                'other': 'other',
+                'coa': 'compliance',
+            }
+            mapped_type = STANDARD_FOLDER_MAP.get(document_type, document_type)
+
+            # Find the inspection(s) for this upload
+            target_inspection = None
+            if inspection_id and str(inspection_id).isdigit():
+                # Individual upload - find by remote_id (only if numeric)
+                target_inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
+
+            if not target_inspection and group_id:
+                # Group upload - find first inspection for this client+date
+                parts = group_id.split('_')
+                if len(parts) >= 2:
+                    date_str = parts[-1]
+                    if len(date_str) == 8:
+                        try:
+                            date_obj = datetime.strptime(date_str, '%Y%m%d').date()
+                            target_inspection = FoodSafetyAgencyInspection.objects.filter(
+                                client_name__iexact=client_name,
+                                date_of_inspection=date_obj
+                            ).first()
+                        except ValueError:
+                            pass
+
+            # Ensure inspection has a linked Client
+            if target_inspection:
+                if not target_inspection.client:
+                    # Try to find existing client by name
+                    client_obj = Client.objects.filter(name__iexact=client_name).first()
+                    if not client_obj:
+                        # Create new client
+                        client_obj = Client.objects.create(name=client_name or "Unknown Client")
+                        print(f"✅ Created new Client: {client_obj.name} (ID: {client_obj.id})")
+                    target_inspection.client = client_obj
+                    target_inspection.save(update_fields=['client'])
+                    print(f"✅ Linked inspection {target_inspection.id} to Client {client_obj.id}")
+
+                # Build new structure path: docs/{client_id}/{inspection_id}/{category}/
+                document_dir = os.path.join(
+                    settings.MEDIA_ROOT,
+                    'docs',
+                    str(target_inspection.client.id),
+                    str(target_inspection.id),
+                    mapped_type
+                )
+                print(f"[UPLOAD] Using NEW structure: {document_dir}")
+            else:
+                # Fallback to old structure if no inspection found
+                client_folder = create_folder_name(client_name)
+                base_dir = os.path.join(settings.MEDIA_ROOT, 'inspection')
+                year_dir = os.path.join(base_dir, year_folder)
+                month_dir = os.path.join(year_dir, month_folder)
+                client_dir = os.path.join(month_dir, client_folder)
+
                 if upload_type == 'individual' and inspection_id:
-                    # Map document types to folder names that match scan_inspection_folders expectations
-                    folder_map = {
-                        'lab': 'lab results',          # Lab results go to 'lab results' folder
-                        'lab_form': 'lab results',     # Lab forms also go to 'lab results' folder
-                        'rfi': 'Request For Invoice',  # RFI documents go to 'Request For Invoice' folder
-                        'invoice': 'invoice',          # Invoices go to 'invoice' folder (lowercase)
-                        'retest': 'retest',            # Retest documents go to 'retest' folder (lowercase)
-                        'compliance': 'Compliance',    # Compliance documents go to 'Compliance' folder (uppercase)
-                        'form': 'lab results',         # Generic forms go to 'lab results' folder
-                        'occurrence': 'occurrence',    # Occurrence documents go to 'occurrence' folder (lowercase)
-                        'composition': 'composition',  # Composition documents go to 'composition' folder (lowercase)
-                        'other': 'other',              # Other documents go to 'other' folder (lowercase)
-                        'coa': 'coa'                   # COA documents go to 'coa' folder (lowercase)
-                    }
-                    mapped_type = folder_map.get(document_type, document_type)
-                    # Use uppercase Inspection- to match scan function (it looks for folders starting with 'Inspection-')
                     document_dir = os.path.join(client_dir, f"Inspection-{inspection_id}", mapped_type)
                 else:
-                    top_map = {
-                        'rfi': 'rfi',
-                        'invoice': 'invoice',
-                        'compliance': 'compliance',
-                        'lab': 'lab',
-                        'lab_form': 'lab',  # Map lab_form to lab folder
-                        'retest': 'retest',
-                        'form': 'form',
-                        'occurrence': 'occurrence',
-                        'composition': 'composition',
-                        'other': 'other',
-                        'coa': 'coa',
-                    }
-                    document_dir = os.path.join(client_dir, top_map.get(document_type, document_type))
-            else:
-                # Default fallback
-                document_dir = os.path.join(client_dir, document_type)
-            
+                    document_dir = os.path.join(client_dir, mapped_type)
+                print(f"[UPLOAD] Using LEGACY structure (no inspection found): {document_dir}")
+
             # Create all directories
             os.makedirs(document_dir, exist_ok=True)
-            
+
             # Log the folder structure for debugging
             print(f"Created folder structure: {document_dir}")
-            print(f"Client: {client_name} -> {client_folder}")
-            print(f"Year: {year_folder}, Month: {month_folder}")
+            if target_inspection and target_inspection.client:
+                print(f"Client: {client_name} -> Client ID {target_inspection.client.id}")
+            else:
+                print(f"Client: {client_name} -> {client_folder if 'client_folder' in dir() else 'N/A'}")
             print(f"Document type: {document_type}")
-            if document_type == 'lab' and inspection_id:
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+            if document_type == 'lab' and inspection_id and str(inspection_id).isdigit():
+                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                 if inspection and inspection.commodity:
                     print(f"Commodity: {inspection.commodity}")
-            
+
             # Generate unique filename with timestamp
             file_extension = os.path.splitext(uploaded_file.name)[1]
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # Special naming for COA/Lab documents: FSL-RAW-CN-250703
-            if document_type in ['lab', 'lab_form'] and inspection_id:
+            if document_type in ['lab', 'lab_form'] and inspection_id and str(inspection_id).isdigit():
                 # Get inspection data
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
 
                 if inspection:
                     # Get lab name (default to FSL if not set)
@@ -2649,9 +2766,9 @@ def upload_document(request):
                             formatted_date = datetime.now().strftime('%y%m%d')
                     else:
                         formatted_date = datetime.now().strftime('%y%m%d')
-                elif inspection_id:
+                elif inspection_id and str(inspection_id).isdigit():
                     # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                     if inspection and inspection.date_of_inspection:
                         formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
                     else:
@@ -2695,9 +2812,9 @@ def upload_document(request):
                             formatted_date = datetime.now().strftime('%Y-%m-%d')
                     else:
                         formatted_date = datetime.now().strftime('%Y-%m-%d')
-                elif inspection_id:
+                elif inspection_id and str(inspection_id).isdigit():
                     # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                     if inspection and inspection.date_of_inspection:
                         formatted_date = inspection.date_of_inspection.strftime('%Y-%m-%d')
                     else:
@@ -2712,7 +2829,23 @@ def upload_document(request):
             # Log the filename for debugging
             print(f"Generated filename: {filename}")
             file_path = os.path.join(document_dir, filename)
-            
+
+            # SINGLE-FILE ENFORCEMENT: Delete existing files for document types that only allow one file
+            # Only 'other' and 'compliance' can have multiple files
+            single_file_types = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'occurrence', 'composition']
+            if document_type in single_file_types:
+                # Delete all existing files in this document folder before saving the new one
+                try:
+                    existing_files = [f for f in os.listdir(document_dir) if os.path.isfile(os.path.join(document_dir, f))]
+                    for existing_file in existing_files:
+                        existing_file_path = os.path.join(document_dir, existing_file)
+                        os.remove(existing_file_path)
+                        print(f"[SINGLE-FILE] Deleted existing file: {existing_file_path}")
+                    if existing_files:
+                        print(f"[SINGLE-FILE] Removed {len(existing_files)} existing file(s) for {document_type} - only one file allowed")
+                except Exception as e:
+                    print(f"[SINGLE-FILE] Warning: Could not clean existing files: {e}")
+
             # Save file to local storage first (for OneDrive sync)
             with open(file_path, 'wb+') as destination:
                 for chunk in uploaded_file.chunks():
@@ -2720,10 +2853,14 @@ def upload_document(request):
             
             # Clear file cache for this client to ensure immediate visibility
             from django.core.cache import cache
-            # Use the already defined year_folder and month_folder for cache clearing
-            cache_key = f"local_files:{client_name}:{year_folder}:{month_folder}"
-            cache.delete(cache_key)
-            print(f"[UPLOAD] Cleared cache for: {cache_key}")
+            # Clear cache for both old and new structure
+            if target_inspection and target_inspection.client:
+                cache_key = f"docs_files:{target_inspection.client.id}:{target_inspection.id}"
+                cache.delete(cache_key)
+                print(f"[UPLOAD] Cleared cache for: {cache_key}")
+            # Also clear legacy cache key
+            cache_key_legacy = f"local_files:{client_name}:{year_folder}:{month_folder}"
+            cache.delete(cache_key_legacy)
             
             # Update upload tracking in database
             from django.utils import timezone
@@ -2840,9 +2977,9 @@ def upload_document(request):
                         except ValueError:
                             print(f"WARNING: Could not parse date from group_id: {date_str}")
             
-            elif upload_type == 'individual' and inspection_id:
+            elif upload_type == 'individual' and inspection_id and str(inspection_id).isdigit():
                 # Update individual inspection
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
+                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                 if inspection:
                     if document_type == 'rfi':
                         inspection.rfi_uploaded_by = request.user
@@ -2946,93 +3083,23 @@ def upload_document(request):
                 message = f'{document_type.upper()} uploaded successfully by {user_first_name} for inspection {inspection_id}'
             
             return JsonResponse({
-                'success': True, 
+                'success': True,
                 'message': message,
                 'filename': filename,
                 'file_path': file_path
             })
-            
+
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    
+            import traceback
+            error_traceback = traceback.format_exc()
+            print("=" * 80)
+            print("[UPLOAD ERROR] EXCEPTION IN upload_document:")
+            print(error_traceback)
+            print("=" * 80)
+            return JsonResponse({'success': False, 'error': str(e), 'traceback': error_traceback})
+
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
-
-@login_required(login_url='login')
-def scan_inspection_folders(test_path, seen_files):
-    """Scan Inspection-XXXX folders for files and return a list of files by category."""
-    files_list = {}
-    # Case-insensitive check for inspection folders (handles both Inspection-XXX and inspection-XXX)
-    inspection_folders = [d for d in os.listdir(test_path) if d.lower().startswith('inspection-') and os.path.isdir(os.path.join(test_path, d))]
-    
-    for inspection_folder in sorted(inspection_folders):
-        inspection_path = os.path.join(test_path, inspection_folder)
-        print(f"[DEBUG] Checking inspection folder: {inspection_folder}")
-        
-        # Check each document type in the inspection folder
-        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
-        for doc_type in doc_types:
-            doc_path = os.path.join(inspection_path, doc_type)
-            if os.path.exists(doc_path):
-                print(f" [DEBUG] Found {doc_type} in {inspection_folder}")
-                files = []
-                
-                # Handle subfolders (for lab results and compliance)
-                paths_to_check = []
-                if doc_type in ['lab results', 'Compliance']:
-                    # Check commodity subfolders
-                    try:
-                        for item in os.listdir(doc_path):
-                            item_path = os.path.join(doc_path, item)
-                            if os.path.isdir(item_path):
-                                paths_to_check.append(item_path)
-                                print(f"[DEBUG] Adding commodity path: {item_path}")
-                    except Exception as e:
-                        print(f"[ERROR] Error checking commodity folders: {e}")
-                else:
-                    paths_to_check = [doc_path]
-                
-                # Scan all paths for files
-                for check_path in paths_to_check:
-                    try:
-                        for filename in os.listdir(check_path):
-                            file_path = os.path.join(check_path, filename)
-                            if os.path.isfile(file_path):
-                                file_size = os.path.getsize(file_path)
-                                unique_key = (filename, file_size, os.path.getmtime(file_path))
-                                
-                                if unique_key not in seen_files:
-                                    seen_files.add(unique_key)
-                                    display_path = os.path.join(inspection_folder, doc_type, os.path.relpath(file_path, doc_path))
-                                    files.append({
-                                        'name': filename,
-                                        'path': display_path.replace('\\', '/'),
-                                        'size': file_size
-                                    })
-                                    print(f" [DEBUG] Added file: {filename} from {doc_type}")
-                    except Exception as e:
-                        print(f"[ERROR] Error reading files in {check_path}: {e}")
-                
-                if files:
-                    # Use standardized category keys
-                    category_key = doc_type.lower()
-                    if doc_type == 'Request For Invoice':
-                        category_key = 'rfi'
-                    elif doc_type == 'lab results':
-                        category_key = 'lab'
-                    elif doc_type == 'Compliance':
-                        category_key = 'compliance'
-                    elif doc_type == 'occurrence':
-                        category_key = 'occurrence'
-
-                    print(f" [DEBUG] Mapped doc_type '{doc_type}' to category_key '{category_key}' with {len(files)} files")
-
-                    if category_key not in files_list:
-                        files_list[category_key] = []
-                    files_list[category_key].extend(files)
-                    print(f" [DEBUG] files_list['{category_key}'] now has {len(files_list[category_key])} files")
-    
-    return files_list
 
 def scan_inspection_folders(base_path, seen_files, inspection_id=None):
     """Scan Inspection-XXXX folders for files and return a list of files by category."""
@@ -3043,7 +3110,6 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
 
     for inspection_folder in sorted(inspection_folders):
         inspection_path = os.path.join(base_path, inspection_folder)
-        print(f" [DEBUG] Checking inspection folder: {inspection_folder}")
 
         # Check each document type in the inspection folder
         doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
@@ -3064,23 +3130,21 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
                     continue  # Path doesn't exist, skip
 
             if os.path.exists(doc_path):
-                print(f" [DEBUG] Found {doc_type} in {inspection_folder}")
                 files = []
-                
+
                 # Handle subfolders (for lab results and compliance)
-                paths_to_check = []
+                # ALWAYS include the main folder, PLUS any subfolders for lab results and compliance
+                paths_to_check = [doc_path]  # Always include the main folder
                 if doc_type in ['lab results', 'Compliance']:
-                    # Check commodity subfolders
+                    # Also check commodity subfolders
                     try:
                         for item in os.listdir(doc_path):
                             item_path = os.path.join(doc_path, item)
                             if os.path.isdir(item_path):
                                 paths_to_check.append(item_path)
-                    except Exception as e:
-                        print(f"[ERROR] Error checking commodity folders: {e}")
-                else:
-                    paths_to_check = [doc_path]
-                
+                    except Exception:
+                        pass
+
                 # Process files in all checked paths
                 for check_path in paths_to_check:
                     try:
@@ -3089,7 +3153,7 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
                             if os.path.isfile(file_path):
                                 file_size = os.path.getsize(file_path)
                                 unique_key = (filename, file_size, os.path.getmtime(file_path))
-                                
+
                                 if unique_key not in seen_files:
                                     seen_files.add(unique_key)
                                     # Determine category key first
@@ -3104,22 +3168,12 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
                                             category_key = 'lab'
                                     elif doc_type == 'Compliance':
                                         category_key = 'compliance'
-                                    
-                                    # Filter by inspection ID if provided (but allow old naming conventions)
-                                    if inspection_id:
-                                        # Check if filename starts with the inspection ID (new format)
-                                        # OR allow old format files without inspection ID prefix
-                                        has_inspection_id = filename.startswith(f"{inspection_id}_")
-                                        if not has_inspection_id:
-                                            print(f" [DEBUG] Accepting file without inspection ID prefix (old format): {filename}")
-                                        # Continue processing - don't skip
-                                    
+
                                     # Use get_file_info to create proper file structure
                                     file_info = get_file_info(file_path, category_key)
                                     files.append(file_info)
-                                    print(f" [DEBUG] Added file: {filename} from {doc_type}")
-                    except Exception as e:
-                        print(f"[ERROR] Error reading files in {check_path}: {e}")
+                    except Exception:
+                        pass
                 
                 if files:
                     # Group files by their individual category keys (already determined above)
@@ -3144,21 +3198,15 @@ def list_uploaded_files(request):
     logger = logging.getLogger(__name__)
     inspection_id = None
     group_id = None
-    
-    # Log request details for debugging
-    logger.debug(f" [DEBUG] Request method: {request.method}")
-    logger.debug(f" [DEBUG] Request content type: {request.content_type}")
-    
+
     if request.method == 'GET':
         inspection_id = request.GET.get('inspection_id') or request.GET.get('inspection')
         group_id = request.GET.get('group_id') or request.GET.get('group')
     elif request.method == 'POST':
         try:
-            logger.debug(f" [DEBUG] Request body: {request.body.decode('utf-8')}")
             data = json.loads(request.body)
             inspection_id = data.get('inspection_id') or data.get('inspection')
             group_id = data.get('group_id') or data.get('group')
-            logger.debug(f" [DEBUG] Parsed POST data - inspection_id: {inspection_id}, group_id: {group_id}")
         except json.JSONDecodeError as e:
             logger.error(f" [ERROR] JSON decode error: {str(e)}")
             return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
@@ -3180,8 +3228,7 @@ def list_uploaded_files(request):
                 base_path = os.path.join(settings.MEDIA_ROOT, 'inspections', 
                                        inspection.get_date_folder(), 
                                        inspection.client.name)
-            except Exception as e:
-                print(f" Error getting inspection folder: {str(e)}")
+            except Exception:
                 return JsonResponse({'error': 'Invalid inspection ID'}, status=400)
         elif group_id:
             # The Group model is not defined in main.models in this codebase.
@@ -3189,36 +3236,22 @@ def list_uploaded_files(request):
             return JsonResponse({'error': 'Group-based listing not supported'}, status=400)
 
         if not base_path:
-            print(" Base path is None")
             return JsonResponse({'error': 'Could not determine base path'}, status=500)
-            
+
         if not os.path.exists(base_path):
-            print(f"[ERROR] Base path does not exist: {base_path}")
             return JsonResponse({'files': []})
 
-        print(f" [DEBUG] Scanning base path: {base_path}")
         seen_files = set()
         files_list = scan_inspection_folders(base_path, seen_files)
-
-        print(f" [DEBUG] scan_inspection_folders returned files_list keys: {list(files_list.keys())}")
-        for category, files in files_list.items():
-            print(f" [DEBUG] Category '{category}' has {len(files)} files")
 
         # Initialize any missing categories
         for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition']:
             if category not in files_list:
                 files_list[category] = []
-                print(f" [DEBUG] Initialized empty list for missing category '{category}'")
-
-        print(f" [DEBUG] Final files_list keys before response: {list(files_list.keys())}")
-        print(f" [DEBUG] occurrence files count: {len(files_list.get('occurrence', []))}")
 
         return JsonResponse({'files': files_list})
-        
+
     except Exception as e:
-        print(f" [ERROR] Exception in list_uploaded_files: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
 def list_client_folder_files(request):
@@ -3278,22 +3311,14 @@ def list_client_folder_files(request):
             return clean_name or "unknown_client"
         
         sanitized_client_name = create_folder_name(client_name)
-        
+
         # Also try with forward slashes replaced by spaces (for T/A type names)
         name_with_spaces_for_slash = client_name.replace('/', ' ')
         sanitized_with_slash = create_folder_name(name_with_spaces_for_slash)
-        
+
         # Also try with apostrophes replaced by spaces (for names like "Mamma's Eggs")
         name_with_spaces_for_apostrophe = client_name.replace("'", ' ')
         sanitized_with_apostrophe = create_folder_name(name_with_spaces_for_apostrophe)
-        
-        print(f"[DEBUG] Original client name: {client_name}")
-        print(f"[DEBUG] Sanitized client name: {sanitized_client_name}")
-        print(f"[DEBUG] Name with spaces for slash: {name_with_spaces_for_slash}")
-        print(f"[DEBUG] Sanitized with slash: {sanitized_with_slash}")
-        print(f"[DEBUG] Name with spaces for apostrophe: {name_with_spaces_for_apostrophe}")
-        print(f"[DEBUG] Sanitized with apostrophe: {sanitized_with_apostrophe}")
-        print(f"[DEBUG] Force refresh: {force_refresh}")
 
         # Clear cache if force_refresh is requested
         if force_refresh:
@@ -3303,8 +3328,6 @@ def list_client_folder_files(request):
             cache_key_sanitized = f"local_files:{sanitized_client_name}:{year_folder}:{month_folder}"
             cache.delete(cache_key_original)
             cache.delete(cache_key_sanitized)
-            print(f"✅ [CACHE] Cleared cache for original: {cache_key_original}")
-            print(f"✅ [CACHE] Cleared cache for sanitized: {cache_key_sanitized}")
 
         # Use unified inspection/ folder structure
         # All files should be in: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/
@@ -3326,6 +3349,48 @@ def list_client_folder_files(request):
         files_list = {}
         seen_files = set()  # Track files to avoid duplicates
 
+        # === NEW STRUCTURE: Check docs/{client_id}/{inspection_id}/ first ===
+        # Strip btn- prefix if present
+        clean_client_name = client_name[4:] if client_name.startswith('btn-') else client_name
+
+        # Look up inspection and client in database
+        inspection = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=clean_client_name,
+            date_of_inspection=date_obj.date()
+        ).first()
+
+        client_obj = None
+        if inspection:
+            if inspection.client:
+                client_obj = inspection.client
+            else:
+                # Try to look up client by name
+                from main.models import Client
+                client_obj = Client.objects.filter(name__iexact=clean_client_name).first()
+
+        if inspection and client_obj:
+            docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
+            if os.path.exists(docs_path):
+                # Standard categories to check
+                doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'occurrence', 'retest', 'other']
+                for cat in doc_categories:
+                    cat_path = os.path.join(docs_path, cat)
+                    if os.path.exists(cat_path):
+                        try:
+                            for filename in os.listdir(cat_path):
+                                file_path = os.path.join(cat_path, filename)
+                                if os.path.isfile(file_path):
+                                    file_size = os.path.getsize(file_path)
+                                    unique_key = (filename, file_size, os.path.getmtime(file_path))
+                                    if unique_key not in seen_files:
+                                        seen_files.add(unique_key)
+                                        file_info = get_file_info(file_path, cat)
+                                        if cat not in files_list:
+                                            files_list[cat] = []
+                                        files_list[cat].append(file_info)
+                        except (OSError, PermissionError):
+                            pass
+
         # Find all matching folders (exact and partial matches for nested "/" structures)
         matched_folders = []
 
@@ -3334,15 +3399,12 @@ def list_client_folder_files(request):
             test_path = os.path.join(parent_path, folder_variation)
             if os.path.exists(test_path):
                 matched_folders.append((test_path, folder_variation))
-                print(f"[DEBUG] Found exact match: {folder_variation}")
 
         # If no exact match found, try partial matching (for client names with "/" that create nested dirs)
         if not matched_folders and os.path.exists(parent_path):
             try:
-                print(f"[DEBUG] No exact match found, trying partial matching in: {parent_path}")
                 # List all folders in parent_path
                 available_folders = [f for f in os.listdir(parent_path) if os.path.isdir(os.path.join(parent_path, f))]
-                print(f"[DEBUG] Available folders: {available_folders[:10]}")  # Show first 10
 
                 # Try to find folders that partially match the client name
                 for available_folder in available_folders:
@@ -3360,16 +3422,12 @@ def list_client_folder_files(request):
                         if normalized_available.startswith(normalized_prefix) and len(normalized_prefix) > 10:
                             potential_path = os.path.join(parent_path, available_folder)
                             matched_folders.append((potential_path, available_folder))
-                            print(f"[DEBUG] Found partial match: {available_folder} for {folder_variation}")
                             break  # Found a match for this available folder, move to next
-            except Exception as e:
-                print(f"[DEBUG] Error during partial matching: {e}")
-
-        print(f"[DEBUG] Total matched folders: {len(matched_folders)}")
+            except Exception:
+                pass
 
         # Process all matched folders (both exact and partial matches)
         for test_path, folder_name in matched_folders:
-            print(f"[DEBUG] Checking folder: {test_path}")
 
             # First, use the scan_inspection_folders function to check Inspection-XXXX folders
             inspection_files = scan_inspection_folders(test_path, seen_files, inspection_id)
@@ -3384,7 +3442,6 @@ def list_client_folder_files(request):
             for doc_type in traditional_docs:
                 doc_path = os.path.join(test_path, doc_type)
                 if os.path.exists(doc_path):
-                    print(f"[DEBUG] Found {doc_type} folder at: {doc_path}")
                     files = []
 
                     # Check both the main folder and any subfolders (for lab results with commodity subfolders)
@@ -3396,9 +3453,8 @@ def list_client_folder_files(request):
                                 item_path = os.path.join(doc_path, item)
                                 if os.path.isdir(item_path):
                                     paths_to_check.append(item_path)
-                                    print(f"[DEBUG] Also checking subfolder: {item_path}")
-                        except Exception as e:
-                            print(f"WARNING: Error checking subfolders: {e}")
+                        except Exception:
+                            pass
 
                     for check_path in paths_to_check:
                         try:
@@ -3436,24 +3492,10 @@ def list_client_folder_files(request):
                                         elif doc_type.lower() == 'retest':
                                             actual_doc_type = 'retest'
 
-                                        # Filter by inspection ID if provided (but allow old naming conventions)
-                                        if inspection_id:
-                                            # Check if filename starts with the inspection ID (new format)
-                                            # OR contains the client name and date (old format)
-                                            has_inspection_id = filename.startswith(f"{inspection_id}_")
-                                            # For old format, just accept all files in the folder (since we're already in the right client/date folder)
-                                            # Don't filter out files without inspection ID prefix
-                                            if not has_inspection_id:
-                                                print(f"Accepting file without inspection ID prefix (old format): {filename}")
-                                            # Continue processing - don't skip
-
                                         file_info = get_file_info(file_path, actual_doc_type)
                                         files.append(file_info)
-                                        print(f"Added unique file: {filename} as {actual_doc_type}")
-                                    else:
-                                        print(f"WARNING: Skipped duplicate file: {filename}")
-                        except Exception as e:
-                            print(f"WARNING: Error processing {check_path}: {e}")
+                        except Exception:
+                            pass
 
                     if files:
                         # Group files by their actual document type
@@ -3471,15 +3513,11 @@ def list_client_folder_files(request):
 
             compliance_path = os.path.join(test_path, 'Compliance')
             if os.path.exists(compliance_path):
-                print(f"[DEBUG] Found compliance folder at: {compliance_path}")
-
                 # Get all commodity subfolders
                 for commodity_folder in os.listdir(compliance_path):
                     commodity_path = os.path.join(compliance_path, commodity_folder)
 
                     if os.path.isdir(commodity_path):
-                        print(f"Checking commodity folder: {commodity_folder}")
-
                         # List all files in this commodity folder
                         files = []
                         for filename in os.listdir(commodity_path):
@@ -3508,7 +3546,6 @@ def list_client_folder_files(request):
                                     file_info = get_file_info(file_path, doc_type)
                                     file_info['commodity'] = commodity_folder
                                     files.append(file_info)
-                                    print(f"Added compliance file: {filename}")
 
                         if files:
                             # Group files by their actual document type
@@ -3517,16 +3554,11 @@ def list_client_folder_files(request):
                                 if actual_doc_type not in files_list:
                                     files_list[actual_doc_type] = []
                                 files_list[actual_doc_type].append(file_info)
-                            print(f"Found {len(files)} files in {commodity_folder}")
 
         # Initialize any missing categories before returning
         for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition', 'other', 'coa']:
             if category not in files_list:
                 files_list[category] = []
-                print(f"[DEBUG] Initialized empty list for missing category '{category}'")
-
-        print(f"[DEBUG] Final files_list keys in list_client_folder_files: {list(files_list.keys())}")
-        print(f"[DEBUG] occurrence files in response: {len(files_list.get('occurrence', []))}")
 
         return JsonResponse({
             'success': True,
@@ -8165,8 +8197,6 @@ def update_sample_taken(request):
             inspection_id = request.POST.get('inspection_id')
             is_sample_taken = request.POST.get('is_sample_taken') == 'true'
 
-            print(f"[DEBUG] update_sample_taken called - Inspection ID: {inspection_id}, Sample Taken: {is_sample_taken}")
-
             # Get the inspection record - handle potential duplicates by getting the first one
             try:
                 inspections = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id)
@@ -8176,9 +8206,6 @@ def update_sample_taken(request):
                         'success': False,
                         'error': f'Inspection with ID {inspection_id} not found'
                     })
-                # Log if there are duplicates for debugging
-                if inspections.count() > 1:
-                    print(f"Warning: Found {inspections.count()} inspections with remote_id {inspection_id}, using the first one")
             except Exception as e:
                 return JsonResponse({
                     'success': False,
@@ -10328,345 +10355,203 @@ def get_inspection_files_onedrive_api(client_name, inspection_date):
 
 
 def get_inspection_files_local(client_name, inspection_date, force_refresh=False):
-    def create_folder_name(name):
-        """Create Linux-friendly folder name - must match upload function"""
-        if not name:
-            return "unknown_client"
-        import re
-        # Remove special characters, keep only alphanumeric, spaces, hyphens, underscores
-        clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-        # Replace spaces and hyphens with underscores
-        clean_name = clean_name.replace(' ', '_').replace('-', '_')
-        # Remove consecutive underscores
-        clean_name = re.sub(r'_+', '_', clean_name)
-        # Remove leading/trailing underscores
-        clean_name = clean_name.strip('_').lower()
-        return clean_name or "unknown_client"
+    """Get inspection files from local media folder.
 
-    """Get inspection files from local media folder using optimized structure with caching."""
-    
+    NEW STRUCTURE (preferred): MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
+    LEGACY STRUCTURE (fallback): MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/...
+
+    Uses database IDs for reliable file lookup - no more name normalization issues.
+    """
     import os
+    import time
+    from datetime import datetime
     from django.conf import settings
     from django.core.cache import cache
-    
-    try:
-        import os
-        import time
-        from datetime import datetime
-        from django.conf import settings
-        from django.core.cache import cache
-        import re
+    from main.models import FoodSafetyAgencyInspection
 
-        # Parse date and build folder path - support multiple formats
+    # Standard categories (coa removed - lab folder contains all COA/Lab files)
+    CATEGORIES = ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition', 'other']
+
+    # Initialize result
+    files_by_category = {cat: [] for cat in CATEGORIES}
+
+    try:
+        # Strip "btn-" prefix from client name if present
+        if client_name and client_name.startswith('btn-'):
+            client_name = client_name[4:]
+
+        # Parse date
         date_obj = None
         date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y%m%d']
-        for date_format in date_formats:
+        for fmt in date_formats:
             try:
-                date_obj = datetime.strptime(inspection_date, date_format)
+                date_obj = datetime.strptime(inspection_date, fmt)
                 break
             except ValueError:
                 continue
 
         if not date_obj:
-            return {
-                'rfi': [],
-                'invoice': [],
-                'lab': [],
-                'retest': [],
-                'compliance': []
-            }
+            print(f"[FILES DEBUG] Could not parse date: {inspection_date}")
+            return files_by_category
 
+        print(f"[FILES DEBUG] Looking up inspection for client='{client_name}', date={date_obj.date()}")
+
+        # Look up the inspection in database to get IDs
+        inspection = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=client_name,
+            date_of_inspection=date_obj.date()
+        ).first()
+
+        if inspection:
+            print(f"[FILES DEBUG] Found inspection id={inspection.id}, client FK={inspection.client_id}, client obj={inspection.client}")
+        else:
+            print(f"[FILES DEBUG] NO inspection found in database!")
+
+        # Track added files to avoid duplicates
+        added_files = set()
+
+        # === NEW STRUCTURE: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/ ===
+        # Try to get client - either from FK or by looking up by name
+        client_obj = None
+        if inspection:
+            if inspection.client:
+                client_obj = inspection.client
+            else:
+                # Try to look up client by name
+                from main.models import Client
+                client_obj = Client.objects.filter(name__iexact=client_name).first()
+                if client_obj:
+                    print(f"[FILES DEBUG] Found client by name lookup: id={client_obj.id}, name={client_obj.name}")
+
+        if inspection and client_obj:
+            docs_path = os.path.join(
+                settings.MEDIA_ROOT,
+                'docs',
+                str(client_obj.id),
+                str(inspection.id)
+            )
+            print(f"[FILES DEBUG] New structure path would be: {docs_path}")
+
+            # Check cache
+            cache_key = f"docs_files:{client_obj.id}:{inspection.id}"
+            if not force_refresh:
+                cached = cache.get(cache_key)
+                if cached:
+                    print(f"[FILES DEBUG] Returning CACHED result for {cache_key}")
+                    return cached
+                else:
+                    print(f"[FILES DEBUG] No cache hit for {cache_key}")
+
+            if os.path.exists(docs_path):
+                print(f"[FILES DEBUG] Path EXISTS, scanning: {docs_path}")
+                for category in CATEGORIES:
+                    cat_path = os.path.join(docs_path, category)
+                    if os.path.exists(cat_path):
+                        try:
+                            for filename in os.listdir(cat_path):
+                                file_path = os.path.join(cat_path, filename)
+                                if os.path.isfile(file_path):
+                                    file_key = f"{filename}_{os.path.getsize(file_path)}"
+                                    if file_key not in added_files:
+                                        file_info = get_file_info(file_path, category)
+                                        files_by_category[category].append(file_info)
+                                        added_files.add(file_key)
+                        except (OSError, PermissionError):
+                            pass
+
+        # === LEGACY STRUCTURE: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/... ===
+        # Fall back to old structure for backwards compatibility
         year_folder = date_obj.strftime('%Y')
         month_folder = date_obj.strftime('%B')
 
-        # Handle apostrophe variations in client names
-        client_folder = create_folder_name(client_name)
-        name_with_apostrophe_removed = client_name.replace("'", ' ')
-        client_folder_apostrophe_variation = create_folder_name(name_with_apostrophe_removed)
+        # Create normalized folder name for legacy lookups
+        def normalize_name(name):
+            if not name:
+                return "unknown_client"
+            import re
+            clean = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
+            clean = clean.replace(' ', '_').replace('-', '_')
+            clean = re.sub(r'_+', '_', clean).strip('_').lower()
+            return clean or "unknown_client"
 
-        # OPTIMIZED FILE CACHING: 30-second timeout for performance
-        # Files refresh automatically every 30 seconds to catch new uploads
-        cache_key = f"local_files:{client_folder}:{year_folder}:{month_folder}"
-        cache_timestamp_key = f"{cache_key}_timestamp"
+        client_folder = normalize_name(client_name)
 
-        # Check cache with automatic expiration
-        if not force_refresh:
-            cached_files = cache.get(cache_key)
-            cache_timestamp = cache.get(cache_timestamp_key)
-
-            if cached_files and cache_timestamp:
-                age_seconds = time.time() - cache_timestamp
-                if age_seconds < 30:  # Use cache if less than 30 seconds old
-                    return cached_files
-                # Cache expired, reload files
-
-        # Base client path - Use unified inspection/ structure
-        # All files should be in: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/
-        base_inspection_path = os.path.join(
-            settings.MEDIA_ROOT,
-            'inspection',
-            year_folder,
-            month_folder
-        )
-
-        # Try to find client folder - check both exact and partial matches
-        # Problem: sanitized folders may exist but be empty, while the actual files
-        # are in folders with "/" that created nested directories
-        candidate_folders = []
-
-        # Try exact matches first - check all variations including apostrophe handling and prefixes
+        # Legacy folder variations to check
+        legacy_base = os.path.join(settings.MEDIA_ROOT, 'inspection', year_folder, month_folder)
         folder_variations = [
             client_name,
             client_folder,
-            client_folder_apostrophe_variation,
-            f'btn_{client_folder}',  # Button upload prefix
-            f'group_{client_folder}',  # Group upload prefix
+            f'btn_{client_folder}',
         ]
-        for variation in folder_variations:
-            test_path = os.path.join(base_inspection_path, variation)
-            if os.path.exists(test_path):
-                candidate_folders.append(test_path)
-                print(f"[DEBUG get_inspection_files_local] Found exact match candidate: {variation}")
 
-        # Also try partial matching (for client names with "/" that create nested dirs)
-        if os.path.exists(base_inspection_path):
-            try:
-                available_folders = [f for f in os.listdir(base_inspection_path) if os.path.isdir(os.path.join(base_inspection_path, f))]
-                print(f"[DEBUG get_inspection_files_local] Searching in {len(available_folders)} available folders")
-
-                for available_folder in available_folders:
-                    for variation in [client_name, client_folder, client_folder_apostrophe_variation]:
-                        # Get the part before any "/" or special char
-                        variation_prefix = variation.split('/')[0].strip()
-
-                        # Normalize for comparison
-                        normalized_available = available_folder.lower().replace('_', ' ').strip()
-                        normalized_prefix = variation_prefix.lower().replace('_', ' ').strip()
-
-                        # Check if the available folder starts with the variation prefix
-                        if normalized_available.startswith(normalized_prefix) and len(normalized_prefix) > 10:
-                            candidate_path = os.path.join(base_inspection_path, available_folder)
-                            if candidate_path not in candidate_folders:
-                                candidate_folders.append(candidate_path)
-                                print(f"[DEBUG get_inspection_files_local] Found partial match candidate: {available_folder}")
-                            break
-            except Exception as e:
-                print(f"[DEBUG get_inspection_files_local] Error finding partial matches: {e}")
-
-        # Now check which candidate has actual Inspection folders
-        client_base_path = None
-        for candidate in candidate_folders:
-            # Quick check: does this folder have any Inspection-XXX subfolders?
-            has_inspection_folders = False
-            try:
-                for item in os.listdir(candidate):
-                    item_path = os.path.join(candidate, item)
-                    # Check direct Inspection folders
-                    if item.lower().startswith('inspection-') and os.path.isdir(item_path):
-                        has_inspection_folders = True
-                        print(f"[DEBUG get_inspection_files_local] Found Inspection folder: {item}")
-                        break
-                    # Also check DATE subfolders (new structure)
-                    if os.path.isdir(item_path) and not item.lower().startswith('inspection-'):
-                        try:
-                            for subitem in os.listdir(item_path):
-                                if subitem.lower().startswith('inspection-'):
-                                    has_inspection_folders = True
-                                    print(f"[DEBUG get_inspection_files_local] Found Inspection folder in {item}: {subitem}")
-                                    break
-                        except:
-                            pass
-                    if has_inspection_folders:
-                        break
-            except Exception as e:
-                print(f"[DEBUG get_inspection_files_local] Error checking {candidate}: {e}")
-
-            if has_inspection_folders:
-                client_base_path = candidate
-                print(f"[DEBUG get_inspection_files_local] Selected folder with Inspection folders: {client_base_path}")
-                break
-
-        # If no folder with files found, use the first candidate (or None)
-        if not client_base_path:
-            if candidate_folders:
-                client_base_path = candidate_folders[0]
-                print(f"[DEBUG get_inspection_files_local] No Inspection folders found, using first candidate: {client_base_path}")
-            else:
-                client_base_path = os.path.join(base_inspection_path, client_name)
-                print(f"[DEBUG get_inspection_files_local] No candidates found, using default: {client_base_path}")
-
-        # Define file categories with simple, Linux-friendly folder names
-        categories = {
-            'rfi': 'rfi',
-            'invoice': 'invoice',
-            'lab': 'lab',  # Simplified from "lab results"
-            'retest': 'retest',
-            'compliance': 'compliance',  # Lowercase for consistency
-            'occurrence': 'occurrence',
-            'composition': 'composition'
-        }
-
-        files_by_category = {}
-
-        # Initialize categories
-        for category_key in categories.keys():
-            files_by_category[category_key] = []
-
-        # Check if the client path exists (simplified - no fuzzy matching needed)
-        if not os.path.exists(client_base_path):
-            print(f"[DEBUG get_inspection_files_local] Client path not found: {client_base_path}")
-            # NO CACHING - return fresh data always
-            return files_by_category
-
-        print(f"[DEBUG get_inspection_files_local] Using client path: {client_base_path}")
-        print(f"[DEBUG get_inspection_files_local] All candidate folders to scan: {candidate_folders}")
-
-        # IMPORTANT: Scan ALL candidate folders, not just one
-        # Files may be split across multiple folders (e.g., chicken_king_farms AND btn_chicken_king_farms)
-        all_paths_to_scan = candidate_folders if candidate_folders else [client_base_path]
-
-        # Scan for files in each category (optimized with error handling)
-        # Use deduplication to avoid duplicates from multiple folder structures
-        added_files = set()  # Track added files by name to avoid duplicates
-        
-        # Support multiple folder naming conventions (old and new structures)
-        # Include uppercase variations for Windows compatibility
-        folder_structures = [
-            # New structure with full names
-            {'rfi': 'Request For Invoice', 'invoice': 'Invoice', 'lab': 'lab results', 'retest': 'retest', 'compliance': 'Compliance', 'occurrence': 'Occurrence', 'composition': 'Composition'},
-            # Old structure with short names (lowercase)
+        # Legacy category folder names
+        legacy_structures = [
             {'rfi': 'rfi', 'invoice': 'invoice', 'lab': 'lab', 'retest': 'retest', 'compliance': 'compliance', 'occurrence': 'occurrence', 'composition': 'composition'},
-            # Uppercase variations (common on Windows)
-            {'rfi': 'RFI', 'invoice': 'Invoice', 'lab': 'Lab', 'retest': 'Retest', 'compliance': 'Compliance', 'occurrence': 'Occurrence', 'composition': 'Composition'}
+            {'rfi': 'Request For Invoice', 'invoice': 'Invoice', 'lab': 'lab results', 'compliance': 'Compliance'},
+            {'rfi': 'RFI', 'invoice': 'Invoice', 'lab': 'Lab', 'compliance': 'Compliance'},
         ]
-        
-        # Enhanced compliance file scanning
-        def scan_compliance_files(base_path, label_prefix=''):
-            """Helper function to scan compliance files recursively"""
-            found_files = []
-            if os.path.exists(base_path):
-                try:
-                    for root, _dirs, files in os.walk(base_path):
-                        for filename in files:
-                            file_path = os.path.join(root, filename)
-                            rel_path = os.path.relpath(file_path, base_path).replace('\\', '/')
-                            display_path = f"{label_prefix}/{rel_path}" if label_prefix else rel_path
-                            file_info = get_file_info(file_path, display_path)
-                            found_files.append(file_info)
-                except (OSError, PermissionError):
-                    pass
-            return found_files
 
-        # SCAN ALL CANDIDATE FOLDERS - files may be split across multiple folders
-        # (e.g., chicken_king_farms AND btn_chicken_king_farms)
-        for actual_client_path in all_paths_to_scan:
-            if not os.path.exists(actual_client_path):
+        for variation in folder_variations:
+            client_path = os.path.join(legacy_base, variation)
+            if not os.path.exists(client_path):
                 continue
-            print(f"[DEBUG get_inspection_files_local] Scanning folder: {actual_client_path}")
 
-            # Check top-level category folders in each structure
-            for structure in folder_structures:
-                for category_key, folder_name in structure.items():
-                    if category_key == 'compliance':
-                        # Check main Compliance folder (try both capitalized and lowercase)
-                        compliance_caps = os.path.join(actual_client_path, 'Compliance')
-                        compliance_lower = os.path.join(actual_client_path, 'compliance')
+            print(f"[FILES] Scanning legacy path: {client_path}")
 
-                        # Use whichever exists (prefer capitalized)
-                        if os.path.exists(compliance_caps):
-                            files_by_category[category_key].extend(
-                                scan_compliance_files(compliance_caps, 'Compliance')
-                            )
-                        elif os.path.exists(compliance_lower):
-                            files_by_category[category_key].extend(
-                                scan_compliance_files(compliance_lower, 'compliance')
-                            )
-
-                        # Also check top-level compliance files (some systems store them directly)
-                        direct_files = []
+            # Scan top-level category folders
+            for structure in legacy_structures:
+                for cat_key, folder_name in structure.items():
+                    cat_path = os.path.join(client_path, folder_name)
+                    if os.path.exists(cat_path) and os.path.isdir(cat_path):
                         try:
-                            for item in os.listdir(actual_client_path):
-                                if os.path.isfile(os.path.join(actual_client_path, item)):
-                                    if any(pattern in item.lower() for pattern in ['compliance', 'cert', 'declaration', 'regulatory']):
-                                        file_path = os.path.join(actual_client_path, item)
-                                        file_info = get_file_info(file_path, item)
-                                        direct_files.append(file_info)
+                            for filename in os.listdir(cat_path):
+                                file_path = os.path.join(cat_path, filename)
+                                if os.path.isfile(file_path):
+                                    file_key = f"{filename}_{os.path.getsize(file_path)}"
+                                    if file_key not in added_files:
+                                        file_info = get_file_info(file_path, folder_name)
+                                        files_by_category[cat_key].append(file_info)
+                                        added_files.add(file_key)
                         except (OSError, PermissionError):
                             pass
-                        files_by_category[category_key].extend(direct_files)
-                    else:
-                        # Check regular category folder (rfi, invoice, lab, etc.)
-                        category_path = os.path.join(actual_client_path, folder_name)
-                        if os.path.exists(category_path):
-                            try:
-                                for filename in os.listdir(category_path):
-                                    file_path = os.path.join(category_path, filename)
-                                    if os.path.isfile(file_path):
-                                        file_key = f"{filename}_{os.path.getsize(file_path)}"
-                                        if file_key not in added_files:
-                                            file_info = get_file_info(file_path, folder_name)
-                                            files_by_category[category_key].append(file_info)
-                                            added_files.add(file_key)
-                            except (OSError, PermissionError):
-                                continue
 
-            # Scan nested Inspection-XXXX folders for all file types (inside the loop!)
+            # Scan Inspection-XXX subfolders
             try:
-                for item in os.listdir(actual_client_path):
-                    if item.lower().startswith('inspection-') and os.path.isdir(os.path.join(actual_client_path, item)):
-                        inspection_folder = os.path.join(actual_client_path, item)
-
-                        # Check each category in the inspection folder
-                        for structure in folder_structures:
-                            for category_key, folder_name in structure.items():
-                                if category_key == 'compliance':
-                                    # Scan compliance files in this inspection folder
-                                    nested_compliance_base = os.path.join(inspection_folder, 'Compliance')
-                                    nested_compliance_lower = os.path.join(inspection_folder, 'compliance')
-
-                                    if os.path.exists(nested_compliance_base):
-                                        inspection_compliance_files = scan_compliance_files(
-                                            nested_compliance_base,
-                                            f"{item}/Compliance"
-                                        )
-                                        files_by_category[category_key].extend(inspection_compliance_files)
-                                    elif os.path.exists(nested_compliance_lower):
-                                        inspection_compliance_files = scan_compliance_files(
-                                            nested_compliance_lower,
-                                            f"{item}/compliance"
-                                        )
-                                        files_by_category[category_key].extend(inspection_compliance_files)
-                                else:
-                                    # Check regular category folder in nested folder
-                                    nested_category_path = os.path.join(inspection_folder, folder_name)
-                                    if os.path.exists(nested_category_path):
-                                        try:
-                                            for filename in os.listdir(nested_category_path):
-                                                file_path = os.path.join(nested_category_path, filename)
-                                                if os.path.isfile(file_path):
-                                                    file_key = f"{filename}_{os.path.getsize(file_path)}"
-                                                    if file_key not in added_files:
-                                                        file_info = get_file_info(file_path, f'{item}/{folder_name}')
-                                                        files_by_category[category_key].append(file_info)
-                                                        added_files.add(file_key)
-                                        except (OSError, PermissionError):
-                                            continue
+                for item in os.listdir(client_path):
+                    if item.lower().startswith('inspection-') and os.path.isdir(os.path.join(client_path, item)):
+                        insp_folder = os.path.join(client_path, item)
+                        for structure in legacy_structures:
+                            for cat_key, folder_name in structure.items():
+                                cat_path = os.path.join(insp_folder, folder_name)
+                                if os.path.exists(cat_path) and os.path.isdir(cat_path):
+                                    try:
+                                        for filename in os.listdir(cat_path):
+                                            file_path = os.path.join(cat_path, filename)
+                                            if os.path.isfile(file_path):
+                                                file_key = f"{filename}_{os.path.getsize(file_path)}"
+                                                if file_key not in added_files:
+                                                    file_info = get_file_info(file_path, f'{item}/{folder_name}')
+                                                    files_by_category[cat_key].append(file_info)
+                                                    added_files.add(file_key)
+                                    except (OSError, PermissionError):
+                                        pass
             except (OSError, PermissionError):
                 pass
 
-        # Cache files for 30 seconds (OPTIMIZED: Performance + freshness)
-        cache.set(cache_key, files_by_category, 30)
-        cache.set(cache_timestamp_key, time.time(), 30)
+        # Cache result (use client_obj which might be from name lookup)
+        if inspection and client_obj:
+            cache_key = f"docs_files:{client_obj.id}:{inspection.id}"
+            cache.set(cache_key, files_by_category, 30)
+
+        # Debug output
+        total = sum(len(f) for f in files_by_category.values())
+        print(f"[FILES] Found {total} files for {client_name} on {inspection_date}")
+
         return files_by_category
 
-    except Exception:
-        return {
-            'rfi': [],
-            'invoice': [],
-            'lab': [],
-            'retest': [],
-            'compliance': []
-        }
+    except Exception as e:
+        print(f"[FILES] Error: {e}")
+        return files_by_category
 
 
 @login_required
@@ -10917,6 +10802,10 @@ def get_inspection_files(request):
         inspection_date = data.get('inspection_date', '')
         force_refresh = data.get('_force_refresh', False)
 
+        # Strip "btn-" prefix from client name if present (comes from FSA inspection rows)
+        if client_name and client_name.startswith('btn-'):
+            client_name = client_name[4:]
+
         # Clean Unicode escapes from inspection_date (fix for JavaScript JSON.stringify escaping)
         if isinstance(inspection_date, str):
             inspection_date = inspection_date.replace('\\u002D', '-')
@@ -10976,14 +10865,7 @@ def get_inspection_files(request):
         os.makedirs(inspection_folder, exist_ok=True)
 
         # Get files from local storage
-        print(f"DEBUG get_inspection_files: Calling get_inspection_files_local with client_name='{client_name}', inspection_date='{inspection_date}', force_refresh={force_refresh}")
         local_files = get_inspection_files_local(client_name, inspection_date, force_refresh)
-        print(f"DEBUG get_inspection_files: local_files returned with keys: {local_files.keys() if local_files else 'None'}")
-        if local_files:
-            for category, files in local_files.items():
-                print(f"DEBUG get_inspection_files: {category} has {len(files)} files")
-                if category == 'compliance' and files:
-                    print(f"DEBUG get_inspection_files: First compliance file: {files[0] if files else 'N/A'}")
 
         # Check if there are actually any files (not just empty arrays)
         has_files = local_files and any(file_list for file_list in local_files.values() if file_list)
@@ -11002,8 +10884,7 @@ def get_inspection_files(request):
                 'files': empty_files,
                 'client_name': client_name,
                 'inspection_date': inspection_date,
-                'source': 'local',
-                'message': 'Files are being fetched in the background for all 6-month inspections. Check back in a few minutes.'
+                'source': 'local'
             })
         else:
             response = JsonResponse({
@@ -11053,15 +10934,7 @@ def delete_inspection_file(request):
         
         if not file_path or not client_name or not inspection_date:
             return JsonResponse({'success': False, 'error': 'Missing required parameters'})
-        
-        # Prevent deletion of compliance documents
-        if '/Compliance/' in file_path or file_path.lower().startswith('compliance/'):
-            print(f" BLOCKED: Attempted to delete compliance document: {file_path}")
-            return JsonResponse({
-                'success': False, 
-                'error': 'Compliance documents cannot be deleted for security and audit purposes.'
-            })
-        
+
         # Security check: ensure the file path is within the media directory
         media_root = settings.MEDIA_ROOT
         
@@ -11087,20 +10960,33 @@ def delete_inspection_file(request):
         
         # Try to find the file using the provided information
         full_file_path = None
-        
-        # First, try the exact path if it looks like a full path
-        if file_path.startswith('inspection/'):
-            potential_path = os.path.join(media_root, file_path)
+
+        # Normalize the file path (handle both forward and back slashes)
+        normalized_file_path = file_path.replace('\\', '/')
+        print(f"[DELETE DEBUG] Normalized file path: {normalized_file_path}")
+
+        # First, try the exact path if it looks like a full relative path
+        if normalized_file_path.startswith('docs/') or normalized_file_path.startswith('inspection/'):
+            potential_path = os.path.join(media_root, normalized_file_path)
+            # Normalize the full path for the OS
+            potential_path = os.path.normpath(potential_path)
+            print(f"[DELETE DEBUG] Trying exact path: {potential_path}")
             if os.path.exists(potential_path):
                 full_file_path = potential_path
-                print(f"[ERROR] Found file using exact path: {full_file_path}")
-            else:
-                # Try alternative path construction (same as file display)
-                alternative_path = os.path.join(media_root, 'inspection', year, month, client_folder_pattern, file_path.split('/')[-2], file_path.split('/')[-1])
+                print(f"[DELETE DEBUG] Found file using exact path: {full_file_path}")
+
+        # If not found and it's an inspection path, try alternative path construction
+        if not full_file_path and normalized_file_path.startswith('inspection/'):
+            # Try alternative path construction (same as file display)
+            path_parts = normalized_file_path.split('/')
+            if len(path_parts) >= 2:
+                alternative_path = os.path.join(media_root, 'inspection', year, month, client_folder_pattern, path_parts[-2], path_parts[-1])
+                alternative_path = os.path.normpath(alternative_path)
+                print(f"[DELETE DEBUG] Trying alternative path: {alternative_path}")
                 if os.path.exists(alternative_path):
                     full_file_path = alternative_path
-                    print(f"[ERROR] Found file using alternative path: {full_file_path}")
-        
+                    print(f"[DELETE DEBUG] Found file using alternative path: {full_file_path}")
+
         # If not found, search for the file using client name and date
         if not full_file_path:
             print(f"[ERROR] Searching for file using client name and date...")
@@ -11143,7 +11029,31 @@ def delete_inspection_file(request):
                                     break
                 except (OSError, PermissionError) as e:
                     print(f" Error accessing month folder: {e}")
-        
+
+        # Also search in the docs/ structure if not found
+        if not full_file_path:
+            print(f"[DELETE DEBUG] Searching in docs/ structure...")
+            from ..models import FoodSafetyAgencyInspection
+            try:
+                date_obj_search = datetime.strptime(inspection_date, '%Y-%m-%d').date()
+                inspection = FoodSafetyAgencyInspection.objects.filter(
+                    client_name__iexact=client_name,
+                    date_of_inspection=date_obj_search
+                ).first()
+
+                if inspection and inspection.client:
+                    docs_path = os.path.join(media_root, 'docs', str(inspection.client.id), str(inspection.id))
+                    print(f"[DELETE DEBUG] Checking docs path: {docs_path}")
+                    if os.path.exists(docs_path):
+                        filename = os.path.basename(normalized_file_path)
+                        for root, dirs, files in os.walk(docs_path):
+                            if filename in files:
+                                full_file_path = os.path.join(root, filename)
+                                print(f"[DELETE DEBUG] Found file in docs structure: {full_file_path}")
+                                break
+            except Exception as e:
+                print(f"[DELETE DEBUG] Error searching docs structure: {e}")
+
         if not full_file_path:
             print(f" Could not find file: {file_path}")
             return JsonResponse({'success': False, 'error': 'File not found'})
@@ -11688,6 +11598,13 @@ def get_page_clients_file_status(request):
                                 'inspection_date': date,
                                 'unique_key': f"{client_name}_{date}"
                             })
+                    elif isinstance(dates, str) and dates:
+                        # Handle single date as string
+                        client_date_combinations.append({
+                            'client_name': client_name,
+                            'inspection_date': dates,
+                            'unique_key': f"{client_name}_{dates}"
+                        })
         
         if not client_date_combinations:
             return JsonResponse({'success': False, 'error': 'Client date combinations are required'})
@@ -11731,13 +11648,30 @@ def get_page_clients_file_status(request):
                 # Initialize results for this specific combination
                 has_rfi = has_invoice = has_lab = has_retest = has_compliance = has_occurrence = has_composition = False
                 file_status = 'no_files'
-                
+
                 # OPTIMIZATION 1: Database check first (fastest - no file system access)
                 date_obj = datetime.strptime(str(inspection_date), '%Y-%m-%d').date()
                 inspections = FoodSafetyAgencyInspection.objects.filter(
                     client_name=client_name,
                     date_of_inspection=date_obj
-                )
+                ).select_related('client')
+
+                # === NEW STRUCTURE CHECK: docs/{client_id}/{inspection_id}/ ===
+                docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+                for insp in inspections:
+                    if insp.client:
+                        insp_path = os.path.join(docs_base, str(insp.client.id), str(insp.id))
+                        if os.path.exists(insp_path):
+                            for cat in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'composition', 'occurrence']:
+                                cat_path = os.path.join(insp_path, cat)
+                                if os.path.exists(cat_path) and os.listdir(cat_path):
+                                    if cat == 'rfi': has_rfi = True
+                                    elif cat == 'invoice': has_invoice = True
+                                    elif cat == 'lab': has_lab = True
+                                    elif cat == 'retest': has_retest = True
+                                    elif cat == 'compliance': has_compliance = True
+                                    elif cat == 'composition': has_composition = True
+                                    elif cat == 'occurrence': has_occurrence = True
                 
                 # Check database for upload records (super fast)
                 has_rfi_db = inspections.filter(rfi_uploaded_by__isnull=False).exists()
@@ -12206,11 +12140,14 @@ def download_all_inspection_files(request):
                         normalized = re.sub(r'[^a-zA-Z0-9]', '_', name.lower())
                         # Remove multiple underscores and strip
                         normalized = re.sub(r'_+', '_', normalized).strip('_')
+                        # Strip btn_ prefix if present (legacy folder naming)
+                        if normalized.startswith('btn_'):
+                            normalized = normalized[4:]
                         return normalized
-                    
+
                     normalized_client = normalize_name(client_folder_pattern)
                     normalized_folder = normalize_name(folder_name)
-                    
+
                     is_match = (normalized_folder == normalized_client)
                     
                     if is_match:
@@ -12222,18 +12159,69 @@ def download_all_inspection_files(request):
                         matching_folders.append(folder_path)
                         safe_print(f"Found matching client folder: {folder_name} in {year_folder_search}/{month_folder_search}")
         
-        if not matching_folders:
-            return JsonResponse({'success': False, 'error': f'No client folders found for {client_name}. Searched in {inspection_base}'})
-        
+        # === NEW STRUCTURE: Also check docs/{client_id}/{inspection_id}/ ===
+        docs_files = []  # List of (file_path, category) tuples from docs structure
+
+        # Strip btn- prefix if present
+        clean_client_name = client_name[4:] if client_name.startswith('btn-') else client_name
+
+        # Look up inspection and client in database
+        inspection = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=clean_client_name,
+            date_of_inspection=date_obj.date() if hasattr(date_obj, 'date') else date_obj
+        ).first()
+
+        client_obj = None
+        if inspection:
+            if inspection.client:
+                client_obj = inspection.client
+            else:
+                from main.models import Client
+                client_obj = Client.objects.filter(name__iexact=clean_client_name).first()
+
+        if inspection and client_obj:
+            docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
+            if os.path.exists(docs_path):
+                safe_print(f"Checking docs path: {docs_path}")
+                doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'occurrence', 'retest', 'other']
+                for cat in doc_categories:
+                    cat_path = os.path.join(docs_path, cat)
+                    if os.path.exists(cat_path):
+                        for filename in os.listdir(cat_path):
+                            file_path = os.path.join(cat_path, filename)
+                            if os.path.isfile(file_path):
+                                docs_files.append((file_path, cat, filename))
+                                safe_print(f"Found docs file: {filename} in {cat}")
+
+        if not matching_folders and not docs_files:
+            return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'})
+
         # Create temporary ZIP file
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-        
+
         try:
             with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 files_added = 0
                 added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
-                
-                # Process all matching client folders
+
+                # First add files from docs structure
+                for file_path, category, filename in docs_files:
+                    try:
+                        file_size = os.path.getsize(file_path)
+                        file_mtime = os.path.getmtime(file_path)
+                        file_key = f"{filename}_{file_size}_{file_mtime}"
+
+                        if file_key not in added_files:
+                            # Add to ZIP with category folder structure
+                            zip_path = f"{category.capitalize()}/{filename}"
+                            zip_file.write(file_path, zip_path)
+                            added_files[file_key] = True
+                            files_added += 1
+                            safe_print(f"Added docs file to ZIP: {zip_path}")
+                    except Exception as e:
+                        safe_print(f"Error adding docs file {filename}: {e}")
+
+                # Process all matching client folders (legacy structure)
                 for base_path in matching_folders:
                     folder_name = os.path.basename(base_path)
                     safe_print(f"Processing folder: {folder_name} at {base_path}")
@@ -12644,16 +12632,19 @@ def download_local_file(request, relative_path):
         import os
         from django.http import FileResponse, Http404
         from django.conf import settings
-        
-        print(f" Download request: {relative_path}")
-        
-        # Security: Ensure file is within MEDIA_ROOT/inspection
-        if not relative_path.startswith('inspection/'):
-            print(f" Download 404: Access denied - path doesn't start with 'inspection/': {relative_path}")
+
+        print(f"[DOWNLOAD DEBUG] Download request: {relative_path}")
+
+        # Normalize path separators
+        normalized_relative_path = relative_path.replace('\\', '/')
+
+        # Security: Ensure file is within allowed directories (inspection/ or docs/)
+        if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
+            print(f"[DOWNLOAD DEBUG] Download 404: Access denied - path doesn't start with 'inspection/' or 'docs/': {relative_path}")
             raise Http404("Access denied")
-        
+
         # Build full file path - normalize path separators for Windows
-        normalized_path = relative_path.replace('/', os.sep)
+        normalized_path = normalized_relative_path.replace('/', os.sep)
         file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
         
         # Security: Ensure file exists and is within allowed directory
@@ -13050,22 +13041,26 @@ def get_file_info(file_path, category):
     from datetime import datetime
     from django.conf import settings
     from django.urls import reverse
-    
+    from urllib.parse import quote
+
     try:
         stat = os.stat(file_path)
         filename = os.path.basename(file_path)
-        
+
         # Create proper relative path for URL (handle Windows paths)
         relative_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
         # Normalize path separators for URL
         relative_path = relative_path.replace('\\', '/')
-        
-        # Create proper media URLs
-        file_url = f'/media/{relative_path}'
-        
-        # Create download URL with proper headers
-        download_url = f'/inspections/download-file/?file={relative_path}'
-        
+
+        # URL-encode the path for use in URLs
+        encoded_path = quote(relative_path, safe='')
+
+        # Create download URL with proper encoding (works for both docs/ and inspection/)
+        download_url = f'/inspections/download-file/?file={encoded_path}'
+
+        # Use download endpoint for url too (direct /media/ doesn't work for docs/)
+        file_url = f'/inspections/download-file/?file={encoded_path}&action=view'
+
         return {
             'name': filename,
             'size': stat.st_size,
@@ -14642,31 +14637,22 @@ def delete_inspector_mapping(request, pk):
 @login_required
 def update_bought_sample(request):
     """Update bought sample value for an inspection."""
-    print(f"[DEBUG] update_bought_sample called - Method: {request.method}")
-    print(f"[DEBUG] User: {request.user}")
-    print(f"[DEBUG] POST data: {dict(request.POST)}")
-    
     if request.method == 'POST':
         try:
             from ..models import FoodSafetyAgencyInspection, InspectorMapping
             from django.http import JsonResponse
-            
+
             inspection_id = request.POST.get('inspection_id')
             bought_sample_value = request.POST.get('bought_sample')
-            
-            print(f"[DEBUG] inspection_id: {inspection_id}")
-            print(f"[DEBUG] bought_sample_value: {bought_sample_value}")
-            
+
             if not inspection_id:
                 return JsonResponse({'success': False, 'error': 'Inspection ID is required'})
-            
+
             # Find the inspection
             inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id).first()
-            print(f"[DEBUG] Found inspection: {inspection}")
             if not inspection:
-                print(f"[DEBUG] Inspection not found for ID: {inspection_id}")
                 return JsonResponse({'success': False, 'error': 'Inspection not found'})
-            
+
             # Check if user has permission to edit this inspection
             if request.user.role == 'inspector':
                 # Get the inspector ID for the current user
@@ -14684,41 +14670,27 @@ def update_bought_sample(request):
                         inspector_id = inspector_mapping.inspector_id
                     except InspectorMapping.DoesNotExist:
                         inspector_id = None
-                
+
                 # Check if this inspection belongs to the current inspector
                 if not inspector_id or inspection.inspector_id != inspector_id:
                     return JsonResponse({'success': False, 'error': 'You can only edit your own inspections'})
-            
-            # For admin, super_admin, financial, and scientist roles, allow editing any inspection
-            # (no additional permission check needed)
-            print(f"[DEBUG] User role: {getattr(request.user, 'role', 'No role set')}")
-            print(f"[DEBUG] Permission check passed")
-            
+
             # Update the bought sample value
-            print(f"[DEBUG] Current bought_sample value: {inspection.bought_sample}")
             if bought_sample_value == '' or bought_sample_value is None:
                 # If empty, set to None (will show as "No" in template)
-                print(f"[DEBUG] Setting bought_sample to None (empty value)")
                 inspection.bought_sample = None
             else:
                 try:
                     new_value = float(bought_sample_value)
-                    print(f"[DEBUG] Setting bought_sample to: {new_value}")
                     inspection.bought_sample = new_value
                 except ValueError:
-                    print(f"[DEBUG] Invalid bought sample value: {bought_sample_value}")
                     return JsonResponse({'success': False, 'error': 'Invalid bought sample value'})
-            
-            print(f"[DEBUG] Saving inspection...")
+
             inspection.save()
-            print(f"[DEBUG] Inspection saved. New bought_sample value: {inspection.bought_sample}")
-            
+
             return JsonResponse({'success': True, 'message': 'Bought sample updated successfully'})
-            
+
         except Exception as e:
-            print(f"[DEBUG] Exception in update_bought_sample: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return JsonResponse({'success': False, 'error': str(e)})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
@@ -14735,8 +14707,6 @@ def onedrive_callback(request):
     code = request.GET.get('code')
     
     if code:
-        print(f" OneDrive authorization code received: {code}")
-        
         try:
             # Exchange authorization code for access token
             token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
