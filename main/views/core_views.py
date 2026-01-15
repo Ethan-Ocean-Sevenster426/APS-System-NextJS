@@ -624,143 +624,177 @@ def add_fsa_inspection(request):
         form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                inspection = form.save(commit=False)
-                # Mark as manual entry so sync won't overwrite
-                inspection.is_manual = True
-                # Generate a unique negative remote_id for manual entries
+                # Parse products data (JSON array with product info for each inspection)
+                import json
+                products_data_json = request.POST.get('products_data', '[]')
+                try:
+                    products_data = json.loads(products_data_json)
+                except json.JSONDecodeError:
+                    products_data = []
+
+                # If no products data, fall back to commodity selections
+                if not products_data:
+                    commodity_selections_json = request.POST.get('commodity_selections', '{}')
+                    try:
+                        commodity_selections = json.loads(commodity_selections_json)
+                    except json.JSONDecodeError:
+                        commodity_selections = {}
+
+                    # Build products_data from commodity selections
+                    for commodity, count in commodity_selections.items():
+                        if count > 0:
+                            for _ in range(count):
+                                products_data.append({
+                                    'commodity': commodity,
+                                    'product_name': form.cleaned_data.get('product_name', ''),
+                                    'product_class': form.cleaned_data.get('product_class', ''),
+                                    'lab': form.cleaned_data.get('lab', '')
+                                })
+
+                # If still no products, fall back to single commodity from form
+                if not products_data:
+                    commodity = form.cleaned_data.get('commodity', '')
+                    if commodity:
+                        products_data = [{
+                            'commodity': commodity,
+                            'product_name': form.cleaned_data.get('product_name', ''),
+                            'product_class': form.cleaned_data.get('product_class', ''),
+                            'lab': form.cleaned_data.get('lab', '')
+                        }]
+
+                if not products_data:
+                    messages.error(request, "Please select at least one commodity type")
+                    return redirect('add_fsa_inspection')
+
+                # Create inspections for each product
+                created_inspections = []
                 from django.db.models import Min
-                min_remote_id = FoodSafetyAgencyInspection.objects.filter(
-                    is_manual=True
-                ).aggregate(Min('remote_id'))['remote_id__min']
-                if min_remote_id is None or min_remote_id >= 0:
-                    inspection.remote_id = -1
-                else:
-                    inspection.remote_id = min_remote_id - 1
 
                 # Handle file uploads - save to proper folder structure
                 from django.utils import timezone
                 from django.conf import settings
                 import os
                 import re
-
-                def create_folder_name(name):
-                    """Create Linux-friendly folder name - matches get_inspection_files_local"""
-                    if not name:
-                        return "unknown_client"
-                    clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-                    clean_name = clean_name.replace(' ', '_').replace('-', '_')
-                    clean_name = re.sub(r'_+', '_', clean_name)
-                    clean_name = clean_name.strip('_').lower()
-                    return clean_name or "unknown_client"
+                from main.models import Client
 
                 def save_uploaded_file(uploaded_file, insp, category):
-                    """Save uploaded file to the proper folder structure.
-
-                    STANDARD FOLDER STRUCTURE (must match get_inspection_files_local):
-                    - Path: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
-                    - Categories: rfi, invoice, lab, compliance, composition, occurrence, retest
-                    - All lowercase folder names for consistency
-
-                    Uses database IDs for reliable, unique folder paths:
-                    - client_id: Client.id (auto-generated integer)
-                    - inspection_id: FoodSafetyAgencyInspection.id (auto-generated integer)
-                    """
-                    from main.models import Client
-
+                    """Save uploaded file to the proper folder structure."""
                     # Ensure inspection has a linked Client
                     if not insp.client:
-                        # Try to find existing client by name
                         client = Client.objects.filter(name__iexact=insp.client_name).first()
                         if not client:
-                            # Create new client
                             client = Client.objects.create(name=insp.client_name or "Unknown Client")
-                            print(f"✅ Created new Client: {client.name} (ID: {client.id})")
                         insp.client = client
                         insp.save(update_fields=['client'])
-                        print(f"✅ Linked inspection {insp.id} to Client {client.id}")
 
-                    # Build folder path: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
                     folder_path = os.path.join(
-                        settings.MEDIA_ROOT,
-                        'docs',
-                        str(insp.client.id),
-                        str(insp.id),
-                        category
+                        settings.MEDIA_ROOT, 'docs',
+                        str(insp.client.id), str(insp.id), category
                     )
-
-                    # Create directories if they don't exist
                     os.makedirs(folder_path, exist_ok=True)
-
-                    # Save the file
                     file_path = os.path.join(folder_path, uploaded_file.name)
                     with open(file_path, 'wb+') as destination:
                         for chunk in uploaded_file.chunks():
                             destination.write(chunk)
-
-                    print(f"✅ File saved to: {file_path}")
                     return file_path
 
-                # RFI file
-                if 'rfi_file' in request.FILES:
-                    save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
-                    inspection.rfi_uploaded_by = request.user
-                    inspection.rfi_uploaded_date = timezone.now()
-                    print(f"✅ RFI file uploaded: {request.FILES['rfi_file'].name}")
+                # Create inspections for each product
+                first_inspection = None
+                total_created = 0
 
-                # Invoice file
-                if 'invoice_file' in request.FILES:
-                    save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
-                    inspection.invoice_uploaded_by = request.user
-                    inspection.invoice_uploaded_date = timezone.now()
-                    print(f"✅ Invoice file uploaded: {request.FILES['invoice_file'].name}")
+                for product_info in products_data:
+                    # Convert checkbox boolean to value (True -> 1.0, False -> None)
+                    def checkbox_to_value(val):
+                        return 1.0 if val else None
 
-                # Lab Form file
-                if 'labform_file' in request.FILES:
-                    save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
-                    inspection.lab_form_uploaded_by = request.user
-                    inspection.lab_form_uploaded_date = timezone.now()
-                    print(f"✅ Lab Form file uploaded: {request.FILES['labform_file'].name}")
+                    # Create new inspection instance with product-specific data
+                    inspection = FoodSafetyAgencyInspection(
+                        client_name=form.cleaned_data.get('client_name'),
+                        date_of_inspection=form.cleaned_data.get('date_of_inspection'),
+                        commodity=product_info.get('commodity', ''),
+                        product_name=product_info.get('product_name', ''),
+                        product_class=product_info.get('product_class', ''),
+                        inspector_name=form.cleaned_data.get('inspector_name', ''),
+                        # Use product-specific sample data (checkboxes)
+                        is_sample_taken=product_info.get('is_sample_taken', False),
+                        needs_retest=form.cleaned_data.get('needs_retest', 'PENDING'),
+                        fat=checkbox_to_value(product_info.get('fat')),
+                        protein=checkbox_to_value(product_info.get('protein')),
+                        calcium=checkbox_to_value(product_info.get('calcium')),
+                        dna='Yes' if product_info.get('dna') else '',
+                        bought_sample=float(product_info.get('bought_sample', 0) or 0),
+                        lab=product_info.get('lab', ''),
+                        town=form.cleaned_data.get('town', ''),
+                        km_traveled=float(product_info.get('km_traveled', 0) or 0),
+                        hours=float(product_info.get('hours', 0) or 0),
+                        additional_email=form.cleaned_data.get('additional_email', ''),
+                        comment=form.cleaned_data.get('comment', ''),
+                        is_manual=True,
+                    )
 
-                # COA file (save to compliance folder as that's where get_inspection_files_local looks)
-                if 'coa_file' in request.FILES:
-                    save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
-                    inspection.coa_uploaded_by = request.user
-                    inspection.coa_uploaded_date = timezone.now()
-                    print(f"✅ COA file uploaded: {request.FILES['coa_file'].name}")
+                    # Generate unique negative remote_id for manual entries
+                    min_remote_id = FoodSafetyAgencyInspection.objects.filter(
+                        is_manual=True
+                    ).aggregate(Min('remote_id'))['remote_id__min']
+                    if min_remote_id is None or min_remote_id >= 0:
+                        inspection.remote_id = -1
+                    else:
+                        inspection.remote_id = min_remote_id - 1
 
-                # Composition file
-                if 'composition_file' in request.FILES:
-                    save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
-                    inspection.composition_uploaded_by = request.user
-                    inspection.composition_uploaded_date = timezone.now()
-                    print(f"✅ Composition file uploaded: {request.FILES['composition_file'].name}")
+                    # Link to client
+                    client = Client.objects.filter(name__iexact=inspection.client_name).first()
+                    if not client:
+                        client = Client.objects.create(name=inspection.client_name or "Unknown Client")
+                    inspection.client = client
 
-                inspection.save()
+                    inspection.save()
+                    created_inspections.append(inspection)
+                    total_created += 1
 
-                # Clear file cache so View Files shows the new files immediately
-                from django.core.cache import cache
-                if inspection.client:
-                    cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
+                    # Keep track of first inspection for file uploads
+                    if first_inspection is None:
+                        first_inspection = inspection
+
+                # Handle file uploads - attach to first inspection only
+                if first_inspection:
+                    if 'rfi_file' in request.FILES:
+                        save_uploaded_file(request.FILES['rfi_file'], first_inspection, 'rfi')
+                        first_inspection.rfi_uploaded_by = request.user
+                        first_inspection.rfi_uploaded_date = timezone.now()
+
+                    if 'invoice_file' in request.FILES:
+                        save_uploaded_file(request.FILES['invoice_file'], first_inspection, 'invoice')
+                        first_inspection.invoice_uploaded_by = request.user
+                        first_inspection.invoice_uploaded_date = timezone.now()
+
+                    if 'labform_file' in request.FILES:
+                        save_uploaded_file(request.FILES['labform_file'], first_inspection, 'lab')
+                        first_inspection.lab_form_uploaded_by = request.user
+                        first_inspection.lab_form_uploaded_date = timezone.now()
+
+                    if 'coa_file' in request.FILES:
+                        save_uploaded_file(request.FILES['coa_file'], first_inspection, 'compliance')
+                        first_inspection.coa_uploaded_by = request.user
+                        first_inspection.coa_uploaded_date = timezone.now()
+
+                    if 'composition_file' in request.FILES:
+                        save_uploaded_file(request.FILES['composition_file'], first_inspection, 'composition')
+                        first_inspection.composition_uploaded_by = request.user
+                        first_inspection.composition_uploaded_date = timezone.now()
+
+                    first_inspection.save()
+
+                    # Clear file cache
+                    from django.core.cache import cache
+                    cache_key = f"docs_files:{first_inspection.client.id}:{first_inspection.id}"
                     cache.delete(cache_key)
                     cache.delete(f"{cache_key}_timestamp")
-                    print(f"🗑️ Cache cleared for: {cache_key}")
 
-                # Build success message with upload info
-                uploaded_docs = []
-                if inspection.rfi_uploaded_by:
-                    uploaded_docs.append("RFI")
-                if inspection.invoice_uploaded_by:
-                    uploaded_docs.append("Invoice")
-                if inspection.lab_form_uploaded_by:
-                    uploaded_docs.append("Lab Form")
-                if inspection.coa_uploaded_by:
-                    uploaded_docs.append("COA")
-                if inspection.composition_uploaded_by:
-                    uploaded_docs.append("Composition")
-
-                msg = f"Inspection for {inspection.client_name} added successfully!"
-                if uploaded_docs:
-                    msg += f" Documents uploaded: {', '.join(uploaded_docs)}"
+                # Build success message with commodity counts
+                from collections import Counter
+                commodity_counts = Counter(p.get('commodity', '') for p in products_data)
+                commodity_summary = ', '.join([f"{c}: {n}" for c, n in commodity_counts.items()])
+                msg = f"Created {total_created} inspection(s) for {first_inspection.client_name if first_inspection else 'client'} ({commodity_summary})"
                 messages.success(request, msg)
                 return redirect('shipment_list')
             except Exception as e:
@@ -1926,11 +1960,32 @@ def shipment_list(request):
                 safe_print(f"[ACCOUNT CODE] MISSING for '{client_name}' (normalized: '{norm_name}')")
                 safe_print(f"[ACCOUNT CODE]   Keys in map: {list(_client_map.keys())[:10]}")
 
+        # Helper function to check if files exist for a specific inspection
+        def check_inspection_files(inspection):
+            """Check if files exist for this specific inspection - returns dict of booleans"""
+            from django.conf import settings as django_settings
+            result = {'composition': False, 'coa': False, 'retest': False, 'occurrence': False}
+            docs_base = os.path.join(django_settings.MEDIA_ROOT, 'docs')
+
+            if inspection.client_id:
+                insp_path = os.path.join(docs_base, str(inspection.client_id), str(inspection.id))
+                if os.path.exists(insp_path):
+                    # Check each category for files
+                    for category, key in [('composition', 'composition'), ('lab', 'coa'), ('retest', 'retest'), ('occurrence', 'occurrence')]:
+                        cat_path = os.path.join(insp_path, category)
+                        if os.path.exists(cat_path) and os.listdir(cat_path):
+                            result[key] = True
+            return result
+
         # PERFORMANCE OPTIMIZATION: Use list comprehension for faster product building (2-3x faster than loop+append)
         # Product names are fetched by background sync service - just use what's in database
         # DO NOT fetch from SQL Server on page load - it takes 11+ minutes for all inspections!
-        products = [
-            {
+        products = []
+        for inspection in group_inspections:
+            # Check actual file existence for this inspection
+            file_status = check_inspection_files(inspection)
+            products.append({
+                'id': inspection.id,  # Primary key for upload functions
                 'remote_id': inspection.remote_id,
                 'client_name': inspection.client_name,
                 'internal_account_code': group_internal_account_code,  # Reuse cached value
@@ -1947,10 +2002,13 @@ def shipment_list(request):
                 'bought_sample': inspection.bought_sample,
                 'lab': inspection.lab,
                 'is_complete': False,  # Default to False
-                'is_direction_present_for_this_inspection': inspection.is_direction_present_for_this_inspection
-            }
-            for inspection in group_inspections
-        ]
+                'is_direction_present_for_this_inspection': inspection.is_direction_present_for_this_inspection,
+                # Upload status flags for button colors - check actual file existence
+                'composition_uploaded': file_status['composition'],
+                'coa_uploaded': file_status['coa'],
+                'retest_uploaded': file_status['retest'],
+                'occurrence_uploaded': file_status['occurrence'],
+            })
         
         # Since we removed the logging system, set default values
         _cached_status = {
@@ -2334,42 +2392,15 @@ def delete_inspection(request, inspection_id):
     return redirect('shipment_list')
 
 
-@login_required(login_url='login')
 def upload_document(request):
     """Handle document uploads for inspection groups and individual inspections."""
+    # Check authentication - return JSON error for AJAX requests
+    if not request.user.is_authenticated:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'multipart/form-data':
+            return JsonResponse({'success': False, 'error': 'Authentication required. Please log in.'})
+        return redirect('login')
+
     if request.method == 'POST':
-        # Check role-based restrictions for inspectors
-        user_role = getattr(request.user, 'role', 'inspector')
-
-        # Inspectors can upload RFI, Occurrence, Lab Form, Composition, Compliance, and Other documents
-        if user_role == 'inspector':
-            document_type = request.POST.get('document_type')
-            allowed_document_types = ['rfi', 'occurrence', 'lab_form', 'composition', 'compliance', 'other']
-            if document_type not in allowed_document_types:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Access denied. Inspectors can only upload RFI, Occurrence, Lab Form, Composition, Compliance, and Other documents.'
-                })
-
-        # Administrators can upload invoice, RFI, composition, and other documents
-        elif user_role in ['admin', 'financial', 'super_admin']:
-            document_type = request.POST.get('document_type')
-            allowed_document_types = ['invoice', 'rfi', 'composition', 'compliance', 'other']
-            if document_type not in allowed_document_types:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Access denied. Administrators can only upload invoice, RFI, Composition, Compliance, and Other documents.'
-                })
-
-        # Lab technicians can only upload lab-related documents
-        elif user_role == 'scientist':
-            document_type = request.POST.get('document_type')
-            allowed_document_types = ['lab', 'lab_form', 'retest', 'coa']
-            if document_type not in allowed_document_types:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Access denied. Lab technicians can only upload lab results, lab forms, COA, and retest documents.'
-                })
         try:
             from ..models import FoodSafetyAgencyInspection
             from django.db import models
@@ -2385,9 +2416,20 @@ def upload_document(request):
             inspection_number = request.POST.get('inspection_number')  # For individual inspection compliance files
             uploaded_file = request.FILES.get('file')
 
-            # SAFETY: Ensure inspection_id is either None or a valid number string
+            # SAFETY: Handle inspection_id - if it looks like a group_id format, use it as group_id
             if inspection_id and not str(inspection_id).isdigit():
-                print(f"[SAFETY] Invalid inspection_id received: '{inspection_id}' - setting to None")
+                # Check if inspection_id looks like a group_id (e.g., "Chicken_Butchery_20260110")
+                # Format: ClientName_YYYYMMDD (ends with 8 digits)
+                import re
+                if re.match(r'^.+_\d{8}$', str(inspection_id)):
+                    # inspection_id is actually a group_id - use it if group_id is not already set
+                    if not group_id:
+                        print(f"[SAFETY] inspection_id '{inspection_id}' looks like group_id format - using as group_id")
+                        group_id = inspection_id
+                    else:
+                        print(f"[SAFETY] inspection_id '{inspection_id}' looks like group_id but group_id already set to '{group_id}'")
+                else:
+                    print(f"[SAFETY] Invalid inspection_id received: '{inspection_id}' - setting to None")
                 inspection_id = None
 
             # Debug logging
@@ -2621,8 +2663,10 @@ def upload_document(request):
             # Find the inspection(s) for this upload
             target_inspection = None
             if inspection_id and str(inspection_id).isdigit():
-                # Individual upload - find by remote_id (only if numeric)
-                target_inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
+                # Individual upload - try id first (primary key), then remote_id
+                target_inspection = FoodSafetyAgencyInspection.objects.filter(id=int(inspection_id)).first()
+                if not target_inspection:
+                    target_inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
 
             if not target_inspection and group_id:
                 # Group upload - find first inspection for this client+date
@@ -2651,6 +2695,26 @@ def upload_document(request):
                     target_inspection.client = client_obj
                     target_inspection.save(update_fields=['client'])
                     print(f"✅ Linked inspection {target_inspection.id} to Client {client_obj.id}")
+
+                    # Also link ALL other inspections for this client+date to the same Client
+                    # This ensures consistency when listing files later
+                    if group_id:
+                        parts = group_id.split('_')
+                        if len(parts) >= 2:
+                            date_str = parts[-1]
+                            if len(date_str) == 8:
+                                try:
+                                    date_obj_for_link = datetime.strptime(date_str, '%Y%m%d').date()
+                                    other_inspections = FoodSafetyAgencyInspection.objects.filter(
+                                        client_name__iexact=client_name,
+                                        date_of_inspection=date_obj_for_link,
+                                        client__isnull=True
+                                    ).exclude(id=target_inspection.id)
+                                    linked_count = other_inspections.update(client=client_obj)
+                                    if linked_count > 0:
+                                        print(f"✅ Also linked {linked_count} other inspection(s) for {client_name} to Client {client_obj.id}")
+                                except ValueError:
+                                    pass
 
                 # Build new structure path: docs/{client_id}/{inspection_id}/{category}/
                 document_dir = os.path.join(
@@ -2891,9 +2955,10 @@ def upload_document(request):
                             print(f"DEBUG: Found {candidate_inspections.count()} inspections for date {date_obj}")
                             
                             # Use exact client name matching (much more efficient)
-                            matching_inspections = candidate_inspections.filter(
+                            # Convert to list to avoid MySQL subquery limitation
+                            matching_inspections = list(candidate_inspections.filter(
                                 client_name=client_name_from_group
-                            ).values_list('id', flat=True)
+                            ).values_list('id', flat=True))
                             
                             print(f"DEBUG: Found {len(matching_inspections)} matching inspections for '{client_name_from_group}'")
                             
@@ -2926,6 +2991,18 @@ def upload_document(request):
                                         composition_uploaded_date=current_time
                                     )
                                     print(f"DEBUG: Updated Composition tracking for {updated_count} inspections")
+                                elif document_type in ['lab', 'coa', 'lab_form']:
+                                    updated_count = group_inspections.update(
+                                        coa_uploaded_by=request.user,
+                                        coa_uploaded_date=current_time
+                                    )
+                                    print(f"DEBUG: Updated COA/Lab tracking for {updated_count} inspections")
+                                elif document_type == 'retest':
+                                    updated_count = group_inspections.update(
+                                        retest_uploaded_by=request.user,
+                                        retest_uploaded_date=current_time
+                                    )
+                                    print(f"DEBUG: Updated Retest tracking for {updated_count} inspections")
                                                                 
                                 print(f"Updated upload tracking for {updated_count} inspections in group {group_id}")
                                 
@@ -2978,8 +3055,10 @@ def upload_document(request):
                             print(f"WARNING: Could not parse date from group_id: {date_str}")
             
             elif upload_type == 'individual' and inspection_id and str(inspection_id).isdigit():
-                # Update individual inspection
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
+                # Update individual inspection - try id first (primary key), then remote_id
+                inspection = FoodSafetyAgencyInspection.objects.filter(id=int(inspection_id)).first()
+                if not inspection:
+                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
                 if inspection:
                     if document_type == 'rfi':
                         inspection.rfi_uploaded_by = request.user
@@ -3001,6 +3080,16 @@ def upload_document(request):
                         inspection.composition_uploaded_date = current_time
                         inspection.save(update_fields=['composition_uploaded_by', 'composition_uploaded_date'])
                         print(f"DEBUG: Updated Composition tracking for individual inspection {inspection_id}")
+                    elif document_type in ['lab', 'coa', 'lab_form']:
+                        inspection.coa_uploaded_by = request.user
+                        inspection.coa_uploaded_date = current_time
+                        inspection.save(update_fields=['coa_uploaded_by', 'coa_uploaded_date'])
+                        print(f"DEBUG: Updated COA/Lab tracking for individual inspection {inspection_id}")
+                    elif document_type == 'retest':
+                        inspection.retest_uploaded_by = request.user
+                        inspection.retest_uploaded_date = current_time
+                        inspection.save(update_fields=['retest_uploaded_by', 'retest_uploaded_date'])
+                        print(f"DEBUG: Updated Retest tracking for individual inspection {inspection_id}")
                     # Clear cache after individual upload - CLEAR ALL RELEVANT CACHES
                     from django.core.cache import cache
 
@@ -3353,14 +3442,18 @@ def list_client_folder_files(request):
         # Strip btn- prefix if present
         clean_client_name = client_name[4:] if client_name.startswith('btn-') else client_name
 
-        # Look up inspection and client in database
-        inspection = FoodSafetyAgencyInspection.objects.filter(
+        # Look up ALL inspections for this client+date (not just first)
+        # This matches the behavior of check_group_files which loops through all
+        inspections = FoodSafetyAgencyInspection.objects.filter(
             client_name__iexact=clean_client_name,
             date_of_inspection=date_obj.date()
-        ).first()
+        ).select_related('client')
 
-        client_obj = None
-        if inspection:
+        docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+        doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'occurrence', 'retest', 'other']
+
+        for inspection in inspections:
+            client_obj = None
             if inspection.client:
                 client_obj = inspection.client
             else:
@@ -3368,28 +3461,26 @@ def list_client_folder_files(request):
                 from main.models import Client
                 client_obj = Client.objects.filter(name__iexact=clean_client_name).first()
 
-        if inspection and client_obj:
-            docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
-            if os.path.exists(docs_path):
-                # Standard categories to check
-                doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'occurrence', 'retest', 'other']
-                for cat in doc_categories:
-                    cat_path = os.path.join(docs_path, cat)
-                    if os.path.exists(cat_path):
-                        try:
-                            for filename in os.listdir(cat_path):
-                                file_path = os.path.join(cat_path, filename)
-                                if os.path.isfile(file_path):
-                                    file_size = os.path.getsize(file_path)
-                                    unique_key = (filename, file_size, os.path.getmtime(file_path))
-                                    if unique_key not in seen_files:
-                                        seen_files.add(unique_key)
-                                        file_info = get_file_info(file_path, cat)
-                                        if cat not in files_list:
-                                            files_list[cat] = []
-                                        files_list[cat].append(file_info)
-                        except (OSError, PermissionError):
-                            pass
+            if client_obj:
+                docs_path = os.path.join(docs_base, str(client_obj.id), str(inspection.id))
+                if os.path.exists(docs_path):
+                    for cat in doc_categories:
+                        cat_path = os.path.join(docs_path, cat)
+                        if os.path.exists(cat_path):
+                            try:
+                                for filename in os.listdir(cat_path):
+                                    file_path = os.path.join(cat_path, filename)
+                                    if os.path.isfile(file_path):
+                                        file_size = os.path.getsize(file_path)
+                                        unique_key = (filename, file_size, os.path.getmtime(file_path))
+                                        if unique_key not in seen_files:
+                                            seen_files.add(unique_key)
+                                            file_info = get_file_info(file_path, cat)
+                                            if cat not in files_list:
+                                                files_list[cat] = []
+                                            files_list[cat].append(file_info)
+                            except (OSError, PermissionError):
+                                pass
 
         # Find all matching folders (exact and partial matches for nested "/" structures)
         matched_folders = []
@@ -10394,26 +10485,30 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
             print(f"[FILES DEBUG] Could not parse date: {inspection_date}")
             return files_by_category
 
-        print(f"[FILES DEBUG] Looking up inspection for client='{client_name}', date={date_obj.date()}")
+        print(f"[FILES DEBUG] Looking up inspections for client='{client_name}', date={date_obj.date()}")
 
-        # Look up the inspection in database to get IDs
-        inspection = FoodSafetyAgencyInspection.objects.filter(
+        # Look up ALL inspections for this client+date (not just first)
+        # This matches the behavior of check_group_files which loops through all
+        inspections = FoodSafetyAgencyInspection.objects.filter(
             client_name__iexact=client_name,
             date_of_inspection=date_obj.date()
-        ).first()
+        ).select_related('client')
 
-        if inspection:
-            print(f"[FILES DEBUG] Found inspection id={inspection.id}, client FK={inspection.client_id}, client obj={inspection.client}")
+        inspection_count = inspections.count()
+        if inspection_count > 0:
+            print(f"[FILES DEBUG] Found {inspection_count} inspection(s)")
         else:
-            print(f"[FILES DEBUG] NO inspection found in database!")
+            print(f"[FILES DEBUG] NO inspections found in database!")
 
         # Track added files to avoid duplicates
         added_files = set()
 
         # === NEW STRUCTURE: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/ ===
-        # Try to get client - either from FK or by looking up by name
-        client_obj = None
-        if inspection:
+        # Loop through ALL inspections to find files (same as check_group_files)
+        docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+
+        for inspection in inspections:
+            client_obj = None
             if inspection.client:
                 client_obj = inspection.client
             else:
@@ -10423,41 +10518,30 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                 if client_obj:
                     print(f"[FILES DEBUG] Found client by name lookup: id={client_obj.id}, name={client_obj.name}")
 
-        if inspection and client_obj:
-            docs_path = os.path.join(
-                settings.MEDIA_ROOT,
-                'docs',
-                str(client_obj.id),
-                str(inspection.id)
-            )
-            print(f"[FILES DEBUG] New structure path would be: {docs_path}")
+            if client_obj:
+                docs_path = os.path.join(
+                    docs_base,
+                    str(client_obj.id),
+                    str(inspection.id)
+                )
+                print(f"[FILES DEBUG] Checking path for inspection {inspection.id}: {docs_path}")
 
-            # Check cache
-            cache_key = f"docs_files:{client_obj.id}:{inspection.id}"
-            if not force_refresh:
-                cached = cache.get(cache_key)
-                if cached:
-                    print(f"[FILES DEBUG] Returning CACHED result for {cache_key}")
-                    return cached
-                else:
-                    print(f"[FILES DEBUG] No cache hit for {cache_key}")
-
-            if os.path.exists(docs_path):
-                print(f"[FILES DEBUG] Path EXISTS, scanning: {docs_path}")
-                for category in CATEGORIES:
-                    cat_path = os.path.join(docs_path, category)
-                    if os.path.exists(cat_path):
-                        try:
-                            for filename in os.listdir(cat_path):
-                                file_path = os.path.join(cat_path, filename)
-                                if os.path.isfile(file_path):
-                                    file_key = f"{filename}_{os.path.getsize(file_path)}"
-                                    if file_key not in added_files:
-                                        file_info = get_file_info(file_path, category)
-                                        files_by_category[category].append(file_info)
-                                        added_files.add(file_key)
-                        except (OSError, PermissionError):
-                            pass
+                if os.path.exists(docs_path):
+                    print(f"[FILES DEBUG] Path EXISTS, scanning: {docs_path}")
+                    for category in CATEGORIES:
+                        cat_path = os.path.join(docs_path, category)
+                        if os.path.exists(cat_path):
+                            try:
+                                for filename in os.listdir(cat_path):
+                                    file_path = os.path.join(cat_path, filename)
+                                    if os.path.isfile(file_path):
+                                        file_key = f"{filename}_{os.path.getsize(file_path)}"
+                                        if file_key not in added_files:
+                                            file_info = get_file_info(file_path, category)
+                                            files_by_category[category].append(file_info)
+                                            added_files.add(file_key)
+                            except (OSError, PermissionError):
+                                pass
 
         # === LEGACY STRUCTURE: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/... ===
         # Fall back to old structure for backwards compatibility
@@ -11932,26 +12016,11 @@ def get_page_clients_file_status(request):
                                 invoice_uploaded_date=current_time
                             )
 
-                        if has_lab and not matching_inspections.filter(coa_uploaded_by__isnull=False).exists():
-                            # Files exist but database doesn't have uploader info - set to system user
-                            matching_inspections.update(
-                                coa_uploaded_by_id=1,  # System user
-                                coa_uploaded_date=current_time
-                            )
-
-                        if has_retest and not matching_inspections.filter(retest_uploaded_by__isnull=False).exists():
-                            # Files exist but database doesn't have uploader info - set to system user
-                            matching_inspections.update(
-                                retest_uploaded_by_id=1,  # System user
-                                retest_uploaded_date=current_time
-                            )
-
-                        if has_composition and not matching_inspections.filter(composition_uploaded_by__isnull=False).exists():
-                            # Files exist but database doesn't have uploader info - set to system user
-                            matching_inspections.update(
-                                composition_uploaded_by_id=1,  # System user
-                                composition_uploaded_date=current_time
-                            )
+                        # NOTE: Do NOT auto-sync COA/Lab, Retest, Composition, Occurrence flags
+                        # These are per-product flags and should only be set when a user
+                        # explicitly uploads a document for that specific product.
+                        # Auto-syncing would incorrectly mark ALL products as uploaded when
+                        # only one file exists in the folder.
                 has_compliance = has_compliance_dir
                 
                 # Determine status for this specific client+date combination
@@ -12487,7 +12556,15 @@ def update_sent_status(request):
             updated_count += 1
         
         print(f" Updated sent status for {updated_count} inspections in group {group_id}")
-        
+
+        # CRITICAL: Clear the shipment list cache so refreshing shows the updated status
+        try:
+            from django.core.cache import cache
+            cache.clear()  # Clear ALL cache to ensure fresh data on refresh
+            print(f" Cleared cache after sent status update")
+        except Exception as cache_error:
+            print(f"[WARNING] Could not clear cache: {cache_error}")
+
         # Log the sent status change to system logs
         try:
             # Get client name from the first matching inspection
