@@ -192,6 +192,117 @@
         .checkbox-card input:checked + .checkbox-content {
             color: var(--primary);
         }
+        .checkbox-card:has(input:checked) {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        /* Special green styling for sample taken checkbox */
+        .checkbox-card.sample-taken-card {
+            position: relative;
+            padding-left: 52px;
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-card.sample-taken-card input[type="checkbox"] {
+            display: none;
+        }
+        .checkbox-card.sample-taken-card .custom-check {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 26px;
+            height: 26px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .checkbox-card.sample-taken-card .custom-check i {
+            font-size: 14px;
+            color: transparent;
+            transition: all 0.25s ease;
+            transform: scale(0);
+        }
+        .checkbox-card.sample-taken-card:hover .custom-check {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        .checkbox-card.sample-taken-card:has(input:checked) {
+            border-color: #10b981;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        .checkbox-card.sample-taken-card:has(input:checked) .custom-check {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-color: #059669;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+        .checkbox-card.sample-taken-card:has(input:checked) .custom-check i {
+            color: white;
+            transform: scale(1);
+        }
+        .checkbox-card.sample-taken-card:has(input:checked) .checkbox-content {
+            color: #047857;
+            font-weight: 600;
+        }
+        /* Testing checkbox styling (blue theme) */
+        .checkbox-card.testing-card {
+            position: relative;
+            padding-left: 48px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-card.testing-card input[type="checkbox"] {
+            display: none;
+        }
+        .checkbox-card.testing-card .custom-check {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .checkbox-card.testing-card .custom-check i {
+            font-size: 12px;
+            color: transparent;
+            transition: all 0.2s ease;
+            transform: scale(0);
+        }
+        .checkbox-card.testing-card:hover .custom-check {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .checkbox-card.testing-card:has(input:checked) {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .checkbox-card.testing-card:has(input:checked) .custom-check {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .checkbox-card.testing-card:has(input:checked) .custom-check i {
+            color: white;
+            transform: scale(1);
+        }
+        .checkbox-card.testing-card:has(input:checked) .checkbox-content {
+            color: var(--primary);
+            font-weight: 600;
+        }
         .checkbox-card input {
             width: 20px;
             height: 20px;
@@ -225,17 +336,15 @@
             gap: 16px;
         }
         .commodity-card {
-            padding: 24px;
+            padding: 20px 24px;
             border: 2px solid var(--border);
             border-radius: 12px;
-            cursor: pointer;
             transition: all 0.2s;
             text-align: center;
             background: white;
         }
         .commodity-card:hover {
             border-color: var(--primary);
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .commodity-card.selected {
@@ -244,14 +353,57 @@
             box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
         }
         .commodity-card i {
-            font-size: 36px;
-            margin-bottom: 12px;
+            font-size: 32px;
+            margin-bottom: 8px;
             color: var(--primary);
         }
         .commodity-card h4 {
             font-weight: 600;
             color: var(--text);
-            font-size: 16px;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+        .commodity-counter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .commodity-counter button {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .commodity-counter button:hover {
+            background: var(--primary);
+            color: white;
+        }
+        .commodity-counter button:disabled {
+            border-color: #ccc;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        .commodity-counter button:disabled:hover {
+            background: white;
+            color: #ccc;
+        }
+        .commodity-count {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--text);
+            min-width: 30px;
+            text-align: center;
         }
 
         /* Header styling */
@@ -736,22 +888,18 @@
                 </div>
                 <div class="step" data-step="2">
                     <div class="step-circle">2</div>
-                    <span class="step-label">Product</span>
+                    <span class="step-label">Product Info</span>
                 </div>
                 <div class="step" data-step="3">
                     <div class="step-circle">3</div>
-                    <span class="step-label">Sample & Travel</span>
+                    <span class="step-label">Invoice Info</span>
                 </div>
                 <div class="step" data-step="4">
                     <div class="step-circle">4</div>
-                    <span class="step-label">Testing</span>
+                    <span class="step-label">Documents</span>
                 </div>
                 <div class="step" data-step="5">
                     <div class="step-circle">5</div>
-                    <span class="step-label">Documents</span>
-                </div>
-                <div class="step" data-step="6">
-                    <div class="step-circle">6</div>
                     <span class="step-label">Review</span>
                 </div>
             </div>
@@ -764,35 +912,6 @@
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
                         <i class="fas fa-info-circle text-[var(--primary)] mr-2"></i>Basic Information
                     </h3>
-
-                    <div class="form-group">
-                        <label class="form-label">Commodity Type *</label>
-                        <div class="commodity-grid">
-                            <div class="commodity-card" data-value="POULTRY" onclick="selectCommodity(this)">
-                                <i class="fas fa-drumstick-bite"></i>
-                                <h4>Poultry</h4>
-                            </div>
-                            <div class="commodity-card" data-value="RAW" onclick="selectCommodity(this)">
-                                <i class="fas fa-bacon"></i>
-                                <h4>Raw Meat</h4>
-                            </div>
-                            <div class="commodity-card" data-value="PMP" onclick="selectCommodity(this)">
-                                <i class="fas fa-hamburger"></i>
-                                <h4>PMP (Processed)</h4>
-                            </div>
-                            <div class="commodity-card" data-value="EGGS" onclick="selectCommodity(this)">
-                                <i class="fas fa-egg"></i>
-                                <h4>Eggs</h4>
-                            </div>
-                        </div>
-                        <select name="commodity" id="commoditySelect" style="display:none;">
-                            <option value="">-- Select --</option>
-                            <option value="POULTRY">Poultry</option>
-                            <option value="RAW">Raw</option>
-                            <option value="PMP">PMP</option>
-                            <option value="EGGS">Eggs</option>
-                        </select>
-                    </div>
 
                     <div class="form-group">
                         <label class="form-label">Date of Inspection *</label>
@@ -818,209 +937,152 @@
                         </p>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Town *</label>
+                        {{ form.town }}
+                        <p class="text-sm text-gray-500 mt-1">Town/location of inspection</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Commodity Types *</label>
+                        <div class="commodity-grid">
+                            <div class="commodity-card" data-value="POULTRY">
+                                <i class="fas fa-drumstick-bite"></i>
+                                <h4>Poultry</h4>
+                                <div class="commodity-counter">
+                                    <button type="button" onclick="adjustCommodity('POULTRY', -1)" class="decrement-btn">−</button>
+                                    <span class="commodity-count" data-commodity="POULTRY">0</span>
+                                    <button type="button" onclick="adjustCommodity('POULTRY', 1)" class="increment-btn">+</button>
+                                </div>
+                            </div>
+                            <div class="commodity-card" data-value="RAW">
+                                <i class="fas fa-bacon"></i>
+                                <h4>Raw Meat</h4>
+                                <div class="commodity-counter">
+                                    <button type="button" onclick="adjustCommodity('RAW', -1)" class="decrement-btn">−</button>
+                                    <span class="commodity-count" data-commodity="RAW">0</span>
+                                    <button type="button" onclick="adjustCommodity('RAW', 1)" class="increment-btn">+</button>
+                                </div>
+                            </div>
+                            <div class="commodity-card" data-value="PMP">
+                                <i class="fas fa-hamburger"></i>
+                                <h4>PMP (Processed)</h4>
+                                <div class="commodity-counter">
+                                    <button type="button" onclick="adjustCommodity('PMP', -1)" class="decrement-btn">−</button>
+                                    <span class="commodity-count" data-commodity="PMP">0</span>
+                                    <button type="button" onclick="adjustCommodity('PMP', 1)" class="increment-btn">+</button>
+                                </div>
+                            </div>
+                            <div class="commodity-card" data-value="EGGS">
+                                <i class="fas fa-egg"></i>
+                                <h4>Eggs</h4>
+                                <div class="commodity-counter">
+                                    <button type="button" onclick="adjustCommodity('EGGS', -1)" class="decrement-btn">−</button>
+                                    <span class="commodity-count" data-commodity="EGGS">0</span>
+                                    <button type="button" onclick="adjustCommodity('EGGS', 1)" class="increment-btn">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Hidden input to store commodity selections as JSON -->
+                        <input type="hidden" name="commodity_selections" id="commoditySelections" value="{}">
+                        <!-- Keep original for backwards compatibility -->
+                        <select name="commodity" id="commoditySelect" style="display:none;">
+                            <option value="">-- Select --</option>
+                            <option value="POULTRY">Poultry</option>
+                            <option value="RAW">Raw</option>
+                            <option value="PMP">PMP</option>
+                            <option value="EGGS">Eggs</option>
+                        </select>
+                    </div>
+
                     <!-- Hidden fields -->
                     <input type="hidden" name="internal_account_code" id="internal_account_code" value="">
                     <input type="hidden" name="inspector_name" id="inspector_name" value="{{ default_inspector }}">
                 </div>
 
-                <!-- Step 2: Product Information -->
+                <!-- Step 2: Product Info -->
                 <div class="wizard-step-content" data-step="2">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-box text-[var(--primary)] mr-2"></i>Product Information
+                        <i class="fas fa-box text-[var(--primary)] mr-2"></i>Product Info
                     </h3>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="form-group">
-                            <label class="form-label">Product Name</label>
-                            {{ form.product_name }}
-                            <p class="text-sm text-gray-500 mt-1">e.g., Mince, Eggs, Burger Patties</p>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Product Class</label>
-                            {{ form.product_class }}
-                            <p class="text-sm text-gray-500 mt-1">e.g., Class A, Grade 1</p>
-                        </div>
+                    <!-- Dynamic product forms container - populated by JavaScript -->
+                    <div id="productFormsContainer">
+                        <!-- Product forms will be generated here based on commodity selections -->
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Laboratory</label>
-                        {{ form.lab }}
-                    </div>
+                    <!-- Hidden input to store all product data as JSON -->
+                    <input type="hidden" name="products_data" id="productsData" value="[]">
                 </div>
 
-                <!-- Step 3: Sample & Travel -->
+                <!-- Step 3: Invoice Info -->
                 <div class="wizard-step-content" data-step="3">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-vial text-[var(--primary)] mr-2"></i>Sample & Travel Details
+                        <i class="fas fa-file-invoice text-[var(--primary)] mr-2"></i>Invoice Info
                     </h3>
 
-                    <div class="form-group">
-                        <label class="checkbox-card">
-                            {{ form.is_sample_taken }}
-                            <span class="checkbox-content font-medium">Sample was taken during inspection</span>
-                        </label>
+                    <!-- Inspection conducted is auto-set to yes since filling out this form means inspection was done -->
+                    <input type="hidden" name="inspected" value="on">
+
+                    <!-- Dynamic invoice forms container - populated by JavaScript -->
+                    <div id="invoiceFormsContainer">
+                        <!-- Invoice forms will be generated here based on commodity selections -->
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="form-group">
-                            <label class="form-label">Bought Sample Amount (R)</label>
-                            {{ form.bought_sample }}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Kilometers Traveled</label>
-                            {{ form.km_traveled }}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Hours Worked</label>
-                            {{ form.hours }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 4: Testing Parameters -->
-                <div class="wizard-step-content" data-step="4">
-                    <h3 class="text-xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-flask text-[var(--primary)] mr-2"></i>Testing Parameters
-                    </h3>
-
-                    <p class="text-gray-600 mb-6">Select which tests are required for this inspection:</p>
-
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <label class="checkbox-card">
-                            {{ form.fat }}
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <label class="checkbox-card testing-card">
+                            {{ form.follow_up }}
+                            <div class="custom-check">
+                                <i class="fas fa-check"></i>
+                            </div>
                             <span class="checkbox-content">
-                                <span class="font-medium">Fat Testing</span>
+                                <span class="font-medium">Follow-up Required</span>
                             </span>
                         </label>
-                        <label class="checkbox-card">
-                            {{ form.protein }}
+                        <label class="checkbox-card testing-card">
+                            {{ form.dispensation_application }}
+                            <div class="custom-check">
+                                <i class="fas fa-check"></i>
+                            </div>
                             <span class="checkbox-content">
-                                <span class="font-medium">Protein Testing</span>
-                            </span>
-                        </label>
-                        <label class="checkbox-card">
-                            {{ form.calcium }}
-                            <span class="checkbox-content">
-                                <span class="font-medium">Calcium Testing</span>
-                            </span>
-                        </label>
-                        <label class="checkbox-card">
-                            {{ form.dna }}
-                            <span class="checkbox-content">
-                                <span class="font-medium">DNA Testing</span>
+                                <span class="font-medium">Dispensation Application</span>
                             </span>
                         </label>
                     </div>
 
-                    <div class="form-group" style="max-width: 250px;">
-                        <label class="form-label">Needs Retest?</label>
-                        {{ form.needs_retest }}
-                    </div>
-
-                    <div class="form-group">
+                    <div class="form-group mt-6">
                         <label class="form-label">Comments / Notes</label>
                         {{ form.comment }}
                     </div>
                 </div>
 
-                <!-- Step 5: Documents -->
-                <div class="wizard-step-content" data-step="5">
+                <!-- Step 4: Documents -->
+                <div class="wizard-step-content" data-step="4">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
                         <i class="fas fa-file-upload text-[var(--primary)] mr-2"></i>Upload Documents
                     </h3>
 
                     <p class="text-gray-600 mb-6">Upload required documents for this inspection. Click on each card to select a file.</p>
 
-                    <div class="file-upload-grid">
-                        <!-- RFI Document -->
-                        <div class="file-upload-card" id="upload-rfi" onclick="triggerFileUpload('rfi')">
-                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('rfi')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <i class="fas fa-file-invoice upload-icon"></i>
-                            <div class="upload-label">RFI Document</div>
-                            <div class="upload-hint">Request for Information</div>
-                            <input type="file" id="file-rfi" name="rfi_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'rfi')">
-                            <div class="file-name" id="filename-rfi"></div>
-                            <div class="upload-progress" id="progress-rfi">
-                                <div class="upload-progress-bar" id="progress-bar-rfi"></div>
-                            </div>
-                            <div class="upload-status pending" id="status-rfi">Not uploaded</div>
+                    <!-- RFI Document (Required) -->
+                    <div class="file-upload-card" id="upload-rfi" onclick="triggerFileUpload('rfi')" style="max-width: 300px;">
+                        <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('rfi')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <i class="fas fa-file-invoice upload-icon"></i>
+                        <div class="upload-label">RFI Document <span style="color: #ef4444;">*</span></div>
+                        <div class="upload-hint">Request for Information (Required)</div>
+                        <input type="file" id="file-rfi" name="rfi_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'rfi')" required>
+                        <div class="file-name" id="filename-rfi"></div>
+                        <div class="upload-progress" id="progress-rfi">
+                            <div class="upload-progress-bar" id="progress-bar-rfi"></div>
                         </div>
-
-                        <!-- Invoice Document -->
-                        <div class="file-upload-card" id="upload-invoice" onclick="triggerFileUpload('invoice')">
-                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('invoice')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <i class="fas fa-file-invoice-dollar upload-icon"></i>
-                            <div class="upload-label">Invoice</div>
-                            <div class="upload-hint">Invoice document</div>
-                            <input type="file" id="file-invoice" name="invoice_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'invoice')">
-                            <div class="file-name" id="filename-invoice"></div>
-                            <div class="upload-progress" id="progress-invoice">
-                                <div class="upload-progress-bar" id="progress-bar-invoice"></div>
-                            </div>
-                            <div class="upload-status pending" id="status-invoice">Not uploaded</div>
-                        </div>
-
-                        <!-- Lab Form -->
-                        <div class="file-upload-card" id="upload-labform" onclick="triggerFileUpload('labform')">
-                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('labform')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <i class="fas fa-flask upload-icon"></i>
-                            <div class="upload-label">Lab Form</div>
-                            <div class="upload-hint">Laboratory submission form</div>
-                            <input type="file" id="file-labform" name="labform_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'labform')">
-                            <div class="file-name" id="filename-labform"></div>
-                            <div class="upload-progress" id="progress-labform">
-                                <div class="upload-progress-bar" id="progress-bar-labform"></div>
-                            </div>
-                            <div class="upload-status pending" id="status-labform">Not uploaded</div>
-                        </div>
-
-                        <!-- COA (Certificate of Analysis) -->
-                        <div class="file-upload-card" id="upload-coa" onclick="triggerFileUpload('coa')">
-                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('coa')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <i class="fas fa-certificate upload-icon"></i>
-                            <div class="upload-label">COA</div>
-                            <div class="upload-hint">Certificate of Analysis</div>
-                            <input type="file" id="file-coa" name="coa_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'coa')">
-                            <div class="file-name" id="filename-coa"></div>
-                            <div class="upload-progress" id="progress-coa">
-                                <div class="upload-progress-bar" id="progress-bar-coa"></div>
-                            </div>
-                            <div class="upload-status pending" id="status-coa">Not uploaded</div>
-                        </div>
-
-                        <!-- Composition Document -->
-                        <div class="file-upload-card" id="upload-composition" onclick="triggerFileUpload('composition')">
-                            <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('composition')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                            <i class="fas fa-list-alt upload-icon"></i>
-                            <div class="upload-label">Composition</div>
-                            <div class="upload-hint">Product composition document</div>
-                            <input type="file" id="file-composition" name="composition_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'composition')">
-                            <div class="file-name" id="filename-composition"></div>
-                            <div class="upload-progress" id="progress-composition">
-                                <div class="upload-progress-bar" id="progress-bar-composition"></div>
-                            </div>
-                            <div class="upload-status pending" id="status-composition">Not uploaded</div>
-                        </div>
-                    </div>
-
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-sm mt-6">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Documents are optional but recommended. You can upload PDF, Word documents, or images.
+                        <div class="upload-status pending" id="status-rfi">Not uploaded</div>
                     </div>
                 </div>
 
-                <!-- Step 6: Review -->
-                <div class="wizard-step-content" data-step="6">
+                <!-- Step 5: Review -->
+                <div class="wizard-step-content" data-step="5">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
                         <i class="fas fa-check-circle text-[var(--primary)] mr-2"></i>Review & Submit
                     </h3>
@@ -1049,7 +1111,7 @@
                                 <span id="reviewProduct" class="font-semibold text-gray-800">-</span>
                             </div>
                             <div class="p-3 bg-white rounded border">
-                                <span class="text-gray-500 block text-xs">KM / Hours</span>
+                                <span class="text-gray-500 block text-xs">KM / Hours / Travel Time</span>
                                 <span id="reviewKmHours" class="font-semibold text-gray-800">-</span>
                             </div>
                         </div>
@@ -1057,29 +1119,26 @@
 
                     <!-- Documents Summary -->
                     <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                        <h4 class="font-semibold text-gray-700 mb-4">Documents Uploaded</h4>
-                        <div class="grid grid-cols-2 gap-3 text-sm" id="reviewDocuments">
+                        <h4 class="font-semibold text-gray-700 mb-4">Document Uploaded</h4>
+                        <div class="text-sm" id="reviewDocuments">
                             <div class="p-2 rounded border flex items-center gap-2" id="review-rfi">
                                 <i class="fas fa-times-circle text-red-500"></i>
                                 <span>RFI: Not uploaded</span>
                             </div>
-                            <div class="p-2 rounded border flex items-center gap-2" id="review-invoice">
-                                <i class="fas fa-times-circle text-red-500"></i>
-                                <span>Invoice: Not uploaded</span>
-                            </div>
-                            <div class="p-2 rounded border flex items-center gap-2" id="review-labform">
-                                <i class="fas fa-times-circle text-red-500"></i>
-                                <span>Lab Form: Not uploaded</span>
-                            </div>
-                            <div class="p-2 rounded border flex items-center gap-2" id="review-coa">
-                                <i class="fas fa-times-circle text-red-500"></i>
-                                <span>COA: Not uploaded</span>
-                            </div>
-                            <div class="p-2 rounded border flex items-center gap-2" id="review-composition">
-                                <i class="fas fa-times-circle text-red-500"></i>
-                                <span>Composition: Not uploaded</span>
-                            </div>
                         </div>
+                    </div>
+
+                    <!-- Validation Warning - shown when required fields are missing -->
+                    <div id="validationWarning" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm mb-4" style="display: none;">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Missing Required Fields:</strong>
+                        <ul id="missingFieldsList" class="mt-2 ml-6 list-disc"></ul>
+                    </div>
+
+                    <!-- Success message - shown when all required fields are filled -->
+                    <div id="validationSuccess" class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm mb-4" style="display: none;">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        All required fields are filled. You can now save the inspection.
                     </div>
 
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm">
@@ -1100,7 +1159,7 @@
                         <button type="button" id="nextBtn" class="btn btn-primary" onclick="changeStep(1)">
                             Next <i class="fas fa-arrow-right"></i>
                         </button>
-                        <button type="submit" id="submitBtn" class="btn btn-primary" style="display: none;">
+                        <button type="submit" id="submitBtn" class="btn btn-primary" style="display: none; opacity: 0.5; cursor: not-allowed;" disabled>
                             <i class="fas fa-save"></i> Save Inspection
                         </button>
                     </div>
@@ -1116,42 +1175,392 @@
 
     <script>
         let currentStep = 1;
-        const totalSteps = 6;
+        const totalSteps = 5;
 
         // Track uploaded files
         const uploadedFiles = {
-            rfi: null,
-            invoice: null,
-            labform: null,
-            coa: null,
-            composition: null
+            rfi: null
         };
 
-        function selectCommodity(card) {
-            document.querySelectorAll('.commodity-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            document.getElementById('commoditySelect').value = card.dataset.value;
+        // Track commodity selections with quantities
+        const commoditySelections = {
+            POULTRY: 0,
+            RAW: 0,
+            PMP: 0,
+            EGGS: 0
+        };
+
+        function adjustCommodity(commodity, delta) {
+            // Update the count
+            commoditySelections[commodity] = Math.max(0, commoditySelections[commodity] + delta);
+
+            // Update the display
+            const countEl = document.querySelector(`.commodity-count[data-commodity="${commodity}"]`);
+            if (countEl) {
+                countEl.textContent = commoditySelections[commodity];
+            }
+
+            // Update the card styling
+            const card = document.querySelector(`.commodity-card[data-value="${commodity}"]`);
+            if (card) {
+                if (commoditySelections[commodity] > 0) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+
+            // Update hidden input with JSON
+            document.getElementById('commoditySelections').value = JSON.stringify(commoditySelections);
+
+            // Update legacy select for backwards compatibility (use first selected commodity)
+            const selectedCommodities = Object.entries(commoditySelections)
+                .filter(([_, count]) => count > 0)
+                .map(([name, _]) => name);
+            document.getElementById('commoditySelect').value = selectedCommodities[0] || '';
+
+            // Update decrement button state
+            updateDecrementButtons();
+
+            // Validate Step 1 to update Next button
+            validateStep1();
+        }
+
+        function updateDecrementButtons() {
+            Object.keys(commoditySelections).forEach(commodity => {
+                const card = document.querySelector(`.commodity-card[data-value="${commodity}"]`);
+                if (card) {
+                    const decrementBtn = card.querySelector('.decrement-btn');
+                    if (decrementBtn) {
+                        decrementBtn.disabled = commoditySelections[commodity] === 0;
+                    }
+                }
+            });
+        }
+
+        function getTotalCommodityCount() {
+            return Object.values(commoditySelections).reduce((sum, count) => sum + count, 0);
+        }
+
+        function getSelectedCommodities() {
+            return Object.entries(commoditySelections)
+                .filter(([_, count]) => count > 0)
+                .map(([name, count]) => ({ name, count }));
+        }
+
+        // Store product data for each commodity inspection
+        let productsData = [];
+
+        const commodityNames = {
+            'POULTRY': 'Poultry',
+            'RAW': 'Raw Meat',
+            'PMP': 'PMP (Processed)',
+            'EGGS': 'Eggs'
+        };
+
+        function generateProductForms() {
+            const container = document.getElementById('productFormsContainer');
+            const selectedCommodities = getSelectedCommodities();
+
+            // Build list of all products (expand counts)
+            const products = [];
+            selectedCommodities.forEach(({ name, count }) => {
+                for (let i = 0; i < count; i++) {
+                    products.push({
+                        commodity: name,
+                        index: i + 1,
+                        total: count
+                    });
+                }
+            });
+
+            // Initialize productsData array
+            productsData = products.map((p, idx) => ({
+                commodity: p.commodity,
+                product_name: '',
+                product_class: '',
+                lab: '',
+                is_sample_taken: false,
+                fat: false,
+                protein: false,
+                calcium: false,
+                dna: false,
+                bought_sample: 0,
+                km_traveled: 0,
+                hours: 0
+            }));
+
+            // Generate HTML for each product form
+            let html = '';
+            products.forEach((product, idx) => {
+                const label = product.total > 1
+                    ? `${commodityNames[product.commodity]} #${product.index}`
+                    : commodityNames[product.commodity];
+
+                html += `
+                <div class="product-form-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <h4 style="font-weight: 600; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span style="background: var(--primary); color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px;">${idx + 1}</span>
+                        ${label}
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label class="form-label">Product Name <span style="color: #ef4444;">*</span></label>
+                            <input type="text" class="form-control" placeholder="e.g., Mince, Burger Patties"
+                                   oninput="updateProductData(${idx}, 'product_name', this.value); validateStep2()"
+                                   data-product-idx="${idx}" data-field="product_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product Class <span style="color: #ef4444;">*</span></label>
+                            <select class="form-control" onchange="updateProductData(${idx}, 'product_class', this.value); validateStep2()"
+                                    data-product-idx="${idx}" data-field="product_class" required>
+                                <option value="">-- Select Product Class --</option>
+                                <option value="A">Class A</option>
+                                <option value="B">Class B</option>
+                                <option value="C">Class C</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sample Section -->
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="is_sample_taken"
+                                       onchange="updateProductData(${idx}, 'is_sample_taken', this.checked); toggleCheckboxStyle(this); toggleLabField(${idx})">
+                                <span style="font-size: 13px; font-weight: 500;">Sampled</span>
+                            </label>
+                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       onchange="updateProductData(${idx}, 'fat', this.checked); toggleCheckboxStyle(this)">
+                                <span style="font-size: 13px; font-weight: 500;">Fat</span>
+                            </label>
+                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       onchange="updateProductData(${idx}, 'protein', this.checked); toggleCheckboxStyle(this)">
+                                <span style="font-size: 13px; font-weight: 500;">Protein</span>
+                            </label>
+                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       onchange="updateProductData(${idx}, 'calcium', this.checked); toggleCheckboxStyle(this)">
+                                <span style="font-size: 13px; font-weight: 500;">Calcium</span>
+                            </label>
+                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       onchange="updateProductData(${idx}, 'dna', this.checked); toggleCheckboxStyle(this)">
+                                <span style="font-size: 13px; font-weight: 500;">DNA</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Laboratory (only shown when Sampled is checked) -->
+                    <div id="lab-field-${idx}" class="form-group" style="margin-top: 12px; display: none;">
+                        <label class="form-label">Laboratory <span style="color: #ef4444;">*</span></label>
+                        <select class="form-control" onchange="updateProductData(${idx}, 'lab', this.value); validateStep2()"
+                                data-product-idx="${idx}" data-field="lab">
+                            <option value="">-- Select Lab --</option>
+                            <option value="lab_b">Merieux NutriSciences</option>
+                            <option value="lab_c">AGRI Food Laboratory (SGS)</option>
+                            <option value="lab_d">SANBI</option>
+                            <option value="lab_e">SMT</option>
+                            <option value="lab_f">ARC</option>
+                            <option value="lab_a">Food Safety Laboratory</option>
+                        </select>
+                    </div>
+                </div>
+                `;
+            });
+
+            container.innerHTML = html || '<p class="text-gray-500">No commodities selected. Please go back and select at least one commodity.</p>';
+
+            // Update hidden input
+            document.getElementById('productsData').value = JSON.stringify(productsData);
+        }
+
+        function updateProductData(idx, field, value) {
+            if (productsData[idx]) {
+                productsData[idx][field] = value;
+                document.getElementById('productsData').value = JSON.stringify(productsData);
+            }
+        }
+
+        function toggleCheckboxStyle(checkbox) {
+            const label = checkbox.parentElement;
+            if (checkbox.checked) {
+                label.style.background = '#22c55e';
+                label.style.color = 'white';
+            } else {
+                label.style.background = '#f1f5f9';
+                label.style.color = 'inherit';
+            }
+        }
+
+        // Shared trip values (default to 1 for km and hours)
+        let sharedTripData = {
+            km_traveled: 1,
+            hours: 1,
+            time_traveled: 0
+        };
+
+        function generateInvoiceForms() {
+            const container = document.getElementById('invoiceFormsContainer');
+
+            // Shared trip info section at the top
+            let html = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom: 20px;">
+                <div class="form-group">
+                    <label class="form-label">Kilometers Traveled</label>
+                    <input type="number" step="0.1" class="form-control" id="shared_km" placeholder="1" value="${sharedTripData.km_traveled}"
+                           onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Time Traveled (mins)</label>
+                    <input type="number" step="1" class="form-control" id="shared_time_traveled" placeholder="0" value="${sharedTripData.time_traveled || 0}"
+                           onchange="sharedTripData.time_traveled = parseFloat(this.value) || 0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hours Worked</label>
+                    <input type="number" step="0.1" class="form-control" id="shared_hours" placeholder="1" value="${sharedTripData.hours}"
+                           onchange="sharedTripData.hours = parseFloat(this.value) || 1">
+                </div>
+            </div>
+            `;
+
+            // Per-product bought sample
+            productsData.forEach((product, idx) => {
+                const commodityLabel = commodityNames[product.commodity] || product.commodity;
+                const productName = product.product_name || `Product ${idx + 1}`;
+                const label = `${commodityLabel} - ${productName}`;
+
+                html += `
+                <div class="invoice-form-card" style="padding: 12px 0; margin-bottom: 8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 200px;">
+                        <span style="font-weight: 500;">${idx + 1}. ${label}</span>
+                    </div>
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                        <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">Bought Sample (R)</label>
+                        <input type="number" step="0.01" class="form-control" placeholder="0.00" value="${product.bought_sample || 0}"
+                               onchange="updateProductData(${idx}, 'bought_sample', this.value)">
+                    </div>
+                </div>
+                `;
+            });
+
+            container.innerHTML = html || '<p class="text-gray-500">No products added. Please go back and add products first.</p>';
+        }
+
+        // Validate Step 1 fields and update Next button state
+        function validateStep1() {
+            const totalCount = getTotalCommodityCount();
+            const date = document.querySelector('[name="date_of_inspection"]').value;
+            const client = document.querySelector('[name="client_name"]').value;
+            const town = document.querySelector('[name="town"]').value;
+            const nextBtn = document.getElementById('nextBtn');
+
+            const isValid = totalCount > 0 && date && client && client.trim() !== '' && town && town.trim() !== '';
+
+            if (currentStep === 1) {
+                if (isValid) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = '0.5';
+                    nextBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            return isValid;
+        }
+
+        // Toggle Laboratory field visibility based on Sampled checkbox
+        function toggleLabField(idx) {
+            const sampledCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="is_sample_taken"]`);
+            const labField = document.getElementById(`lab-field-${idx}`);
+
+            if (sampledCheckbox && labField) {
+                if (sampledCheckbox.checked) {
+                    labField.style.display = 'block';
+                } else {
+                    labField.style.display = 'none';
+                    // Clear the lab value when hiding
+                    const labSelect = labField.querySelector('select');
+                    if (labSelect) {
+                        labSelect.value = '';
+                        updateProductData(idx, 'lab', '');
+                    }
+                }
+            }
+            validateStep2();
+        }
+
+        // Validate Step 2 fields and update Next button state
+        function validateStep2() {
+            const nextBtn = document.getElementById('nextBtn');
+            let isValid = true;
+
+            // Check each product form
+            for (let i = 0; i < productsData.length; i++) {
+                const productName = document.querySelector(`input[data-product-idx="${i}"][data-field="product_name"]`);
+                const productClass = document.querySelector(`select[data-product-idx="${i}"][data-field="product_class"]`);
+                const sampledCheckbox = document.querySelector(`input[data-product-idx="${i}"][data-field="is_sample_taken"]`);
+                const labSelect = document.querySelector(`select[data-product-idx="${i}"][data-field="lab"]`);
+
+                // Product Name is required
+                if (!productName || !productName.value.trim()) {
+                    isValid = false;
+                }
+
+                // Product Class is required
+                if (!productClass || !productClass.value) {
+                    isValid = false;
+                }
+
+                // If Sampled is checked, Lab is required
+                if (sampledCheckbox && sampledCheckbox.checked) {
+                    if (!labSelect || !labSelect.value) {
+                        isValid = false;
+                    }
+                }
+            }
+
+            if (currentStep === 2) {
+                if (isValid) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = '0.5';
+                    nextBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            return isValid;
         }
 
         function changeStep(direction) {
             // Validation for step 1
             if (direction === 1 && currentStep === 1) {
-                const commodity = document.getElementById('commoditySelect').value;
-                const date = document.querySelector('[name="date_of_inspection"]').value;
-                const client = document.querySelector('[name="client_name"]').value;
+                if (!validateStep1()) {
+                    return;
+                }
 
-                if (!commodity) {
-                    alert('Please select a commodity type');
+                // Generate product forms when moving to step 2
+                generateProductForms();
+                // Set initial button state for step 2 (will be disabled until fields filled)
+                setTimeout(() => validateStep2(), 0);
+            }
+
+            // Validation for step 2
+            if (direction === 1 && currentStep === 2) {
+                if (!validateStep2()) {
                     return;
                 }
-                if (!date) {
-                    alert('Please enter the inspection date');
-                    return;
-                }
-                if (!client) {
-                    alert('Please select a client');
-                    return;
-                }
+                // Generate invoice forms when moving to step 3
+                generateInvoiceForms();
             }
 
             // Update current step
@@ -1240,52 +1649,119 @@
         }
 
         function updateDocumentReview() {
-            const docTypes = ['rfi', 'invoice', 'labform', 'coa', 'composition'];
-            const labels = {
-                rfi: 'RFI',
-                invoice: 'Invoice',
-                labform: 'Lab Form',
-                coa: 'COA',
-                composition: 'Composition'
-            };
-
-            docTypes.forEach(type => {
-                const reviewEl = document.getElementById('review-' + type);
-                if (reviewEl) {
-                    const hasFile = uploadedFiles[type] !== null;
-                    if (hasFile) {
-                        reviewEl.innerHTML = `
-                            <i class="fas fa-check-circle text-green-500"></i>
-                            <span>${labels[type]}: ${uploadedFiles[type].name}</span>
-                        `;
-                        reviewEl.style.background = '#f0fdf4';
-                        reviewEl.style.borderColor = '#10b981';
-                    } else {
-                        reviewEl.innerHTML = `
-                            <i class="fas fa-times-circle text-red-500"></i>
-                            <span>${labels[type]}: Not uploaded</span>
-                        `;
-                        reviewEl.style.background = '#fef2f2';
-                        reviewEl.style.borderColor = '#ef4444';
-                    }
+            const reviewEl = document.getElementById('review-rfi');
+            if (reviewEl) {
+                const hasFile = uploadedFiles.rfi !== null;
+                if (hasFile) {
+                    reviewEl.innerHTML = `
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span>RFI: ${uploadedFiles.rfi.name}</span>
+                    `;
+                    reviewEl.style.background = '#f0fdf4';
+                    reviewEl.style.borderColor = '#10b981';
+                } else {
+                    reviewEl.innerHTML = `
+                        <i class="fas fa-times-circle text-red-500"></i>
+                        <span>RFI: Not uploaded</span>
+                    `;
+                    reviewEl.style.background = '#fef2f2';
+                    reviewEl.style.borderColor = '#ef4444';
                 }
-            });
+            }
+        }
+
+        function validateRequiredFields() {
+            const missingFields = [];
+
+            // Check commodity - now checks total count from all commodities
+            const totalCount = getTotalCommodityCount();
+            if (totalCount === 0) {
+                missingFields.push('Commodity Type (select at least one)');
+            }
+
+            // Check date
+            const date = document.querySelector('[name="date_of_inspection"]').value;
+            if (!date) {
+                missingFields.push('Date of Inspection');
+            }
+
+            // Check client
+            const client = document.querySelector('[name="client_name"]').value;
+            if (!client || client.trim() === '') {
+                missingFields.push('Client Name');
+            }
+
+            // Check town
+            const town = document.querySelector('[name="town"]').value;
+            if (!town || town.trim() === '') {
+                missingFields.push('Town');
+            }
+
+            // Check RFI document (required)
+            if (!uploadedFiles.rfi) {
+                missingFields.push('RFI Document');
+            }
+
+            return missingFields;
+        }
+
+        function updateSubmitButtonState() {
+            const missingFields = validateRequiredFields();
+            const submitBtn = document.getElementById('submitBtn');
+            const validationWarning = document.getElementById('validationWarning');
+            const validationSuccess = document.getElementById('validationSuccess');
+            const missingFieldsList = document.getElementById('missingFieldsList');
+
+            if (missingFields.length > 0) {
+                // Disable submit button
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+
+                // Show warning with missing fields
+                validationWarning.style.display = 'block';
+                validationSuccess.style.display = 'none';
+                missingFieldsList.innerHTML = missingFields.map(field => `<li>${field}</li>`).join('');
+            } else {
+                // Enable submit button
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+
+                // Show success message
+                validationWarning.style.display = 'none';
+                validationSuccess.style.display = 'block';
+            }
         }
 
         function updateReview() {
-            const commodityCard = document.querySelector('.commodity-card.selected');
-            document.getElementById('reviewCommodity').textContent = commodityCard ? commodityCard.querySelector('h4').textContent : '-';
+            // Show all selected commodities with counts
+            const selectedCommodities = getSelectedCommodities();
+            const commodityNames = {
+                'POULTRY': 'Poultry',
+                'RAW': 'Raw Meat',
+                'PMP': 'PMP',
+                'EGGS': 'Eggs'
+            };
+            const commodityText = selectedCommodities.length > 0
+                ? selectedCommodities.map(c => `${commodityNames[c.name]} (${c.count})`).join(', ')
+                : '-';
+            document.getElementById('reviewCommodity').textContent = commodityText;
             document.getElementById('reviewDate').textContent = document.querySelector('[name="date_of_inspection"]').value || '-';
             document.getElementById('reviewClient').textContent = document.querySelector('[name="client_name"]').value || '-';
             document.getElementById('reviewInspector').textContent = document.querySelector('[name="inspector_name"]').value || '-';
             document.getElementById('reviewProduct').textContent = document.querySelector('[name="product_name"]').value || 'Not specified';
 
-            const km = document.querySelector('[name="km_traveled"]').value || '0';
-            const hours = document.querySelector('[name="hours"]').value || '0';
-            document.getElementById('reviewKmHours').textContent = `${km} km / ${hours} hrs`;
+            const km = sharedTripData.km_traveled || 1;
+            const hours = sharedTripData.hours || 1;
+            const timeTraveled = sharedTripData.time_traveled || 0;
+            document.getElementById('reviewKmHours').textContent = `${km} km / ${hours} hrs / ${timeTraveled} mins`;
 
             // Update document review
             updateDocumentReview();
+
+            // Update submit button state based on validation
+            updateSubmitButtonState();
         }
 
         // Client data from database
@@ -1551,16 +2027,15 @@
 
         // Set initial commodity if editing
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize decrement buttons as disabled (all counts start at 0)
+            updateDecrementButtons();
+
             // Try to restore from localStorage first
             const restored = restoreFormFromStorage();
 
             if (!restored) {
                 // No saved data, set defaults
-                const select = document.getElementById('commoditySelect');
-                if (select.value) {
-                    const card = document.querySelector(`.commodity-card[data-value="${select.value}"]`);
-                    if (card) card.classList.add('selected');
-                }
+                // Note: commoditySelections handles multi-select now, no need for legacy card selection
 
                 // Set today's date as default
                 const dateInput = document.querySelector('[name="date_of_inspection"]');
@@ -1576,8 +2051,35 @@
                 input.addEventListener('input', saveFormToStorage);
             });
 
-            // Clear storage on successful form submission
-            form.addEventListener('submit', function() {
+            // Add validation listeners for Step 1 fields
+            const dateInput = document.querySelector('[name="date_of_inspection"]');
+            const clientInput = document.querySelector('[name="client_name"]');
+            const townInput = document.querySelector('[name="town"]');
+
+            if (dateInput) dateInput.addEventListener('change', validateStep1);
+            if (clientInput) clientInput.addEventListener('input', validateStep1);
+            if (townInput) townInput.addEventListener('input', validateStep1);
+
+            // Validate Step 1 on page load (start with button disabled if fields empty)
+            validateStep1();
+
+            // Clear storage and set defaults on form submission
+            form.addEventListener('submit', function(e) {
+                // Set default values for empty numeric fields
+                const boughtSample = form.querySelector('[name="bought_sample"]');
+                const kmTraveled = form.querySelector('[name="km_traveled"]');
+                const hours = form.querySelector('[name="hours"]');
+
+                if (boughtSample && !boughtSample.value) {
+                    boughtSample.value = '0';
+                }
+                if (kmTraveled && !kmTraveled.value) {
+                    kmTraveled.value = '0';
+                }
+                if (hours && !hours.value) {
+                    hours.value = '0';
+                }
+
                 clearFormStorage();
             });
 
