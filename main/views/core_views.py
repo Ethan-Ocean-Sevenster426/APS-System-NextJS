@@ -2963,46 +2963,38 @@ def upload_document(request):
                             print(f"DEBUG: Found {len(matching_inspections)} matching inspections for '{client_name_from_group}'")
                             
                             # Update upload tracking fields for matching inspections
+                            # Using raw SQL to avoid MySQL subquery limitation
                             if matching_inspections:
-                                group_inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_inspections)
+                                from django.db import connection
                                 updated_count = 0
-                                
-                                if document_type == 'rfi':
-                                    updated_count = group_inspections.update(
-                                        rfi_uploaded_by=request.user,
-                                        rfi_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated RFI tracking for {updated_count} inspections")
-                                elif document_type == 'invoice':
-                                    updated_count = group_inspections.update(
-                                        invoice_uploaded_by=request.user,
-                                        invoice_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated Invoice tracking for {updated_count} inspections")
-                                elif document_type == 'occurrence':
-                                    updated_count = group_inspections.update(
-                                        occurrence_uploaded_by=request.user,
-                                        occurrence_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated Occurrence tracking for {updated_count} inspections")
-                                elif document_type == 'composition':
-                                    updated_count = group_inspections.update(
-                                        composition_uploaded_by=request.user,
-                                        composition_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated Composition tracking for {updated_count} inspections")
-                                elif document_type in ['lab', 'coa', 'lab_form']:
-                                    updated_count = group_inspections.update(
-                                        coa_uploaded_by=request.user,
-                                        coa_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated COA/Lab tracking for {updated_count} inspections")
-                                elif document_type == 'retest':
-                                    updated_count = group_inspections.update(
-                                        retest_uploaded_by=request.user,
-                                        retest_uploaded_date=current_time
-                                    )
-                                    print(f"DEBUG: Updated Retest tracking for {updated_count} inspections")
+
+                                # Map document types to field names
+                                field_map = {
+                                    'rfi': ('rfi_uploaded_by_id', 'rfi_uploaded_date'),
+                                    'invoice': ('invoice_uploaded_by_id', 'invoice_uploaded_date'),
+                                    'occurrence': ('occurrence_uploaded_by_id', 'occurrence_uploaded_date'),
+                                    'composition': ('composition_uploaded_by_id', 'composition_uploaded_date'),
+                                    'lab': ('coa_uploaded_by_id', 'coa_uploaded_date'),
+                                    'coa': ('coa_uploaded_by_id', 'coa_uploaded_date'),
+                                    'lab_form': ('coa_uploaded_by_id', 'coa_uploaded_date'),
+                                    'retest': ('retest_uploaded_by_id', 'retest_uploaded_date'),
+                                }
+
+                                if document_type in field_map:
+                                    user_field, date_field = field_map[document_type]
+                                    id_list = ','.join(str(id) for id in matching_inspections)
+
+                                    sql = f"""
+                                        UPDATE food_safety_agency_inspections
+                                        SET {user_field} = %s, {date_field} = %s
+                                        WHERE id IN ({id_list})
+                                    """
+
+                                    with connection.cursor() as cursor:
+                                        cursor.execute(sql, [request.user.id, current_time])
+                                        updated_count = cursor.rowcount
+
+                                    print(f"DEBUG: Updated {document_type.upper()} tracking for {updated_count} inspections")
                                                                 
                                 print(f"Updated upload tracking for {updated_count} inspections in group {group_id}")
                                 
