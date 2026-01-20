@@ -77,11 +77,15 @@ function uploadRFI(groupId) {
                             console.log('Upload successful:', data);
                             
                             // Update button directly to show username
-                            const buttonId = 'rfi-' + groupId;
+                            const buttonId = 'rfi-btn-' + groupId;
                             console.log('DEBUG: Updating RFI button to show username for:', buttonId);
-                            
+
                                 // Find and update the button - simplified approach
                                 let button = document.getElementById(buttonId);
+
+                                // Also update mobile button
+                                const mobileButtonId = 'rfi-mobile-' + groupId;
+                                const mobileButton = document.getElementById(mobileButtonId);
                                 
                                 if (button) {
                                     console.log('SUCCESS Found RFI button, updating to green success state');
@@ -104,7 +108,19 @@ function uploadRFI(groupId) {
                                     button.onclick = null;
                                     
                                     console.log('SUCCESS Updated RFI button to green success state');
-                                    
+
+                                // Also update mobile RFI button to green
+                                if (mobileButton) {
+                                    mobileButton.disabled = true;
+                                    mobileButton.className = 'btn btn-sm btn-success w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium';
+                                    mobileButton.style.backgroundColor = '#28a745';
+                                    mobileButton.style.borderColor = '#28a745';
+                                    mobileButton.innerHTML = '<i class="fas fa-check mr-1"></i> RFI ✓';
+                                    mobileButton.title = 'RFI file exists';
+                                    mobileButton.onclick = null;
+                                    console.log('SUCCESS Updated mobile RFI button to green success state');
+                                }
+
         // IMPORTANT: Mark that files need refresh for this client
         if (window.uploadedFiles) {
             window.uploadedFiles[groupId] = true;
@@ -595,7 +611,7 @@ function uploadInvoice(groupId) {
                         console.log('Invoice upload successful:', data);
 
                         // CRITICAL: Update BOTH desktop and mobile Invoice buttons
-                        const desktopButtonId = 'invoice-' + groupId;
+                        const desktopButtonId = 'invoice-btn-' + groupId;
                         const mobileButtonId = 'invoice-mobile-' + groupId;
                         console.log('DEBUG Updating Invoice buttons to green success state');
                         console.log('  Desktop button ID:', desktopButtonId);
@@ -720,7 +736,7 @@ function uploadInvoice(groupId) {
     }
 }
 
-// Upload Retest function
+// Upload Retest function - uses unified uploadDocumentForInspection when available
 function uploadRetest(groupId, inspectionId) {
     console.log('uploadRetest called with groupId:', groupId, 'inspectionId:', inspectionId);
 
@@ -729,6 +745,14 @@ function uploadRetest(groupId, inspectionId) {
         return;
     }
 
+    // Use unified upload function if available (same as compliance, composition, etc.)
+    if (window.uploadDocumentForInspection) {
+        console.log('Using unified uploadDocumentForInspection for retest');
+        window.uploadDocumentForInspection(inspectionId, groupId, 'retest');
+        return;
+    }
+
+    // Fallback to direct implementation
     try {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
@@ -856,12 +880,8 @@ function uploadRetest(groupId, inspectionId) {
     }
 }
 
-// Upload Retest for inspection (called from desktop buttons)
-function uploadRetestForInspection(productId, groupId) {
-    console.log('uploadRetestForInspection called with productId:', productId, 'groupId:', groupId);
-    // Pass both productId and groupId to uploadRetest
-    uploadRetest(groupId, productId);
-}
+// NOTE: uploadRetestForInspection is now defined in the inline template script
+// (same location as uploadComplianceForInspection) to ensure consistent behavior
 
 // Upload Lab function
 function uploadLab(inspectionId) {
@@ -986,16 +1006,34 @@ function uploadLabForm(inspectionId) {
                     if (data.success) {
                         alert(data.message || 'Lab form uploaded successfully!');
                         console.log('Lab form upload successful:', data);
-                        
-                        // Update button to green success state
+
+                        // Update button to green success state - try multiple selectors
                         const buttonId = 'lab-form-' + inspectionId;
                         let button = document.getElementById(buttonId);
                         if (button) {
                             button.classList.add('uploaded');
+                            button.style.background = '#22c55e';
+                            button.style.backgroundColor = '#22c55e';
                             button.innerHTML = '<i class="fas fa-file-alt"></i> Lab Form ✓';
                             button.disabled = true;
                             button.title = 'Lab form uploaded';
                         }
+
+                        // Also try to find lab form buttons by other selectors
+                        const labFormSelectors = [
+                            '[data-upload-btn="lab_form-' + inspectionId + '"]',
+                            'button[onclick*="uploadLabFormForInspection"][onclick*="' + inspectionId + '"]'
+                        ];
+
+                        labFormSelectors.forEach(selector => {
+                            document.querySelectorAll(selector).forEach(labBtn => {
+                                labBtn.style.background = '#22c55e';
+                                labBtn.style.backgroundColor = '#22c55e';
+                                labBtn.style.borderColor = '#22c55e';
+                                labBtn.style.color = 'white';
+                                console.log('✅ Updated lab_form button to GREEN:', labBtn);
+                            });
+                        });
 
                         // Trigger delayed color update
                         setTimeout(() => {
@@ -1771,7 +1809,7 @@ async function deleteFile(filePath, fileName) {
                             } else if (documentType === 'lab_form') {
                                 specificButton.onclick = function() { uploadLabForm(inspectionId); };
                             } else if (documentType === 'retest') {
-                                specificButton.onclick = function() { uploadRetest(inspectionId); };
+                                specificButton.onclick = function() { uploadRetest(groupId, inspectionId); };
                             }
                             
                             console.log(`SUCCESS Reset specific ${documentType} button ${specificButtonId} to grey`);
@@ -4167,14 +4205,18 @@ function validateUploadButtonStates() {
 // Initialize upload button states based on existing files
 async function initializeUploadButtonStates() {
     console.log('DEBUG Initializing upload button states based on existing files...');
-    
+
     // Get all lab, lab form, retest, and RFI buttons
+    // Check both id-based and data-upload-btn based buttons
     const allButtons = document.querySelectorAll('button[id^="lab-"], button[id^="retest-"], button[id^="rfi-"]');
     const labButtons = Array.from(allButtons).filter(btn => btn.id.startsWith('lab-') && !btn.id.startsWith('lab-form-'));
-    const labFormButtons = Array.from(document.querySelectorAll('button[id^="lab-form-"]'));
+    // Lab Form buttons: check both id^="lab-form-" and data-upload-btn^="lab_form-"
+    const labFormButtonsById = Array.from(document.querySelectorAll('button[id^="lab-form-"]'));
+    const labFormButtonsByAttr = Array.from(document.querySelectorAll('button[data-upload-btn^="lab_form-"]'));
+    const labFormButtons = [...new Set([...labFormButtonsById, ...labFormButtonsByAttr])];
     const retestButtons = Array.from(document.querySelectorAll('button[id^="retest-"]'));
     const rfiButtons = Array.from(document.querySelectorAll('button[id^="rfi-"]'));
-    
+
     console.log(`DEBUG Found ${labButtons.length} lab buttons, ${labFormButtons.length} lab form buttons, ${retestButtons.length} retest buttons, ${rfiButtons.length} RFI buttons`);
     
     // Process each button type
@@ -4193,22 +4235,39 @@ async function processButtonGroup(buttons, documentType) {
         console.warn(`⚠️ processButtonGroup received non-array for ${documentType}:`, buttons);
         return;
     }
-    
+
         // Process buttons in batches of 2 to avoid overwhelming the server
         const batchSize = 2;
     for (let i = 0; i < buttons.length; i += batchSize) {
         const batch = buttons.slice(i, i + batchSize);
-        
+
         // Process batch in parallel
         await Promise.all(batch.map(async (button) => {
             try {
-                const inspectionId = button.id.split('-').pop();
-                const groupId = button.getAttribute('data-group-id');
-                const clientName = button.getAttribute('data-client-name');
-                const inspectionDate = button.getAttribute('data-inspection-date');
-                
+                // Get inspection ID from either button.id or data-upload-btn attribute
+                let inspectionId = button.id ? button.id.split('-').pop() : null;
+                if (!inspectionId) {
+                    const uploadBtnAttr = button.getAttribute('data-upload-btn');
+                    if (uploadBtnAttr) {
+                        inspectionId = uploadBtnAttr.split('-').pop();
+                    }
+                }
+                let groupId = button.getAttribute('data-group-id');
+                let clientName = button.getAttribute('data-client-name');
+                let inspectionDate = button.getAttribute('data-inspection-date');
+
+                // If missing data, try to get from parent row
+                if (!clientName || !inspectionDate) {
+                    const parentRow = button.closest('[data-group-id]') || button.closest('[data-client-name]');
+                    if (parentRow) {
+                        if (!groupId) groupId = parentRow.getAttribute('data-group-id');
+                        if (!clientName) clientName = parentRow.getAttribute('data-client-name');
+                        if (!inspectionDate) inspectionDate = parentRow.getAttribute('data-inspection-date');
+                    }
+                }
+
                 if (!inspectionId || !clientName || !inspectionDate) {
-                    console.log(`⚠️ Skipping ${documentType} button ${button.id} - missing required data`);
+                    console.log(`⚠️ Skipping ${documentType} button - missing required data (id=${inspectionId}, client=${clientName}, date=${inspectionDate})`);
                     return;
                 }
                 
@@ -4301,10 +4360,17 @@ async function checkFilesExist(clientName, inspectionDate, documentType, inspect
 // Process RFI buttons to check for existing files and set colors - SIMPLE VERSION
 async function processRFIButtons(rfiButtons) {
     console.log(`DEBUG Processing ${rfiButtons.length} RFI buttons...`);
-    
+
     for (const button of rfiButtons) {
         const buttonId = button.id;
-        
+
+        // SIMPLE: Skip buttons already green from template - trust the backend
+        const bgColor = button.style.backgroundColor;
+        if (bgColor === 'rgb(34, 197, 94)' || bgColor === '#22c55e' || bgColor === 'rgb(40, 167, 69)' || bgColor === '#28a745') {
+            console.log(`SKIP Skipping ${buttonId} - already green from template`);
+            continue;
+        }
+
         // Skip buttons that were just marked as file-deleted to prevent race condition
         const fileDeleted = button.getAttribute('data-file-deleted');
         const lastUpdated = button.getAttribute('data-last-updated');
@@ -4315,7 +4381,7 @@ async function processRFIButtons(rfiButtons) {
                 continue;
             }
         }
-        
+
         let groupId = buttonId.replace('rfi-', '');
 
         // CRITICAL: Strip "mobile-" prefix if present (mobile buttons have IDs like "rfi-mobile-{groupId}")
@@ -5446,7 +5512,8 @@ async function initializeRetestButtonsSimple() {
         }
 
         try {
-            const response = await fetch('/inspections/files/', {
+            // Use /list-client-folder-files/ endpoint which correctly checks new structure
+            const response = await fetch('/list-client-folder-files/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -5454,8 +5521,7 @@ async function initializeRetestButtonsSimple() {
                 },
                 body: JSON.stringify({
                     client_name: clientName,
-                    inspection_date: inspectionDate,
-                    _force_refresh: true
+                    inspection_date: inspectionDate
                 })
             });
 
@@ -5466,16 +5532,15 @@ async function initializeRetestButtonsSimple() {
 
                     if (hasRetest) {
                         // GREEN - Retest file exists
-                        button.disabled = true;
+                        button.disabled = false;  // Keep enabled for multiple uploads
                         button.className = 'btn btn-sm btn-success w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium';
-                        button.style.backgroundColor = '#28a745';
-                        button.style.borderColor = '#28a745';
+                        button.style.backgroundColor = '#22c55e';
+                        button.style.borderColor = '#22c55e';
                         button.style.color = 'white';
                         button.style.opacity = '1';
-                        button.style.cursor = 'not-allowed';
-                        button.innerHTML = '<i class="fas fa-check mr-1"></i> Retest';
-                        button.title = 'Retest file exists';
-                        button.onclick = null;
+                        button.style.cursor = 'pointer';
+                        button.innerHTML = 'Upload';
+                        button.title = 'Retest file exists - click to upload more';
                         console.log(`SUCCESS [SIMPLE] Set ${clientName} Retest button to GREEN`);
                     } else {
                         // GREY - No Retest file
@@ -5486,9 +5551,8 @@ async function initializeRetestButtonsSimple() {
                         button.style.color = 'white';
                         button.style.opacity = '1';
                         button.style.cursor = 'pointer';
-                        button.innerHTML = 'Retest';
+                        button.innerHTML = 'Upload';
                         button.title = 'Upload Retest file';
-                        button.onclick = () => uploadRetest(groupId);
                         console.log(`GREY [SIMPLE] Set ${clientName} Retest button to GREY`);
                     }
                 }
