@@ -374,13 +374,34 @@ def user_logout(request):
 @login_required(login_url='login')
 @inspector_only_inspections
 def client_list(request):
-    """Redirect to client_allocation since they serve the same purpose."""
-    # Preserve any query parameters when redirecting
-    query_string = request.GET.urlencode()
-    if query_string:
-        return redirect(f"{reverse('client_allocation')}?{query_string}")
-    else:
-        return redirect('client_allocation')
+    """Display list of clients with inspection counts."""
+    from ..models import Client, Inspection
+    from django.db.models import Count, Q
+
+    search_query = request.GET.get('search', '').strip()
+
+    # Get all clients with inspection count
+    clients = Client.objects.annotate(
+        inspection_count=Count('inspections', distinct=True)
+    ).order_by('name')
+
+    # Apply search filter if provided
+    if search_query:
+        clients = clients.filter(
+            Q(name__icontains=search_query) |
+            Q(client_id__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(manual_email__icontains=search_query) |
+            Q(internal_account_code__icontains=search_query)
+        )
+
+    context = {
+        'clients': clients,
+        'total_count': clients.count(),
+        'search_query': search_query,
+    }
+
+    return render(request, 'main/client_list.html', context)
 
 
 @login_required(login_url='login')
@@ -615,7 +636,7 @@ def delete_inspection(request, pk):
 # =============================================================================
 
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def add_fsa_inspection(request):
     """Add a new Food Safety Agency inspection manually."""
     clear_messages(request)
@@ -716,20 +737,26 @@ def add_fsa_inspection(request):
                         product_class=product_info.get('product_class', ''),
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         # Use product-specific sample data (checkboxes)
-                        is_sample_taken=product_info.get('is_sample_taken', False),
+                        is_sample_taken=bool(product_info.get('is_sample_taken', False)),
                         needs_retest=form.cleaned_data.get('needs_retest', 'PENDING'),
-                        fat=checkbox_to_value(product_info.get('fat')),
-                        protein=checkbox_to_value(product_info.get('protein')),
-                        calcium=checkbox_to_value(product_info.get('calcium')),
-                        dna='Yes' if product_info.get('dna') else '',
+                        fat=bool(product_info.get('fat', False)),
+                        protein=bool(product_info.get('protein', False)),
+                        calcium=bool(product_info.get('calcium', False)),
+                        dna=bool(product_info.get('dna', False)),
                         bought_sample=float(product_info.get('bought_sample', 0) or 0),
                         lab=product_info.get('lab', ''),
                         town=form.cleaned_data.get('town', ''),
                         km_traveled=float(product_info.get('km_traveled', 0) or 0),
                         hours=float(product_info.get('hours', 0) or 0),
-                        additional_email=form.cleaned_data.get('additional_email', ''),
+                        additional_email=request.POST.get('additional_email', ''),
                         comment=form.cleaned_data.get('comment', ''),
                         is_manual=True,
+                        inspected=bool(form.cleaned_data.get('inspected', True)),
+                        follow_up=bool(form.cleaned_data.get('follow_up', False)),
+                        dispensation_application=bool(form.cleaned_data.get('dispensation_application', False)),
+                        corporate_group=request.POST.get('corporate_group', ''),
+                        group_type=request.POST.get('group_type', ''),
+                        facility_type=request.POST.get('facility_type', ''),
                     )
 
                     # Generate unique negative remote_id for manual entries
@@ -813,15 +840,39 @@ def add_fsa_inspection(request):
         full_name = request.user.get_full_name()
         default_inspector = full_name if full_name else request.user.username
 
-    # Get clients for dropdown
+    # Get clients for dropdown with their associated towns
     from ..models import Client
-    clients = Client.objects.all().order_by('name')
+    clients_qs = Client.objects.all().order_by('name')
+
+    # Build clients list with town data from most recent inspection
+    clients_with_towns = []
+    for client in clients_qs:
+        # Get most recent town for this client
+        town = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=client.name
+        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+
+        clients_with_towns.append({
+            'name': client.name,
+            'client_id': client.client_id,
+            'internal_account_code': client.internal_account_code or '',
+            'email': client.email or '',
+            'town': town or ''
+        })
+
+    # Get unique towns from existing inspections
+    towns = FoodSafetyAgencyInspection.objects.exclude(
+        town__isnull=True
+    ).exclude(
+        town=''
+    ).values_list('town', flat=True).distinct().order_by('town')
 
     context = {
         'form': form,
         'action': 'Add',
         'default_inspector': default_inspector,
-        'clients': clients,
+        'clients': clients_with_towns,
+        'towns': list(towns),
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -851,10 +902,39 @@ def edit_fsa_inspection(request, pk):
     else:
         form = FoodSafetyAgencyInspectionForm(instance=inspection)
 
+    # Get all clients for autocomplete with their associated towns
+    clients_qs = Client.objects.all().order_by('name')
+
+    # Build clients list with town data from most recent inspection
+    clients_with_towns = []
+    for client in clients_qs:
+        # Get most recent town for this client
+        town = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=client.name
+        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+
+        clients_with_towns.append({
+            'name': client.name,
+            'client_id': client.client_id,
+            'internal_account_code': client.internal_account_code or '',
+            'email': client.email or '',
+            'town': town or ''
+        })
+
+    # Get unique towns from existing inspections
+    towns = FoodSafetyAgencyInspection.objects.exclude(
+        town__isnull=True
+    ).exclude(
+        town=''
+    ).values_list('town', flat=True).distinct().order_by('town')
+
     context = {
         'form': form,
         'inspection': inspection,
-        'action': 'Edit'
+        'action': 'Edit',
+        'clients': clients_with_towns,
+        'towns': list(towns),
+        'is_occurrence_report': getattr(inspection, 'occurrence_report', False),
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -1314,7 +1394,9 @@ def shipment_list(request):
         'rfi_uploaded_by_id', 'invoice_uploaded_by_id', 'sent_by_id',
         # Testing parameters (user-editable)
         'fat', 'protein', 'calcium', 'dna', 'is_sample_taken', 'bought_sample', 'lab', 'needs_retest',
-        'is_direction_present_for_this_inspection', 'is_manual'
+        'is_direction_present_for_this_inspection', 'is_manual',
+        # Location and contact
+        'town', 'additional_email', 'internal_account_code'
     ).filter(
         # Only show manually created inspections (not synced from SQL Server)
         is_manual=True
@@ -1447,9 +1529,9 @@ def shipment_list(request):
         else:
             # If no inspector ID found, show no inspections
             inspections = inspections.none()
-    elif request.user.role == 'scientist':
-        # Lab technicians can see all inspections (restriction removed)
-        pass  # No filtering - show all inspections
+    elif request.user.role == 'lab_technician':
+        # Lab technicians can only see inspections where samples were taken
+        inspections = inspections.filter(is_sample_taken=True)
     # For admin, super_admin, financial roles, show all inspections
     # (no filtering needed)
     
@@ -1712,7 +1794,7 @@ def shipment_list(request):
         from main.models import FoodSafetyAgencyInspection
 
         try:
-            has_rfi = has_invoice = has_lab = has_compliance = has_composition = has_occurrence = False
+            has_rfi = has_invoice = has_lab = has_lab_form = has_compliance = has_composition = has_occurrence = False
 
             # === NEW STRUCTURE: Check docs/{client_id}/{inspection_id}/ ===
             # Look up inspections for this client and date
@@ -1728,19 +1810,20 @@ def shipment_list(request):
                     insp_path = os.path.join(docs_base, str(inspection.client.id), str(inspection.id))
                     if os.path.exists(insp_path):
                         # Check each category
-                        for category in ['rfi', 'invoice', 'lab', 'compliance', 'composition', 'occurrence']:
+                        for category in ['rfi', 'invoice', 'lab', 'lab_form', 'compliance', 'composition', 'occurrence']:
                             cat_path = os.path.join(insp_path, category)
                             if os.path.exists(cat_path) and os.listdir(cat_path):
                                 if category == 'rfi': has_rfi = True
                                 elif category == 'invoice': has_invoice = True
                                 elif category == 'lab': has_lab = True
+                                elif category == 'lab_form': has_lab_form = True
                                 elif category == 'compliance': has_compliance = True
                                 elif category == 'composition': has_composition = True
                                 elif category == 'occurrence': has_occurrence = True
 
             # === LEGACY STRUCTURE: Check inspection/YEAR/MONTH/CLIENT/ ===
             # Only check if we haven't found all files yet
-            if not (has_rfi and has_invoice and has_lab and has_compliance and has_composition and has_occurrence):
+            if not (has_rfi and has_invoice and has_lab and has_lab_form and has_compliance and has_composition and has_occurrence):
                 inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
 
                 def create_folder_name(name):
@@ -1788,6 +1871,13 @@ def shipment_list(request):
                                         has_lab = True
                                         break
 
+                            if not has_lab_form:
+                                for lab_form_var in ['lab_form', 'Lab_Form', 'lab form']:
+                                    lab_form_path = os.path.join(test_path, lab_form_var)
+                                    if os.path.exists(lab_form_path) and os.listdir(lab_form_path):
+                                        has_lab_form = True
+                                        break
+
                             if not has_compliance:
                                 for comp_var in ['compliance', 'Compliance']:
                                     comp_path = os.path.join(test_path, comp_var)
@@ -1819,12 +1909,13 @@ def shipment_list(request):
             else:
                 file_status = 'no_files'  # Red
 
-            print(f"[FILE CHECK] {client_name}: RFI={has_rfi}, Invoice={has_invoice}, Lab={has_lab}, Compliance={has_compliance}, Composition={has_composition}, Occurrence={has_occurrence}")
+            print(f"[FILE CHECK] {client_name}: RFI={has_rfi}, Invoice={has_invoice}, Lab={has_lab}, Lab_Form={has_lab_form}, Compliance={has_compliance}, Composition={has_composition}, Occurrence={has_occurrence}")
 
             return {
                 'has_rfi': has_rfi,
                 'has_invoice': has_invoice,
                 'has_lab': has_lab,
+                'has_lab_form': has_lab_form,
                 'has_compliance': has_compliance,
                 'has_composition': has_composition,
                 'has_occurrence': has_occurrence,
@@ -1836,6 +1927,7 @@ def shipment_list(request):
                 'has_rfi': False,
                 'has_invoice': False,
                 'has_lab': False,
+                'has_lab_form': False,
                 'has_compliance': False,
                 'has_composition': False,
                 'has_occurrence': False,
@@ -1877,6 +1969,7 @@ def shipment_list(request):
         has_rfi = file_check_result['has_rfi']
         has_invoice = file_check_result['has_invoice']
         has_lab = file_check_result['has_lab']
+        has_lab_form = file_check_result['has_lab_form']
         has_compliance = file_check_result['has_compliance']
         has_composition = file_check_result['has_composition']
         has_occurrence = file_check_result['has_occurrence']
@@ -1931,7 +2024,10 @@ def shipment_list(request):
                 if inspection.approved_status is not None:
                     group_approved_status = inspection.approved_status
                     break
-        
+
+        # Check if this is an occurrence report inspection
+        is_occurrence_report = any(getattr(inspection, 'occurrence_report', False) for inspection in group_inspections)
+
         # If group_inspections is empty but we expected products, try a direct query as fallback
         if not group_inspections and inspection_count > 0:
             print(f" FALLBACK TRIGGERED: {client_name} on {date_of_inspection} - expected {inspection_count}, got 0")
@@ -1949,16 +2045,20 @@ def shipment_list(request):
                 print(f" Fallback query failed for {client_name}: {e}")
 
         # PERFORMANCE OPTIMIZATION: Get internal account code ONCE per group instead of for each product
-        # This eliminates redundant database queries since all products in a group share the same client
-        group_internal_account_code = _get_internal_account_code(client_name) if client_name else None
-        # DEBUG: Log account code retrieval
-        if client_name:
-            norm_name = _norm(client_name)
-            if group_internal_account_code:
-                safe_print(f"[ACCOUNT CODE] Found for '{client_name}': {group_internal_account_code}")
-            else:
-                safe_print(f"[ACCOUNT CODE] MISSING for '{client_name}' (normalized: '{norm_name}')")
-                safe_print(f"[ACCOUNT CODE]   Keys in map: {list(_client_map.keys())[:10]}")
+        # First try to get from the inspection itself (for manually created inspections)
+        group_internal_account_code = None
+        if sample_inspection and sample_inspection.internal_account_code:
+            group_internal_account_code = sample_inspection.internal_account_code
+        else:
+            # Fall back to checking other inspections in the group
+            for inspection in group_inspections:
+                if inspection.internal_account_code:
+                    group_internal_account_code = inspection.internal_account_code
+                    break
+
+        # If still not found, try to get from Client model
+        if not group_internal_account_code and client_name:
+            group_internal_account_code = _get_internal_account_code(client_name)
 
         # Helper function to check if files exist for a specific inspection
         def check_inspection_files(inspection):
@@ -2062,6 +2162,16 @@ def shipment_list(request):
         
         # Create a simple dictionary instead of dynamic class object
         # This avoids pickling issues with Redis cache
+        # Get town from group inspections
+        group_town = None
+        if sample_inspection:
+            group_town = sample_inspection.town
+        if group_town is None and group_inspections:
+            for inspection in group_inspections:
+                if inspection.town:
+                    group_town = inspection.town
+                    break
+
         representative_inspection = {
             'client_name': client_name,
             'date_of_inspection': date_of_inspection,
@@ -2071,6 +2181,7 @@ def shipment_list(request):
             'is_complete': False,  # Default to False - will be checked on-demand
             'group_id': group_id,
             'inspector_name': inspector_name,
+            'town': group_town,  # Include town for display
             'inspector_id': next((inspection.inspector_id for inspection in group_inspections if getattr(inspection, 'inspector_id', None)), None),
             'location': None,  # No location field in model
             'total_products': inspection_count,
@@ -2097,9 +2208,11 @@ def shipment_list(request):
             'has_rfi': has_rfi,  # Individual file flags for button colors
             'has_invoice': has_invoice,
             'has_lab': has_lab,
+            'has_lab_form': has_lab_form,
             'has_compliance': has_compliance,
             'has_composition': has_composition,
             'has_occurrence': has_occurrence,
+            'is_occurrence_report': is_occurrence_report,  # True if this is an occurrence report (disables other uploads)
             'compliance_documents_status': {
                 'all_commodities_have_compliance': bool(compliance_status_result.get('all_commodities_have_compliance', False)) if compliance_status_result else False,
                 'has_any_compliance': bool(compliance_status_result.get('has_any_compliance', False)) if compliance_status_result else False
@@ -2415,6 +2528,81 @@ def upload_document(request):
             document_type = request.POST.get('document_type')
             inspection_number = request.POST.get('inspection_number')  # For individual inspection compliance files
             uploaded_file = request.FILES.get('file')
+            is_occurrence_report = request.POST.get('is_occurrence_report') == 'true'
+
+            # Handle NEW occurrence reports (creating a new inspection)
+            if is_occurrence_report and document_type == 'occurrence' and not inspection_id and not group_id:
+                # Create a new occurrence report inspection
+                try:
+                    from django.db.models import Max
+                    from ..models import InspectorMapping
+
+                    # Get the next remote_id
+                    max_remote_id = FoodSafetyAgencyInspection.objects.aggregate(Max('remote_id'))['remote_id__max'] or 0
+                    new_remote_id = max_remote_id + 1
+
+                    # Parse the date
+                    date_str = request.POST.get('date_of_inspection', '')
+                    if date_str:
+                        try:
+                            inspection_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        except ValueError:
+                            inspection_date = datetime.now().date()
+                    else:
+                        inspection_date = datetime.now().date()
+
+                    # Get inspector name and ID from mapping (for proper filtering)
+                    inspector_name = request.POST.get('inspector_name', '')
+                    inspector_id = None
+
+                    # Try to find inspector mapping for current user
+                    try:
+                        inspector_mapping = InspectorMapping.objects.get(
+                            inspector_name__iexact=request.user.get_full_name() or request.user.username
+                        )
+                        inspector_name = inspector_mapping.inspector_name
+                        inspector_id = inspector_mapping.inspector_id
+                    except InspectorMapping.DoesNotExist:
+                        try:
+                            inspector_mapping = InspectorMapping.objects.get(
+                                inspector_name__iexact=request.user.username
+                            )
+                            inspector_name = inspector_mapping.inspector_name
+                            inspector_id = inspector_mapping.inspector_id
+                        except InspectorMapping.DoesNotExist:
+                            # Use username as fallback
+                            inspector_name = request.user.get_full_name() or request.user.username
+
+                    # Create the occurrence report inspection
+                    new_inspection = FoodSafetyAgencyInspection.objects.create(
+                        remote_id=new_remote_id,
+                        date_of_inspection=inspection_date,
+                        client_name=request.POST.get('client_name', 'Unknown Client'),
+                        town=request.POST.get('town', ''),
+                        additional_email=request.POST.get('email', ''),
+                        inspector_name=inspector_name,
+                        inspector_id=inspector_id,
+                        internal_account_code=request.POST.get('internal_account_code', ''),
+                        corporate_group=request.POST.get('corporate_group', ''),
+                        group_type=request.POST.get('group_type', ''),
+                        facility_type=request.POST.get('facility_type', ''),
+                        occurrence_report=True,
+                        comment=request.POST.get('reason', ''),
+                        commodity='',  # Occurrence reports don't have commodity
+                        product_name='',
+                        product_class='',
+                        km_traveled=0,
+                        hours=0,
+                        is_sample_taken=False,
+                    )
+
+                    # Use the new inspection's ID for file upload
+                    inspection_id = str(new_inspection.remote_id)
+                    print(f"[OCCURRENCE] Created new occurrence report inspection with remote_id: {new_remote_id}, inspector: {inspector_name}, inspector_id: {inspector_id}")
+
+                except Exception as e:
+                    print(f"[OCCURRENCE] Error creating occurrence report: {e}")
+                    return JsonResponse({'success': False, 'error': f'Error creating occurrence report: {str(e)}'})
 
             # SAFETY: Handle inspection_id - if it looks like a group_id format, use it as group_id
             if inspection_id and not str(inspection_id).isdigit():
@@ -2649,7 +2837,7 @@ def upload_document(request):
                 'rfi': 'rfi',
                 'invoice': 'invoice',
                 'lab': 'lab',
-                'lab_form': 'lab',
+                'lab_form': 'lab_form',
                 'retest': 'retest',
                 'compliance': 'compliance',
                 'form': 'lab',
@@ -2976,7 +3164,7 @@ def upload_document(request):
                                     'composition': ('composition_uploaded_by_id', 'composition_uploaded_date'),
                                     'lab': ('coa_uploaded_by_id', 'coa_uploaded_date'),
                                     'coa': ('coa_uploaded_by_id', 'coa_uploaded_date'),
-                                    'lab_form': ('coa_uploaded_by_id', 'coa_uploaded_date'),
+                                    'lab_form': ('lab_form_uploaded_by_id', 'lab_form_uploaded_date'),
                                     'retest': ('retest_uploaded_by_id', 'retest_uploaded_date'),
                                 }
 
@@ -3072,11 +3260,16 @@ def upload_document(request):
                         inspection.composition_uploaded_date = current_time
                         inspection.save(update_fields=['composition_uploaded_by', 'composition_uploaded_date'])
                         print(f"DEBUG: Updated Composition tracking for individual inspection {inspection_id}")
-                    elif document_type in ['lab', 'coa', 'lab_form']:
+                    elif document_type in ['lab', 'coa']:
                         inspection.coa_uploaded_by = request.user
                         inspection.coa_uploaded_date = current_time
                         inspection.save(update_fields=['coa_uploaded_by', 'coa_uploaded_date'])
                         print(f"DEBUG: Updated COA/Lab tracking for individual inspection {inspection_id}")
+                    elif document_type == 'lab_form':
+                        inspection.lab_form_uploaded_by = request.user
+                        inspection.lab_form_uploaded_date = current_time
+                        inspection.save(update_fields=['lab_form_uploaded_by', 'lab_form_uploaded_date'])
+                        print(f"DEBUG: Updated Lab Form tracking for individual inspection {inspection_id}")
                     elif document_type == 'retest':
                         inspection.retest_uploaded_by = request.user
                         inspection.retest_uploaded_date = current_time
@@ -3193,7 +3386,7 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
         inspection_path = os.path.join(base_path, inspection_folder)
 
         # Check each document type in the inspection folder
-        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
+        doc_types = ['Request For Invoice', 'invoice', 'lab results', 'lab_form', 'Lab Form', 'retest', 'Compliance', 'occurrence', 'composition', 'other', 'Other', 'coa', 'COA']
         for doc_type in doc_types:
             # CRITICAL: For Compliance folder, check both capitalized and lowercase versions (case sensitivity fix)
             if doc_type == 'Compliance':
@@ -3247,6 +3440,8 @@ def scan_inspection_folders(base_path, seen_files, inspection_id=None):
                                             category_key = 'lab_form'
                                         else:
                                             category_key = 'lab'
+                                    elif doc_type in ['lab_form', 'Lab Form']:
+                                        category_key = 'lab_form'
                                     elif doc_type == 'Compliance':
                                         category_key = 'compliance'
 
@@ -3326,7 +3521,7 @@ def list_uploaded_files(request):
         files_list = scan_inspection_folders(base_path, seen_files)
 
         # Initialize any missing categories
-        for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition']:
+        for category in ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']:
             if category not in files_list:
                 files_list[category] = []
 
@@ -3639,7 +3834,7 @@ def list_client_folder_files(request):
                                 files_list[actual_doc_type].append(file_info)
 
         # Initialize any missing categories before returning
-        for category in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition', 'other', 'coa']:
+        for category in ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other', 'coa']:
             if category not in files_list:
                 files_list[category] = []
 
@@ -3850,95 +4045,38 @@ def apply_client_filters(request, clients):
 
 @login_required(login_url='login')
 def client_allocation(request):
-    """Client allocation view with local database clients."""
-    clear_messages(request)
+    """Client allocation view - shows clients from Client model."""
+    from ..models import Client
+    from django.db.models import Count, Q
 
-    try:
-        from ..models import ClientAllocation
+    # Get search parameter
+    search_query = request.GET.get('search', '').strip()
+    show_all = request.GET.get('show_all', 'true').lower() == 'true'
 
-        # Get clients from local database
-        clients = ClientAllocation.objects.all().order_by('client_id')
+    # Get all clients with inspection count
+    clients = Client.objects.annotate(
+        inspection_count=Count('inspections', distinct=True)
+    ).order_by('name')
 
-        # Get unique values for dropdown filters
-        all_clients = ClientAllocation.objects.all()
-        unique_commodities = sorted(set(
-            all_clients.exclude(commodity__isnull=True)
-            .exclude(commodity='')
-            .exclude(commodity__iexact='-')
-            .values_list('commodity', flat=True)
-        ))
-        unique_facility_types = sorted(set(
-            all_clients.exclude(facility_type__isnull=True)
-            .exclude(facility_type='')
-            .exclude(facility_type__iexact='-')
-            .values_list('facility_type', flat=True)
-        ))
-        unique_provinces = sorted(set(
-            all_clients.exclude(province__isnull=True)
-            .exclude(province='')
-            .exclude(province__iexact='-')
-            .values_list('province', flat=True)
-        ))
-        unique_corporate_groups = sorted(set(
-            all_clients.exclude(corporate_group__isnull=True)
-            .exclude(corporate_group='')
-            .exclude(corporate_group__iexact='-')
-            .values_list('corporate_group', flat=True)
-        ))
-        unique_group_types = sorted(set(
-            all_clients.exclude(group_type__isnull=True)
-            .exclude(group_type='')
-            .exclude(group_type__iexact='-')
-            .values_list('group_type', flat=True)
-        ))
+    # Apply search filter if provided
+    if search_query:
+        clients = clients.filter(
+            Q(name__icontains=search_query) |
+            Q(client_id__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(manual_email__icontains=search_query) |
+            Q(internal_account_code__icontains=search_query)
+        )
 
-        # Apply comprehensive filters
-        clients = apply_client_filters(request, clients)
+    total_clients = clients.count()
 
-        # Get total count before pagination
-        total_clients = clients.count()
-
-        # Check if user wants to see all clients
-        show_all = request.GET.get('show_all', 'false').lower() == 'true'
-
-        if show_all:
-            # Show all clients without pagination
-            clients_list = list(clients)
-            page_obj = None
-        else:
-            # Use pagination
-            from django.core.paginator import Paginator
-            paginator = Paginator(clients, 25)  # Show 25 clients per page
-            page_number = request.GET.get('page')
-            page_obj = paginator.get_page(page_number)
-            clients_list = page_obj
-
-        context = {
-            'clients': clients_list,
-            'page_obj': page_obj,
-            'total_clients': total_clients,
-            'show_all': show_all,
-            'unique_commodities': unique_commodities,
-            'unique_facility_types': unique_facility_types,
-            'unique_provinces': unique_provinces,
-            'unique_corporate_groups': unique_corporate_groups,
-            'unique_group_types': unique_group_types,
-            'error': None
-        }
-
-    except Exception as e:
-        context = {
-            'clients': [],
-            'page_obj': None,
-            'total_clients': 0,
-            'show_all': False,
-            'unique_commodities': [],
-            'unique_facility_types': [],
-            'unique_provinces': [],
-            'unique_corporate_groups': [],
-            'unique_group_types': [],
-            'error': f'Error fetching data: {str(e)}'
-        }
+    context = {
+        'clients': clients,
+        'total_clients': total_clients,
+        'has_data': total_clients > 0,
+        'search_query': search_query,
+        'show_all': show_all,
+    }
 
     return render(request, 'main/client_allocation.html', context)
 
@@ -10453,7 +10591,7 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
     from main.models import FoodSafetyAgencyInspection
 
     # Standard categories (coa removed - lab folder contains all COA/Lab files)
-    CATEGORIES = ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'occurrence', 'composition', 'other']
+    CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
 
     # Initialize result
     files_by_category = {cat: [] for cat in CATEGORIES}
@@ -10952,8 +11090,12 @@ def get_inspection_files(request):
                 'rfi': [],
                 'invoice': [],
                 'lab': [],
+                'lab_form': [],
                 'retest': [],
-                'compliance': []
+                'compliance': [],
+                'occurrence': [],
+                'composition': [],
+                'other': []
             }
             response = JsonResponse({
                 'success': True,
@@ -14073,7 +14215,7 @@ def user_management(request):
         ('admin', 'Administrator'),
         ('super_admin', 'Super Admin'),
         ('financial', 'Financial Administrator'),
-        ('scientist', 'Lab Technician'),
+        ('lab_technician', 'Lab Technician'),
         ('inspector', 'Inspector'),
         ('developer', 'Developer'),  # Hidden role
     ]
@@ -15165,50 +15307,65 @@ def client_autocomplete_api(request):
     """API endpoint for client autocomplete suggestions."""
     from django.http import JsonResponse
     from ..models import Client, FoodSafetyAgencyInspection
-    
+
     query = request.GET.get('q', '').strip()
     if len(query) < 2:
         return JsonResponse({'suggestions': []})
-    
+
     try:
         # Get unique client names from both Client model and FoodSafetyAgencyInspection
         # This ensures we get all clients that have inspections
         client_suggestions = []
-        
+
         # Get clients from Client model
         clients = Client.objects.filter(
-            Q(client_id__icontains=query) | 
+            Q(client_id__icontains=query) |
             Q(name__icontains=query)
         ).values('client_id', 'name', 'internal_account_code').distinct()[:10]
-        
+
         for client in clients:
             client_name = client['name'] or client['client_id']
             if client_name:
+                # Get the most recent town for this client from inspections
+                town = FoodSafetyAgencyInspection.objects.filter(
+                    client_name__iexact=client_name
+                ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+
                 client_suggestions.append({
                     'name': client_name,
                     'account_code': client['internal_account_code'] or '',
+                    'town': town or '',
                     'type': 'client'
                 })
-        
+
         # Get additional clients from inspection data that might not be in Client model
         inspection_clients = FoodSafetyAgencyInspection.objects.filter(
             client_name__icontains=query
-        ).values_list('client_name', flat=True).distinct()[:10]
-        
-        for client_name in inspection_clients:
+        ).exclude(client_name__isnull=True).exclude(client_name='').values('client_name').annotate(
+            latest_town=models.Max('town')
+        ).distinct()[:10]
+
+        for client_data in inspection_clients:
+            client_name = client_data['client_name']
             if client_name and not any(s['name'] == client_name for s in client_suggestions):
+                # Get the most recent town for this client
+                town = FoodSafetyAgencyInspection.objects.filter(
+                    client_name__iexact=client_name
+                ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+
                 client_suggestions.append({
                     'name': client_name,
                     'account_code': '',
+                    'town': town or '',
                     'type': 'inspection'
                 })
-        
+
         # Sort by name and limit to 15 total suggestions
         client_suggestions.sort(key=lambda x: x['name'].lower())
         client_suggestions = client_suggestions[:15]
-        
+
         return JsonResponse({'suggestions': client_suggestions})
-        
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

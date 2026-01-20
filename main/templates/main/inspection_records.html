@@ -7285,6 +7285,26 @@
                                     }
                                 }
 
+                                // Update Lab Form button - find by data-upload-btn or style attribute
+                                if (documentType === 'lab_form') {
+                                    // Try multiple selectors to find lab form buttons
+                                    const labFormSelectors = [
+                                        '[data-upload-btn="lab_form-' + productId + '"]',
+                                        'button[onclick*="uploadLabFormForInspection"][onclick*="' + productId + '"]',
+                                        'button[title*="Lab Form"]'
+                                    ];
+
+                                    labFormSelectors.forEach(selector => {
+                                        document.querySelectorAll(selector).forEach(labBtn => {
+                                            labBtn.style.background = '#22c55e';
+                                            labBtn.style.backgroundColor = '#22c55e';
+                                            labBtn.style.borderColor = '#22c55e';
+                                            labBtn.style.color = 'white';
+                                            console.log('✅ Updated lab_form button to GREEN:', labBtn);
+                                        });
+                                    });
+                                }
+
                                 // Show toast notification instead of alert
                                 const toast = document.createElement('div');
                                 toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
@@ -7353,6 +7373,10 @@
 
         window.uploadOtherForInspection = function (productId, groupId) {
             window.uploadDocumentForInspection(productId, groupId, 'other');
+        };
+
+        window.uploadLabFormForInspection = function (productId, groupId) {
+            window.uploadDocumentForInspection(productId, groupId, 'lab_form');
         };
 
         window.viewDocForInspection = function (productId, docType) {
@@ -7510,7 +7534,7 @@
                 </li>
 
                 <!-- Shipment-specific functionality -->
-                {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+                {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
                 <li class="nav-item">
                     <button onclick="syncInspectionsFromShipmentList()" class="nav-link"
                         style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
@@ -7519,7 +7543,7 @@
                     </button>
                 </li>
 
-                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                 <li class="nav-item">
                     <a href="{% url 'export_sheet' %}" class="nav-link"
                         style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer; text-decoration: none;">
@@ -7599,7 +7623,7 @@
                     {% endif %}
 
                     <!-- Export Sheet Button -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
                         <i class="fas fa-file-export"></i> Export Sheet
                     </a>
@@ -7616,7 +7640,7 @@
                     </button>
 
                     <!-- Add Inspection Button -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
                     <a href="{% url 'add_fsa_inspection' %}" class="btn" style="background: #22c55e; color: white;"
                         onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
                         <i class="fas fa-plus"></i> Add Inspection
@@ -7624,7 +7648,7 @@
                     {% endif %}
 
                     <!-- Sync Shipments Button - Hidden for administrators -->
-                    {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin' %}
+                    {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin' %}
                     <form action="{% url 'refresh_inspections' %}" method="post" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn" style="background: #007890; color: white;"
@@ -7635,7 +7659,7 @@
                     {% endif %}
 
                     <!-- Manage Clients Button -->
-                    {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+                    {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
                     <a href="{% url 'client_allocation' %}" class="btn btn-allocation">
                         <i class="fas fa-users"></i> Manage Clients
                     </a>
@@ -7704,7 +7728,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_from_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_from %}{{ request.GET.inspection_date_from|date:" d/m/Y" }}{% endif %}" readonly>
+                                            value="{% if request.GET.inspection_date_from %}{{ request.GET.inspection_date_from|date:"d/m/Y" }}{% endif %}" readonly>
                                         <input type="hidden" name="inspection_date_from"
                                             value="{{ request.GET.inspection_date_from }}">
                                         <button type="button" class="date-picker-btn"
@@ -7718,7 +7742,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_to_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_to %}{{ request.GET.inspection_date_to|date:" d/m/Y" }}{% endif %}" readonly>
+                                            value="{% if request.GET.inspection_date_to %}{{ request.GET.inspection_date_to|date:"d/m/Y" }}{% endif %}" readonly>
                                         <input type="hidden" name="inspection_date_to"
                                             value="{{ request.GET.inspection_date_to }}">
                                         <button type="button" class="date-picker-btn"
@@ -7743,7 +7767,8 @@
                                     <select class="form-control" name="compliance_status">
                                         <option value="">All Inspections</option>
                                         <option value="COMPLIANT" {% if request.GET.compliance_status == 'COMPLIANT' %}selected{% endif %}>Compliant Only</option>
-                                        <option value="NON_COMPLIANT" {% if request.GET.compliance_status == 'NON_COMPLIANT' %}selected{% endif %}>Non-Compliant Only</option>
+                                        <option value="NON_COMPLIANT" {% if request.GET.compliance_status == 'NON_COMPLIANT' %}selected{% endif %}>
+                                            Non-Compliant Only</option>
                                     </select>
                                 </div>
                                 <!-- Lab Form Status filter removed - show all inspections regardless of lab forms -->
@@ -7810,6 +7835,11 @@
                                         <div class="flex-1 min-w-0">
                                             <h3 class="font-bold text-lg truncate">{{ shipment.client_name|default:"-" }}</h3>
                                             <p class="text-sm opacity-90">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</p>
+                                            {% if shipment.is_occurrence_report %}
+                                            <span style="font-size: 10px; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 4px; font-weight: 600; margin-top: 4px; display: inline-block;">
+                                                <i class="fas fa-exclamation-triangle" style="margin-right: 3px;"></i>OCCURRENCE REPORT
+                                            </span>
+                                            {% endif %}
                                         </div>
                                         <button
                                             class="expand-btn p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors duration-200 flex-shrink-0"
@@ -7886,6 +7916,16 @@
 
                                     <!-- Action Buttons -->
                                     <div class="mt-4 space-y-2">
+                                        <!-- Edit Inspection Button -->
+                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
+                                            class="btn btn-sm w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200"
+                                            style="background: #3b82f6; display: flex; align-items: center; justify-content: center; text-decoration: none;"
+                                            onmouseover="this.style.background='#2563eb'"
+                                            onmouseout="this.style.background='#3b82f6'">
+                                            <i class="fas fa-edit mr-2"></i> Edit Inspection
+                                        </a>
+                                        {% endif %}
                                         <button id="view-files-mobile-{{ fallback_group_id }}" class="btn btn-sm btn-view-files w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200
                                            {% if shipment.file_status == 'complete' %}
                                                btn-files-complete
@@ -7903,7 +7943,20 @@
                                             <i class="fas fa-eye mr-2"></i> View Files
                                         </button>
                                         <div class="grid grid-cols-1 gap-2">
-                                            {% if shipment.rfi_uploaded %}
+                                            {% if request.user.role == 'lab_technician' %}
+                                            <!-- Lab technician: RFI disabled -->
+                                            <button id="rfi-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for lab technicians">
+                                                <i class="fas fa-ban mr-1"></i> RFI
+                                            </button>
+                                            {% elif shipment.is_occurrence_report %}
+                                            <button id="rfi-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Disabled for occurrence reports">
+                                                <i class="fas fa-ban mr-1"></i> RFI
+                                            </button>
+                                            {% elif shipment.rfi_uploaded %}
                                             <button id="rfi-mobile-{{ fallback_group_id }}"
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -7921,9 +7974,28 @@
                                             </button>
                                             {% endif %}
                                         </div>
-                                        {% if user.role != 'inspector' %}
                                         <div class="mt-2">
-                                            {% if shipment.invoice_uploaded %}
+                                            {% if request.user.role == 'lab_technician' %}
+                                            <!-- Lab technician: Invoice disabled -->
+                                            <button id="invoice-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for lab technicians">
+                                                <i class="fas fa-ban mr-1"></i> Invoice
+                                            </button>
+                                            {% elif request.user.role == 'inspector' %}
+                                            <!-- Inspector: Invoice disabled -->
+                                            <button id="invoice-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for inspectors">
+                                                <i class="fas fa-ban mr-1"></i> Invoice
+                                            </button>
+                                            {% elif shipment.is_occurrence_report %}
+                                            <button id="invoice-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Disabled for occurrence reports">
+                                                <i class="fas fa-ban mr-1"></i> Invoice
+                                            </button>
+                                            {% elif shipment.invoice_uploaded %}
                                             <button id="invoice-mobile-{{ fallback_group_id }}"
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -7941,11 +8013,16 @@
                                             </button>
                                             {% endif %}
                                         </div>
-                                        {% endif %}
 
                                         <!-- Retest Button (mobile card) -->
                                         <div class="mt-2">
-                                            {% if shipment.retest_uploaded %}
+                                            {% if shipment.is_occurrence_report %}
+                                            <button id="retest-btn-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Disabled for occurrence reports">
+                                                <i class="fas fa-ban mr-1"></i> Retest
+                                            </button>
+                                            {% elif shipment.retest_uploaded %}
                                             <button id="retest-btn-{{ fallback_group_id }}"
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -7965,9 +8042,15 @@
                                         </div>
 
                                         <!-- Occurrence Button (mobile card) -->
-                                        {% if request.user.role == 'inspector' or request.user.role != 'scientist' %}
                                         <div class="mt-2">
-                                            {% if shipment.occurrence_uploaded %}
+                                            {% if request.user.role == 'lab_technician' %}
+                                            <!-- Lab technician: Occurrence disabled -->
+                                            <button id="occurrence-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for lab technicians">
+                                                <i class="fas fa-ban mr-1"></i> Occurrence
+                                            </button>
+                                            {% elif shipment.occurrence_uploaded %}
                                             <button id="occurrence-mobile-{{ fallback_group_id }}"
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -7985,12 +8068,23 @@
                                             </button>
                                             {% endif %}
                                         </div>
-                                        {% endif %}
 
                                         <!-- Composition Button (mobile card) -->
-                                        {% if request.user.role != 'scientist' %}
                                         <div class="mt-2">
-                                            {% if shipment.composition_uploaded %}
+                                            {% if request.user.role == 'lab_technician' %}
+                                            <!-- Lab technician: Composition disabled -->
+                                            <button id="composition-mobile-{{ fallback_group_id }}"
+                                                class="composition-btn w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for lab technicians">
+                                                <i class="fas fa-ban mr-1"></i> Composition
+                                            </button>
+                                            {% elif shipment.is_occurrence_report %}
+                                            <button id="composition-mobile-{{ fallback_group_id }}"
+                                                class="composition-btn w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Disabled for occurrence reports">
+                                                <i class="fas fa-ban mr-1"></i> Composition
+                                            </button>
+                                            {% elif shipment.composition_uploaded %}
                                             <button id="composition-mobile-{{ fallback_group_id }}"
                                                 class="composition-btn w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -8008,11 +8102,23 @@
                                             </button>
                                             {% endif %}
                                         </div>
-                                        {% endif %}
 
                                         <!-- Compliance Button (mobile card) -->
                                         <div class="mt-2">
-                                            {% if shipment.has_compliance %}
+                                            {% if request.user.role == 'lab_technician' %}
+                                            <!-- Lab technician: Compliance disabled -->
+                                            <button id="compliance-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Not available for lab technicians">
+                                                <i class="fas fa-ban mr-1"></i> Compliance
+                                            </button>
+                                            {% elif shipment.is_occurrence_report %}
+                                            <button id="compliance-mobile-{{ fallback_group_id }}"
+                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                disabled title="Disabled for occurrence reports">
+                                                <i class="fas fa-ban mr-1"></i> Compliance
+                                            </button>
+                                            {% elif shipment.has_compliance %}
                                             <button id="compliance-mobile-{{ fallback_group_id }}"
                                                 class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
                                                 style="background-color: #28a745; border-color: #28a745; color: white;"
@@ -8298,14 +8404,24 @@
 
                                                     <!-- Upload Buttons -->
                                                     <div class="space-y-2">
-                                                        {% if request.user.role == 'inspector' %}
-                                                        <!-- Inspector: Only show Lab Form button -->
+                                                        {% if request.user.role == 'inspector' or request.user.role == 'admin' %}
+                                                        <!-- Inspector/Admin: COA/Lab, Lab Form, Retest disabled -->
+                                                        <div class="grid grid-cols-2 gap-2">
+                                                            <button
+                                                                class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                                disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">
+                                                                <i class="fas fa-flask mr-1"></i> COA/Lab
+                                                            </button>
+                                                            <button
+                                                                class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                                disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">
+                                                                <i class="fas fa-redo mr-1"></i> Retest
+                                                            </button>
+                                                        </div>
                                                         <div class="grid grid-cols-1 gap-2">
                                                             <button
-                                                                class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
-                                                               {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
-                                                                {% if not product.is_sample_taken %}disabled title="No sample taken - lab form upload disabled"{% endif %}
-                                                                onclick="{% if product.is_sample_taken %}uploadLabForm('{{ product.remote_id|escapejs }}'){% else %}alert('No sample taken - lab form upload disabled'){% endif %}">
+                                                                class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
+                                                                disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
                                                         </div>
@@ -8315,7 +8431,8 @@
                                                             <button
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
                                                                {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
-                                                                {% if not product.is_sample_taken %}disabled title="No sample taken - lab upload disabled"{% endif %}
+                                                                {% if not product.is_sample_taken %}disabled
+                                                                title="No sample taken - lab upload disabled" {% endif %}
                                                                 onclick="{% if product.is_sample_taken %}uploadLabFile('{{ product.remote_id|escapejs }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('No sample taken - lab upload disabled'){% endif %}">
                                                                 <i class="fas fa-flask mr-1"></i> Lab
                                                             </button>
@@ -8330,13 +8447,16 @@
                                                             </button>
                                                         </div>
                                                         <div class="grid grid-cols-1 gap-2">
-                                                            <button
-                                                                class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
+                                                            <button data-upload-btn="lab_form-{{ product.id }}"
+                                                                data-client-name="{{ shipment.client_name }}"
+                                                                data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
+                                                                data-group-id="{{ fallback_group_id }}"
+                                                                style="background: {% if shipment.has_lab_form %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200
                                                                {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
                                                                 {% if not product.is_sample_taken %}disabled
-                                                                title="No sample taken - lab form generation disabled"
-                                                                {% endif %}
-                                                                onclick="{% if product.is_sample_taken %}generateLabForm('{{ product.remote_id|escapejs }}'){% else %}alert('No sample taken - lab form generation disabled'){% endif %}">
+                                                                title="No sample taken - lab form upload disabled" {% endif %}
+                                                                onclick="{% if product.is_sample_taken %}uploadLabFormForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('No sample taken - lab form upload disabled'){% endif %}">
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
                                                         </div>
@@ -8370,7 +8490,13 @@
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Approved</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
+                                            style="width: 150px;">Email</th>
+                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Sent</th>
+                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
+                                            style="width: 60px;">Edit</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -8384,6 +8510,8 @@
                                         data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif %} onclick="toggleGroup(event, '{{ fallback_group_id|escapejs }}')">
                                         <td class="px-3 py-2">
                                             <span class="font-semibold text-primary hover:text-primary-dark text-sm">{{ shipment.client_name|default:"-" }}</span>
+                                            {% if shipment.town %}<span
+                                                style="font-size: 10px; color: #9ca3af; margin-left: 4px;">({{ shipment.town }})</span>{% endif %}
                                             <span style="font-size: 10px; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
@@ -8402,7 +8530,14 @@
                                                 <option value="APPROVED" {% if shipment.approved_status == 'APPROVED' %}selected{% endif %}>Approved</option>
                                             </select>
                                         </td>
+                                        <td class="px-2 py-2 text-center text-xs text-gray-600"
+                                            style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                            title="{% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}">
+                                            {% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}
+                                        </td>
                                         <td class="px-2 py-2 text-center">
+                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
+                                            <!-- Sent Status editable for admin, super_admin, developer -->
                                             <select class="sent-status-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
                                                 data-group-id="{{ fallback_group_id }}"
@@ -8412,27 +8547,63 @@
                                                 <option value="YES" {% if shipment.is_sent %}selected{% endif %}>Yes
                                                 </option>
                                             </select>
+                                            {% else %}
+                                            <!-- Sent Status read-only for inspector, lab_technician -->
+                                            <span class="sent-status-readonly" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-block; {% if shipment.is_sent %}background: #dcfce7; color: #166534;{% else %}background: #f3f4f6; color: #6b7280;{% endif %}">
+                                                {% if shipment.is_sent %}Yes{% else %}No{% endif %}
+                                            </span>
+                                            {% endif %}
                                         </td>
+                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        <td class="px-2 py-2 text-center">
+                                            <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
+                                                onclick="event.stopPropagation();"
+                                                style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;"
+                                                onmouseover="this.style.background='#2563eb'"
+                                                onmouseout="this.style.background='#3b82f6'" title="Edit Inspection">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                        {% endif %}
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
                                     <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
-                                        <td colspan="5" class="detail-cell" style="padding: 0;">
+                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}6{% else %}5{% endif %}"
+                                            class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
                                                 <!-- Main Layout: Facility info on left, Products list on right -->
-                                                <div style="display: flex; gap: 12px; padding: 8px; align-items: flex-start;">
+                                                <div
+                                                    style="display: flex; gap: 12px; padding: 8px; align-items: flex-start;">
 
                                                     <!-- Facility Info (shown once) -->
-                                                    <div style="flex: 0 0 180px; background: white; border-radius: 8px; padding: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
-                                                        <div style="font-size: 11px; color: #007890; font-weight: 600; margin-bottom: 4px;">Facility</div>
-                                                        <div style="font-size: 11px; color: #374151; font-weight: 500;">{{ shipment.client_name|truncatechars:22 }}</div>
-                                                        <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">{{ shipment.internal_account_code|default:"-" }}</div>
-                                                        <div style="font-size: 8px; color: #3b82f6; margin-bottom: 6px; word-break: break-all;">
+                                                    <div
+                                                        style="flex: 0 0 180px; background: white; border-radius: 8px; padding: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border-left: 3px solid #007890;">
+                                                        <div
+                                                            style="font-size: 11px; color: #007890; font-weight: 600; margin-bottom: 4px;">
+                                                            Facility</div>
+                                                        <div style="font-size: 11px; color: #374151; font-weight: 500;">
+                                                            {{ shipment.client_name|truncatechars:22 }}</div>
+                                                        {% if shipment.is_occurrence_report %}
+                                                        <div style="margin: 4px 0;">
+                                                            <span style="font-size: 8px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 3px; font-weight: 600;">
+                                                                <i class="fas fa-exclamation-triangle" style="margin-right: 2px;"></i>OCCURRENCE REPORT
+                                                            </span>
+                                                        </div>
+                                                        {% endif %}
+                                                        <div
+                                                            style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                            {{ shipment.internal_account_code|default:"-" }}</div>
+                                                        <div
+                                                            style="font-size: 8px; color: #3b82f6; margin-bottom: 6px; word-break: break-all;">
                                                             {% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}
                                                         </div>
-                                                        <div style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
+                                                        <div
+                                                            style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
                                                             <div style="display: flex; align-items: center; gap: 4px;">
-                                                                <span style="font-size: 9px; color: #374151; font-weight: 500; min-width: 40px;">Km:</span>
-                                                                <input type="number" style="width: 65px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
+                                                                <span
+                                                                    style="font-size: 9px; color: #374151; font-weight: 500; min-width: 40px;">Km:</span>
+                                                                <input type="number"
+                                                                    style="width: 65px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
                                                                     data-group-id="{{ fallback_group_id }}"
                                                                     value="{{ shipment.km_traveled|default:'' }}"
                                                                     placeholder="0"
@@ -8440,61 +8611,210 @@
                                                                     onclick="event.stopPropagation()">
                                                             </div>
                                                             <div style="display: flex; align-items: center; gap: 4px;">
-                                                                <span style="font-size: 9px; color: #374151; font-weight: 500; min-width: 40px;">Hours:</span>
-                                                                <input type="number" style="width: 65px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
+                                                                <span
+                                                                    style="font-size: 9px; color: #374151; font-weight: 500; min-width: 40px;">Hours:</span>
+                                                                <input type="number"
+                                                                    style="width: 65px; font-size: 9px; padding: 3px; border: 1px solid #e5e7eb; border-radius: 3px;"
                                                                     data-group-id="{{ fallback_group_id }}"
                                                                     value="{{ shipment.hours|default:'' }}"
-                                                                    placeholder="0"
-                                                                    onchange="updateGroupHours(this)"
+                                                                    placeholder="0" onchange="updateGroupHours(this)"
                                                                     onclick="event.stopPropagation()">
                                                             </div>
                                                         </div>
                                                         {% if shipment.products %}
-                                                        <div style="display: flex; gap: 4px; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
-                                                            <button data-upload-btn="rfi-{{ shipment.products.0.id }}" style="flex: 1; padding: 4px 6px; background: {% if shipment.has_rfi %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 8px;" onclick="event.stopPropagation(); uploadRfiForInspection('{{ shipment.products.0.id }}', '{{ fallback_group_id|escapejs }}')">RFI</button>
-                                                            {% if request.user.role != 'inspector' %}
-                                                            <button data-upload-btn="invoice-{{ shipment.products.0.id }}" style="flex: 1; padding: 4px 6px; background: {% if shipment.has_invoice %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 8px;" onclick="event.stopPropagation(); uploadInvoiceForInspection('{{ shipment.products.0.id }}', '{{ fallback_group_id|escapejs }}')">Invoice</button>
+                                                        <div
+                                                            style="display: flex; gap: 4px; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
+                                                            {% if request.user.role == 'lab_technician' %}
+                                                            <!-- Lab technician: RFI disabled -->
+                                                            <button data-upload-btn="rfi-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 3px; cursor: not-allowed; font-size: 8px;"
+                                                                disabled title="Not available for lab technicians">RFI</button>
+                                                            {% elif shipment.is_occurrence_report %}
+                                                            <button data-upload-btn="rfi-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 3px; cursor: not-allowed; font-size: 8px;"
+                                                                disabled title="Disabled for occurrence reports">RFI</button>
+                                                            {% else %}
+                                                            <button data-upload-btn="rfi-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: {% if shipment.has_rfi %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 8px;"
+                                                                onclick="event.stopPropagation(); uploadRfiForInspection('{{ shipment.products.0.id }}', '{{ fallback_group_id|escapejs }}')">RFI</button>
+                                                            {% endif %}
+                                                            {% if request.user.role == 'lab_technician' %}
+                                                            <!-- Lab technician: Invoice disabled -->
+                                                            <button data-upload-btn="invoice-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 3px; cursor: not-allowed; font-size: 8px;"
+                                                                disabled title="Not available for lab technicians">Invoice</button>
+                                                            {% elif request.user.role == 'inspector' %}
+                                                            <!-- Inspector: Invoice disabled -->
+                                                            <button data-upload-btn="invoice-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 3px; cursor: not-allowed; font-size: 8px;"
+                                                                disabled title="Not available for inspectors">Invoice</button>
+                                                            {% elif shipment.is_occurrence_report %}
+                                                            <button data-upload-btn="invoice-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 3px; cursor: not-allowed; font-size: 8px;"
+                                                                disabled title="Disabled for occurrence reports">Invoice</button>
+                                                            {% else %}
+                                                            <button data-upload-btn="invoice-{{ shipment.products.0.id }}"
+                                                                style="flex: 1; padding: 4px 6px; background: {% if shipment.has_invoice %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 8px;"
+                                                                onclick="event.stopPropagation(); uploadInvoiceForInspection('{{ shipment.products.0.id }}', '{{ fallback_group_id|escapejs }}')">Invoice</button>
                                                             {% endif %}
                                                         </div>
                                                         {% endif %}
                                                     </div>
 
                                                     <!-- Products List (each inspection in the group) -->
-                                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-x: auto;">
+                                                    <div
+                                                        style="flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-x: auto;">
                                                         {% if shipment.products %}
                                                         {% for product in shipment.products %}
                                                         <!-- Single Inspection Row -->
-                                                        <div style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: stretch; background: white; border-radius: 6px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                                        <div
+                                                            style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: stretch; background: white; border-radius: 6px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                                                             <!-- Product Info + Test Flags -->
-                                                            <div style="flex: 0 0 180px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 6px;">
-                                                                <div style="font-size: 9px; color: #6b7280;">Commodity: <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"-"|truncatechars:12 }}</span></div>
-                                                                <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">Product: <span style="font-weight: 600; color: #374151;">{{ product.product_name|default:"-"|truncatechars:16 }}</span></div>
+                                                            <div
+                                                                style="flex: 0 0 180px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 6px;">
+                                                                <div style="font-size: 9px; color: #6b7280;">Commodity:
+                                                                    <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"-"|truncatechars:12 }}</span>
+                                                                </div>
+                                                                <div
+                                                                    style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                                    Product: <span
+                                                                        style="font-weight: 600; color: #374151;">{{ product.product_name|default:"-"|truncatechars:16 }}</span></div>
                                                                 <div style="display: flex; flex-wrap: wrap; gap: 2px;">
-                                                                    {% if product.is_sample_taken %}<span style="font-size: 7px; padding: 2px 4px; background: #3b82f6; color: white; border-radius: 2px;">Sampled</span>{% endif %}
-                                                                    {% if product.is_direction_present_for_this_inspection %}<span style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Non-Compliant</span>{% else %}<span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Compliant</span>{% endif %}
+                                                                    {% if product.is_sample_taken %}<span
+                                                                        style="font-size: 7px; padding: 2px 4px; background: #3b82f6; color: white; border-radius: 2px;">Sampled</span>{% endif %}
+                                                                    {% if product.is_direction_present_for_this_inspection %}
+                                                                    <span style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Non-Compliant</span>
+                                                                    {% else %}
+                                                                    <span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Compliant</span>
+                                                                    {% endif %}
                                                                 </div>
                                                             </div>
                                                             <!-- DNA/Fat/Protein/Calcium -->
-                                                            <div style="flex: 0 0 135px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; padding: 8px; background: #f9fafb; border-radius: 4px;">
-                                                                <div><span style="color: #6b7280;">DNA:</span> <span style="color: {% if product.dna %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.dna|yesno:"Y,N" }}</span></div>
-                                                                <div><span style="color: #6b7280;">Fat:</span> <span style="color: {% if product.fat %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.fat|yesno:"Y,N" }}</span></div>
-                                                                <div><span style="color: #6b7280;">Pro:</span> <span style="color: {% if product.protein %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.protein|yesno:"Y,N" }}</span></div>
-                                                                <div><span style="color: #6b7280;">Cal:</span> <span style="color: {% if product.calcium %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.calcium|yesno:"Y,N" }}</span></div>
+                                                            <div
+                                                                style="flex: 0 0 135px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; padding: 8px; background: #f9fafb; border-radius: 4px;">
+                                                                <div><span style="color: #6b7280;">DNA:</span> <span
+                                                                        style="color: {% if product.dna %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.dna|yesno:"Y,N" }}</span></div>
+                                                                <div><span style="color: #6b7280;">Fat:</span> <span
+                                                                        style="color: {% if product.fat %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.fat|yesno:"Y,N" }}</span></div>
+                                                                <div><span style="color: #6b7280;">Pro:</span> <span
+                                                                        style="color: {% if product.protein %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.protein|yesno:"Y,N" }}</span></div>
+                                                                <div><span style="color: #6b7280;">Cal:</span> <span
+                                                                        style="color: {% if product.calcium %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.calcium|yesno:"Y,N" }}</span></div>
                                                             </div>
                                                             <!-- Upload Buttons -->
-                                                            <div style="flex: 1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                                                                <button data-upload-btn="compliance-{{ product.id }}" style="padding: 6px 14px; background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Compliance</button>
-                                                                <button data-upload-btn="composition-{{ product.id }}" style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
-                                                                <button data-upload-btn="lab-{{ product.id }}" style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
-                                                                <button data-upload-btn="retest-{{ product.id }}" style="padding: 6px 14px; background: {% if product.retest_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Retest</button>
-                                                                <button data-upload-btn="occurrence-{{ product.id }}" style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
-                                                                <button data-upload-btn="other-{{ product.id }}" style="padding: 6px 14px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;" onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
+                                                            <div
+                                                                style="flex: 1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                                                {% if shipment.is_occurrence_report %}
+                                                                <!-- Disabled buttons for occurrence reports -->
+                                                                <button data-upload-btn="compliance-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">Compliance</button>
+                                                                <button data-upload-btn="composition-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">Composition</button>
+                                                                <button data-upload-btn="lab-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">COA/Lab</button>
+                                                                <button data-upload-btn="lab_form-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">Lab Form</button>
+                                                                <button data-upload-btn="retest-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">Retest</button>
+                                                                <!-- Occurrence button stays enabled -->
+                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
+                                                                <button data-upload-btn="other-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Disabled for occurrence reports">Other</button>
+                                                                {% else %}
+                                                                <!-- Normal buttons -->
+                                                                {% if request.user.role == 'lab_technician' %}
+                                                                <!-- Lab technician: Only COA/Lab, Lab Form, Retest enabled -->
+                                                                <button data-upload-btn="compliance-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for lab technicians">Compliance</button>
+                                                                <button data-upload-btn="composition-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for lab technicians">Composition</button>
+                                                                <button data-upload-btn="lab-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
+                                                                <button data-upload-btn="lab_form-{{ product.id }}"
+                                                                    data-client-name="{{ shipment.client_name }}"
+                                                                    data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
+                                                                    data-group-id="{{ fallback_group_id }}"
+                                                                    style="padding: 6px 14px; background: {% if shipment.has_lab_form %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadLabFormForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Lab Form</button>
+                                                                <button data-upload-btn="retest-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.retest_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Retest</button>
+                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for lab technicians">Occurrence</button>
+                                                                <button data-upload-btn="other-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for lab technicians">Other</button>
+                                                                {% elif request.user.role == 'inspector' or request.user.role == 'admin' %}
+                                                                <!-- Inspector/Admin: All enabled EXCEPT COA/Lab, Lab Form, Retest -->
+                                                                <button data-upload-btn="compliance-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Compliance</button>
+                                                                <button data-upload-btn="composition-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
+                                                                <button data-upload-btn="lab-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">COA/Lab</button>
+                                                                <button data-upload-btn="lab_form-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">Lab Form</button>
+                                                                <button data-upload-btn="retest-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
+                                                                    disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">Retest</button>
+                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
+                                                                <button data-upload-btn="other-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
+                                                                {% else %}
+                                                                <!-- Other roles: All buttons enabled -->
+                                                                <button data-upload-btn="compliance-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Compliance</button>
+                                                                <button data-upload-btn="composition-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
+                                                                <button data-upload-btn="lab-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
+                                                                <button data-upload-btn="lab_form-{{ product.id }}"
+                                                                    data-client-name="{{ shipment.client_name }}"
+                                                                    data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
+                                                                    data-group-id="{{ fallback_group_id }}"
+                                                                    style="padding: 6px 14px; background: {% if shipment.has_lab_form %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadLabFormForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Lab Form</button>
+                                                                <button data-upload-btn="retest-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.retest_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Retest</button>
+                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
+                                                                <button data-upload-btn="other-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
+                                                                {% endif %}
+                                                                {% endif %}
                                                             </div>
                                                         </div>
                                                         {% endfor %}
                                                         {% else %}
-                                                        <div style="flex: 1; background: white; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 8px; display: flex; align-items: center; justify-content: center;">
-                                                            <span style="color: #9ca3af; font-size: 11px;">No inspection records</span>
+                                                        <div
+                                                            style="flex: 1; background: white; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 8px; display: flex; align-items: center; justify-content: center;">
+                                                            <span style="color: #9ca3af; font-size: 11px;">No inspection
+                                                                records</span>
                                                         </div>
                                                         {% endif %}
                                                     </div>
@@ -8928,13 +9248,13 @@
             <!-- Load sent status functionality from external file -->
             <script src="{% static 'js/sent_status.js' %}?v=20260112-cache-bust"></script>
             <!-- Load clean upload functions -->
-            <script src="{% static 'js/upload_functions.js'%}?v=20260110-V3"></script>
+            <script src="{% static 'js/upload_functions.js'%}?v=20260116-V2"></script>
             <!-- Load bought sample functionality -->
             <script src="{% static 'js/bought_sample.js' %}?v=20251003-FINAL-FIX"></script>
             <!-- Load KM and Hours functions fix (before main JS to ensure functions are available) -->
             <script src="{% static 'js/km_hours_fix.js' %}?v=20251030-NO-X-BUTTON"></script>
             <!-- Load current rendered JavaScript functions -->
-            <script src="{% static 'js/current_rendered_js.js' %}?v=20260110-V3"></script>
+            <script src="{% static 'js/current_rendered_js.js' %}?v=20260116-V2"></script>
             <script>
                 // CACHE BUST: 2025-10-28 - Email functions fix - MUST SEE THIS
                 console.log('🚀 SCRIPT LOADED - Cache busted at:', new Date().toISOString());
@@ -9429,6 +9749,11 @@
 
                 window.uploadOtherForInspection = window.uploadOtherForInspection || function (productId, groupId) {
                     console.log('Upload other for inspection:', productId, groupId);
+                    alert('Please wait - upload functions loading...');
+                };
+
+                window.uploadLabFormForInspection = window.uploadLabFormForInspection || function (productId, groupId) {
+                    console.log('Upload lab form for inspection:', productId, groupId);
                     alert('Please wait - upload functions loading...');
                 };
 
@@ -10066,13 +10391,13 @@
                                     const rfiMobileBtn = document.getElementById('rfi-mobile-' + groupId);
                                     // Get productId from data attribute
                                     const rfiProductId = rfiBtn ? (rfiBtn.getAttribute('data-upload-btn') || '').replace('rfi-', '') : groupId;
-                                    if (rfiBtn) setButtonGrey(rfiBtn, 'RFI', function() { uploadRfiForInspection(rfiProductId, groupId); });
+                                    if (rfiBtn) setButtonGrey(rfiBtn, 'RFI', function () { uploadRfiForInspection(rfiProductId, groupId); });
                                     if (rfiMobileBtn) {
                                         rfiMobileBtn.style.backgroundColor = '#6c757d';
                                         rfiMobileBtn.style.borderColor = '#6c757d';
                                         rfiMobileBtn.innerHTML = '<i class="fas fa-file-alt mr-1"></i> RFI';
                                         rfiMobileBtn.disabled = false;
-                                        rfiMobileBtn.onclick = function() { uploadRfiForInspection(rfiProductId, groupId); };
+                                        rfiMobileBtn.onclick = function () { uploadRfiForInspection(rfiProductId, groupId); };
                                     }
                                 }
                             }
@@ -10086,13 +10411,13 @@
                                     const invoiceMobileBtn = document.getElementById('invoice-mobile-' + groupId);
                                     // Get productId from data attribute
                                     const invoiceProductId = invoiceBtn ? (invoiceBtn.getAttribute('data-upload-btn') || '').replace('invoice-', '') : groupId;
-                                    if (invoiceBtn) setButtonGrey(invoiceBtn, 'Invoice', function() { uploadInvoiceForInspection(invoiceProductId, groupId); });
+                                    if (invoiceBtn) setButtonGrey(invoiceBtn, 'Invoice', function () { uploadInvoiceForInspection(invoiceProductId, groupId); });
                                     if (invoiceMobileBtn) {
                                         invoiceMobileBtn.style.backgroundColor = '#6c757d';
                                         invoiceMobileBtn.style.borderColor = '#6c757d';
                                         invoiceMobileBtn.innerHTML = '<i class="fas fa-file-invoice mr-1"></i> Invoice';
                                         invoiceMobileBtn.disabled = false;
-                                        invoiceMobileBtn.onclick = function() { uploadInvoiceForInspection(invoiceProductId, groupId); };
+                                        invoiceMobileBtn.onclick = function () { uploadInvoiceForInspection(invoiceProductId, groupId); };
                                     }
                                 }
                             }
@@ -10948,41 +11273,28 @@
                         filesContent.style.display = 'block';
 
                         if (result.success) {
-                            console.log('🔄 File fetch: Success - processing files...');
-                            console.log('[DEBUG] DEBUG: Files object type:', typeof result.files);
-                            console.log('[DEBUG] DEBUG: Files object:', result.files);
-                            console.log('DEBUG: Files object keys:', Object.keys(result.files || {}));
-                            console.log('DEBUG: Files object values:', Object.values(result.files || {}));
-                            console.log('[DEBUG] DEBUG: Files object length:', result.files ? Object.keys(result.files).length : 'N/A');
-                            console.log('[DEBUG] DEBUG: Message:', result.message);
+                            try {
+                                console.log('🔄 File fetch: Success - processing files...');
+                                console.log('[DEBUG] Files object keys:', Object.keys(result.files || {}));
 
-                            // Check if files exist - verify at least one category has files
-                            const hasFiles = result.files && Object.values(result.files).some(fileList =>
-                                Array.isArray(fileList) && fileList.length > 0
-                            );
-                            console.log('[DEBUG] DEBUG: Has files check result:', hasFiles);
-                            console.log('[DEBUG] DEBUG: Files check breakdown:');
-                            console.log('  - result.files exists:', !!result.files);
-                            console.log('  - result.files is object:', typeof result.files === 'object');
-                            console.log('  - Object.keys(result.files).length:', result.files ? Object.keys(result.files).length : 'N/A');
-                            console.log('  - At least one category has files:', hasFiles);
+                                // Check if files exist - verify at least one category has files
+                                const hasFiles = result.files && Object.values(result.files).some(fileList =>
+                                    Array.isArray(fileList) && fileList.length > 0
+                                );
+                                console.log('[DEBUG] Has files:', hasFiles);
 
-                            if (hasFiles) {
-                                console.log('📁 Files found - displaying file list');
-                                console.log('[DEBUG] DEBUG: About to call displayFiles with:', {
-                                    files: result.files,
-                                    message: result.message
-                                });
-                                displayFiles(result.files, result.message);
-                            } else {
-                                console.log('📁 No files found - showing empty message');
-                                console.log('[DEBUG] DEBUG: Files object details for empty case:', {
-                                    files: result.files,
-                                    filesType: typeof result.files,
-                                    filesKeys: result.files ? Object.keys(result.files) : 'N/A',
-                                    filesLength: result.files ? Object.keys(result.files).length : 'N/A'
-                                });
-                                filesList.innerHTML = '<div class="no-files-message">No files found for this inspection.</div>';
+                                if (hasFiles) {
+                                    console.log('📁 Files found - calling displayFiles...');
+                                    displayFiles(result.files, result.message);
+                                    console.log('📁 displayFiles completed');
+                                } else {
+                                    console.log('📁 No files found - showing empty message');
+                                    filesList.innerHTML = '<div class="no-files-message">No files found for this inspection.</div>';
+                                }
+                            } catch (displayError) {
+                                console.error('❌ ERROR in file display:', displayError);
+                                console.error('❌ Error stack:', displayError.stack);
+                                filesList.innerHTML = '<div class="error-message" style="color: red; padding: 20px;">Error displaying files: ' + displayError.message + '</div>';
                             }
                         } else {
                             console.error('❌ File fetch failed:', result.error);
@@ -11679,8 +11991,8 @@
                                     <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-sm" style="background: #3b82f6; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center;">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button class="btn btn-sm" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" style="background: transparent; color: #605e5c; border: 1px solid #d2d0ce; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; transition: all 0.1s ease;" onmouseenter="this.style.background='#fde7e9'; this.style.borderColor='#d13438'; this.style.color='#a4262c';" onmouseleave="this.style.background='transparent'; this.style.borderColor='#d2d0ce'; this.style.color='#605e5c';">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="btn btn-sm" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" style="background: #ef4444; color: white; width: 32px; height: 32px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); transition: all 0.2s ease; cursor: pointer;" onmouseenter="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.5)';" onmouseleave="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(239, 68, 68, 0.4)';">
+                                        <i class="fas fa-trash-alt" style="font-size: 12px;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -11847,6 +12159,7 @@
                         { key: 'rfi', name: 'RFI Documents', icon: 'fas fa-file-alt' },
                         { key: 'invoice', name: 'Invoice Documents', icon: 'fas fa-file-invoice' },
                         { key: 'lab', name: 'COA', icon: 'fas fa-flask' },
+                        { key: 'lab_form', name: 'Lab Form Documents', icon: 'fas fa-file-medical' },
                         { key: 'retest', name: 'Retest Documents', icon: 'fas fa-redo' },
                         { key: 'compliance', name: 'Compliance Documents', icon: 'fas fa-shield-alt' },
                         { key: 'composition', name: 'Composition Documents', icon: 'fas fa-vial' },
@@ -11856,25 +12169,43 @@
 
                     // Check if files are categorized by commodity type (like POULTRY, MEAT, etc.)
                     const fileKeys = Object.keys(files);
-                    const documentTypeKeys = ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'composition', 'occurrence', 'other'];
+                    const documentTypeKeys = ['rfi', 'invoice', 'lab', 'lab_form', 'coa', 'retest', 'compliance', 'composition', 'occurrence', 'other'];
 
-                    // Check if ALL keys are document types (not commodity-based)
-                    const allKeysAreDocumentTypes = fileKeys.every(key =>
+                    // Debug logging
+                    console.log('[DEBUG] fileKeys:', fileKeys);
+                    console.log('[DEBUG] documentTypeKeys:', documentTypeKeys);
+
+                    // Check if at least some keys are document types
+                    const hasDocumentTypeKeys = fileKeys.some(key =>
                         documentTypeKeys.includes(key.toLowerCase())
                     );
 
-                    let categories;
-                    if (allKeysAreDocumentTypes && fileKeys.length > 0) {
-                        // Files are categorized by document type - use predefined categories
-                        categories = documentCategories;
-                    } else {
-                        // Files are categorized by commodity type or mixed
-                        categories = fileKeys.map(key => ({
-                            key: key,
-                            name: `${key} Documents`,
-                            icon: 'fas fa-shield-alt'
-                        }));
+                    // Check for commodity-based keys (like POULTRY, MEAT)
+                    const commodityKeys = fileKeys.filter(key =>
+                        !documentTypeKeys.includes(key.toLowerCase())
+                    );
+
+                    console.log('[DEBUG] hasDocumentTypeKeys:', hasDocumentTypeKeys);
+                    console.log('[DEBUG] commodityKeys:', commodityKeys);
+
+                    // ALWAYS use documentCategories for standard document types
+                    // This ensures Lab Form Documents always appears
+                    // Use spread operator to create a COPY, not a reference
+                    let categories = [...documentCategories];
+
+                    // If there are commodity-based categories, add them at the end
+                    if (commodityKeys.length > 0) {
+                        commodityKeys.forEach(key => {
+                            categories.push({
+                                key: key,
+                                name: `${key} Documents`,
+                                icon: 'fas fa-shield-alt'
+                            });
+                        });
                     }
+
+                    console.log('[DEBUG] Final categories:', categories.map(c => c.key));
+                    console.log('[DEBUG] documentCategories still has:', documentCategories.length, 'items');
 
                     categories.forEach(category => {
                         const categoryFiles = files[category.key] || [];
@@ -11919,8 +12250,8 @@
                                     <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-file btn-secondary" style="background: #10b981 !important; color: white !important; padding: 6px 10px; border-radius: 6px; font-size: 12px;" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button class="btn btn-file" style="background: transparent; color: #605e5c; padding: 6px 10px; border-radius: 4px; border: 1px solid #d2d0ce; transition: all 0.1s ease;" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete" onmouseenter="this.style.background='#fde7e9'; this.style.borderColor='#d13438'; this.style.color='#a4262c';" onmouseleave="this.style.background='transparent'; this.style.borderColor='#d2d0ce'; this.style.color='#605e5c';">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="btn btn-file" style="background: #ef4444; color: white; width: 36px; height: 36px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); transition: all 0.2s ease; cursor: pointer;" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete File" onmouseenter="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.5)';" onmouseleave="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(239, 68, 68, 0.4)';">
+                                        <i class="fas fa-trash-alt" style="font-size: 14px;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -13607,6 +13938,71 @@
                                 .catch(error => {
                                     console.error('❌ Error uploading occurrence:', error);
                                     alert('Error uploading occurrence: ' + error.message);
+                                });
+                        }
+                    };
+
+                    document.body.appendChild(fileInput);
+                    fileInput.click();
+                    document.body.removeChild(fileInput);
+                };
+
+                // Upload Lab Form for a specific inspection
+                window.uploadLabFormForInspection = function (productId, groupId) {
+                    const fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = '.pdf,.jpg,.jpeg,.png';
+                    fileInput.style.display = 'none';
+
+                    fileInput.onchange = function (e) {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('inspection_id', productId);
+                            formData.append('document_type', 'lab_form');
+                            formData.append('group_id', groupId);
+
+                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token|escapejs }}';
+                            formData.append('csrfmiddlewaretoken', csrfToken);
+
+                            fetch('/upload-document/', {
+                                method: 'POST',
+                                body: formData
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        console.log('✅ Lab Form uploaded for inspection ' + productId);
+                                        // Turn ALL lab_form buttons green for this product
+                                        const allLabFormBtns = document.querySelectorAll('[data-upload-btn="lab_form-' + productId + '"]');
+                                        console.log('🟢 [LAB FORM] Found ' + allLabFormBtns.length + ' buttons to update for product ' + productId);
+                                        allLabFormBtns.forEach(function (btn, idx) {
+                                            btn.style.backgroundColor = '#22c55e';
+                                            btn.style.borderColor = '#22c55e';
+                                            btn.style.background = '#22c55e';
+                                            btn.disabled = false;
+                                            btn.style.cursor = 'pointer';
+                                            btn.title = 'Lab Form file exists - click to upload more';
+                                            console.log('🟢 [LAB FORM] Updated button ' + (idx + 1) + ' to GREEN');
+                                        });
+                                        // Also mark in localStorage to persist across page refreshes
+                                        try {
+                                            const uploadStatus = JSON.parse(localStorage.getItem('labFormUploadStatus') || '{}');
+                                            uploadStatus['lab_form-' + productId] = true;
+                                            localStorage.setItem('labFormUploadStatus', JSON.stringify(uploadStatus));
+                                        } catch (e) {
+                                            console.error('Error saving lab form upload status:', e);
+                                        }
+                                        alert('Lab Form uploaded successfully!');
+                                    } else {
+                                        console.error('❌ Error uploading lab form:', data.error);
+                                        alert('Error uploading lab form: ' + (data.error || 'Unknown error'));
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('❌ Error uploading lab form:', error);
+                                    alert('Error uploading lab form: ' + error.message);
                                 });
                         }
                     };

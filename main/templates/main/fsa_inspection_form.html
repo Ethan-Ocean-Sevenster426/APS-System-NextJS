@@ -415,7 +415,7 @@
             margin-bottom: 24px;
         }
 
-        /* Client autocomplete dropdown */
+        /* Client autocomplete dropdown - Enhanced */
         .client-dropdown {
             position: absolute;
             top: 100%;
@@ -424,21 +424,25 @@
             background: white;
             border: 2px solid var(--primary);
             border-top: none;
-            border-radius: 0 0 8px 8px;
-            max-height: 250px;
+            border-radius: 0 0 12px 12px;
+            max-height: 350px;
             overflow-y: auto;
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
         .client-dropdown-item {
-            padding: 12px 16px;
+            padding: 14px 16px;
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
-            transition: background 0.15s;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         .client-dropdown-item:hover,
         .client-dropdown-item.highlighted {
             background: var(--primary-light);
+            border-left: 3px solid var(--primary);
         }
         .client-dropdown-item:last-child {
             border-bottom: none;
@@ -446,26 +450,54 @@
         .client-dropdown-item .client-name {
             font-weight: 600;
             color: var(--text);
+            font-size: 15px;
+        }
+        .client-dropdown-item .client-details {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+        .client-dropdown-item .client-id {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: 500;
         }
         .client-dropdown-item .client-code {
-            font-size: 12px;
             color: #6b7280;
         }
+        .client-dropdown-item .client-email {
+            color: #059669;
+        }
+        .client-dropdown-item .client-email i {
+            margin-right: 4px;
+        }
         .client-dropdown-item.new-client {
-            background: #f0fdf4;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
             border-top: 2px solid #10b981;
+            flex-direction: row;
+            align-items: center;
         }
         .client-dropdown-item.new-client:hover {
-            background: #dcfce7;
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
         }
         .client-dropdown-item.new-client .add-icon {
             color: #10b981;
-            margin-right: 8px;
+            margin-right: 10px;
+            font-size: 18px;
         }
         .no-results {
-            padding: 16px;
+            padding: 20px;
             text-align: center;
             color: #6b7280;
+        }
+        .search-match {
+            background: rgba(255, 235, 59, 0.4);
+            padding: 0 2px;
+            border-radius: 2px;
         }
 
         /* ===== FILE UPLOAD STYLES ===== */
@@ -854,19 +886,6 @@
 </head>
 <body>
     <div class="max-w-3xl mx-auto py-8 px-4">
-        <!-- Header -->
-        <div class="header-card flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Logo" class="h-14">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-800">{{ action }} Inspection</h1>
-                    <p class="text-gray-500">Food Safety Agency (Pty) Ltd</p>
-                </div>
-            </div>
-            <a href="{% url 'shipment_list' %}" class="btn btn-outline">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-        </div>
 
         <!-- Messages -->
         {% if messages %}
@@ -880,6 +899,24 @@
 
         <!-- Wizard Form -->
         <div class="wizard-container p-8">
+            {% if is_occurrence_report %}
+            <!-- Occurrence Report Badge -->
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-exclamation-triangle" style="color: #d97706;"></i>
+                <span style="color: #92400e; font-weight: 600;">Editing Occurrence Report</span>
+            </div>
+            <!-- Simplified Progress Steps for Occurrence Reports -->
+            <div class="wizard-steps" style="max-width: 200px; margin: 0 auto 24px;">
+                <div class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <span class="step-label">Basic Info</span>
+                </div>
+                <div class="step" data-step="5">
+                    <div class="step-circle">2</div>
+                    <span class="step-label">Review</span>
+                </div>
+            </div>
+            {% else %}
             <!-- Progress Steps -->
             <div class="wizard-steps">
                 <div class="step active" data-step="1">
@@ -903,6 +940,7 @@
                     <span class="step-label">Review</span>
                 </div>
             </div>
+            {% endif %}
 
             <form method="post" id="inspectionForm" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -926,6 +964,7 @@
                                    id="client_name"
                                    class="form-control"
                                    placeholder="Start typing to search or add new client..."
+                                   value="{{ form.client_name.value|default:'' }}"
                                    autocomplete="off"
                                    required>
                             <div id="clientDropdown" class="client-dropdown" style="display: none;">
@@ -939,10 +978,101 @@
 
                     <div class="form-group">
                         <label class="form-label">Town *</label>
-                        {{ form.town }}
-                        <p class="text-sm text-gray-500 mt-1">Town/location of inspection</p>
+                        <div class="town-search-container" style="position: relative;">
+                            <input type="text"
+                                   name="town"
+                                   id="town_input"
+                                   class="form-control"
+                                   placeholder="Start typing to search or add new town..."
+                                   value="{{ form.town.value|default:'' }}"
+                                   autocomplete="off">
+                            <div id="townDropdown" class="client-dropdown" style="display: none;">
+                                <!-- Town suggestions will be populated here -->
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Type to search existing towns or enter a new location
+                        </p>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email"
+                               name="additional_email"
+                               id="additional_email"
+                               class="form-control"
+                               placeholder="client@example.com"
+                               value="{{ form.additional_email.value|default:'' }}"
+                               autocomplete="off">
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Email address for sending inspection documents
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Corporate Group *</label>
+                        <select name="corporate_group" id="corporate_group" class="form-control" required>
+                            <option value="">Select corporate group (required)</option>
+                            <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
+                            <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
+                            <option value="Fruit & Veg">Fruit & Veg</option>
+                            <option value="OK Foods">OK Foods</option>
+                            <option value="Checkers">Checkers</option>
+                            <option value="Spar">Spar</option>
+                            <option value="SuperSpar">SuperSpar</option>
+                            <option value="Spar - Northrand">Spar - Northrand</option>
+                            <option value="Shoprite">Shoprite</option>
+                            <option value="Massmart">Massmart</option>
+                            <option value="Chester Butcheries">Chester Butcheries</option>
+                            <option value="Boxer">Boxer</option>
+                            <option value="Food Lovers Market">Food Lovers Market</option>
+                            <option value="Cambridge">Cambridge</option>
+                            <option value="Woolworths">Woolworths</option>
+                            <option value="Jwayelani">Jwayelani</option>
+                            <option value="Usave">Usave</option>
+                            <option value="Not Applicable">Not Applicable (None)</option>
+                            <option value="Other">Other (Unlisted Group)</option>
+                            <option value="OBC">OBC</option>
+                            <option value="Roots">Roots</option>
+                            <option value="Meat World">Meat World</option>
+                            <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
+                            <option value="Bluff Meat Supply">Bluff Meat Supply</option>
+                            <option value="Eat Sum Meat">Eat Sum Meat</option>
+                            <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
+                            <option value="Choppies">Choppies</option>
+                            <option value="Econo Foods">Econo Foods</option>
+                            <option value="Makro">Makro</option>
+                            <option value="Boma Vleismark">Boma Vleismark</option>
+                            <option value="Eskort">Eskort</option>
+                            <option value="Nesta Foods">Nesta Foods</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Group Type *</label>
+                        <select name="group_type" id="group_type" class="form-control" required>
+                            <option value="">Select group type (required)</option>
+                            <option value="Corporate Store">Corporate Store</option>
+                            <option value="Franchise Store">Franchise Store</option>
+                            <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Facility Type *</label>
+                        <select name="facility_type" id="facility_type" class="form-control" required>
+                            <option value="">Select facility type (required)</option>
+                            <option value="Retailer">Retailer</option>
+                            <option value="Butchery">Butchery</option>
+                            <option value="Re-Packer">Re-Packer</option>
+                            <option value="Production Plant">Production Plant</option>
+                            <option value="Farm">Farm</option>
+                            <option value="Abattoir">Abattoir</option>
+                            <option value="Egg Producers">Egg Producers</option>
+                        </select>
+                    </div>
+
+                    {% if not is_occurrence_report %}
                     <div class="form-group">
                         <label class="form-label">Commodity Types *</label>
                         <div class="commodity-grid">
@@ -994,12 +1124,14 @@
                             <option value="EGGS">Eggs</option>
                         </select>
                     </div>
+                    {% endif %}
 
                     <!-- Hidden fields -->
                     <input type="hidden" name="internal_account_code" id="internal_account_code" value="">
                     <input type="hidden" name="inspector_name" id="inspector_name" value="{{ default_inspector }}">
                 </div>
 
+                {% if not is_occurrence_report %}
                 <!-- Step 2: Product Info -->
                 <div class="wizard-step-content" data-step="2">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
@@ -1014,7 +1146,9 @@
                     <!-- Hidden input to store all product data as JSON -->
                     <input type="hidden" name="products_data" id="productsData" value="[]">
                 </div>
+                {% endif %}
 
+                {% if not is_occurrence_report %}
                 <!-- Step 3: Invoice Info -->
                 <div class="wizard-step-content" data-step="3">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
@@ -1080,6 +1214,7 @@
                         <div class="upload-status pending" id="status-rfi">Not uploaded</div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Step 5: Review -->
                 <div class="wizard-step-content" data-step="5">
@@ -1088,12 +1223,14 @@
                     </h3>
 
                     <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                        <h4 class="font-semibold text-gray-700 mb-4">Inspection Summary</h4>
+                        <h4 class="font-semibold text-gray-700 mb-4">{% if is_occurrence_report %}Occurrence Report Summary{% else %}Inspection Summary{% endif %}</h4>
                         <div class="grid grid-cols-2 gap-4 text-sm">
+                            {% if not is_occurrence_report %}
                             <div class="p-3 bg-white rounded border">
                                 <span class="text-gray-500 block text-xs">Commodity</span>
                                 <span id="reviewCommodity" class="font-semibold text-gray-800">-</span>
                             </div>
+                            {% endif %}
                             <div class="p-3 bg-white rounded border">
                                 <span class="text-gray-500 block text-xs">Date</span>
                                 <span id="reviewDate" class="font-semibold text-gray-800">-</span>
@@ -1103,9 +1240,26 @@
                                 <span id="reviewClient" class="font-semibold text-gray-800">-</span>
                             </div>
                             <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Email</span>
+                                <span id="reviewEmail" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Corporate Group</span>
+                                <span id="reviewCorporateGroup" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Group Type</span>
+                                <span id="reviewGroupType" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
+                                <span class="text-gray-500 block text-xs">Facility Type</span>
+                                <span id="reviewFacilityType" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="p-3 bg-white rounded border">
                                 <span class="text-gray-500 block text-xs">Inspector</span>
                                 <span id="reviewInspector" class="font-semibold text-gray-800">-</span>
                             </div>
+                            {% if not is_occurrence_report %}
                             <div class="p-3 bg-white rounded border">
                                 <span class="text-gray-500 block text-xs">Product</span>
                                 <span id="reviewProduct" class="font-semibold text-gray-800">-</span>
@@ -1114,9 +1268,11 @@
                                 <span class="text-gray-500 block text-xs">KM / Hours / Travel Time</span>
                                 <span id="reviewKmHours" class="font-semibold text-gray-800">-</span>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
 
+                    {% if not is_occurrence_report %}
                     <!-- Documents Summary -->
                     <div class="bg-gray-50 rounded-lg p-6 mb-6">
                         <h4 class="font-semibold text-gray-700 mb-4">Document Uploaded</h4>
@@ -1127,6 +1283,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
                     <!-- Validation Warning - shown when required fields are missing -->
                     <div id="validationWarning" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm mb-4" style="display: none;">
@@ -1141,21 +1298,19 @@
                         All required fields are filled. You can now save the inspection.
                     </div>
 
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Please review all information before submitting. This inspection will be saved as a manual entry.
-                    </div>
                 </div>
 
                 <!-- Navigation Buttons -->
                 <div class="flex justify-between mt-8 pt-6 border-t">
-                    <button type="button" id="prevBtn" class="btn btn-outline" onclick="changeStep(-1)" style="visibility: hidden;">
-                        <i class="fas fa-arrow-left"></i> Previous
+                    <button type="button" id="prevBtn" class="btn btn-outline" onclick="handlePrevious()">
+                        <i class="fas fa-arrow-left"></i> <span id="prevBtnText">Back</span>
                     </button>
                     <div class="flex gap-3">
-                        <a href="{% url 'shipment_list' %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
+                        {% if not is_occurrence_report %}
+                        <button type="button" id="occurrenceBtn" class="btn" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;" onclick="openOccurrenceReport()" onmouseenter="this.style.background='#d97706'" onmouseleave="this.style.background='#f59e0b'">
+                            <i class="fas fa-exclamation-triangle"></i> Occurrence Report
+                        </button>
+                        {% endif %}
                         <button type="button" id="nextBtn" class="btn btn-primary" onclick="changeStep(1)">
                             Next <i class="fas fa-arrow-right"></i>
                         </button>
@@ -1173,9 +1328,286 @@
         </div>
     </div>
 
+    <!-- Occurrence Report Wizard (hidden by default) -->
+    <div id="occurrenceWizard" class="max-w-3xl mx-auto" style="display: none;">
+        <div class="wizard-container p-8">
+            <!-- Occurrence Progress Steps -->
+            <div class="wizard-steps" style="max-width: 300px; margin: 0 auto 32px;">
+                <div class="step active" data-occurrence-step="1">
+                    <div class="step-circle" style="background: #f59e0b; color: white;">1</div>
+                    <span class="step-label">Occurrence Report</span>
+                </div>
+                <div class="step" data-occurrence-step="2">
+                    <div class="step-circle">2</div>
+                    <span class="step-label">Review & Submit</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Occurrence Report Form -->
+            <div id="occurrenceStep1" class="wizard-step-content active">
+                <h2 style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                    Occurrence Report
+                </h2>
+
+                <!-- Basic Info Section -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-info-circle" style="color: #f59e0b;"></i>
+                        Basic Information
+                    </h3>
+
+                    <!-- Date of Inspection -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Date of Inspection <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="date" id="occurrenceDate" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+
+                    <!-- Client -->
+                    <div class="form-group" style="margin-bottom: 16px; position: relative;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Client <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" id="occurrenceClientName" required placeholder="Start typing to search or add new client..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" oninput="searchOccurrenceClients(this.value)">
+                        <div id="occurrenceClientDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Type to search existing clients or enter a new client name</p>
+                    </div>
+
+                    <!-- Town -->
+                    <div class="form-group" style="margin-bottom: 16px; position: relative;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Town <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" id="occurrenceTown" required placeholder="Start typing to search or add new town..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" oninput="searchOccurrenceTowns(this.value)">
+                        <div id="occurrenceTownDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Type to search existing towns or enter a new location</p>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Email
+                        </label>
+                        <input type="email" id="occurrenceEmail" placeholder="client@example.com" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Email address for sending inspection documents</p>
+                    </div>
+
+                    <!-- Internal Account Code - hidden, auto-generated -->
+                    <input type="hidden" id="occurrenceAccountCode" value="">
+
+                    <!-- Corporate Group -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Corporate Group <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select id="occurrenceCorporateGroup" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                            <option value="">Select corporate group (required)</option>
+                            <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
+                            <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
+                            <option value="Fruit & Veg">Fruit & Veg</option>
+                            <option value="OK Foods">OK Foods</option>
+                            <option value="Checkers">Checkers</option>
+                            <option value="Spar">Spar</option>
+                            <option value="SuperSpar">SuperSpar</option>
+                            <option value="Spar - Northrand">Spar - Northrand</option>
+                            <option value="Shoprite">Shoprite</option>
+                            <option value="Massmart">Massmart</option>
+                            <option value="Chester Butcheries">Chester Butcheries</option>
+                            <option value="Boxer">Boxer</option>
+                            <option value="Food Lovers Market">Food Lovers Market</option>
+                            <option value="Cambridge">Cambridge</option>
+                            <option value="Woolworths">Woolworths</option>
+                            <option value="Jwayelani">Jwayelani</option>
+                            <option value="Usave">Usave</option>
+                            <option value="Not Applicable">Not Applicable (None)</option>
+                            <option value="Other">Other (Unlisted Group)</option>
+                            <option value="OBC">OBC</option>
+                            <option value="Roots">Roots</option>
+                            <option value="Meat World">Meat World</option>
+                            <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
+                            <option value="Bluff Meat Supply">Bluff Meat Supply</option>
+                            <option value="Eat Sum Meat">Eat Sum Meat</option>
+                            <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
+                            <option value="Choppies">Choppies</option>
+                            <option value="Econo Foods">Econo Foods</option>
+                            <option value="Makro">Makro</option>
+                            <option value="Boma Vleismark">Boma Vleismark</option>
+                            <option value="Eskort">Eskort</option>
+                            <option value="Nesta Foods">Nesta Foods</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <!-- Group Type -->
+                        <div>
+                            <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Group Type <span style="color: #ef4444;">*</span>
+                            </label>
+                            <select id="occurrenceGroupType" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                                <option value="">Select group type (required)</option>
+                                <option value="Corporate Store">Corporate Store</option>
+                                <option value="Franchise Store">Franchise Store</option>
+                                <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                            </select>
+                        </div>
+
+                        <!-- Facility Type -->
+                        <div>
+                            <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Facility Type <span style="color: #ef4444;">*</span>
+                            </label>
+                            <select id="occurrenceFacilityType" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                                <option value="">Select facility type (required)</option>
+                                <option value="Retailer">Retailer</option>
+                                <option value="Butchery">Butchery</option>
+                                <option value="Re-Packer">Re-Packer</option>
+                                <option value="Production Plant">Production Plant</option>
+                                <option value="Farm">Farm</option>
+                                <option value="Abattoir">Abattoir</option>
+                                <option value="Egg Producers">Egg Producers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Occurrence Details Section -->
+                <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-exclamation-circle" style="color: #f59e0b;"></i>
+                        Occurrence Details
+                    </h3>
+
+                    <!-- Reason/Comments -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                            <i class="fas fa-comment-alt" style="color: #6b7280; margin-right: 6px;"></i>
+                            Reason / Comments <span style="color: #ef4444;">*</span>
+                        </label>
+                        <textarea id="occurrenceReason" rows="4" required placeholder="Describe the occurrence, reason, and any relevant details..." style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; transition: border-color 0.2s; box-sizing: border-box;" onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
+                    </div>
+
+                    <!-- Document Upload -->
+                    <div>
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                            <i class="fas fa-file-upload" style="color: #6b7280; margin-right: 6px;"></i>
+                            Upload Occurrence Document (PDF) <span style="color: #ef4444;">*</span>
+                        </label>
+                        <div id="occurrenceDropZone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: white;" onclick="document.getElementById('occurrenceFile').click()" ondragover="event.preventDefault(); this.style.borderColor='#f59e0b'; this.style.background='#fffbeb';" ondragleave="this.style.borderColor='#d1d5db'; this.style.background='white';" ondrop="handleOccurrenceDrop(event)">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 36px; color: #9ca3af; margin-bottom: 8px; display: block;"></i>
+                            <p style="margin: 0; color: #6b7280; font-size: 14px;">Click to browse or drag & drop</p>
+                            <p style="margin: 6px 0 0; font-size: 12px; color: #9ca3af;">PDF files only</p>
+                        </div>
+                        <input type="file" id="occurrenceFile" accept=".pdf" style="display: none;" onchange="handleOccurrenceFileSelect(this)">
+                        <div id="occurrenceFileName" style="margin-top: 12px; padding: 12px; background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; display: none;">
+                            <i class="fas fa-file-pdf" style="color: #22c55e; margin-right: 8px;"></i>
+                            <span id="occurrenceFileNameText" style="color: #166534;"></span>
+                            <button type="button" onclick="clearOccurrenceFile()" style="float: right; background: none; border: none; color: #ef4444; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Review & Submit -->
+            <div id="occurrenceStep2" class="wizard-step-content" style="display: none;">
+                <h2 style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-clipboard-check" style="color: #f59e0b;"></i>
+                    Review & Submit
+                </h2>
+
+                <!-- Basic Information Review -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151;">
+                        <i class="fas fa-info-circle" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Basic Information
+                    </h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Date of Inspection</span>
+                            <span id="reviewOccurrenceDate" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Client</span>
+                            <span id="reviewOccurrenceClient" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Town</span>
+                            <span id="reviewOccurrenceTown" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Email</span>
+                            <span id="reviewOccurrenceEmail" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Corporate Group</span>
+                            <span id="reviewOccurrenceCorporateGroup" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Group Type</span>
+                            <span id="reviewOccurrenceGroupType" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Facility Type</span>
+                            <span id="reviewOccurrenceFacilityType" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Occurrence Details Review -->
+                <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #92400e;">
+                        <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Occurrence Details
+                    </h3>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 12px; color: #92400e; margin-bottom: 4px; font-weight: 600;">Reason / Comments:</label>
+                        <p id="reviewOccurrenceReason" style="margin: 0; color: #1f2937; white-space: pre-wrap; background: white; padding: 12px; border-radius: 6px; font-size: 14px;">-</p>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; color: #92400e; margin-bottom: 4px; font-weight: 600;">Document:</label>
+                        <p id="reviewOccurrenceDocument" style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px; background: white; padding: 12px; border-radius: 6px;">
+                            <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+                            <span>-</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+                    <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                        <i class="fas fa-exclamation-circle" style="margin-right: 6px;"></i>
+                        Please review the information above before submitting. Once submitted, the occurrence report will be recorded.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between mt-8 pt-6 border-t">
+                <button type="button" id="occurrencePrevBtn" class="btn btn-outline" onclick="changeOccurrenceStep(-1)">
+                    <i class="fas fa-arrow-left"></i> <span id="occurrencePrevBtnText">Back to Inspection</span>
+                </button>
+                <div class="flex gap-3">
+                    <button type="button" id="occurrenceNextBtn" class="btn" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500;" onclick="changeOccurrenceStep(1)">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" id="occurrenceSubmitBtn" class="btn" style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600;" onclick="submitOccurrenceReport()">
+                        <i class="fas fa-paper-plane"></i> Submit Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-white text-sm opacity-80">
+            Food Safety Agency (Pty) Ltd - Occurrence Report
+        </div>
+    </div>
+
     <script>
         let currentStep = 1;
         const totalSteps = 5;
+        const isOccurrenceReport = {% if is_occurrence_report %}true{% else %}false{% endif %};
 
         // Track uploaded files
         const uploadedFiles = {
@@ -1224,6 +1656,9 @@
 
             // Validate Step 1 to update Next button
             validateStep1();
+
+            // Regenerate internal account code when commodity changes
+            generateInternalAccountCode();
         }
 
         function updateDecrementButtons() {
@@ -1257,6 +1692,106 @@
             'PMP': 'PMP (Processed)',
             'EGGS': 'Eggs'
         };
+
+        // Corporate Group code mapping for internal account code generation
+        const corporateGroupCodes = {
+            'Pick n Pay - Franchise': 'PNP',
+            'Pick n Pay - Corporate': 'PNP',
+            'Fruit & Veg': 'FNV',
+            'OK Foods': 'OKF',
+            'Checkers': 'CHK',
+            'Spar': 'SPR',
+            'SuperSpar': 'SPR',
+            'Spar - Northrand': 'SPR',
+            'Shoprite': 'SHP',
+            'Massmart': 'MSM',
+            'Chester Butcheries': 'CHE',
+            'Boxer': 'BOX',
+            'Food Lovers Market': 'FLM',
+            'Cambridge': 'CAM',
+            'Woolworths': 'WLW',
+            'Jwayelani': 'JWA',
+            'Usave': 'USA',
+            'Not Applicable': 'NA',
+            'Other': 'OTH',
+            'OBC': 'OBC',
+            'Roots': 'ROO',
+            'Meat World': 'MWD',
+            'Quantum Foods Nulaid': 'QFN',
+            'Bluff Meat Supply': 'BMS',
+            'Eat Sum Meat': 'ESM',
+            'Waltloo Meat and Chicken': 'WMC',
+            'Choppies': 'CHP',
+            'Econo Foods': 'ECO',
+            'Makro': 'MAK',
+            'Boma Vleismark': 'BOM',
+            'Eskort': 'ESK',
+            'Nesta Foods': 'NSF'
+        };
+
+        // Store selected client ID for code generation
+        let selectedClientId = null;
+
+        // Generate Internal Account Code based on formula:
+        // UPPER(LEFT(FacilityType,2)) - GroupTypeCode - CommodityCode - CorporateGroupCode - ClientID(4 digits)
+        function generateInternalAccountCode() {
+            const facilityType = document.getElementById('facility_type')?.value || '';
+            const groupType = document.getElementById('group_type')?.value || '';
+            const corporateGroup = document.getElementById('corporate_group')?.value || '';
+
+            // Get primary commodity (first selected one with count > 0)
+            const selectedCommodities = Object.entries(commoditySelections)
+                .filter(([_, count]) => count > 0)
+                .map(([name, _]) => name);
+            const primaryCommodity = selectedCommodities[0] || '';
+
+            // If any required field is missing, don't generate
+            if (!facilityType || !groupType || !primaryCommodity || !corporateGroup || !selectedClientId) {
+                return;
+            }
+
+            // 1. Facility Type: First 2 letters uppercase
+            const facilityCode = facilityType.substring(0, 2).toUpperCase();
+
+            // 2. Group Type: COR, FRN, or IND
+            let groupTypeCode = 'IND';
+            if (groupType === 'Corporate Store') {
+                groupTypeCode = 'COR';
+            } else if (groupType === 'Franchise Store') {
+                groupTypeCode = 'FRN';
+            }
+
+            // 3. Commodity: PMP, RAW, EGG, PLT, or OTH
+            let commodityCode = 'OTH';
+            if (primaryCommodity === 'PMP') {
+                commodityCode = 'PMP';
+            } else if (primaryCommodity === 'RAW') {
+                commodityCode = 'RAW';
+            } else if (primaryCommodity === 'EGGS') {
+                commodityCode = 'EGG';
+            } else if (primaryCommodity === 'POULTRY') {
+                commodityCode = 'PLT';
+            }
+
+            // 4. Corporate Group: Look up code or use NA/OTH
+            let corpGroupCode = corporateGroupCodes[corporateGroup] || 'OTH';
+            if (corporateGroup === 'Not Applicable') {
+                corpGroupCode = 'NA';
+            }
+
+            // 5. Client ID: Pad to 4 digits
+            const clientIdNum = parseInt(selectedClientId, 10) || 0;
+            const clientIdPadded = clientIdNum.toString().padStart(4, '0');
+
+            // Build the code
+            const internalCode = `${facilityCode}-${groupTypeCode}-${commodityCode}-${corpGroupCode}-${clientIdPadded}`;
+
+            // Set the hidden field
+            const accountCodeInput = document.getElementById('internal_account_code');
+            if (accountCodeInput) {
+                accountCodeInput.value = internalCode;
+            }
+        }
 
         function generateProductForms() {
             const container = document.getElementById('productFormsContainer');
@@ -1297,19 +1832,23 @@
                     ? `${commodityNames[product.commodity]} #${product.index}`
                     : commodityNames[product.commodity];
 
+                // Poultry and Eggs don't have sampling, class, or lab tests
+                const isPoultryOrEggs = product.commodity === 'POULTRY' || product.commodity === 'EGGS';
+
                 html += `
-                <div class="product-form-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div class="product-form-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;" data-commodity="${product.commodity}">
                     <h4 style="font-weight: 600; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <span style="background: var(--primary); color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px;">${idx + 1}</span>
                         ${label}
                     </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 ${isPoultryOrEggs ? '' : 'md:grid-cols-2'} gap-4">
                         <div class="form-group">
                             <label class="form-label">Product Name <span style="color: #ef4444;">*</span></label>
-                            <input type="text" class="form-control" placeholder="e.g., Mince, Burger Patties"
+                            <input type="text" class="form-control" placeholder="${isPoultryOrEggs ? 'e.g., Whole Chicken, Fresh Eggs' : 'e.g., Mince, Burger Patties'}"
                                    oninput="updateProductData(${idx}, 'product_name', this.value); validateStep2()"
                                    data-product-idx="${idx}" data-field="product_name" required>
                         </div>
+                        ${!isPoultryOrEggs ? `
                         <div class="form-group">
                             <label class="form-label">Product Class <span style="color: #ef4444;">*</span></label>
                             <select class="form-control" onchange="updateProductData(${idx}, 'product_class', this.value); validateStep2()"
@@ -1320,34 +1859,40 @@
                                 <option value="C">Class C</option>
                             </select>
                         </div>
+                        ` : ''}
                     </div>
 
-                    <!-- Sample Section -->
+                    ${!isPoultryOrEggs ? `
+                    <!-- Sample Section - Only for Raw Meat and PMP -->
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                             <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
                                        data-product-idx="${idx}" data-field="is_sample_taken"
-                                       onchange="updateProductData(${idx}, 'is_sample_taken', this.checked); toggleCheckboxStyle(this); toggleLabField(${idx})">
+                                       onchange="updateProductData(${idx}, 'is_sample_taken', this.checked); toggleCheckboxStyle(this); toggleSampleOptions(${idx})">
                                 <span style="font-size: 13px; font-weight: 500;">Sampled</span>
                             </label>
-                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                            <label class="sample-checkbox test-option" id="fat-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: not-allowed; padding: 8px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; opacity: 0.5;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="fat" disabled
                                        onchange="updateProductData(${idx}, 'fat', this.checked); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">Fat</span>
                             </label>
-                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                            <label class="sample-checkbox test-option" id="protein-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: not-allowed; padding: 8px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; opacity: 0.5;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="protein" disabled
                                        onchange="updateProductData(${idx}, 'protein', this.checked); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">Protein</span>
                             </label>
-                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                            <label class="sample-checkbox test-option" id="calcium-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: not-allowed; padding: 8px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; opacity: 0.5;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="calcium" disabled
                                        onchange="updateProductData(${idx}, 'calcium', this.checked); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">Calcium</span>
                             </label>
-                            <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                            <label class="sample-checkbox test-option" id="dna-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: not-allowed; padding: 8px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; opacity: 0.5;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="dna" disabled
                                        onchange="updateProductData(${idx}, 'dna', this.checked); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">DNA</span>
                             </label>
@@ -1368,6 +1913,7 @@
                             <option value="lab_a">Food Safety Laboratory</option>
                         </select>
                     </div>
+                    ` : ``}
                 </div>
                 `;
             });
@@ -1396,6 +1942,42 @@
             }
         }
 
+        // Toggle sample test options (Fat, Protein, Calcium, DNA) and lab field based on Sampled checkbox
+        function toggleSampleOptions(idx) {
+            const sampledCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="is_sample_taken"]`);
+            const labField = document.getElementById(`lab-field-${idx}`);
+            const testFields = ['fat', 'protein', 'calcium', 'dna'];
+            const isSampled = sampledCheckbox && sampledCheckbox.checked;
+
+            // Show/hide lab field
+            if (labField) {
+                labField.style.display = isSampled ? 'block' : 'none';
+            }
+
+            // Enable/disable test checkboxes
+            testFields.forEach(field => {
+                const checkbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="${field}"]`);
+                const label = document.getElementById(`${field}-label-${idx}`);
+
+                if (checkbox && label) {
+                    if (isSampled) {
+                        checkbox.disabled = false;
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                        label.style.background = checkbox.checked ? '#22c55e' : '#f1f5f9';
+                    } else {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                        updateProductData(idx, field, false);
+                        label.style.opacity = '0.5';
+                        label.style.cursor = 'not-allowed';
+                        label.style.background = '#e2e8f0';
+                        label.style.color = 'inherit';
+                    }
+                }
+            });
+        }
+
         // Shared trip values (default to 1 for km and hours)
         let sharedTripData = {
             km_traveled: 1,
@@ -1410,19 +1992,19 @@
             let html = `
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom: 20px;">
                 <div class="form-group">
-                    <label class="form-label">Kilometers Traveled</label>
+                    <label class="form-label">Kilometers Traveled <span style="color: #ef4444;">*</span></label>
                     <input type="number" step="0.1" class="form-control" id="shared_km" placeholder="1" value="${sharedTripData.km_traveled}"
-                           onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1">
+                           onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Time Traveled (mins)</label>
+                    <label class="form-label">Time Traveled (mins) <span style="color: #ef4444;">*</span></label>
                     <input type="number" step="1" class="form-control" id="shared_time_traveled" placeholder="0" value="${sharedTripData.time_traveled || 0}"
-                           onchange="sharedTripData.time_traveled = parseFloat(this.value) || 0">
+                           onchange="sharedTripData.time_traveled = parseFloat(this.value) || 0" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Hours Worked</label>
+                    <label class="form-label">Hours Worked <span style="color: #ef4444;">*</span></label>
                     <input type="number" step="0.1" class="form-control" id="shared_hours" placeholder="1" value="${sharedTripData.hours}"
-                           onchange="sharedTripData.hours = parseFloat(this.value) || 1">
+                           onchange="sharedTripData.hours = parseFloat(this.value) || 1" required>
                 </div>
             </div>
             `;
@@ -1458,7 +2040,9 @@
             const town = document.querySelector('[name="town"]').value;
             const nextBtn = document.getElementById('nextBtn');
 
-            const isValid = totalCount > 0 && date && client && client.trim() !== '' && town && town.trim() !== '';
+            // For occurrence reports, skip commodity validation (they don't have commodities)
+            const commodityValid = isOccurrenceReport ? true : totalCount > 0;
+            const isValid = commodityValid && date && client && client.trim() !== '' && town && town.trim() !== '';
 
             if (currentStep === 1) {
                 if (isValid) {
@@ -1508,20 +2092,26 @@
                 const sampledCheckbox = document.querySelector(`input[data-product-idx="${i}"][data-field="is_sample_taken"]`);
                 const labSelect = document.querySelector(`select[data-product-idx="${i}"][data-field="lab"]`);
 
-                // Product Name is required
+                // Check if this is a Poultry or Eggs commodity (no class/sampling required)
+                const commodity = productsData[i]?.commodity;
+                const isPoultryOrEggs = commodity === 'POULTRY' || commodity === 'EGGS';
+
+                // Product Name is required for all
                 if (!productName || !productName.value.trim()) {
                     isValid = false;
                 }
 
-                // Product Class is required
-                if (!productClass || !productClass.value) {
-                    isValid = false;
-                }
-
-                // If Sampled is checked, Lab is required
-                if (sampledCheckbox && sampledCheckbox.checked) {
-                    if (!labSelect || !labSelect.value) {
+                // Product Class is required only for Raw Meat and PMP (not Poultry/Eggs)
+                if (!isPoultryOrEggs) {
+                    if (!productClass || !productClass.value) {
                         isValid = false;
+                    }
+
+                    // If Sampled is checked, Lab is required (only for Raw/PMP)
+                    if (sampledCheckbox && sampledCheckbox.checked) {
+                        if (!labSelect || !labSelect.value) {
+                            isValid = false;
+                        }
                     }
                 }
             }
@@ -1541,32 +2131,555 @@
             return isValid;
         }
 
+        // Handle previous button - goes back to list on step 1, previous step otherwise
+        function handlePrevious() {
+            if (currentStep === 1) {
+                // On step 1, go back to inspection list
+                window.location.href = '{% url "shipment_list" %}';
+            } else {
+                // On other steps, go to previous step
+                changeStep(-1);
+            }
+        }
+
+        // Update previous button text based on current step
+        function updatePrevButtonText() {
+            const prevBtnText = document.getElementById('prevBtnText');
+            if (prevBtnText) {
+                prevBtnText.textContent = currentStep === 1 ? 'Back' : 'Previous';
+            }
+        }
+
+        // Occurrence Wizard State
+        let occurrenceStep = 1;
+        const totalOccurrenceSteps = 2;
+        let selectedOccurrenceCommodity = '';
+
+        // Open Occurrence Report Wizard
+        function openOccurrenceReport() {
+            // Hide main form, show occurrence wizard
+            document.querySelector('.max-w-3xl.mx-auto.py-8.px-4').style.display = 'none';
+            document.getElementById('occurrenceWizard').style.display = 'block';
+
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('occurrenceDate').value = today;
+
+            // Pre-fill from main form if available
+            const mainClientInput = document.getElementById('client_name');
+            const mainTownInput = document.getElementById('town_input');
+            const mainEmailInput = document.getElementById('additional_email');
+            const mainCorporateGroup = document.getElementById('corporate_group');
+            const mainGroupType = document.getElementById('group_type');
+            const mainFacilityInput = document.getElementById('facility_type');
+
+            if (mainClientInput && mainClientInput.value) {
+                document.getElementById('occurrenceClientName').value = mainClientInput.value;
+            }
+            if (mainTownInput && mainTownInput.value) {
+                document.getElementById('occurrenceTown').value = mainTownInput.value;
+            }
+            if (mainEmailInput && mainEmailInput.value) {
+                document.getElementById('occurrenceEmail').value = mainEmailInput.value;
+            }
+            if (mainCorporateGroup && mainCorporateGroup.value) {
+                document.getElementById('occurrenceCorporateGroup').value = mainCorporateGroup.value;
+            }
+            if (mainGroupType && mainGroupType.value) {
+                document.getElementById('occurrenceGroupType').value = mainGroupType.value;
+            }
+            if (mainFacilityInput && mainFacilityInput.value) {
+                document.getElementById('occurrenceFacilityType').value = mainFacilityInput.value;
+            }
+
+            // Reset occurrence wizard to step 1
+            occurrenceStep = 1;
+            updateOccurrenceWizard();
+        }
+
+        // Close Occurrence Wizard and go back to inspection form
+        function closeOccurrenceWizard() {
+            // Hide occurrence wizard, show main form
+            const wizard = document.getElementById('occurrenceWizard');
+            const mainForm = document.querySelector('.max-w-3xl.mx-auto.py-8.px-4');
+            if (wizard) wizard.style.display = 'none';
+            if (mainForm) mainForm.style.display = 'block';
+
+            // Reset form fields with null checks
+            const fields = ['occurrenceDate', 'occurrenceClientName', 'occurrenceTown', 'occurrenceEmail',
+                           'occurrenceCorporateGroup', 'occurrenceGroupType', 'occurrenceFacilityType',
+                           'occurrenceCommodity', 'occurrenceReason'];
+            fields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            selectedOccurrenceCommodity = '';
+            // Reset commodity card styles
+            document.querySelectorAll('.occurrence-commodity-card').forEach(card => {
+                card.style.borderColor = '#e5e7eb';
+                card.style.background = 'white';
+                const icon = card.querySelector('i');
+                if (icon) icon.style.color = '#6b7280';
+            });
+            clearOccurrenceFile();
+        }
+
+        // Select occurrence commodity
+        function selectOccurrenceCommodity(commodity) {
+            selectedOccurrenceCommodity = commodity;
+            document.getElementById('occurrenceCommodity').value = commodity;
+
+            // Update card styles
+            document.querySelectorAll('.occurrence-commodity-card').forEach(card => {
+                if (card.dataset.value === commodity) {
+                    card.style.borderColor = '#f59e0b';
+                    card.style.background = '#fffbeb';
+                    card.querySelector('i').style.color = '#f59e0b';
+                } else {
+                    card.style.borderColor = '#e5e7eb';
+                    card.style.background = 'white';
+                    card.querySelector('i').style.color = '#6b7280';
+                }
+            });
+        }
+
+        // Search occurrence clients (uses clientsData from template)
+        function searchOccurrenceClients(query) {
+            const dropdown = document.getElementById('occurrenceClientDropdown');
+            const queryLower = query.toLowerCase().trim();
+
+            if (queryLower.length < 1) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            // Filter clients using the clientsData already loaded in the template
+            const matches = clientsData.filter(c =>
+                c.name.toLowerCase().includes(queryLower) ||
+                c.client_id.toLowerCase().includes(queryLower) ||
+                c.email.toLowerCase().includes(queryLower) ||
+                c.code.toLowerCase().includes(queryLower)
+            );
+
+            // Sort matches: exact name matches first, then by name
+            matches.sort((a, b) => {
+                const aExact = a.name.toLowerCase().startsWith(queryLower);
+                const bExact = b.name.toLowerCase().startsWith(queryLower);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Limit to 10 results
+            const limitedMatches = matches.slice(0, 10);
+
+            if (limitedMatches.length > 0) {
+                dropdown.innerHTML = limitedMatches.map(client => {
+                    const escapedName = client.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const escapedEmail = (client.email || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const escapedTown = (client.town || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const escapedCode = (client.code || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    return '<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'white\'" onclick="selectOccurrenceClient(\'' + escapedName + '\', \'' + escapedEmail + '\', \'' + escapedTown + '\', \'' + escapedCode + '\')">' +
+                        '<strong>' + client.name + '</strong>' +
+                        (client.code ? '<br><small style="color: #f59e0b; font-weight: 500;">' + client.code + '</small>' : '') +
+                        (client.town ? '<br><small style="color: #6b7280;">' + client.town + '</small>' : '') +
+                        (client.email ? '<br><small style="color: #9ca3af;">' + client.email + '</small>' : '') +
+                        '</div>';
+                }).join('');
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Select occurrence client from dropdown
+        function selectOccurrenceClient(name, email, town, code) {
+            document.getElementById('occurrenceClientName').value = name;
+            if (email) document.getElementById('occurrenceEmail').value = email;
+            if (town) document.getElementById('occurrenceTown').value = town;
+            if (code) document.getElementById('occurrenceAccountCode').value = code;
+            document.getElementById('occurrenceClientDropdown').style.display = 'none';
+        }
+
+        // Search occurrence towns (uses townsData from template)
+        function searchOccurrenceTowns(query) {
+            const dropdown = document.getElementById('occurrenceTownDropdown');
+            const queryLower = query.toLowerCase().trim();
+
+            if (queryLower.length < 1) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            // Filter towns using townsData already loaded in the template
+            const matches = townsData.filter(t =>
+                t.toLowerCase().includes(queryLower)
+            );
+
+            // Sort matches: exact matches first, then alphabetically
+            matches.sort((a, b) => {
+                const aExact = a.toLowerCase().startsWith(queryLower);
+                const bExact = b.toLowerCase().startsWith(queryLower);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return a.localeCompare(b);
+            });
+
+            // Limit to 10 results
+            const limitedMatches = matches.slice(0, 10);
+
+            if (limitedMatches.length > 0) {
+                dropdown.innerHTML = limitedMatches.map(town => {
+                    const escapedTown = town.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    return '<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'white\'" onclick="selectOccurrenceTown(\'' + escapedTown + '\')">' + town + '</div>';
+                }).join('');
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Select occurrence town from dropdown
+        function selectOccurrenceTown(town) {
+            document.getElementById('occurrenceTown').value = town;
+            document.getElementById('occurrenceTownDropdown').style.display = 'none';
+        }
+
+        // Close occurrence dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            const clientDropdown = document.getElementById('occurrenceClientDropdown');
+            const townDropdown = document.getElementById('occurrenceTownDropdown');
+            const clientInput = document.getElementById('occurrenceClientName');
+            const townInput = document.getElementById('occurrenceTown');
+
+            if (clientDropdown && clientInput && !clientInput.contains(e.target) && !clientDropdown.contains(e.target)) {
+                clientDropdown.style.display = 'none';
+            }
+            if (townDropdown && townInput && !townInput.contains(e.target) && !townDropdown.contains(e.target)) {
+                townDropdown.style.display = 'none';
+            }
+        });
+
+        // Change occurrence wizard step
+        function changeOccurrenceStep(direction) {
+            // Going back from step 1 = back to inspection form
+            if (direction === -1 && occurrenceStep === 1) {
+                closeOccurrenceWizard();
+                return;
+            }
+
+            // Validate step 1 before going to step 2
+            if (direction === 1 && occurrenceStep === 1) {
+                const date = document.getElementById('occurrenceDate').value;
+                const clientName = document.getElementById('occurrenceClientName').value.trim();
+                const town = document.getElementById('occurrenceTown').value.trim();
+                const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
+                const groupType = document.getElementById('occurrenceGroupType').value;
+                const facilityType = document.getElementById('occurrenceFacilityType').value;
+                const reason = document.getElementById('occurrenceReason').value.trim();
+                const fileInput = document.getElementById('occurrenceFile');
+                const file = fileInput.files[0];
+
+                if (!date) {
+                    alert('Please select the date of inspection.');
+                    return;
+                }
+
+                if (!clientName) {
+                    alert('Please enter the client name.');
+                    return;
+                }
+
+                if (!town) {
+                    alert('Please enter the town.');
+                    return;
+                }
+
+                if (!corporateGroup) {
+                    alert('Please select a corporate group.');
+                    return;
+                }
+
+                if (!groupType) {
+                    alert('Please select a group type.');
+                    return;
+                }
+
+                if (!facilityType) {
+                    alert('Please select a facility type.');
+                    return;
+                }
+
+                if (!reason) {
+                    alert('Please enter the reason/comments for the occurrence.');
+                    return;
+                }
+
+                if (!file) {
+                    alert('Please upload an occurrence document (PDF).');
+                    return;
+                }
+
+                // Populate review section
+                populateOccurrenceReview();
+            }
+
+            occurrenceStep += direction;
+            if (occurrenceStep < 1) occurrenceStep = 1;
+            if (occurrenceStep > totalOccurrenceSteps) occurrenceStep = totalOccurrenceSteps;
+
+            updateOccurrenceWizard();
+        }
+
+        // Update occurrence wizard UI
+        function updateOccurrenceWizard() {
+            // Update step indicators
+            document.querySelectorAll('[data-occurrence-step]').forEach((step, index) => {
+                const stepNum = index + 1;
+                const circle = step.querySelector('.step-circle');
+                if (stepNum < occurrenceStep) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                    circle.style.background = '#10b981';
+                    circle.style.color = 'white';
+                } else if (stepNum === occurrenceStep) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                    circle.style.background = '#f59e0b';
+                    circle.style.color = 'white';
+                } else {
+                    step.classList.remove('active', 'completed');
+                    circle.style.background = '#e5e7eb';
+                    circle.style.color = '#9ca3af';
+                }
+            });
+
+            // Show/hide step content
+            document.getElementById('occurrenceStep1').style.display = occurrenceStep === 1 ? 'block' : 'none';
+            document.getElementById('occurrenceStep2').style.display = occurrenceStep === 2 ? 'block' : 'none';
+
+            // Update navigation buttons
+            const prevBtnText = document.getElementById('occurrencePrevBtnText');
+            prevBtnText.textContent = occurrenceStep === 1 ? 'Back to Inspection' : 'Previous';
+
+            document.getElementById('occurrenceNextBtn').style.display = occurrenceStep === totalOccurrenceSteps ? 'none' : 'inline-flex';
+            document.getElementById('occurrenceSubmitBtn').style.display = occurrenceStep === totalOccurrenceSteps ? 'inline-flex' : 'none';
+        }
+
+        // Populate the review section
+        function populateOccurrenceReview() {
+            const date = document.getElementById('occurrenceDate').value;
+            const clientName = document.getElementById('occurrenceClientName').value.trim();
+            const town = document.getElementById('occurrenceTown').value.trim();
+            const email = document.getElementById('occurrenceEmail').value.trim();
+            const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
+            const groupType = document.getElementById('occurrenceGroupType').value;
+            const facilityType = document.getElementById('occurrenceFacilityType').value;
+            const reason = document.getElementById('occurrenceReason').value.trim();
+            const fileInput = document.getElementById('occurrenceFile');
+            const file = fileInput.files[0];
+
+            // Format date for display
+            const formattedDate = date ? new Date(date).toLocaleDateString('en-ZA') : '-';
+
+            document.getElementById('reviewOccurrenceDate').textContent = formattedDate;
+            document.getElementById('reviewOccurrenceClient').textContent = clientName || '-';
+            document.getElementById('reviewOccurrenceTown').textContent = town || '-';
+            document.getElementById('reviewOccurrenceEmail').textContent = email || '-';
+            document.getElementById('reviewOccurrenceCorporateGroup').textContent = corporateGroup || '-';
+            document.getElementById('reviewOccurrenceGroupType').textContent = groupType || '-';
+            document.getElementById('reviewOccurrenceFacilityType').textContent = facilityType || '-';
+            document.getElementById('reviewOccurrenceReason').textContent = reason || '-';
+            document.getElementById('reviewOccurrenceDocument').innerHTML = file
+                ? '<i class="fas fa-file-pdf" style="color: #ef4444;"></i> <span>' + file.name + '</span>'
+                : '<span style="color: #9ca3af;">No document uploaded</span>';
+        }
+
+        // Submit occurrence report
+        function submitOccurrenceReport() {
+            const date = document.getElementById('occurrenceDate').value;
+            const clientName = document.getElementById('occurrenceClientName').value.trim();
+            const town = document.getElementById('occurrenceTown').value.trim();
+            const email = document.getElementById('occurrenceEmail').value.trim();
+            const accountCode = document.getElementById('occurrenceAccountCode').value.trim();
+            const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
+            const groupType = document.getElementById('occurrenceGroupType').value;
+            const facilityType = document.getElementById('occurrenceFacilityType').value;
+            const reason = document.getElementById('occurrenceReason').value.trim();
+            const fileInput = document.getElementById('occurrenceFile');
+            const file = fileInput.files[0];
+
+            // Get inspector name from main form
+            const inspectorName = document.getElementById('inspector_name')?.value || '{{ default_inspector }}';
+
+            // Create FormData for upload
+            const formData = new FormData();
+            formData.append('date_of_inspection', date);
+            formData.append('client_name', clientName);
+            formData.append('town', town);
+            formData.append('email', email);
+            formData.append('internal_account_code', accountCode);
+            formData.append('inspector_name', inspectorName);
+            formData.append('corporate_group', corporateGroup);
+            formData.append('group_type', groupType);
+            formData.append('facility_type', facilityType);
+            formData.append('reason', reason);
+            formData.append('document_type', 'occurrence');
+            formData.append('is_occurrence_report', 'true');
+
+            // Include inspection_id if editing an existing inspection
+            if (editModeData.isEditMode && editModeData.inspectionId) {
+                formData.append('inspection_id', editModeData.inspectionId);
+            }
+
+            if (file) {
+                formData.append('file', file);
+            }
+
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
+
+            // Submit the occurrence report
+            const submitBtn = document.getElementById('occurrenceSubmitBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            submitBtn.disabled = true;
+
+            fetch('/upload-document/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert('Occurrence report submitted successfully!');
+
+                    // Close wizard and go back to inspection form
+                    closeOccurrenceWizard();
+
+                    // Change the Occurrence Report button to green to indicate success
+                    const occurrenceBtn = document.getElementById('occurrenceBtn');
+                    if (occurrenceBtn) {
+                        occurrenceBtn.style.background = '#22c55e';
+                        occurrenceBtn.innerHTML = '<i class="fas fa-check"></i> Occurrence Submitted';
+                        occurrenceBtn.onmouseenter = function() { this.style.background = '#16a34a'; };
+                        occurrenceBtn.onmouseleave = function() { this.style.background = '#22c55e'; };
+                    }
+                } else {
+                    alert('Error submitting occurrence report: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error submitting occurrence report. Please try again.');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+
+        // Handle file selection for occurrence
+        function handleOccurrenceFileSelect(input) {
+            const file = input.files[0];
+            if (file) {
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    alert('Only PDF files are allowed.');
+                    input.value = '';
+                    return;
+                }
+                document.getElementById('occurrenceFileNameText').textContent = file.name;
+                document.getElementById('occurrenceFileName').style.display = 'block';
+                document.getElementById('occurrenceDropZone').style.borderColor = '#22c55e';
+                document.getElementById('occurrenceDropZone').style.background = '#f0fdf4';
+            }
+        }
+
+        // Handle drag and drop for occurrence file
+        function handleOccurrenceDrop(event) {
+            event.preventDefault();
+            const dropZone = event.currentTarget;
+            dropZone.style.borderColor = '#d1d5db';
+            dropZone.style.background = 'transparent';
+
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    alert('Only PDF files are allowed.');
+                    return;
+                }
+                // Set the file to the input
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                document.getElementById('occurrenceFile').files = dataTransfer.files;
+
+                document.getElementById('occurrenceFileNameText').textContent = file.name;
+                document.getElementById('occurrenceFileName').style.display = 'block';
+                dropZone.style.borderColor = '#22c55e';
+                dropZone.style.background = '#f0fdf4';
+            }
+        }
+
+        // Clear occurrence file
+        function clearOccurrenceFile() {
+            const fileInput = document.getElementById('occurrenceFile');
+            const fileName = document.getElementById('occurrenceFileName');
+            const dropZone = document.getElementById('occurrenceDropZone');
+            if (fileInput) fileInput.value = '';
+            if (fileName) fileName.style.display = 'none';
+            if (dropZone) {
+                dropZone.style.borderColor = '#d1d5db';
+                dropZone.style.background = 'transparent';
+            }
+        }
+
         function changeStep(direction) {
-            // Validation for step 1
-            if (direction === 1 && currentStep === 1) {
-                if (!validateStep1()) {
-                    return;
+            // For occurrence reports, skip steps 2-4 (go directly from 1 to 5)
+            if (isOccurrenceReport) {
+                if (direction === 1 && currentStep === 1) {
+                    if (!validateStep1()) {
+                        return;
+                    }
+                    currentStep = 5; // Jump to review
+                } else if (direction === -1 && currentStep === 5) {
+                    currentStep = 1; // Jump back to basic info
+                }
+            } else {
+                // Regular inspection flow
+                // Validation for step 1
+                if (direction === 1 && currentStep === 1) {
+                    if (!validateStep1()) {
+                        return;
+                    }
+
+                    // Generate product forms when moving to step 2
+                    generateProductForms();
+                    // Set initial button state for step 2 (will be disabled until fields filled)
+                    setTimeout(() => validateStep2(), 0);
                 }
 
-                // Generate product forms when moving to step 2
-                generateProductForms();
-                // Set initial button state for step 2 (will be disabled until fields filled)
-                setTimeout(() => validateStep2(), 0);
-            }
-
-            // Validation for step 2
-            if (direction === 1 && currentStep === 2) {
-                if (!validateStep2()) {
-                    return;
+                // Validation for step 2
+                if (direction === 1 && currentStep === 2) {
+                    if (!validateStep2()) {
+                        return;
+                    }
+                    // Generate invoice forms when moving to step 3
+                    generateInvoiceForms();
                 }
-                // Generate invoice forms when moving to step 3
-                generateInvoiceForms();
-            }
 
-            // Update current step
-            currentStep += direction;
-            if (currentStep < 1) currentStep = 1;
-            if (currentStep > totalSteps) currentStep = totalSteps;
+                // Update current step
+                currentStep += direction;
+                if (currentStep < 1) currentStep = 1;
+                if (currentStep > totalSteps) currentStep = totalSteps;
+            }
 
             // Update steps UI
             document.querySelectorAll('.step').forEach((step, index) => {
@@ -1587,7 +2700,7 @@
             });
 
             // Update buttons
-            document.getElementById('prevBtn').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+            updatePrevButtonText();
             document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
             document.getElementById('submitBtn').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
 
@@ -1623,6 +2736,9 @@
             // Save to localStorage
             saveFormToStorage();
 
+            // Update the review section immediately so it reflects the upload
+            updateDocumentReview();
+
             console.log(`✅ File selected for ${type}:`, file.name);
         }
 
@@ -1645,17 +2761,23 @@
             // Save to localStorage
             saveFormToStorage();
 
+            // Update the review section immediately so it reflects the removal
+            updateDocumentReview();
+
             console.log(`🗑️ File removed for ${type}`);
         }
 
         function updateDocumentReview() {
             const reviewEl = document.getElementById('review-rfi');
+            console.log('📄 updateDocumentReview called, uploadedFiles.rfi:', uploadedFiles.rfi);
             if (reviewEl) {
-                const hasFile = uploadedFiles.rfi !== null;
+                const hasFile = uploadedFiles.rfi !== null || editModeData.existingFiles.rfi;
+                console.log('📄 hasFile:', hasFile, 'rfi:', uploadedFiles.rfi, 'existingFiles.rfi:', editModeData.existingFiles.rfi);
                 if (hasFile) {
+                    const fileName = uploadedFiles.rfi ? uploadedFiles.rfi.name : 'Previously uploaded';
                     reviewEl.innerHTML = `
                         <i class="fas fa-check-circle text-green-500"></i>
-                        <span>RFI: ${uploadedFiles.rfi.name}</span>
+                        <span>RFI: ${fileName}</span>
                     `;
                     reviewEl.style.background = '#f0fdf4';
                     reviewEl.style.borderColor = '#10b981';
@@ -1670,13 +2792,59 @@
             }
         }
 
+        // Show existing uploaded files when in edit mode
+        function showExistingFiles() {
+            if (!editModeData.isEditMode) return;
+
+            const fileTypes = {
+                rfi: { name: 'RFI Document', exists: editModeData.existingFiles.rfi },
+                invoice: { name: 'Invoice', exists: editModeData.existingFiles.invoice },
+                coa: { name: 'COA', exists: editModeData.existingFiles.coa },
+                labForm: { name: 'Lab Form', exists: editModeData.existingFiles.labForm },
+                composition: { name: 'Composition', exists: editModeData.existingFiles.composition }
+            };
+
+            // Update the RFI upload card to show existing file if present
+            if (fileTypes.rfi.exists) {
+                const card = document.getElementById('upload-rfi');
+                const statusEl = document.getElementById('status-rfi');
+                const filenameEl = document.getElementById('filename-rfi');
+                const fileInput = document.getElementById('file-rfi');
+
+                if (card && statusEl && filenameEl) {
+                    card.classList.add('uploaded');
+                    filenameEl.innerHTML = '<i class="fas fa-file-check text-green-600 mr-1"></i>Existing file uploaded';
+                    statusEl.textContent = 'Already uploaded';
+                    statusEl.className = 'upload-status success';
+                    // Make RFI not required since file already exists
+                    if (fileInput) fileInput.removeAttribute('required');
+                }
+            }
+
+            // Update the review section
+            updateDocumentReview();
+
+            // Update occurrence button if occurrence report already submitted
+            if (editModeData.existingFiles.occurrence) {
+                const occurrenceBtn = document.getElementById('occurrenceBtn');
+                if (occurrenceBtn) {
+                    occurrenceBtn.style.background = '#22c55e';
+                    occurrenceBtn.innerHTML = '<i class="fas fa-check"></i> Occurrence Submitted';
+                    occurrenceBtn.onmouseenter = function() { this.style.background = '#16a34a'; };
+                    occurrenceBtn.onmouseleave = function() { this.style.background = '#22c55e'; };
+                }
+            }
+        }
+
         function validateRequiredFields() {
             const missingFields = [];
 
-            // Check commodity - now checks total count from all commodities
-            const totalCount = getTotalCommodityCount();
-            if (totalCount === 0) {
-                missingFields.push('Commodity Type (select at least one)');
+            // Check commodity - now checks total count from all commodities (skip for occurrence reports)
+            if (!isOccurrenceReport) {
+                const totalCount = getTotalCommodityCount();
+                if (totalCount === 0) {
+                    missingFields.push('Commodity Type (select at least one)');
+                }
             }
 
             // Check date
@@ -1697,8 +2865,26 @@
                 missingFields.push('Town');
             }
 
-            // Check RFI document (required)
-            if (!uploadedFiles.rfi) {
+            // Check Corporate Group
+            const corporateGroup = document.getElementById('corporate_group')?.value;
+            if (!corporateGroup) {
+                missingFields.push('Corporate Group');
+            }
+
+            // Check Group Type
+            const groupType = document.getElementById('group_type')?.value;
+            if (!groupType) {
+                missingFields.push('Group Type');
+            }
+
+            // Check Facility Type
+            const facilityType = document.getElementById('facility_type')?.value;
+            if (!facilityType) {
+                missingFields.push('Facility Type');
+            }
+
+            // Check RFI document (required, but skip if editing with existing file or for occurrence reports)
+            if (!isOccurrenceReport && !uploadedFiles.rfi && !(editModeData.isEditMode && editModeData.existingFiles.rfi)) {
                 missingFields.push('RFI Document');
             }
 
@@ -1711,6 +2897,8 @@
             const validationWarning = document.getElementById('validationWarning');
             const validationSuccess = document.getElementById('validationSuccess');
             const missingFieldsList = document.getElementById('missingFieldsList');
+
+            console.log('📋 Validation check - Missing fields:', missingFields);
 
             if (missingFields.length > 0) {
                 // Disable submit button
@@ -1735,46 +2923,103 @@
         }
 
         function updateReview() {
-            // Show all selected commodities with counts
-            const selectedCommodities = getSelectedCommodities();
-            const commodityNames = {
-                'POULTRY': 'Poultry',
-                'RAW': 'Raw Meat',
-                'PMP': 'PMP',
-                'EGGS': 'Eggs'
-            };
-            const commodityText = selectedCommodities.length > 0
-                ? selectedCommodities.map(c => `${commodityNames[c.name]} (${c.count})`).join(', ')
-                : '-';
-            document.getElementById('reviewCommodity').textContent = commodityText;
-            document.getElementById('reviewDate').textContent = document.querySelector('[name="date_of_inspection"]').value || '-';
-            document.getElementById('reviewClient').textContent = document.querySelector('[name="client_name"]').value || '-';
-            document.getElementById('reviewInspector').textContent = document.querySelector('[name="inspector_name"]').value || '-';
-            document.getElementById('reviewProduct').textContent = document.querySelector('[name="product_name"]').value || 'Not specified';
+            // Show all selected commodities with counts (only for regular inspections)
+            const reviewCommodityEl = document.getElementById('reviewCommodity');
+            if (reviewCommodityEl) {
+                const selectedCommodities = getSelectedCommodities();
+                const commodityNames = {
+                    'POULTRY': 'Poultry',
+                    'RAW': 'Raw Meat',
+                    'PMP': 'PMP',
+                    'EGGS': 'Eggs'
+                };
+                const commodityText = selectedCommodities.length > 0
+                    ? selectedCommodities.map(c => `${commodityNames[c.name]} (${c.count})`).join(', ')
+                    : '-';
+                reviewCommodityEl.textContent = commodityText;
+            }
 
-            const km = sharedTripData.km_traveled || 1;
-            const hours = sharedTripData.hours || 1;
-            const timeTraveled = sharedTripData.time_traveled || 0;
-            document.getElementById('reviewKmHours').textContent = `${km} km / ${hours} hrs / ${timeTraveled} mins`;
+            // Basic info - with null checks
+            const dateEl = document.getElementById('reviewDate');
+            const clientEl = document.getElementById('reviewClient');
+            const emailEl = document.getElementById('reviewEmail');
+            const inspectorEl = document.getElementById('reviewInspector');
 
-            // Update document review
-            updateDocumentReview();
+            if (dateEl) dateEl.textContent = document.querySelector('[name="date_of_inspection"]')?.value || '-';
+            if (clientEl) clientEl.textContent = document.querySelector('[name="client_name"]')?.value || '-';
+            if (emailEl) emailEl.textContent = document.getElementById('additional_email')?.value || '-';
+
+            // Corporate Group
+            const corporateGroupSelect = document.getElementById('corporate_group');
+            const reviewCorporateGroupEl = document.getElementById('reviewCorporateGroup');
+            if (corporateGroupSelect && reviewCorporateGroupEl) {
+                const corporateGroupText = corporateGroupSelect.options[corporateGroupSelect.selectedIndex]?.text || '-';
+                reviewCorporateGroupEl.textContent = corporateGroupText !== 'Select corporate group (required)' ? corporateGroupText : '-';
+            }
+
+            // Group Type
+            const groupTypeSelect = document.getElementById('group_type');
+            const reviewGroupTypeEl = document.getElementById('reviewGroupType');
+            if (groupTypeSelect && reviewGroupTypeEl) {
+                const groupTypeText = groupTypeSelect.options[groupTypeSelect.selectedIndex]?.text || '-';
+                reviewGroupTypeEl.textContent = groupTypeText !== 'Select group type (required)' ? groupTypeText : '-';
+            }
+
+            // Facility Type
+            const facilityTypeSelect = document.getElementById('facility_type');
+            const reviewFacilityTypeEl = document.getElementById('reviewFacilityType');
+            if (facilityTypeSelect && reviewFacilityTypeEl) {
+                const facilityTypeText = facilityTypeSelect.options[facilityTypeSelect.selectedIndex]?.text || '-';
+                reviewFacilityTypeEl.textContent = facilityTypeText !== 'Select facility type (required)' ? facilityTypeText : '-';
+            }
+
+            if (inspectorEl) inspectorEl.textContent = document.querySelector('[name="inspector_name"]')?.value || '-';
+
+            // Show all product names from productsData (only for regular inspections)
+            const reviewProductEl = document.getElementById('reviewProduct');
+            if (reviewProductEl) {
+                const productNames = productsData
+                    .filter(p => p.product_name && p.product_name.trim())
+                    .map(p => p.product_name)
+                    .join(', ');
+                reviewProductEl.textContent = productNames || '-';
+            }
+
+            // Get KM/Hours from the input fields (only for regular inspections)
+            const reviewKmHoursEl = document.getElementById('reviewKmHours');
+            if (reviewKmHoursEl) {
+                const kmInput = document.getElementById('shared_km');
+                const hoursInput = document.getElementById('shared_hours');
+                const timeInput = document.getElementById('shared_time_traveled');
+                const km = kmInput ? (parseFloat(kmInput.value) || 1) : (sharedTripData.km_traveled || 1);
+                const hours = hoursInput ? (parseFloat(hoursInput.value) || 1) : (sharedTripData.hours || 1);
+                const timeTraveled = timeInput ? (parseFloat(timeInput.value) || 0) : (sharedTripData.time_traveled || 0);
+                reviewKmHoursEl.textContent = `${km} km / ${hours} hrs / ${timeTraveled} mins`;
+            }
+
+            // Update document review (only for regular inspections)
+            if (!isOccurrenceReport) {
+                updateDocumentReview();
+            }
 
             // Update submit button state based on validation
             updateSubmitButtonState();
         }
 
-        // Client data from database
+        // Client data from database - Enhanced with all searchable fields including town
         const clientsData = [
             {% for client in clients %}
             {
                 name: "{{ client.name|escapejs }}",
-                code: "{{ client.internal_account_code|default:''|escapejs }}"
+                code: "{{ client.internal_account_code|default:''|escapejs }}",
+                client_id: "{{ client.client_id|default:''|escapejs }}",
+                email: "{{ client.email|default:''|escapejs }}",
+                town: "{{ client.town|default:''|escapejs }}"
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
         ];
 
-        // Client autocomplete functionality
+        // Client autocomplete functionality - Enhanced search
         const clientInput = document.getElementById('client_name');
         const clientDropdown = document.getElementById('clientDropdown');
         const accountCodeInput = document.getElementById('internal_account_code');
@@ -1789,30 +3034,48 @@
                 return;
             }
 
-            // Filter clients
+            // Filter clients by name, client_id, email, or account code
             const matches = clientsData.filter(c =>
-                c.name.toLowerCase().includes(query)
+                c.name.toLowerCase().includes(query) ||
+                c.client_id.toLowerCase().includes(query) ||
+                c.email.toLowerCase().includes(query) ||
+                c.code.toLowerCase().includes(query)
             );
+
+            // Sort matches: exact name matches first, then by name
+            matches.sort((a, b) => {
+                const aExact = a.name.toLowerCase().startsWith(query);
+                const bExact = b.name.toLowerCase().startsWith(query);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return a.name.localeCompare(b.name);
+            });
 
             // Build dropdown HTML
             let html = '';
 
             if (matches.length > 0) {
-                matches.forEach((client, index) => {
+                // Limit to 10 results for performance
+                const displayMatches = matches.slice(0, 10);
+                displayMatches.forEach((client, index) => {
+                    const townInfo = client.town ? ` <span style="color: #6b7280; font-size: 12px;">(${client.town})</span>` : '';
                     html += `
-                        <div class="client-dropdown-item" data-name="${client.name}" data-code="${client.code}" data-index="${index}">
-                            <div class="client-name">${highlightMatch(client.name, query)}</div>
-                            ${client.code ? `<div class="client-code">${client.code}</div>` : ''}
+                        <div class="client-dropdown-item" data-name="${client.name}" data-code="${client.code}" data-town="${client.town}" data-client-id="${client.client_id}" data-index="${index}">
+                            <div class="client-name">${highlightMatch(client.name, query)}${townInfo}</div>
                         </div>
                     `;
                 });
+
+                if (matches.length > 10) {
+                    html += `<div class="no-results" style="font-size: 12px; padding: 10px;">+ ${matches.length - 10} more results. Type more to refine...</div>`;
+                }
             }
 
-            // Always show "Add new" option
+            // Always show "Add new" option if no exact match
             const exactMatch = clientsData.some(c => c.name.toLowerCase() === query);
             if (!exactMatch && query.length > 0) {
                 html += `
-                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-code="" data-index="${matches.length}">
+                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-code="" data-town="" data-client-id="" data-index="${matches.length}">
                         <i class="fas fa-plus-circle add-icon"></i>
                         <span class="client-name">Add "${this.value}" as new client</span>
                     </div>
@@ -1820,7 +3083,7 @@
             }
 
             if (html === '') {
-                html = '<div class="no-results">No clients found</div>';
+                html = '<div class="no-results"><i class="fas fa-search"></i> No clients found matching "' + query + '"</div>';
             }
 
             clientDropdown.innerHTML = html;
@@ -1830,20 +3093,51 @@
             // Add click handlers
             clientDropdown.querySelectorAll('.client-dropdown-item').forEach(item => {
                 item.addEventListener('click', function() {
-                    selectClient(this.dataset.name, this.dataset.code);
+                    selectClient(this.dataset.name, this.dataset.code, this.dataset.town, this.dataset.clientId);
                 });
             });
         });
 
         function highlightMatch(text, query) {
-            const regex = new RegExp(`(${query})`, 'gi');
-            return text.replace(regex, '<strong style="color: var(--primary);">$1</strong>');
+            if (!text) return '';
+            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, 'gi');
+            return text.replace(regex, '<span class="search-match">$1</span>');
         }
 
-        function selectClient(name, code) {
+        function selectClient(name, code, town, clientId) {
             clientInput.value = name;
             accountCodeInput.value = code || '';
             clientDropdown.style.display = 'none';
+
+            // Store client ID for internal account code generation
+            selectedClientId = clientId || null;
+
+            // Auto-populate town and make it read-only if client has a town
+            const townInputEl = document.getElementById('town_input');
+            if (townInputEl) {
+                if (town && town.trim() !== '') {
+                    townInputEl.value = town;
+                    townInputEl.readOnly = true;
+                    townInputEl.style.backgroundColor = '#f3f4f6';
+                    townInputEl.style.cursor = 'not-allowed';
+                    // Hide town dropdown
+                    const townDropdownEl = document.getElementById('townDropdown');
+                    if (townDropdownEl) townDropdownEl.style.display = 'none';
+                } else {
+                    // New client - allow town input
+                    townInputEl.readOnly = false;
+                    townInputEl.style.backgroundColor = '';
+                    townInputEl.style.cursor = '';
+                    townInputEl.value = '';
+                }
+            }
+
+            // Validate step 1 after selection
+            validateStep1();
+
+            // Generate internal account code
+            generateInternalAccountCode();
         }
 
         // Keyboard navigation
@@ -1862,7 +3156,7 @@
                 e.preventDefault();
                 const item = items[highlightedIndex];
                 if (item) {
-                    selectClient(item.dataset.name, item.dataset.code);
+                    selectClient(item.dataset.name, item.dataset.code, item.dataset.town, item.dataset.clientId);
                 }
             } else if (e.key === 'Escape') {
                 clientDropdown.style.display = 'none';
@@ -1884,6 +3178,132 @@
 
         // Show dropdown on focus if there's text
         clientInput.addEventListener('focus', function() {
+            if (this.value.length > 0) {
+                this.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // ===== TOWN AUTOCOMPLETE =====
+        const townsData = [
+            {% for town in towns %}
+            "{{ town|escapejs }}"{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const townInput = document.getElementById('town_input');
+        const townDropdown = document.getElementById('townDropdown');
+        let townHighlightedIndex = -1;
+
+        townInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+
+            if (query.length === 0) {
+                townDropdown.style.display = 'none';
+                return;
+            }
+
+            // Filter towns
+            const matches = townsData.filter(t =>
+                t.toLowerCase().includes(query)
+            );
+
+            // Sort matches: exact matches first, then by name
+            matches.sort((a, b) => {
+                const aExact = a.toLowerCase().startsWith(query);
+                const bExact = b.toLowerCase().startsWith(query);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return a.localeCompare(b);
+            });
+
+            // Build dropdown HTML
+            let html = '';
+
+            if (matches.length > 0) {
+                const displayMatches = matches.slice(0, 10);
+                displayMatches.forEach((town, index) => {
+                    html += `
+                        <div class="client-dropdown-item" data-name="${town}" data-index="${index}">
+                            <div class="client-name">${highlightMatch(town, query)}</div>
+                        </div>
+                    `;
+                });
+
+                if (matches.length > 10) {
+                    html += `<div class="no-results" style="font-size: 12px; padding: 10px;">+ ${matches.length - 10} more results</div>`;
+                }
+            }
+
+            // Always show "Add new" option if no exact match
+            const exactMatch = townsData.some(t => t.toLowerCase() === query);
+            if (!exactMatch && query.length > 0) {
+                html += `
+                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-index="${matches.length}">
+                        <i class="fas fa-plus-circle add-icon"></i>
+                        <span class="client-name">Add "${this.value}" as new town</span>
+                    </div>
+                `;
+            }
+
+            if (html === '') {
+                html = '<div class="no-results">No towns found</div>';
+            }
+
+            townDropdown.innerHTML = html;
+            townDropdown.style.display = 'block';
+            townHighlightedIndex = -1;
+
+            // Add click handlers
+            townDropdown.querySelectorAll('.client-dropdown-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    selectTown(this.dataset.name);
+                });
+            });
+        });
+
+        function selectTown(name) {
+            townInput.value = name;
+            townDropdown.style.display = 'none';
+        }
+
+        // Keyboard navigation for town
+        townInput.addEventListener('keydown', function(e) {
+            const items = townDropdown.querySelectorAll('.client-dropdown-item');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                townHighlightedIndex = Math.min(townHighlightedIndex + 1, items.length - 1);
+                updateTownHighlight(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                townHighlightedIndex = Math.max(townHighlightedIndex - 1, 0);
+                updateTownHighlight(items);
+            } else if (e.key === 'Enter' && townHighlightedIndex >= 0) {
+                e.preventDefault();
+                const item = items[townHighlightedIndex];
+                if (item) {
+                    selectTown(item.dataset.name);
+                }
+            } else if (e.key === 'Escape') {
+                townDropdown.style.display = 'none';
+            }
+        });
+
+        function updateTownHighlight(items) {
+            items.forEach((item, index) => {
+                item.classList.toggle('highlighted', index === townHighlightedIndex);
+            });
+        }
+
+        // Close town dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.town-search-container')) {
+                townDropdown.style.display = 'none';
+            }
+        });
+
+        // Show town dropdown on focus if there's text
+        townInput.addEventListener('focus', function() {
             if (this.value.length > 0) {
                 this.dispatchEvent(new Event('input'));
             }
@@ -2008,7 +3428,7 @@
                             content.classList.add('active');
                         }
                     });
-                    document.getElementById('prevBtn').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+                    updatePrevButtonText();
                     document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
                     document.getElementById('submitBtn').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
                 }
@@ -2025,21 +3445,225 @@
             localStorage.removeItem(FORM_STORAGE_KEY);
         }
 
+        // Edit mode data (populated by Django template)
+        const editModeData = {
+            isEditMode: '{{ action|default:"Add" }}' === 'Edit',
+            inspectionId: '{{ form.instance.pk|default:"" }}',
+            // Basic info
+            dateOfInspection: '{{ form.date_of_inspection.value|default:""|escapejs }}',
+            clientName: '{{ form.client_name.value|default:""|escapejs }}',
+            town: '{{ form.town.value|default:""|escapejs }}',
+            inspectorName: '{{ form.inspector_name.value|default:""|escapejs }}',
+            // Commodity and product
+            commodity: '{{ form.commodity.value|default:""|escapejs }}',
+            productName: '{{ form.product_name.value|default:""|escapejs }}',
+            productClass: '{{ form.product_class.value|default:""|escapejs }}',
+            lab: '{{ form.lab.value|default:""|escapejs }}',
+            // Sample info
+            isSampleTaken: '{{ form.is_sample_taken.value|default:"" }}' === 'True',
+            boughtSample: '{{ form.bought_sample.value|default:""|escapejs }}',
+            kmTraveled: '{{ form.km_traveled.value|default:""|escapejs }}',
+            hours: '{{ form.hours.value|default:""|escapejs }}',
+            // Test flags
+            fat: '{{ form.fat.value|default:"" }}' === 'True',
+            protein: '{{ form.protein.value|default:"" }}' === 'True',
+            calcium: '{{ form.calcium.value|default:"" }}' === 'True',
+            dna: '{{ form.dna.value|default:"" }}' === 'True',
+            // Comment
+            comment: '{{ form.comment.value|default:""|escapejs }}',
+            // Email
+            additionalEmail: '{{ inspection.additional_email|default:""|escapejs }}',
+            // Classification fields
+            corporateGroup: '{{ inspection.corporate_group|default:""|escapejs }}',
+            groupType: '{{ inspection.group_type|default:""|escapejs }}',
+            facilityType: '{{ inspection.facility_type|default:""|escapejs }}',
+            // Existing files - check if uploaded dates exist
+            existingFiles: {
+                rfi: '{{ inspection.rfi_uploaded_date|default:"" }}' !== '',
+                invoice: '{{ inspection.invoice_uploaded_date|default:"" }}' !== '',
+                coa: '{{ inspection.coa_uploaded_date|default:"" }}' !== '',
+                labForm: '{{ inspection.lab_form_uploaded_date|default:"" }}' !== '',
+                composition: '{{ inspection.composition_uploaded_date|default:"" }}' !== '',
+                occurrence: '{{ inspection.occurrence_uploaded_date|default:"" }}' !== ''
+            }
+        };
+
         // Set initial commodity if editing
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize decrement buttons as disabled (all counts start at 0)
             updateDecrementButtons();
 
-            // Try to restore from localStorage first
-            const restored = restoreFormFromStorage();
+            // Add event listeners to classification dropdowns for auto-generating internal account code
+            const facilityTypeSelect = document.getElementById('facility_type');
+            const groupTypeSelect = document.getElementById('group_type');
+            const corporateGroupSelect = document.getElementById('corporate_group');
 
-            if (!restored) {
-                // No saved data, set defaults
-                // Note: commoditySelections handles multi-select now, no need for legacy card selection
+            if (facilityTypeSelect) {
+                facilityTypeSelect.addEventListener('change', generateInternalAccountCode);
+            }
+            if (groupTypeSelect) {
+                groupTypeSelect.addEventListener('change', generateInternalAccountCode);
+            }
+            if (corporateGroupSelect) {
+                corporateGroupSelect.addEventListener('change', generateInternalAccountCode);
+            }
 
-                // Set today's date as default
+            // If editing, load inspection data first
+            if (editModeData.isEditMode) {
+                // Pre-populate basic info fields (Step 1)
                 const dateInput = document.querySelector('[name="date_of_inspection"]');
-                if (!dateInput.value) {
+                if (dateInput && editModeData.dateOfInspection) {
+                    dateInput.value = editModeData.dateOfInspection;
+                }
+
+                const clientInput = document.querySelector('[name="client_name"]');
+                if (clientInput && editModeData.clientName) {
+                    clientInput.value = editModeData.clientName;
+                    // Look up client ID from clientsData for code generation
+                    const matchingClient = clientsData.find(c => c.name === editModeData.clientName);
+                    if (matchingClient && matchingClient.client_id) {
+                        selectedClientId = matchingClient.client_id;
+                    }
+                }
+
+                const townInput = document.querySelector('[name="town"]');
+                if (townInput && editModeData.town) {
+                    townInput.value = editModeData.town;
+                }
+
+                // Pre-populate email
+                const emailInput = document.getElementById('additional_email');
+                if (emailInput && editModeData.additionalEmail) {
+                    emailInput.value = editModeData.additionalEmail;
+                }
+
+                // Pre-populate classification dropdowns
+                const corporateGroupSelect = document.getElementById('corporate_group');
+                if (corporateGroupSelect && editModeData.corporateGroup) {
+                    corporateGroupSelect.value = editModeData.corporateGroup;
+                }
+
+                const groupTypeSelect = document.getElementById('group_type');
+                if (groupTypeSelect && editModeData.groupType) {
+                    groupTypeSelect.value = editModeData.groupType;
+                }
+
+                const facilityTypeSelect = document.getElementById('facility_type');
+                if (facilityTypeSelect && editModeData.facilityType) {
+                    facilityTypeSelect.value = editModeData.facilityType;
+                }
+
+                const inspectorInput = document.querySelector('[name="inspector_name"]');
+                if (inspectorInput && editModeData.inspectorName) {
+                    inspectorInput.value = editModeData.inspectorName;
+                }
+
+                // Pre-populate commodity from existing inspection
+                const inspectionCommodity = editModeData.commodity;
+                if (inspectionCommodity && commoditySelections[inspectionCommodity] !== undefined) {
+                    commoditySelections[inspectionCommodity] = 1;
+                    const countEl = document.querySelector('.commodity-count[data-commodity="' + inspectionCommodity + '"]');
+                    if (countEl) {
+                        countEl.textContent = '1';
+                    }
+                    const card = document.querySelector('.commodity-card[data-value="' + inspectionCommodity + '"]');
+                    if (card) {
+                        card.classList.add('selected');
+                    }
+                    updateDecrementButtons();
+
+                    // Generate product forms for edit mode
+                    if (typeof generateProductForms === 'function') {
+                        generateProductForms();
+                    }
+
+                    // Pre-populate product details after forms are generated
+                    setTimeout(function() {
+                        // Product name
+                        const productNameInput = document.querySelector('[name="product_name"]');
+                        if (productNameInput) productNameInput.value = editModeData.productName;
+
+                        // Product class
+                        const productClassInput = document.querySelector('[name="product_class"]');
+                        if (productClassInput) productClassInput.value = editModeData.productClass;
+
+                        // Lab
+                        const labInput = document.querySelector('[name="lab"]');
+                        if (labInput) labInput.value = editModeData.lab;
+
+                        // Sample taken checkbox
+                        const sampleTakenCheckbox = document.querySelector('[name="is_sample_taken"]');
+                        if (sampleTakenCheckbox) sampleTakenCheckbox.checked = editModeData.isSampleTaken;
+
+                        // Bought sample
+                        const boughtSampleInput = document.querySelector('[name="bought_sample"]');
+                        if (boughtSampleInput) boughtSampleInput.value = editModeData.boughtSample;
+
+                        // KM Traveled
+                        const kmInput = document.querySelector('[name="km_traveled"]');
+                        if (kmInput) kmInput.value = editModeData.kmTraveled;
+
+                        // Hours
+                        const hoursInput = document.querySelector('[name="hours"]');
+                        if (hoursInput) hoursInput.value = editModeData.hours;
+
+                        // Test flags
+                        const fatCheckbox = document.querySelector('[name="fat"]');
+                        if (fatCheckbox) fatCheckbox.checked = editModeData.fat;
+
+                        const proteinCheckbox = document.querySelector('[name="protein"]');
+                        if (proteinCheckbox) proteinCheckbox.checked = editModeData.protein;
+
+                        const calciumCheckbox = document.querySelector('[name="calcium"]');
+                        if (calciumCheckbox) calciumCheckbox.checked = editModeData.calcium;
+
+                        const dnaCheckbox = document.querySelector('[name="dna"]');
+                        if (dnaCheckbox) dnaCheckbox.checked = editModeData.dna;
+
+                        // Comment field
+                        const commentInput = document.querySelector('[name="comment"]');
+                        if (commentInput && editModeData.comment) {
+                            commentInput.value = editModeData.comment;
+                        }
+
+                        // Generate invoice forms
+                        if (typeof generateInvoiceForms === 'function') {
+                            generateInvoiceForms();
+                        }
+
+                        // Show existing files info
+                        showExistingFiles();
+
+                        // Generate internal account code for edit mode
+                        generateInternalAccountCode();
+                    }, 100);
+                } else {
+                    // Even without commodity, populate other fields (occurrence reports)
+                    setTimeout(function() {
+                        const commentInput = document.querySelector('[name="comment"]');
+                        if (commentInput && editModeData.comment) {
+                            commentInput.value = editModeData.comment;
+                        }
+                        showExistingFiles();
+
+                        // Generate internal account code for edit mode
+                        generateInternalAccountCode();
+
+                        // For occurrence reports, update review step data
+                        if (isOccurrenceReport) {
+                            updateReview();
+                        }
+                    }, 100);
+                }
+                // Skip localStorage restore in edit mode
+            } else {
+                // Add mode - start with blank form (no localStorage restore)
+                // Clear any saved draft to ensure fresh form
+                clearFormStorage();
+
+                // Set today's date as default for new inspections
+                const dateInput = document.querySelector('[name="date_of_inspection"]');
+                if (dateInput && !dateInput.value) {
                     dateInput.value = new Date().toISOString().split('T')[0];
                 }
             }
