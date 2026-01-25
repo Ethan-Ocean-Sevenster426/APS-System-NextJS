@@ -140,7 +140,7 @@ DATABASES = {
         'NAME': 'v4_worksheet',
         'USER': 'v4_user',
         'PASSWORD': 'V4_Secure@2024!',
-        'HOST': '127.0.0.1',
+        'HOST': '167.88.43.168',
         'PORT': '3306',
         'OPTIONS': {
             'charset': 'utf8mb4',

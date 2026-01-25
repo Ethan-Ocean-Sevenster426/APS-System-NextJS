@@ -2168,6 +2168,8 @@
             const container = document.getElementById('productFormsContainer');
             const selectedCommodities = getSelectedCommodities();
 
+            console.log('[generateProductForms] Selected commodities:', selectedCommodities);
+
             // Build list of all products (expand counts)
             const products = [];
             selectedCommodities.forEach(({ name, count }) => {
@@ -2180,21 +2182,29 @@
                 }
             });
 
-            // Initialize productsData array
-            productsData = products.map((p, idx) => ({
-                commodity: p.commodity,
-                product_name: '',
-                product_class: '',
-                lab: '',
-                is_sample_taken: false,
-                fat: false,
-                protein: false,
-                calcium: false,
-                dna: false,
-                bought_sample: 0,
-                km_traveled: 0,
-                hours: 0
-            }));
+            console.log('[generateProductForms] Products to generate:', products);
+
+            // Preserve existing productsData if it matches the current structure
+            const existingData = productsData && productsData.length === products.length;
+            console.log('[generateProductForms] Preserving existing data:', existingData);
+
+            // Initialize or preserve productsData array
+            if (!existingData) {
+                productsData = products.map((p, idx) => ({
+                    commodity: p.commodity,
+                    product_name: '',
+                    product_class: '',
+                    lab: '',
+                    is_sample_taken: false,
+                    fat: false,
+                    protein: false,
+                    calcium: false,
+                    dna: false,
+                    bought_sample: 0,
+                    km_traveled: 0,
+                    hours: 0
+                }));
+            }
 
             // Generate HTML for each product form
             let html = '';
@@ -2206,6 +2216,11 @@
                 // Poultry and Eggs don't have sampling, class, or lab tests
                 const isPoultryOrEggs = product.commodity === 'POULTRY' || product.commodity === 'EGGS';
 
+                // Get existing data for this product if available
+                const existingProductData = productsData[idx] || {};
+                const productNameValue = existingProductData.product_name || '';
+                const productClassValue = existingProductData.product_class || '';
+
                 html += `
                 <div class="product-form-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;" data-commodity="${product.commodity}">
                     <h4 style="font-weight: 600; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
@@ -2215,7 +2230,7 @@
                     <div class="grid grid-cols-1 ${isPoultryOrEggs ? '' : 'md:grid-cols-2'} gap-4">
                         <div class="form-group">
                             <label class="form-label">Product Name <span style="color: #ef4444;">*</span></label>
-                            <input type="text" class="form-control" placeholder="${isPoultryOrEggs ? 'e.g., Whole Chicken, Fresh Eggs' : 'e.g., Mince, Burger Patties'}"
+                            <input type="text" class="form-control" value="${productNameValue}" placeholder="${isPoultryOrEggs ? 'e.g., Whole Chicken, Fresh Eggs' : 'e.g., Mince, Burger Patties'}"
                                    oninput="updateProductData(${idx}, 'product_name', this.value); validateStep2()"
                                    data-product-idx="${idx}" data-field="product_name" required>
                         </div>
@@ -2225,9 +2240,56 @@
                             <select class="form-control" onchange="updateProductData(${idx}, 'product_class', this.value); validateStep2()"
                                     data-product-idx="${idx}" data-field="product_class" required>
                                 <option value="">-- Select Product Class --</option>
-                                <option value="A">Class A</option>
-                                <option value="B">Class B</option>
-                                <option value="C">Class C</option>
+                                ${product.commodity === 'RAW' ? `
+                                    <option value="Extra Lean Mince" ${productClassValue === 'Extra Lean Mince' ? 'selected' : ''}>Extra Lean Mince</option>
+                                    <option value="Lean Mince" ${productClassValue === 'Lean Mince' ? 'selected' : ''}>Lean Mince</option>
+                                    <option value="Regular Mince" ${productClassValue === 'Regular Mince' ? 'selected' : ''}>Regular Mince</option>
+                                    <option value="Raw Flavoured Ground Meat" ${productClassValue === 'Raw Flavoured Ground Meat' ? 'selected' : ''}>Raw Flavoured Ground Meat</option>
+                                    <option value="Raw Flavoured Ground Meat & Offal" ${productClassValue === 'Raw Flavoured Ground Meat & Offal' ? 'selected' : ''}>Raw Flavoured Ground Meat & Offal</option>
+                                    <option value="Raw Flavoured mixed species Ground Meat" ${productClassValue === 'Raw Flavoured mixed species Ground Meat' ? 'selected' : ''}>Raw Flavoured mixed species Ground Meat</option>
+                                    <option value="Raw Flavoured mixed species Ground Meat & Offal" ${productClassValue === 'Raw Flavoured mixed species Ground Meat & Offal' ? 'selected' : ''}>Raw Flavoured mixed species Ground Meat & Offal</option>
+                                    <option value="Raw Boerewors" ${productClassValue === 'Raw Boerewors' ? 'selected' : ''}>Raw Boerewors</option>
+                                    <option value="Raw species sausage / wors" ${productClassValue === 'Raw species sausage / wors' ? 'selected' : ''}>Raw species sausage / wors</option>
+                                    <option value="Raw mixed species sausage / wors" ${productClassValue === 'Raw mixed species sausage / wors' ? 'selected' : ''}>Raw mixed species sausage / wors</option>
+                                    <option value="Ground Burger / Ground patty - Extra Lean" ${productClassValue === 'Ground Burger / Ground patty - Extra Lean' ? 'selected' : ''}>Ground Burger / Ground patty - Extra Lean</option>
+                                    <option value="Ground Burger / Ground patty - Lean" ${productClassValue === 'Ground Burger / Ground patty - Lean' ? 'selected' : ''}>Ground Burger / Ground patty - Lean</option>
+                                    <option value="Ground Burger / Ground patty - Regular" ${productClassValue === 'Ground Burger / Ground patty - Regular' ? 'selected' : ''}>Ground Burger / Ground patty - Regular</option>
+                                    <option value="Burger / Patty / Hamburger Patty / Meatball / Frikadel - Extra Lean" ${productClassValue === 'Burger / Patty / Hamburger Patty / Meatball / Frikadel - Extra Lean' ? 'selected' : ''}>Burger / Patty / Hamburger Patty / Meatball / Frikadel - Extra Lean</option>
+                                    <option value="Burger / Patty / Hamburger Patty / Meatball / Frikadel - Lean" ${productClassValue === 'Burger / Patty / Hamburger Patty / Meatball / Frikadel - Lean' ? 'selected' : ''}>Burger / Patty / Hamburger Patty / Meatball / Frikadel - Lean</option>
+                                    <option value="Burger / Patty / Hamburger Patty / Meatball / Frikadel - Regular" ${productClassValue === 'Burger / Patty / Hamburger Patty / Meatball / Frikadel - Regular' ? 'selected' : ''}>Burger / Patty / Hamburger Patty / Meatball / Frikadel - Regular</option>
+                                    <option value="Value burger/ Value patty/ Value hamburger/ Value meatball/ Value frikadel" ${productClassValue === 'Value burger/ Value patty/ Value hamburger/ Value meatball/ Value frikadel' ? 'selected' : ''}>Value burger/ Value patty/ Value hamburger/ Value meatball/ Value frikadel</option>
+                                    <option value="Economy Burger/ Econo Burger/ Economy Patty/ Econo Patty/ Budget Burger" ${productClassValue === 'Economy Burger/ Econo Burger/ Economy Patty/ Econo Patty/ Budget Burger' ? 'selected' : ''}>Economy Burger/ Econo Burger/ Economy Patty/ Econo Patty/ Budget Burger</option>
+                                    <option value="Raw Banger / Griller" ${productClassValue === 'Raw Banger / Griller' ? 'selected' : ''}>Raw Banger / Griller</option>
+                                    <option value="Raw Braaiwors / Sizzler" ${productClassValue === 'Raw Braaiwors / Sizzler' ? 'selected' : ''}>Raw Braaiwors / Sizzler</option>
+                                ` : product.commodity === 'PMP' ? `
+                                    <option value="Whole muscle, cured, heat treated products" ${productClassValue === 'Whole muscle, cured, heat treated products' ? 'selected' : ''}>Whole muscle, cured, heat treated products</option>
+                                    <option value="Whole muscle, dry cured, heat treated products" ${productClassValue === 'Whole muscle, dry cured, heat treated products' ? 'selected' : ''}>Whole muscle, dry cured, heat treated products</option>
+                                    <option value="Whole Muscle, uncured and heat / partial treated products" ${productClassValue === 'Whole Muscle, uncured and heat / partial treated products' ? 'selected' : ''}>Whole Muscle, uncured and heat / partial treated products</option>
+                                    <option value="Whole muscle, uncured, no or partial heat treated and air dried products" ${productClassValue === 'Whole muscle, uncured, no or partial heat treated and air dried products' ? 'selected' : ''}>Whole muscle, uncured, no or partial heat treated and air dried products</option>
+                                    <option value="Whole muscle, uncured, no or partial heat treated and air dried products undergoing a lengthy maturation period (minimum 21 days)" ${productClassValue === 'Whole muscle, uncured, no or partial heat treated and air dried products undergoing a lengthy maturation period (minimum 21 days)' ? 'selected' : ''}>Whole muscle, uncured, no or partial heat treated and air dried products undergoing a lengthy maturation period (minimum 21 days)</option>
+                                    <option value="Whole muscle, dry cured, no or partial heat treated products" ${productClassValue === 'Whole muscle, dry cured, no or partial heat treated products' ? 'selected' : ''}>Whole muscle, dry cured, no or partial heat treated products</option>
+                                    <option value="Whole muscle, cured and no or partial heat treated products" ${productClassValue === 'Whole muscle, cured and no or partial heat treated products' ? 'selected' : ''}>Whole muscle, cured and no or partial heat treated products</option>
+                                    <option value="Whole muscle, cured, no or partial heat treated and air dried products" ${productClassValue === 'Whole muscle, cured, no or partial heat treated and air dried products' ? 'selected' : ''}>Whole muscle, cured, no or partial heat treated and air dried products</option>
+                                    <option value="Whole muscle, dry cured, no or partial heat treated and dried products" ${productClassValue === 'Whole muscle, dry cured, no or partial heat treated and dried products' ? 'selected' : ''}>Whole muscle, dry cured, no or partial heat treated and dried products</option>
+                                    <option value="Comminuted, cured and heat treated products" ${productClassValue === 'Comminuted, cured and heat treated products' ? 'selected' : ''}>Comminuted, cured and heat treated products</option>
+                                    <option value="Liver spreads, pâté and terrines" ${productClassValue === 'Liver spreads, pâté and terrines' ? 'selected' : ''}>Liver spreads, pâté and terrines</option>
+                                    <option value="Products in aspic: Brawn" ${productClassValue === 'Products in aspic: Brawn' ? 'selected' : ''}>Products in aspic: Brawn</option>
+                                    <option value="Product in aspic: Sülze, Other products containing cured meat pieces in aspic" ${productClassValue === 'Product in aspic: Sülze, Other products containing cured meat pieces in aspic' ? 'selected' : ''}>Product in aspic: Sülze, Other products containing cured meat pieces in aspic</option>
+                                    <option value="Products made from blood" ${productClassValue === 'Products made from blood' ? 'selected' : ''}>Products made from blood</option>
+                                    <option value="Comminuted, uncured, no or partial heat treated and dried products" ${productClassValue === 'Comminuted, uncured, no or partial heat treated and dried products' ? 'selected' : ''}>Comminuted, uncured, no or partial heat treated and dried products</option>
+                                    <option value="Comminuted, cured, no or partial heat treated, dried and fermented products" ${productClassValue === 'Comminuted, cured, no or partial heat treated, dried and fermented products' ? 'selected' : ''}>Comminuted, cured, no or partial heat treated, dried and fermented products</option>
+                                    <option value="Comminuted, uncured and heat treated products" ${productClassValue === 'Comminuted, uncured and heat treated products' ? 'selected' : ''}>Comminuted, uncured and heat treated products</option>
+                                    <option value="Reformed, uncured and no or partial heat treated products" ${productClassValue === 'Reformed, uncured and no or partial heat treated products' ? 'selected' : ''}>Reformed, uncured and no or partial heat treated products</option>
+                                    <option value="Reformed, cured, heat treated products from single species" ${productClassValue === 'Reformed, cured, heat treated products from single species' ? 'selected' : ''}>Reformed, cured, heat treated products from single species</option>
+                                    <option value="Reformed, cured, heat treated products from mixed species" ${productClassValue === 'Reformed, cured, heat treated products from mixed species' ? 'selected' : ''}>Reformed, cured, heat treated products from mixed species</option>
+                                    <option value="Reformed, cured and no or partial heat treated products" ${productClassValue === 'Reformed, cured and no or partial heat treated products' ? 'selected' : ''}>Reformed, cured and no or partial heat treated products</option>
+                                    <option value="Coated Processed Meat Products" ${productClassValue === 'Coated Processed Meat Products' ? 'selected' : ''}>Coated Processed Meat Products</option>
+                                    <option value="Unspecified processed meat products" ${productClassValue === 'Unspecified processed meat products' ? 'selected' : ''}>Unspecified processed meat products</option>
+                                ` : `
+                                    <option value="A" ${productClassValue === 'A' ? 'selected' : ''}>Class A</option>
+                                    <option value="B" ${productClassValue === 'B' ? 'selected' : ''}>Class B</option>
+                                    <option value="C" ${productClassValue === 'C' ? 'selected' : ''}>Class C</option>
+                                `}
                             </select>
                         </div>
                         ` : ''}
@@ -4189,6 +4251,25 @@
                 RAW: {{ commodity_counts.RAW|default:0 }},
                 PMP: {{ commodity_counts.PMP|default:0 }},
                 EGGS: {{ commodity_counts.EGGS|default:0 }}
+            },
+            // Data for all commodities in the group (for populating all forms)
+            commodityData: {
+                {% for commodity, data in commodity_data.items %}
+                {{ commodity }}: {
+                    id: {{ data.id }},
+                    product_name: '{{ data.product_name|escapejs }}',
+                    product_class: '{{ data.product_class|escapejs }}',
+                    lab: '{{ data.lab|escapejs }}',
+                    is_sample_taken: {{ data.is_sample_taken|lower }},
+                    bought_sample: {{ data.bought_sample }},
+                    km_traveled: {{ data.km_traveled }},
+                    hours: {{ data.hours }},
+                    fat: {{ data.fat|lower }},
+                    protein: {{ data.protein|lower }},
+                    calcium: {{ data.calcium|lower }},
+                    dna: {{ data.dna|lower }}
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
             }
         };
 
@@ -4301,6 +4382,13 @@
                     }
                 }
 
+                // IMPORTANT: Set the hidden commodity field to the ORIGINAL inspection's commodity
+                // This ensures form validation passes when submitting the edit
+                if (editModeData.commodity) {
+                    document.getElementById('commoditySelect').value = editModeData.commodity;
+                    console.log('[EDIT MODE] Set commodity field to:', editModeData.commodity);
+                }
+
                 if (hasAnyCommodity) {
                     updateDecrementButtons();
 
@@ -4311,75 +4399,89 @@
 
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
-                        // When editing, we're editing ONE inspection with ONE commodity
-                        // Find the first (and typically only) product form using data attributes
-                        const productIdx = 0; // First product in the array
+                        console.log('[EDIT MODE] Populating ALL product data...');
+                        console.log('[EDIT MODE] commodityData:', editModeData.commodityData);
+                        console.log('[EDIT MODE] productsData:', productsData);
 
-                        // Product name - use data attributes to find the correct input
-                        const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
-                        if (productNameInput && editModeData.productName) {
-                            productNameInput.value = editModeData.productName;
-                            updateProductData(productIdx, 'product_name', editModeData.productName);
-                        }
+                        // Loop through all product forms and populate matching commodities
+                        for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
+                            const commodity = productsData[productIdx].commodity;
+                            const data = editModeData.commodityData[commodity];
 
-                        // Product class - use data attributes
-                        const productClassInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="product_class"]`);
-                        if (productClassInput && editModeData.productClass) {
-                            productClassInput.value = editModeData.productClass;
-                            updateProductData(productIdx, 'product_class', editModeData.productClass);
-                        }
+                            if (!data) {
+                                console.log(`[EDIT MODE] No data for ${commodity} at index ${productIdx}`);
+                                continue;
+                            }
 
-                        // Lab - use data attributes
-                        const labInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="lab"]`);
-                        if (labInput && editModeData.lab) {
-                            labInput.value = editModeData.lab;
-                            updateProductData(productIdx, 'lab', editModeData.lab);
-                        }
+                            console.log(`[EDIT MODE] Populating ${commodity} at index ${productIdx}`);
 
-                        // Sample taken checkbox - use data attributes
-                        const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
-                        if (sampleTakenCheckbox && editModeData.isSampleTaken) {
-                            sampleTakenCheckbox.checked = editModeData.isSampleTaken;
-                            updateProductData(productIdx, 'is_sample_taken', editModeData.isSampleTaken);
-                            toggleCheckboxStyle(sampleTakenCheckbox);
-                            toggleSampleOptions(productIdx);
-                        }
+                            // Product name
+                            const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
+                            if (productNameInput && data.product_name) {
+                                productNameInput.value = data.product_name;
+                                updateProductData(productIdx, 'product_name', data.product_name);
+                                console.log(`[EDIT MODE] ✓ ${commodity} product name: ${data.product_name}`);
+                            }
 
-                        // Test flags - use data attributes
-                        const fatCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="fat"]`);
-                        if (fatCheckbox && editModeData.fat) {
-                            fatCheckbox.checked = editModeData.fat;
-                            updateProductData(productIdx, 'fat', editModeData.fat);
-                            toggleCheckboxStyle(fatCheckbox);
-                        }
+                            // Product class
+                            const productClassInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="product_class"]`);
+                            if (productClassInput && data.product_class) {
+                                productClassInput.value = data.product_class;
+                                updateProductData(productIdx, 'product_class', data.product_class);
+                            }
 
-                        const proteinCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="protein"]`);
-                        if (proteinCheckbox && editModeData.protein) {
-                            proteinCheckbox.checked = editModeData.protein;
-                            updateProductData(productIdx, 'protein', editModeData.protein);
-                            toggleCheckboxStyle(proteinCheckbox);
-                        }
+                            // Lab
+                            const labInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="lab"]`);
+                            if (labInput && data.lab) {
+                                labInput.value = data.lab;
+                                updateProductData(productIdx, 'lab', data.lab);
+                            }
 
-                        const calciumCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="calcium"]`);
-                        if (calciumCheckbox && editModeData.calcium) {
-                            calciumCheckbox.checked = editModeData.calcium;
-                            updateProductData(productIdx, 'calcium', editModeData.calcium);
-                            toggleCheckboxStyle(calciumCheckbox);
-                        }
+                            // Sample taken checkbox
+                            const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
+                            if (sampleTakenCheckbox && data.is_sample_taken) {
+                                sampleTakenCheckbox.checked = data.is_sample_taken;
+                                updateProductData(productIdx, 'is_sample_taken', data.is_sample_taken);
+                                toggleCheckboxStyle(sampleTakenCheckbox);
+                                toggleSampleOptions(productIdx);
+                            }
 
-                        const dnaCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="dna"]`);
-                        if (dnaCheckbox && editModeData.dna) {
-                            dnaCheckbox.checked = editModeData.dna;
-                            updateProductData(productIdx, 'dna', editModeData.dna);
-                            toggleCheckboxStyle(dnaCheckbox);
-                        }
+                            // Test flags
+                            const fatCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="fat"]`);
+                            if (fatCheckbox && data.fat) {
+                                fatCheckbox.checked = data.fat;
+                                updateProductData(productIdx, 'fat', data.fat);
+                                toggleCheckboxStyle(fatCheckbox);
+                            }
 
-                        // Update productsData array with edit mode values
-                        if (productsData && productsData.length > 0) {
-                            productsData[productIdx].bought_sample = parseFloat(editModeData.boughtSample) || 0;
-                            productsData[productIdx].km_traveled = parseFloat(editModeData.kmTraveled) || 0;
-                            productsData[productIdx].hours = parseFloat(editModeData.hours) || 0;
-                        }
+                            const proteinCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="protein"]`);
+                            if (proteinCheckbox && data.protein) {
+                                proteinCheckbox.checked = data.protein;
+                                updateProductData(productIdx, 'protein', data.protein);
+                                toggleCheckboxStyle(proteinCheckbox);
+                            }
+
+                            const calciumCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="calcium"]`);
+                            if (calciumCheckbox && data.calcium) {
+                                calciumCheckbox.checked = data.calcium;
+                                updateProductData(productIdx, 'calcium', data.calcium);
+                                toggleCheckboxStyle(calciumCheckbox);
+                            }
+
+                            const dnaCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="dna"]`);
+                            if (dnaCheckbox && data.dna) {
+                                dnaCheckbox.checked = data.dna;
+                                updateProductData(productIdx, 'dna', data.dna);
+                                toggleCheckboxStyle(dnaCheckbox);
+                            }
+
+                            // Update productsData array with values from commodity data
+                            if (productsData && productsData.length > productIdx) {
+                                productsData[productIdx].bought_sample = parseFloat(data.bought_sample) || 0;
+                                productsData[productIdx].km_traveled = parseFloat(data.km_traveled) || 0;
+                                productsData[productIdx].hours = parseFloat(data.hours) || 0;
+                            }
+                        } // End of for loop
 
                         // Comment field
                         const commentInput = document.querySelector('[name="comment"]');

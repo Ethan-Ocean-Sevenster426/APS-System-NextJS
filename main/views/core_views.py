@@ -635,6 +635,118 @@ def delete_inspection(request, pk):
 # MANUAL FSA INSPECTION ENTRY
 # =============================================================================
 
+def generate_unique_internal_account_code(client_name, date_of_inspection, facility_type, group_type, commodity, corporate_group, client_id=None):
+    """
+    Generate unique internal_account_code with daily sequence number.
+    Based on Excel formula with added sequence for uniqueness:
+    =UPPER(LEFT(B,2)) & "-" & IF(C="Corporate Store","COR",IF(C="Franchise","FRN","IND")) & "-" &
+     IF(D="PMP","PMP",IF(D="RAW","RAW",IF(D="EGG","EGG",IF(D="PLT","PLT","OTH")))) & "-" &
+     IF(F="None","NA",LOOKUP_CODE) & "-" & TEXT(ID,"0000") & "-" & SEQUENCE
+
+    Format: {FACILITY_2_CHARS}-{GROUP_TYPE}-{COMMODITY}-{CORP_CODE}-{CLIENT_ID_4_DIGITS}-{DAILY_SEQ_3_DIGITS}
+    Example: FA-IND-PLT-NA-0036-001
+
+    The daily sequence ensures that multiple identical inspections (same client, date, commodity)
+    each get a unique code and appear as separate entries in shipment list.
+    """
+    from main.models import Client, FoodSafetyAgencyInspection
+
+    # Part 1: UPPER(LEFT(facility_type, 2)) - First 2 characters of facility type
+    if facility_type and len(facility_type) >= 2:
+        facility_abbrev = facility_type[:2].upper()
+    elif facility_type and len(facility_type) == 1:
+        facility_abbrev = facility_type[0].upper() + 'A'
+    else:
+        facility_abbrev = 'FA'  # Default
+
+    # Part 2: Group Type - Corporate Store="COR", Franchise="FRN", else="IND"
+    group_type_clean = (group_type or '').strip()
+    if group_type_clean == 'Corporate Store':
+        group_abbrev = 'COR'
+    elif group_type_clean == 'Franchise':
+        group_abbrev = 'FRN'
+    else:
+        group_abbrev = 'IND'
+
+    # Part 3: Commodity - PMP/RAW/EGG/PLT/OTH
+    commodity_clean = (commodity or '').upper().strip()
+    if commodity_clean == 'PMP':
+        commodity_abbrev = 'PMP'
+    elif commodity_clean == 'RAW':
+        commodity_abbrev = 'RAW'
+    elif commodity_clean in ['EGG', 'EGGS']:
+        commodity_abbrev = 'EGG'
+    elif commodity_clean in ['PLT', 'POULTRY']:
+        commodity_abbrev = 'PLT'
+    elif commodity_clean == 'OCC':
+        commodity_abbrev = 'OCC'
+    else:
+        commodity_abbrev = 'OTH'
+
+    # Part 4: Corporate Group Code - lookup in codes table or use "NA"
+    corporate_group_clean = (corporate_group or '').strip()
+    if not corporate_group_clean or corporate_group_clean in ['None', 'Not Applicable (None)', 'Not Applicable']:
+        corp_abbrev = 'NA'
+    else:
+        # Try to lookup corporate group code from database
+        # First check if there's a CorporateGroupCode model/table
+        try:
+            from main.models import CorporateGroupCode
+            corp_code = CorporateGroupCode.objects.filter(name__iexact=corporate_group_clean).first()
+            if corp_code and hasattr(corp_code, 'code') and corp_code.code:
+                corp_abbrev = corp_code.code.upper()
+            else:
+                # Fallback: take first 3 letters
+                corp_abbrev = corporate_group_clean[:3].upper() if len(corporate_group_clean) >= 3 else 'OTH'
+        except (ImportError, Exception):
+            # CorporateGroupCode model doesn't exist, use first 3 letters
+            corp_abbrev = corporate_group_clean[:3].upper() if len(corporate_group_clean) >= 3 else 'OTH'
+
+    # Part 5: Client ID padded to 4 digits
+    if client_id:
+        # Use provided client_id
+        try:
+            client_id_str = str(int(client_id)).zfill(4)
+        except (ValueError, TypeError):
+            client_id_str = '0001'
+    else:
+        # Try to get client ID from Client table
+        try:
+            client = Client.objects.filter(name__iexact=client_name).first()
+            if client and client.id:
+                client_id_str = str(client.id).zfill(4)
+            else:
+                # No client found, use sequential number
+                client_id_str = '0001'
+        except Exception:
+            client_id_str = '0001'
+
+    # Part 6: Daily sequence number (to make identical inspections unique)
+    # Find existing inspections with same base code on the same date
+    base_code = f"{facility_abbrev}-{group_abbrev}-{commodity_abbrev}-{corp_abbrev}-{client_id_str}"
+
+    # Count existing inspections with this exact pattern on this date
+    from datetime import datetime
+    if isinstance(date_of_inspection, str):
+        inspection_date = datetime.strptime(date_of_inspection, '%Y-%m-%d').date()
+    else:
+        inspection_date = date_of_inspection
+
+    existing_count = FoodSafetyAgencyInspection.objects.filter(
+        internal_account_code__startswith=base_code,
+        date_of_inspection=inspection_date
+    ).count()
+
+    # Next sequence is count + 1
+    daily_sequence = existing_count + 1
+    daily_seq_str = str(daily_sequence).zfill(3)
+
+    # Build full code with daily sequence
+    full_code = f"{base_code}-{daily_seq_str}"
+
+    return full_code
+
+
 @login_required(login_url='login')
 @role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def add_fsa_inspection(request):
@@ -781,6 +893,17 @@ def add_fsa_inspection(request):
                         )
                     inspection.client = client
 
+                    # Generate unique internal_account_code matching Excel formula
+                    inspection.internal_account_code = generate_unique_internal_account_code(
+                        client_name=inspection.client_name,
+                        date_of_inspection=inspection.date_of_inspection,
+                        facility_type=request.POST.get('facility_type', ''),
+                        group_type=request.POST.get('group_type', ''),
+                        commodity=inspection.commodity,
+                        corporate_group=request.POST.get('corporate_group', ''),
+                        client_id=client.id if client else None
+                    )
+
                     inspection.save()
                     created_inspections.append(inspection)
                     total_created += 1
@@ -906,21 +1029,85 @@ def edit_fsa_inspection(request, pk):
         print(f"[EDIT FORM DEBUG] Received POST data for inspection {pk}")
         print(f"[EDIT FORM DEBUG] additional_email from POST: '{request.POST.get('additional_email')}'")
 
-        form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
-        if form.is_valid():
-            try:
-                print(f"[EDIT FORM DEBUG] Form is valid")
-                print(f"[EDIT FORM DEBUG] additional_email from cleaned_data: '{form.cleaned_data.get('additional_email')}'")
-                inspection = form.save()
-                print(f"[EDIT FORM DEBUG] Saved inspection, additional_email is now: '{inspection.additional_email}'")
-                messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
-                return redirect('shipment_list')
-            except Exception as e:
-                messages.error(request, f"Error updating inspection: {str(e)}")
+        # Get products_data to update all related inspections
+        import json
+        products_data_json = request.POST.get('products_data', '[]')
+        try:
+            products_data = json.loads(products_data_json)
+            print(f"[EDIT FORM DEBUG] Products data: {products_data}")
+        except:
+            products_data = []
+
+        # Update ALL related inspections in the group
+        if products_data:
+            # Get all related inspections
+            related_inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name=inspection.client_name,
+                date_of_inspection=inspection.date_of_inspection,
+                internal_account_code=inspection.internal_account_code
+            )
+
+            # Map products to inspections by commodity
+            commodity_to_product = {p['commodity']: p for p in products_data if 'commodity' in p}
+
+            for rel_insp in related_inspections:
+                if rel_insp.commodity in commodity_to_product:
+                    product = commodity_to_product[rel_insp.commodity]
+                    # Update product fields
+                    rel_insp.product_name = product.get('product_name', '')
+                    rel_insp.product_class = product.get('product_class', '')
+                    rel_insp.lab = product.get('lab', '')
+                    rel_insp.is_sample_taken = product.get('is_sample_taken', False)
+                    rel_insp.fat = product.get('fat', False)
+                    rel_insp.protein = product.get('protein', False)
+                    rel_insp.calcium = product.get('calcium', False)
+                    rel_insp.dna = product.get('dna', False)
+                    rel_insp.bought_sample = product.get('bought_sample', 0)
+                    rel_insp.km_traveled = product.get('km_traveled', 0)
+                    rel_insp.hours = product.get('hours', 0)
+                    print(f"[EDIT FORM DEBUG] Updating inspection {rel_insp.id} ({rel_insp.commodity}) with product: {product.get('product_name')}")
+
+            # Now update the main inspection with common fields from form
+            form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
+            if form.is_valid():
+                try:
+                    # Save the main inspection
+                    inspection = form.save()
+
+                    # Save all related inspections with updated product data
+                    for rel_insp in related_inspections:
+                        if rel_insp.id != inspection.id and rel_insp.commodity in commodity_to_product:
+                            # Copy common fields from main inspection
+                            rel_insp.additional_email = inspection.additional_email
+                            rel_insp.corporate_group = inspection.corporate_group
+                            rel_insp.group_type = inspection.group_type
+                            rel_insp.facility_type = inspection.facility_type
+                            rel_insp.town = inspection.town
+                            rel_insp.save()
+                            print(f"[EDIT FORM DEBUG] Saved related inspection {rel_insp.id}")
+
+                    messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
+                    return redirect('shipment_list')
+                except Exception as e:
+                    messages.error(request, f"Error updating inspection: {str(e)}")
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
+            # Fallback to single inspection update if no products_data
+            form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
+            if form.is_valid():
+                try:
+                    inspection = form.save()
+                    messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
+                    return redirect('shipment_list')
+                except Exception as e:
+                    messages.error(request, f"Error updating inspection: {str(e)}")
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
     else:
         form = FoodSafetyAgencyInspectionForm(instance=inspection)
 
@@ -988,23 +1175,51 @@ def edit_fsa_inspection(request, pk):
         town=''
     ).values_list('town', flat=True).distinct().order_by('town')
 
-    # Get all related inspections (same client, date, internal_account_code) to count commodities
-    related_inspections = FoodSafetyAgencyInspection.objects.filter(
-        client_name=inspection.client_name,
-        date_of_inspection=inspection.date_of_inspection,
-        internal_account_code=inspection.internal_account_code
-    )
+    # Only get commodity data for regular inspections, NOT for occurrence reports
+    is_occurrence = getattr(inspection, 'is_occurrence_report', False)
 
-    # When editing, only show the commodity for THIS inspection, not all related ones
-    # This ensures the form only shows one product form for the inspection being edited
-    commodity_counts = {
-        'POULTRY': 0,
-        'RAW': 0,
-        'PMP': 0,
-        'EGGS': 0
-    }
-    if inspection.commodity in commodity_counts:
-        commodity_counts[inspection.commodity] = 1  # Only this inspection's commodity
+    if not is_occurrence:
+        # Get all related inspections (same client, date, internal_account_code) to count commodities
+        related_inspections = FoodSafetyAgencyInspection.objects.filter(
+            client_name=inspection.client_name,
+            date_of_inspection=inspection.date_of_inspection,
+            internal_account_code=inspection.internal_account_code
+        )
+
+        # Count commodities from all related inspections (show all in the group)
+        commodity_counts = {
+            'POULTRY': 0,
+            'RAW': 0,
+            'PMP': 0,
+            'EGGS': 0
+        }
+        # Map commodity to inspection data for population
+        commodity_data = {}
+
+        for insp in related_inspections:
+            if insp.commodity in commodity_counts:
+                commodity_counts[insp.commodity] += 1
+                # Store the first inspection of each commodity type
+                if insp.commodity not in commodity_data:
+                    commodity_data[insp.commodity] = {
+                        'id': insp.id,
+                        'product_name': insp.product_name or '',
+                        'product_class': insp.product_class or '',
+                        'lab': insp.lab or '',
+                        'is_sample_taken': insp.is_sample_taken or False,
+                        'bought_sample': float(insp.bought_sample) if insp.bought_sample else 0,
+                        'km_traveled': float(insp.km_traveled) if insp.km_traveled else 0,
+                        'hours': float(insp.hours) if insp.hours else 0,
+                        'fat': insp.fat,
+                        'protein': insp.protein,
+                        'calcium': insp.calcium,
+                        'dna': insp.dna,
+                    }
+    else:
+        # For occurrence reports, no commodity data
+        related_inspections = []
+        commodity_counts = {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0}
+        commodity_data = {}
 
     context = {
         'form': form,
@@ -1012,9 +1227,10 @@ def edit_fsa_inspection(request, pk):
         'action': 'Edit',
         'clients': clients_with_towns,
         'towns': list(towns),
-        'is_occurrence_report': getattr(inspection, 'is_occurrence_report', False),
+        'is_occurrence_report': is_occurrence,
         'related_inspections': related_inspections,
         'commodity_counts': commodity_counts,
+        'commodity_data': commodity_data,  # Pass all commodity data for population (empty for occurrence reports)
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -1724,7 +1940,8 @@ def shipment_list(request):
     # Create the base queryset for groups
     groups_queryset = inspections.values(
         'client_name',
-        'date_of_inspection'
+        'date_of_inspection',
+        'internal_account_code'
     ).annotate(
         inspection_count=Count('id'),
         latest_inspection_id=Max('id'),
@@ -1922,21 +2139,22 @@ def shipment_list(request):
     for group in client_date_groups:
         group_conditions |= Q(
             client_name=group['client_name'],
-            date_of_inspection=group['date_of_inspection']
+            date_of_inspection=group['date_of_inspection'],
+            internal_account_code=group['internal_account_code']
         )
     
     # Load all inspections for these groups in one query
-    all_group_inspections = inspections.filter(group_conditions).order_by('client_name', 'date_of_inspection', 'id')
+    all_group_inspections = inspections.filter(group_conditions).order_by('client_name', 'date_of_inspection', 'internal_account_code', 'id')
     
     # Log potential data issues for debugging
     if len(all_group_inspections) == 0 and len(client_date_groups) > 0:
         print(f"WARNING: No inspections found for {len(client_date_groups)} groups - may be permission filtering issue")
     
-    # Group them by client_name and date_of_inspection
+    # Group them by client_name, date_of_inspection, and internal_account_code
     from collections import defaultdict
     grouped_inspections_dict = defaultdict(list)
     for inspection in all_group_inspections:
-        key = (inspection.client_name, inspection.date_of_inspection)
+        key = (inspection.client_name, inspection.date_of_inspection, inspection.internal_account_code)
         grouped_inspections_dict[key].append(inspection)
     
     # Helper function to check files for a single group (fast version for page load)
@@ -2097,13 +2315,14 @@ def shipment_list(request):
     for group in client_date_groups:
         client_name = group['client_name']
         date_of_inspection = group['date_of_inspection']
+        internal_account_code = group['internal_account_code']
         inspection_count = group['inspection_count']
 
         # REMOVED: Excessive per-group debug logging for performance
-        # print(f"[DEBUG] Processing group: {client_name} - {date_of_inspection} (expected: {inspection_count})")
+        # print(f"[DEBUG] Processing group: {client_name} - {date_of_inspection} - {internal_account_code} (expected: {inspection_count})")
 
         # Get inspections from our pre-loaded dictionary
-        group_inspections = grouped_inspections_dict.get((client_name, date_of_inspection), [])
+        group_inspections = grouped_inspections_dict.get((client_name, date_of_inspection, internal_account_code), [])
 
         # Log when we have empty groups but expected products (potential data integrity issue)
         if not group_inspections and inspection_count > 0:
@@ -2787,6 +3006,22 @@ def upload_document(request):
                     except json.JSONDecodeError:
                         findings = []
 
+                    # Generate unique internal_account_code for occurrence report
+                    # Look up client to get client_id for the code
+                    from main.models import Client
+                    client_name = request.POST.get('client_name', 'Unknown Client')
+                    occurrence_client = Client.objects.filter(name__iexact=client_name).first()
+
+                    occurrence_account_code = generate_unique_internal_account_code(
+                        client_name=client_name,
+                        date_of_inspection=inspection_date,
+                        facility_type=request.POST.get('facility_type', ''),
+                        group_type=request.POST.get('group_type', ''),
+                        commodity='OCC',  # Use 'OCC' for occurrence reports
+                        corporate_group=request.POST.get('corporate_group', ''),
+                        client_id=occurrence_client.id if occurrence_client else None
+                    )
+
                     # Create the occurrence report inspection
                     new_inspection = FoodSafetyAgencyInspection.objects.create(
                         remote_id=new_remote_id,
@@ -2796,7 +3031,7 @@ def upload_document(request):
                         additional_email=request.POST.get('email', ''),
                         inspector_name=inspector_name,
                         inspector_id=inspector_id,
-                        internal_account_code=request.POST.get('internal_account_code', ''),
+                        internal_account_code=occurrence_account_code,
                         corporate_group=request.POST.get('corporate_group', ''),
                         group_type=request.POST.get('group_type', ''),
                         facility_type=request.POST.get('facility_type', ''),
