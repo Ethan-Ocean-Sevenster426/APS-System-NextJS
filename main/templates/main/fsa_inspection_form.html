@@ -4311,46 +4311,75 @@
 
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
-                        // Product name
-                        const productNameInput = document.querySelector('[name="product_name"]');
-                        if (productNameInput) productNameInput.value = editModeData.productName;
+                        // When editing, we're editing ONE inspection with ONE commodity
+                        // Find the first (and typically only) product form using data attributes
+                        const productIdx = 0; // First product in the array
 
-                        // Product class
-                        const productClassInput = document.querySelector('[name="product_class"]');
-                        if (productClassInput) productClassInput.value = editModeData.productClass;
+                        // Product name - use data attributes to find the correct input
+                        const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
+                        if (productNameInput && editModeData.productName) {
+                            productNameInput.value = editModeData.productName;
+                            updateProductData(productIdx, 'product_name', editModeData.productName);
+                        }
 
-                        // Lab
-                        const labInput = document.querySelector('[name="lab"]');
-                        if (labInput) labInput.value = editModeData.lab;
+                        // Product class - use data attributes
+                        const productClassInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="product_class"]`);
+                        if (productClassInput && editModeData.productClass) {
+                            productClassInput.value = editModeData.productClass;
+                            updateProductData(productIdx, 'product_class', editModeData.productClass);
+                        }
 
-                        // Sample taken checkbox
-                        const sampleTakenCheckbox = document.querySelector('[name="is_sample_taken"]');
-                        if (sampleTakenCheckbox) sampleTakenCheckbox.checked = editModeData.isSampleTaken;
+                        // Lab - use data attributes
+                        const labInput = document.querySelector(`select[data-product-idx="${productIdx}"][data-field="lab"]`);
+                        if (labInput && editModeData.lab) {
+                            labInput.value = editModeData.lab;
+                            updateProductData(productIdx, 'lab', editModeData.lab);
+                        }
 
-                        // Bought sample
-                        const boughtSampleInput = document.querySelector('[name="bought_sample"]');
-                        if (boughtSampleInput) boughtSampleInput.value = editModeData.boughtSample;
+                        // Sample taken checkbox - use data attributes
+                        const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
+                        if (sampleTakenCheckbox && editModeData.isSampleTaken) {
+                            sampleTakenCheckbox.checked = editModeData.isSampleTaken;
+                            updateProductData(productIdx, 'is_sample_taken', editModeData.isSampleTaken);
+                            toggleCheckboxStyle(sampleTakenCheckbox);
+                            toggleSampleOptions(productIdx);
+                        }
 
-                        // KM Traveled
-                        const kmInput = document.querySelector('[name="km_traveled"]');
-                        if (kmInput) kmInput.value = editModeData.kmTraveled;
+                        // Test flags - use data attributes
+                        const fatCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="fat"]`);
+                        if (fatCheckbox && editModeData.fat) {
+                            fatCheckbox.checked = editModeData.fat;
+                            updateProductData(productIdx, 'fat', editModeData.fat);
+                            toggleCheckboxStyle(fatCheckbox);
+                        }
 
-                        // Hours
-                        const hoursInput = document.querySelector('[name="hours"]');
-                        if (hoursInput) hoursInput.value = editModeData.hours;
+                        const proteinCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="protein"]`);
+                        if (proteinCheckbox && editModeData.protein) {
+                            proteinCheckbox.checked = editModeData.protein;
+                            updateProductData(productIdx, 'protein', editModeData.protein);
+                            toggleCheckboxStyle(proteinCheckbox);
+                        }
 
-                        // Test flags
-                        const fatCheckbox = document.querySelector('[name="fat"]');
-                        if (fatCheckbox) fatCheckbox.checked = editModeData.fat;
+                        const calciumCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="calcium"]`);
+                        if (calciumCheckbox && editModeData.calcium) {
+                            calciumCheckbox.checked = editModeData.calcium;
+                            updateProductData(productIdx, 'calcium', editModeData.calcium);
+                            toggleCheckboxStyle(calciumCheckbox);
+                        }
 
-                        const proteinCheckbox = document.querySelector('[name="protein"]');
-                        if (proteinCheckbox) proteinCheckbox.checked = editModeData.protein;
+                        const dnaCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="dna"]`);
+                        if (dnaCheckbox && editModeData.dna) {
+                            dnaCheckbox.checked = editModeData.dna;
+                            updateProductData(productIdx, 'dna', editModeData.dna);
+                            toggleCheckboxStyle(dnaCheckbox);
+                        }
 
-                        const calciumCheckbox = document.querySelector('[name="calcium"]');
-                        if (calciumCheckbox) calciumCheckbox.checked = editModeData.calcium;
-
-                        const dnaCheckbox = document.querySelector('[name="dna"]');
-                        if (dnaCheckbox) dnaCheckbox.checked = editModeData.dna;
+                        // Update productsData array with edit mode values
+                        if (productsData && productsData.length > 0) {
+                            productsData[productIdx].bought_sample = parseFloat(editModeData.boughtSample) || 0;
+                            productsData[productIdx].km_traveled = parseFloat(editModeData.kmTraveled) || 0;
+                            productsData[productIdx].hours = parseFloat(editModeData.hours) || 0;
+                        }
 
                         // Comment field
                         const commentInput = document.querySelector('[name="comment"]');
@@ -4358,7 +4387,7 @@
                             commentInput.value = editModeData.comment;
                         }
 
-                        // Generate invoice forms
+                        // Generate invoice forms (will use the updated productsData)
                         if (typeof generateInvoiceForms === 'function') {
                             generateInvoiceForms();
                         }
@@ -4368,6 +4397,9 @@
 
                         // Generate internal account code for edit mode
                         generateInternalAccountCode();
+
+                        // Validate step 2 to ensure Next button is enabled if data is complete
+                        validateStep2();
                     }, 100);
                 } else {
                     // Even without commodity, populate other fields (occurrence reports)
