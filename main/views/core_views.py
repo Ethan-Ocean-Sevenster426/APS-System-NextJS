@@ -1079,8 +1079,38 @@ def edit_fsa_inspection(request, pk):
             form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
             if form.is_valid():
                 try:
+                    # Preserve upload tracking fields before saving
+                    original_rfi_date = inspection.rfi_uploaded_date
+                    original_rfi_by = inspection.rfi_uploaded_by
+                    original_invoice_date = inspection.invoice_uploaded_date
+                    original_invoice_by = inspection.invoice_uploaded_by
+                    original_coa_date = inspection.coa_uploaded_date
+                    original_coa_by = inspection.coa_uploaded_by
+                    original_lab_form_date = inspection.lab_form_uploaded_date
+                    original_lab_form_by = inspection.lab_form_uploaded_by
+                    original_composition_date = inspection.composition_uploaded_date
+                    original_composition_by = inspection.composition_uploaded_by
+                    original_occurrence_date = inspection.occurrence_uploaded_date
+                    original_occurrence_by = inspection.occurrence_uploaded_by
+
                     # Save the main inspection
                     inspection = form.save()
+
+                    # Restore upload tracking fields (don't let form overwrite them)
+                    inspection.rfi_uploaded_date = original_rfi_date
+                    inspection.rfi_uploaded_by = original_rfi_by
+                    inspection.invoice_uploaded_date = original_invoice_date
+                    inspection.invoice_uploaded_by = original_invoice_by
+                    inspection.coa_uploaded_date = original_coa_date
+                    inspection.coa_uploaded_by = original_coa_by
+                    inspection.lab_form_uploaded_date = original_lab_form_date
+                    inspection.lab_form_uploaded_by = original_lab_form_by
+                    inspection.composition_uploaded_date = original_composition_date
+                    inspection.composition_uploaded_by = original_composition_by
+                    inspection.occurrence_uploaded_date = original_occurrence_date
+                    inspection.occurrence_uploaded_by = original_occurrence_by
+                    inspection.save()
+                    print(f"[EDIT FORM DEBUG] Preserved upload tracking fields during form save")
 
                     # Save all related inspections with updated product data
                     for rel_insp in related_inspections:
