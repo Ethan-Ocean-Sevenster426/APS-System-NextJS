@@ -995,16 +995,16 @@ def edit_fsa_inspection(request, pk):
         internal_account_code=inspection.internal_account_code
     )
 
-    # Count commodities from all related inspections
+    # When editing, only show the commodity for THIS inspection, not all related ones
+    # This ensures the form only shows one product form for the inspection being edited
     commodity_counts = {
         'POULTRY': 0,
         'RAW': 0,
         'PMP': 0,
         'EGGS': 0
     }
-    for insp in related_inspections:
-        if insp.commodity in commodity_counts:
-            commodity_counts[insp.commodity] += 1
+    if inspection.commodity in commodity_counts:
+        commodity_counts[inspection.commodity] = 1  # Only this inspection's commodity
 
     context = {
         'form': form,
