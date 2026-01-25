@@ -118,13 +118,28 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Local MySQL database
+# Local MySQL database (commented out)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'inspection_system',
+#         'USER': 'inspection_user',
+#         'PASSWORD': 'inspection_pass_2026',
+#         'HOST': '127.0.0.1',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#         },
+#     },
+# }
+
+# Production MySQL database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'inspection_system',
-        'USER': 'inspection_user',
-        'PASSWORD': 'inspection_pass_2026',
+        'NAME': 'v4_worksheet',
+        'USER': 'v4_user',
+        'PASSWORD': 'V4_Secure@2024!',
         'HOST': '127.0.0.1',
         'PORT': '3306',
         'OPTIONS': {
@@ -132,21 +147,6 @@ DATABASES = {
         },
     },
 }
-
-# Remote MySQL direct connection to production server (commented out)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'v4_worksheet',
-#         'USER': 'v4_user',
-#         'PASSWORD': 'V4_Secure@2024!',
-#         'HOST': '167.88.43.168',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     },
-# }
 
 # Remote MySQL database (commented out)
 # DATABASES = {
