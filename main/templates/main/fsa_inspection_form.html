@@ -2184,27 +2184,73 @@
 
             console.log('[generateProductForms] Products to generate:', products);
 
-            // Preserve existing productsData if it matches the current structure
-            const existingData = productsData && productsData.length === products.length;
-            console.log('[generateProductForms] Preserving existing data:', existingData);
+            // Preserve existing productsData by mapping old data to new structure by commodity
+            console.log('[generateProductForms] Preserving existing data by commodity');
 
-            // Initialize or preserve productsData array
-            if (!existingData) {
-                productsData = products.map((p, idx) => ({
-                    commodity: p.commodity,
-                    product_name: '',
-                    product_class: '',
-                    lab: '',
-                    is_sample_taken: false,
-                    fat: false,
-                    protein: false,
-                    calcium: false,
-                    dna: false,
-                    bought_sample: 0,
-                    km_traveled: 0,
-                    hours: 0
-                }));
+            // Create a map of existing data by commodity
+            const existingDataMap = {};
+            if (productsData && productsData.length > 0) {
+                productsData.forEach(item => {
+                    const commodity = item.commodity;
+                    if (!existingDataMap[commodity]) {
+                        existingDataMap[commodity] = [];
+                    }
+                    existingDataMap[commodity].push(item);
+                });
             }
+
+            // Build new productsData array, preserving existing data where available
+            productsData = products.map((p, idx) => {
+                const commodity = p.commodity;
+                const commodityIndex = products.slice(0, idx).filter(prod => prod.commodity === commodity).length;
+
+                // FIRST: Check if we're in edit mode and have data from backend
+                if (editModeData.isEditMode && editModeData.commodityData[commodity]) {
+                    const backendData = editModeData.commodityData[commodity];
+                    console.log(`[generateProductForms] Using backend data for ${commodity}:`, backendData);
+                    console.log(`[generateProductForms] product_name from backend: "${backendData.product_name}"`);
+                    return {
+                        commodity: p.commodity,
+                        product_name: backendData.product_name || '',
+                        product_class: backendData.product_class || '',
+                        lab: backendData.lab || '',
+                        is_sample_taken: backendData.is_sample_taken || false,
+                        fat: backendData.fat || false,
+                        protein: backendData.protein || false,
+                        calcium: backendData.calcium || false,
+                        dna: backendData.dna || false,
+                        bought_sample: backendData.bought_sample || 0,
+                        km_traveled: backendData.km_traveled || 0,
+                        hours: backendData.hours || 0
+                    };
+                }
+
+                // SECOND: Try to find existing data from previous productsData
+                const existing = existingDataMap[commodity] && existingDataMap[commodity][commodityIndex];
+
+                if (existing) {
+                    // Preserve existing data
+                    console.log(`[generateProductForms] Preserving data for ${commodity} #${commodityIndex + 1}`);
+                    return existing;
+                } else {
+                    // Create new empty data
+                    console.log(`[generateProductForms] Creating new data for ${commodity} #${commodityIndex + 1}`);
+                    return {
+                        commodity: p.commodity,
+                        product_name: '',
+                        product_class: '',
+                        lab: '',
+                        is_sample_taken: false,
+                        fat: false,
+                        protein: false,
+                        calcium: false,
+                        dna: false,
+                        bought_sample: 0,
+                        km_traveled: 0,
+                        hours: 0
+                    };
+                }
+            });
 
             // Generate HTML for each product form
             let html = '';
@@ -2220,6 +2266,8 @@
                 const existingProductData = productsData[idx] || {};
                 const productNameValue = existingProductData.product_name || '';
                 const productClassValue = existingProductData.product_class || '';
+
+                console.log(`[generateProductForms] HTML gen for ${product.commodity} idx ${idx}: productName="${productNameValue}"`);
 
                 html += `
                 <div class="product-form-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;" data-commodity="${product.commodity}">

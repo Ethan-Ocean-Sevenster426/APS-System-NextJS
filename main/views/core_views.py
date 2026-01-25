@@ -1050,6 +1050,14 @@ def edit_fsa_inspection(request, pk):
             # Map products to inspections by commodity
             commodity_to_product = {p['commodity']: p for p in products_data if 'commodity' in p}
 
+            # Find which commodities already exist vs new ones
+            existing_commodities = set(rel_insp.commodity for rel_insp in related_inspections)
+            new_commodities = set(commodity_to_product.keys()) - existing_commodities
+
+            print(f"[EDIT FORM DEBUG] Existing commodities: {existing_commodities}")
+            print(f"[EDIT FORM DEBUG] New commodities to create: {new_commodities}")
+
+            # Update existing inspections
             for rel_insp in related_inspections:
                 if rel_insp.commodity in commodity_to_product:
                     product = commodity_to_product[rel_insp.commodity]
@@ -1085,6 +1093,56 @@ def edit_fsa_inspection(request, pk):
                             rel_insp.town = inspection.town
                             rel_insp.save()
                             print(f"[EDIT FORM DEBUG] Saved related inspection {rel_insp.id}")
+
+                    # Create new inspections for newly added commodities
+                    if new_commodities:
+                        from django.db.models import Min
+                        for new_commodity in new_commodities:
+                            if new_commodity in commodity_to_product:
+                                product = commodity_to_product[new_commodity]
+
+                                # Generate new remote_id
+                                min_remote_id = FoodSafetyAgencyInspection.objects.filter(
+                                    is_manual=True
+                                ).aggregate(Min('remote_id'))['remote_id__min']
+                                if min_remote_id is None or min_remote_id >= 0:
+                                    new_remote_id = -1
+                                else:
+                                    new_remote_id = min_remote_id - 1
+
+                                # Use the SAME internal_account_code as the existing inspection
+                                # so they group together in the shipment list
+                                new_internal_code = inspection.internal_account_code
+                                print(f"[EDIT FORM DEBUG] Using same account code for new {new_commodity}: {new_internal_code}")
+
+                                # Create new inspection
+                                new_inspection = FoodSafetyAgencyInspection.objects.create(
+                                    remote_id=new_remote_id,
+                                    client=inspection.client,
+                                    client_name=inspection.client_name,
+                                    date_of_inspection=inspection.date_of_inspection,
+                                    commodity=new_commodity,
+                                    product_name=product.get('product_name', ''),
+                                    product_class=product.get('product_class', ''),
+                                    lab=product.get('lab', ''),
+                                    is_sample_taken=product.get('is_sample_taken', False),
+                                    fat=product.get('fat', False),
+                                    protein=product.get('protein', False),
+                                    calcium=product.get('calcium', False),
+                                    dna=product.get('dna', False),
+                                    bought_sample=product.get('bought_sample', 0),
+                                    km_traveled=product.get('km_traveled', 0),
+                                    hours=product.get('hours', 0),
+                                    inspector_name=inspection.inspector_name,
+                                    town=inspection.town,
+                                    additional_email=inspection.additional_email,
+                                    corporate_group=inspection.corporate_group,
+                                    group_type=inspection.group_type,
+                                    facility_type=inspection.facility_type,
+                                    internal_account_code=new_internal_code,
+                                    is_manual=True,
+                                )
+                                print(f"[EDIT FORM DEBUG] Created new inspection {new_inspection.id} for {new_commodity}: {product.get('product_name')}")
 
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
