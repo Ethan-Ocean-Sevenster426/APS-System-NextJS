@@ -70,6 +70,7 @@
                 }
             }
         }
+
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -142,6 +143,11 @@
 
         [data-theme="dark"] #exportTable tbody tr.invoiced {
             background-color: #1e4620;
+            color: white !important;
+        }
+
+        [data-theme="dark"] #exportTable tbody tr.invoiced td {
+            color: white !important;
         }
 
         [data-theme="dark"] #exportTable tbody td {
@@ -210,18 +216,6 @@
             border-color: #166534;
         }
 
-        [data-theme="dark"] #exportTable tbody td.selected-cell {
-            background-color: #1e3a5f !important;
-            outline-color: #3b82f6;
-        }
-
-        [data-theme="dark"] #exportTable tbody tr.selected-row {
-            background-color: #1a2940 !important;
-        }
-
-        [data-theme="dark"] #exportTable tbody tr.selected-row.invoiced {
-            background-color: #2d4a2f !important;
-        }
         
         * {
             margin: 0;
@@ -263,41 +257,6 @@
             height: 100%;
         }
 
-        /* Sidebar theme styles */
-        #sidebar {
-            background-color: var(--sidebar-bg) !important;
-            color: var(--sidebar-text) !important;
-        }
-
-        #sidebar a {
-            color: var(--sidebar-text) !important;
-        }
-
-        #sidebar a:hover {
-            background-color: rgba(255, 255, 255, 0.1) !important;
-        }
-
-        #sidebar .border-slate-600 {
-            border-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        #sidebar .text-sidebar-text {
-            color: var(--sidebar-text) !important;
-        }
-
-        .bg-sidebar-bg {
-            background-color: var(--sidebar-bg) !important;
-        }
-
-        /* Force sidebar colors based on theme */
-        [data-theme="light"] #sidebar {
-            background-color: #1e293b !important;
-            color: #f1f5f9 !important;
-        }
-
-        [data-theme="light"] #sidebar a {
-            color: #f1f5f9 !important;
-        }
 
         [data-theme="dark"] #sidebar {
             background-color: #1a1a1a !important;
@@ -375,9 +334,18 @@
 
         .container {
             width: calc(100% - var(--spacing)*2);
+            max-width: 100%;
             margin: 0 auto;
             padding: 5px 0;
             position: relative;
+            overflow-x: hidden;
+        }
+
+        @media screen and (max-width: 640px) {
+            .container {
+                width: 100%;
+                padding: 5px;
+            }
         }
         
         .logo {
@@ -415,6 +383,8 @@
             box-shadow: var(--shadow-lg);
             margin-bottom: var(--spacing);
             border: 1px solid var(--border);
+            overflow-x: hidden;
+            max-width: 100%;
             width: 100%;
         }
         
@@ -442,11 +412,22 @@
         .card-body {
             padding: 16px;
             background: var(--background);
+            overflow-x: hidden;
         }
 
         .card-body .table-responsive {
             margin: 0 -16px;
             padding: 0 16px;
+        }
+
+        @media screen and (max-width: 640px) {
+            .card-body {
+                padding: 10px;
+            }
+            .card-body .table-responsive {
+                margin: 0;
+                padding: 0;
+            }
         }
         
         .action-bar {
@@ -958,6 +939,15 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        /* Remove horizontal scroll on mobile for card layout */
+        @media screen and (max-width: 640px) {
+            .table-responsive {
+                overflow-x: visible;
+                border: none;
+                background: transparent;
+            }
+        }
+
         [data-theme="dark"] .table-responsive {
             border: 1px solid #374151;
             background-color: #1f2937;
@@ -967,7 +957,6 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.7rem;
-            min-width: 800px;
             background: white;
         }
 
@@ -1021,7 +1010,26 @@
         /* Hover effect disabled per user request - rules removed entirely */
 
         #exportTable tbody tr.invoiced {
-            background-color: #4ade80 !important;
+            background-color: #22C55E !important;
+            color: white !important;
+        }
+
+        #exportTable tbody tr.invoiced td {
+            color: white !important;
+        }
+
+        #exportTable tbody tr.invoiced td.col-client,
+        #exportTable tbody tr.invoiced td.col-client *,
+        #exportTable tbody tr.invoiced .client-info,
+        #exportTable tbody tr.invoiced .client-meta {
+            color: white !important;
+        }
+
+        /* Invoice # column stays black on invoiced rows */
+        #exportTable tbody tr.invoiced td.col-invoice,
+        #exportTable tbody tr.invoiced td.col-invoice input,
+        #exportTable tbody tr.invoiced .invoice-input-compact {
+            color: #000000 !important;
         }
 
         #exportTable tbody td {
@@ -1256,25 +1264,9 @@
             background-color: #059669;
         }
 
-        /* Excel-like cell selection styles */
+        /* Table cell styles - selection disabled */
         #exportTable tbody td {
-            cursor: pointer;
             position: relative;
-        }
-
-        #exportTable tbody td.selected-cell {
-            background-color: #dbeafe !important;
-            outline: 2px solid #3b82f6;
-            outline-offset: -2px;
-            z-index: 1;
-        }
-
-        #exportTable tbody tr.selected-row {
-            background-color: #f0f9ff !important;
-        }
-
-        #exportTable tbody tr.selected-row.invoiced {
-            background-color: #86efac !important;
         }
 
         /* Smooth scrolling for table */
@@ -1282,36 +1274,6 @@
             scroll-behavior: smooth;
         }
 
-        /* Keyboard navigation indicator */
-        #exportTable tbody td:focus {
-            outline: 2px solid #3b82f6;
-            outline-offset: -2px;
-        }
-
-        /* Navigation hint */
-        .keyboard-hint {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(59, 130, 246, 0.9);
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .keyboard-hint.show {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
 
         /* Notification Bell Styles */
         .notification-bell {
@@ -1377,163 +1339,35 @@
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Button -->
-    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
-        <i class="fas fa-bars text-xl"></i>
-    </button>
-
-    <!-- Sidebar Overlay -->
-    <div id="sidebar-overlay" class="sidebar-overlay"></div>
-
-    <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
-            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
-                <div class="text-center mb-2">
-                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
-                </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
-                    Food Safety Agency (Pty) Ltd
-                </div>
-            </div>
-
-            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
-                <ul class="px-2 py-2 space-y-1">
-                    <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
-                        </a>
-                    </li>
-                    {% if request.user.role == 'inspector' %}
-                    <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
-                        </a>
-                    </li>
-                    {% else %}
-                    <li>
-                        <a href="{% url 'client_allocation' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-address-book mr-2 w-4 text-center"></i>
-                            Client Allocation
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
-                        </a>
-                    </li>
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
-                        </a>
-                    </li>
-                    {% if request.user.role == 'developer' %}
-                    <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
-                    <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Logout Section -->
-            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
-                <!-- Logout Button -->
-                <form action="{% url 'logout' %}" method="post" class="w-full">
-                    {% csrf_token %}
-                    <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div id="main-content" class="flex-1 w-full lg:ml-64">
     <div class="container mx-auto px-4 py-6 w-full">
         <div class="header">
             <h1>Food Safety Agency (Pty) Ltd</h1>
             <h2>Export Sheet</h2>
+        </div>
+
+        <!-- Navigation Bar -->
+        <div class="action-bar" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; padding: 12px; background: var(--card-bg); border-radius: 8px; box-shadow: var(--shadow);">
+            <a href="{% url 'home' %}" class="btn btn-primary">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="{% url 'shipment_list' %}" class="btn btn-secondary">
+                <i class="fas fa-clipboard-check"></i> Inspections
+            </a>
+            <a href="{% url 'analytics_dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-chart-line"></i> Analytics
+            </a>
+            <span class="btn" style="background: var(--primary); color: white; cursor: default;">
+                <i class="fas fa-file-export"></i> Export Sheet
+            </span>
+            <a href="{% url 'settings' %}" class="btn btn-secondary">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn" style="background: #dc2626; color: white;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
         </div>
 
         <!-- Export content card -->
@@ -1544,160 +1378,475 @@
                 </div>
             </div>
             <div class="card-body">
-                <!-- Filter and Export Controls -->
-                <div class="filter-controls" style="margin-bottom: 20px;">
-                    <!-- First row: Text filters -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px;">
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="contactNameFilter" style="font-size: 0.75rem; font-weight: 500;">Contact Name:</label>
-                            <input type="text" id="contactNameFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
+                <!-- Responsive Filter Styles -->
+                <style>
+                    .export-filters {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                        gap: 10px;
+                        margin-bottom: 12px;
+                    }
+                    .export-filter-field label {
+                        font-size: 0.7rem;
+                        font-weight: 500;
+                        display: block;
+                        margin-bottom: 2px;
+                        color: #64748b;
+                    }
+                    .export-filter-field input {
+                        width: 100%;
+                        padding: 6px 10px;
+                        border: 1px solid var(--border);
+                        border-radius: 4px;
+                        font-size: 0.8rem;
+                    }
+                    .export-actions {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 8px;
+                        align-items: center;
+                        margin-bottom: 20px;
+                    }
+                    .export-actions .btn {
+                        padding: 6px 14px;
+                        font-size: 0.8rem;
+                        white-space: nowrap;
+                    }
+                    @media screen and (max-width: 640px) {
+                        .export-filters {
+                            grid-template-columns: 1fr 1fr;
+                        }
+                        .export-actions {
+                            flex-wrap: wrap;
+                        }
+                        .export-actions .btn {
+                            flex: 1 1 calc(50% - 4px);
+                            min-width: 0;
+                            text-align: center;
+                            justify-content: center;
+                        }
+                        .export-dropdown-container {
+                            flex: 1 1 100%;
+                        }
+                        .export-dropdown-container .btn {
+                            width: 100%;
+                        }
+                    }
+                    @media screen and (max-width: 400px) {
+                        .export-filters {
+                            grid-template-columns: 1fr;
+                        }
+                    }
+                </style>
 
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="referenceFilter" style="font-size: 0.75rem; font-weight: 500;">Reference:</label>
-                            <input type="text" id="referenceFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
-
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="cityFilter" style="font-size: 0.75rem; font-weight: 500;">City:</label>
-                            <input type="text" id="cityFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
-
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="inspectorFilter" style="font-size: 0.75rem; font-weight: 500;">Inspector:</label>
-                            <input type="text" id="inspectorFilter" placeholder="Search..." style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
-
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="invoiceDateFromFilter" style="font-size: 0.75rem; font-weight: 500;">Date From:</label>
-                            <input type="date" id="invoiceDateFromFilter" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
-
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label for="invoiceDateToFilter" style="font-size: 0.75rem; font-weight: 500;">Date To:</label>
-                            <input type="date" id="invoiceDateToFilter" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.75rem;">
-                        </div>
+                <!-- Filter Fields -->
+                <div class="export-filters">
+                    <div class="export-filter-field">
+                        <label for="contactNameFilter">Contact</label>
+                        <input type="text" id="contactNameFilter" placeholder="Search...">
                     </div>
+                    <div class="export-filter-field">
+                        <label for="inspectorFilter">Inspector</label>
+                        <input type="text" id="inspectorFilter" placeholder="Search...">
+                    </div>
+                    <div class="export-filter-field">
+                        <label for="invoiceDateFromFilter">Date From</label>
+                        <input type="date" id="invoiceDateFromFilter">
+                    </div>
+                    <div class="export-filter-field">
+                        <label for="invoiceDateToFilter">Date To</label>
+                        <input type="date" id="invoiceDateToFilter">
+                    </div>
+                </div>
+                <!-- Hidden filters for compatibility -->
+                <input type="hidden" id="referenceFilter">
+                <input type="hidden" id="cityFilter">
 
-                    <!-- Second row: Buttons -->
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button onclick="applyDateFilter()" class="btn btn-primary">
-                            <i class="fas fa-filter"></i> Apply
+                <!-- Action Buttons -->
+                <div class="export-actions">
+                    <button onclick="applyDateFilter()" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <button onclick="clearAllFilters()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="showManageFeesModal()">
+                        <i class="fas fa-dollar-sign"></i> Fees
+                    </button>
+                    <div class="export-dropdown-container">
+                        <button type="button" class="btn btn-success" onclick="toggleExportDropdown()">
+                            <i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down" style="margin-left: 4px; font-size: 0.7rem;"></i>
                         </button>
-
-                        <button onclick="clearAllFilters()" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-
-                        <button type="button" class="btn btn-warning" onclick="showManageFeesModal()">
-                            <i class="fas fa-dollar-sign"></i> Manage Fees
-                        </button>
-
-                        <div class="export-dropdown-container">
-                            <button type="button" class="btn btn-success" onclick="toggleExportDropdown()">
-                                <i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down" style="margin-left: 4px; font-size: 0.75rem;"></i>
-                            </button>
-                            <div id="exportDropdownMenu" class="export-dropdown-menu" style="display: none;">
-                                <div class="export-dropdown-item" onclick="exportToExcel(); hideExportDropdown();">
-                                    <i class="fas fa-file-excel"></i>
-                                    <span>Export to Excel</span>
-                                </div>
-                                <div class="export-dropdown-separator"></div>
-                                <div class="export-dropdown-item" onclick="exportAsGoogleSheets(); hideExportDropdown();">
-                                    <i class="fab fa-google"></i>
-                                    <span>Export as Google Sheets</span>
-                                </div>
-                                <div class="export-dropdown-separator"></div>
-                                <div class="export-dropdown-item" onclick="exportAsCSV(); hideExportDropdown();">
-                                    <i class="fas fa-file-csv"></i>
-                                    <span>Export as CSV</span>
-                                </div>
-                                <div class="export-dropdown-item" onclick="exportAsExcelCSV(); hideExportDropdown();">
-                                    <i class="fas fa-file-excel"></i>
-                                    <span>Export as Excel CSV</span>
-                                </div>
+                        <div id="exportDropdownMenu" class="export-dropdown-menu" style="display: none;">
+                            <div class="export-dropdown-item" onclick="exportToExcel(); hideExportDropdown();">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Export to Excel</span>
+                            </div>
+                            <div class="export-dropdown-separator"></div>
+                            <div class="export-dropdown-item" onclick="exportAsGoogleSheets(); hideExportDropdown();">
+                                <i class="fab fa-google"></i>
+                                <span>Export as Google Sheets</span>
+                            </div>
+                            <div class="export-dropdown-separator"></div>
+                            <div class="export-dropdown-item" onclick="exportAsCSV(); hideExportDropdown();">
+                                <i class="fas fa-file-csv"></i>
+                                <span>Export as CSV</span>
+                            </div>
+                            <div class="export-dropdown-item" onclick="exportAsExcelCSV(); hideExportDropdown();">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Export as Excel CSV</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="table-responsive" style="overflow-x: auto;">
-                    <table id="exportTable" class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*ContactName</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Inspector</th>
-                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">Inspection Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">POCity</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">POCountry</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Reference</th>
-                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">*InvoiceDate</th>
-                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">Total</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">InventoryItemCode</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*Description</th>
-                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">*Quantity</th>
-                                <th class="px-4 py-3 text-right text-xs font-normal text-gray-700 uppercase tracking-wider">*UnitAmount</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*AccountCode</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">*TaxType</th>
-                                <th class="px-4 py-3 text-left text-xs font-normal text-gray-700 uppercase tracking-wider">Invoice Number</th>
-                                <th class="px-4 py-3 text-center text-xs font-normal text-gray-700 uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="exportTableBody" class="bg-white divide-y divide-gray-200">
-                            {% for item in invoice_items %}
-                            <tr class="{% if item.invoice_number %}invoiced{% endif %}"
-                                data-contact="{{ item.client_name }}"
-                                data-reference="{{ item.invoice_number|default:item.invoice_ref }}"
-                                data-rfi="{{ item.rfi_ref }}"
-                                data-city="{{ item.city }}"
-                                data-date="{{ item.invoice_date }}"
-                                data-inspector="{{ item.inspector_name }}"
-                                data-country="{{ item.country }}"
-                                data-itemcode="{{ item.item_code }}"
-                                data-description="{{ item.description }}"
-                                data-quantity="{{ item.quantity }}"
-                                data-unitamount="{{ item.unit_amount }}"
-                                data-total="{{ item.total }}"
-                                data-accountcode="{{ item.account_code }}"
-                                data-taxtype="{{ item.tax_rate }}"
-                                data-item-id="{{ item.id }}">
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.client_name|default:'' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.inspector_name|default:'' }}</td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-900">{{ item.invoice_date }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.city|default:'' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.country|default:'' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.rfi_ref|default:'' }}</td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-900">{{ item.invoice_date }}</td>
-                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.total|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.item_code }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.description }}</td>
-                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.quantity|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-sm text-right text-gray-900">{{ item.unit_amount|floatformat:2 }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.account_code }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900">{{ item.tax_rate }}</td>
-                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                                    <input type="text"
-                                           class="invoice-input"
-                                           placeholder="Enter invoice #"
-                                           value="{{ item.invoice_number|default:'' }}"
-                                           onchange="updateInvoiceNumber(this, '{{ item.id }}')"
-                                           onblur="updateInvoiceNumber(this, '{{ item.id }}')"
-                                           data-invoice-input>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-900">
-                                    <span class="status-badge {% if item.invoice_number %}status-invoiced{% else %}status-pending{% endif %}" data-status-badge>
-                                        {% if item.invoice_number %}Invoiced{% else %}Pending{% endif %}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="16" class="px-4 py-8 text-center text-gray-500">
-                                    <i class="fas fa-inbox text-4xl mb-2"></i>
-                                    <p>No invoice items found. Complete inspections with hours, travel, and test data to generate invoice line items.</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
+
+                <!-- Compact Table - Responsive -->
+                <style>
+                    /* Base table styles */
+                    .export-table-compact {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 0.8rem;
+                        table-layout: auto;
+                    }
+                    .export-table-compact th {
+                        background: #f8fafc;
+                        padding: 8px 6px;
+                        text-align: left;
+                        font-weight: 600;
+                        font-size: 0.7rem;
+                        text-transform: uppercase;
+                        color: #64748b;
+                        border-bottom: 2px solid #e2e8f0;
+                        white-space: nowrap;
+                    }
+                    .export-table-compact td {
+                        padding: 8px 6px;
+                        border-bottom: 1px solid #f1f5f9;
+                        vertical-align: top;
+                    }
+                    .export-table-compact tr:hover {
+                        background: #f8fafc;
+                    }
+                    .export-table-compact tr.invoiced {
+                        background: #22C55E;
+                        color: white;
+                    }
+                    .export-table-compact tr.invoiced td {
+                        color: white;
+                    }
+                    .export-table-compact tr.invoiced:hover {
+                        background: #16a34a;
+                    }
+                    .export-table-compact .col-client { white-space: nowrap; }
+                    .export-table-compact .col-date { white-space: nowrap; text-align: center; }
+                    .export-table-compact .col-code { white-space: nowrap; }
+                    .export-table-compact .col-desc { width: 100%; } /* Takes remaining space */
+                    .export-table-compact .col-qty { white-space: nowrap; text-align: right; }
+                    .export-table-compact .col-rate { white-space: nowrap; text-align: right; }
+                    .export-table-compact .col-total { white-space: nowrap; text-align: right; font-weight: 600; }
+                    .export-table-compact .col-invoice { white-space: nowrap; min-width: 100px; }
+                    .export-table-compact .col-status { white-space: nowrap; text-align: center; }
+                    .export-table-compact .desc-text {
+                        font-size: 0.75rem;
+                        color: #475569;
+                        line-height: 1.3;
+                        word-break: break-word;
+                    }
+                    .export-table-compact .client-info {
+                        font-weight: 500;
+                        color: #1e293b;
+                    }
+                    .export-table-compact .client-meta {
+                        font-size: 0.65rem;
+                        color: #94a3b8;
+                        margin-top: 2px;
+                    }
+                    .export-table-compact .invoice-input-compact {
+                        width: 100%;
+                        padding: 4px 6px;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 4px;
+                        font-size: 0.75rem;
+                        background: #fff;
+                    }
+                    .export-table-compact .invoice-input-compact:focus {
+                        outline: none;
+                        border-color: var(--primary);
+                        box-shadow: 0 0 0 2px rgba(0, 120, 144, 0.1);
+                    }
+                    .status-dot {
+                        display: inline-block;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        margin-right: 4px;
+                    }
+                    .status-dot.pending { background: #fbbf24; }
+                    .status-dot.invoiced { background: #22c55e; }
+                    .compact-status {
+                        font-size: 0.7rem;
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        display: inline-flex;
+                        align-items: center;
+                    }
+                    .compact-status.pending { background: #fef3c7; color: #92400e; }
+                    .compact-status.invoiced { background: #dcfce7; color: #166534; }
+
+                    /* Mobile card label */
+                    .mobile-label {
+                        display: none;
+                        font-weight: 600;
+                        color: #64748b;
+                        font-size: 0.65rem;
+                        text-transform: uppercase;
+                        margin-bottom: 2px;
+                    }
+
+                    /* Tablet: Hide some columns, make others smaller */
+                    @media screen and (max-width: 1024px) {
+                        .export-table-compact .col-desc { width: 22%; }
+                        .export-table-compact .col-rate { display: none; }
+                        .export-table-compact th.col-rate { display: none; }
+                        .export-table-compact .desc-text {
+                            font-size: 0.7rem;
+                        }
+                    }
+
+                    /* Small tablet / large phone */
+                    @media screen and (max-width: 768px) {
+                        .export-table-compact .col-code { display: none; }
+                        .export-table-compact th.col-code { display: none; }
+                        .export-table-compact .col-qty { display: none; }
+                        .export-table-compact th.col-qty { display: none; }
+                        .export-table-compact .col-client { width: 25%; }
+                        .export-table-compact .col-desc { width: 30%; }
+                        .export-table-compact td, .export-table-compact th {
+                            padding: 6px 4px;
+                        }
+                        .export-table-compact {
+                            font-size: 0.75rem;
+                        }
+                    }
+
+                    /* Mobile: Convert to card layout */
+                    @media screen and (max-width: 640px) {
+                        .export-table-compact thead {
+                            display: none;
+                        }
+                        .export-table-compact,
+                        .export-table-compact tbody,
+                        .export-table-compact tr,
+                        .export-table-compact td {
+                            display: block;
+                            width: 100%;
+                        }
+                        .export-table-compact tr {
+                            margin-bottom: 12px;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 8px;
+                            padding: 12px;
+                            background: #fff;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                        }
+                        .export-table-compact tr.invoiced {
+                            border-left: 4px solid #22C55E;
+                            background: #22C55E !important;
+                            color: white !important;
+                        }
+                        .export-table-compact tr.invoiced td {
+                            color: white !important;
+                        }
+                        .export-table-compact tr.invoiced td.col-client,
+                        .export-table-compact tr.invoiced .client-info,
+                        .export-table-compact tr.invoiced .client-meta {
+                            color: white !important;
+                        }
+                        .export-table-compact tr.invoiced td.col-invoice,
+                        .export-table-compact tr.invoiced td.col-invoice input {
+                            color: #000000 !important;
+                        }
+                        .export-table-compact td {
+                            border: none;
+                            padding: 4px 0;
+                            display: flex;
+                            flex-wrap: wrap;
+                            align-items: center;
+                            gap: 4px;
+                        }
+                        .export-table-compact td.col-client {
+                            font-size: 0.9rem;
+                            padding-bottom: 8px;
+                            border-bottom: 1px solid #f1f5f9;
+                            margin-bottom: 8px;
+                        }
+                        .export-table-compact td.col-desc {
+                            padding: 8px 0;
+                        }
+                        .export-table-compact td.col-code,
+                        .export-table-compact td.col-qty,
+                        .export-table-compact td.col-rate {
+                            display: inline-flex !important;
+                            width: auto;
+                        }
+                        .export-table-compact td.col-total {
+                            font-size: 1rem;
+                            color: #007890;
+                        }
+                        .export-table-compact td.col-invoice {
+                            padding-top: 8px;
+                            border-top: 1px solid #f1f5f9;
+                            margin-top: 8px;
+                        }
+                        .export-table-compact td.col-status {
+                            position: absolute;
+                            top: 12px;
+                            right: 12px;
+                        }
+                        .export-table-compact tr {
+                            position: relative;
+                        }
+                        .mobile-label {
+                            display: block;
+                            width: 100%;
+                        }
+                        .export-table-compact .invoice-input-compact {
+                            width: 100%;
+                            padding: 8px 10px;
+                            font-size: 0.85rem;
+                        }
+                        /* Grid layout for numeric fields on mobile */
+                        .export-table-compact td.col-date,
+                        .export-table-compact td.col-code,
+                        .export-table-compact td.col-qty,
+                        .export-table-compact td.col-rate,
+                        .export-table-compact td.col-total {
+                            display: inline-block;
+                            width: auto;
+                            padding-right: 12px;
+                        }
+                        .mobile-row {
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 8px;
+                            padding: 6px 0;
+                        }
+                        .mobile-field {
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        .mobile-field-label {
+                            font-size: 0.6rem;
+                            color: #94a3b8;
+                            text-transform: uppercase;
+                        }
+                        .mobile-field-value {
+                            font-weight: 500;
+                        }
+                    }
+
+                    /* Filter row responsive */
+                    @media screen and (max-width: 768px) {
+                        .filter-controls > div:first-child {
+                            flex-direction: column;
+                        }
+                        .filter-controls > div:first-child > div {
+                            min-width: 100% !important;
+                            max-width: 100% !important;
+                        }
+                        .filter-controls button {
+                            flex: 1;
+                            min-width: 0;
+                        }
+                    }
+                </style>
+
+                <table id="exportTable" class="export-table-compact">
+                    <thead>
+                        <tr>
+                            <th class="col-client">Client / Inspector</th>
+                            <th class="col-date">Date</th>
+                            <th class="col-code">Code</th>
+                            <th class="col-desc">Description</th>
+                            <th class="col-qty">Qty</th>
+                            <th class="col-rate">Rate</th>
+                            <th class="col-total">Total</th>
+                            <th class="col-invoice">Invoice #</th>
+                            <th class="col-status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exportTableBody">
+                        {% for item in invoice_items %}
+                        <tr class="{% if item.invoice_number %}invoiced{% endif %}"
+                            data-contact="{{ item.client_name }}"
+                            data-reference="{{ item.invoice_number|default:item.invoice_ref }}"
+                            data-rfi="{{ item.rfi_ref }}"
+                            data-city="{{ item.city }}"
+                            data-date="{{ item.invoice_date }}"
+                            data-inspector="{{ item.inspector_name }}"
+                            data-country="{{ item.country }}"
+                            data-itemcode="{{ item.item_code }}"
+                            data-description="{{ item.description }}"
+                            data-quantity="{{ item.quantity }}"
+                            data-unitamount="{{ item.unit_amount }}"
+                            data-total="{{ item.total }}"
+                            data-accountcode="{{ item.account_code }}"
+                            data-taxtype="{{ item.tax_rate }}"
+                            data-item-id="{{ item.id }}">
+                            <td class="col-client" data-label="Client">
+                                <div class="client-info">{{ item.client_name|default:'-'|truncatechars:30 }}</div>
+                                <div class="client-meta">{{ item.inspector_name|default:'' }} | {{ item.city|default:'' }}</div>
+                            </td>
+                            <td class="col-date" data-label="Date">
+                                <span class="mobile-label">Date</span>
+                                {{ item.invoice_date }}
+                            </td>
+                            <td class="col-code" data-label="Code">
+                                <span class="mobile-label">Code</span>
+                                {{ item.item_code }}
+                            </td>
+                            <td class="col-desc" data-label="Description">
+                                <span class="mobile-label">Description</span>
+                                <div class="desc-text">{{ item.description|truncatechars:100 }}</div>
+                            </td>
+                            <td class="col-qty" data-label="Qty">
+                                <span class="mobile-label">Qty</span>
+                                {{ item.quantity|floatformat:2 }}
+                            </td>
+                            <td class="col-rate" data-label="Rate">
+                                <span class="mobile-label">Rate</span>
+                                R{{ item.unit_amount|floatformat:2 }}
+                            </td>
+                            <td class="col-total" data-label="Total">
+                                <span class="mobile-label">Total</span>
+                                R{{ item.total|floatformat:2 }}
+                            </td>
+                            <td class="col-invoice" data-label="Invoice">
+                                <span class="mobile-label">Invoice #</span>
+                                <input type="text"
+                                       class="invoice-input-compact"
+                                       placeholder="Invoice #"
+                                       value="{{ item.invoice_number|default:'' }}"
+                                       onchange="updateInvoiceNumber(this, '{{ item.id }}')"
+                                       onblur="updateInvoiceNumber(this, '{{ item.id }}')"
+                                       data-invoice-input>
+                            </td>
+                            <td class="col-status" data-label="Status">
+                                <span class="compact-status {% if item.invoice_number %}invoiced{% else %}pending{% endif %}" data-status-badge>
+                                    <span class="status-dot {% if item.invoice_number %}invoiced{% else %}pending{% endif %}"></span>
+                                    {% if item.invoice_number %}Done{% else %}Open{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" style="padding: 40px; text-align: center; color: #94a3b8;">
+                                <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 8px; display: block;"></i>
+                                <p>No invoice items found. Complete inspections with hours, travel, and test data to generate invoice line items.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -2497,105 +2646,11 @@
         });
 
         // Excel-like Keyboard Navigation
-        let selectedCell = null;
-        let selectedRow = null;
+        // Cell selection disabled per user request
 
         function initTableNavigation() {
-            const table = document.getElementById('exportTable');
-            const tbody = table.querySelector('tbody');
-            const keyboardHint = document.getElementById('keyboardHint');
-
-            // Show hint on first interaction
-            let hintShown = false;
-
-            // Click to select cell
-            tbody.addEventListener('click', function(e) {
-                const cell = e.target.closest('td');
-                if (!cell) return;
-
-                selectCell(cell);
-
-                // Show keyboard hint on first click
-                if (!hintShown) {
-                    keyboardHint.classList.add('show');
-                    hintShown = true;
-                    setTimeout(() => {
-                        keyboardHint.classList.remove('show');
-                    }, 5000);
-                }
-            });
-
-            // Keyboard navigation
-            document.addEventListener('keydown', function(e) {
-                if (!selectedCell) return;
-
-                // Only handle arrow keys
-                if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-
-                e.preventDefault();
-
-                const currentRow = selectedCell.parentElement;
-                const currentCellIndex = Array.from(currentRow.cells).indexOf(selectedCell);
-                const currentRowIndex = Array.from(tbody.rows).indexOf(currentRow);
-
-                let newCell = null;
-
-                switch(e.key) {
-                    case 'ArrowUp':
-                        if (currentRowIndex > 0) {
-                            const prevRow = tbody.rows[currentRowIndex - 1];
-                            newCell = prevRow.cells[currentCellIndex];
-                        }
-                        break;
-
-                    case 'ArrowDown':
-                        if (currentRowIndex < tbody.rows.length - 1) {
-                            const nextRow = tbody.rows[currentRowIndex + 1];
-                            newCell = nextRow.cells[currentCellIndex];
-                        }
-                        break;
-
-                    case 'ArrowLeft':
-                        if (currentCellIndex > 0) {
-                            newCell = currentRow.cells[currentCellIndex - 1];
-                        }
-                        break;
-
-                    case 'ArrowRight':
-                        if (currentCellIndex < currentRow.cells.length - 1) {
-                            newCell = currentRow.cells[currentCellIndex + 1];
-                        }
-                        break;
-                }
-
-                if (newCell) {
-                    selectCell(newCell);
-                    scrollToCell(newCell);
-                }
-            });
+            // Cell selection disabled
         }
-
-        function selectCell(cell) {
-            // Remove previous selection
-            if (selectedCell) {
-                selectedCell.classList.remove('selected-cell');
-            }
-            if (selectedRow) {
-                selectedRow.classList.remove('selected-row');
-            }
-
-            // Add new selection
-            selectedCell = cell;
-            selectedRow = cell.parentElement;
-
-            selectedCell.classList.add('selected-cell');
-            selectedRow.classList.add('selected-row');
-        }
-
-        function scrollToCell(cell) {
-            const tableContainer = document.querySelector('.table-responsive');
-            const cellRect = cell.getBoundingClientRect();
-            const containerRect = tableContainer.getBoundingClientRect();
 
             // Horizontal scroll
             const cellLeft = cell.offsetLeft;
@@ -3059,7 +3114,6 @@
         </div>
     </div>
 
-        </div> <!-- Close main-content -->
-    </div> <!-- Close flex container -->
+    </div> <!-- Close container -->
 </body>
 </html>

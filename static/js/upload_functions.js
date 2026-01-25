@@ -5147,7 +5147,7 @@ function immediateOtherButtonCheck(groupId, clientName, inspectionDate) {
                             button.style.color = 'white';
                             button.style.opacity = '1';
                             button.style.cursor = 'pointer';
-                            button.innerHTML = 'Upload';
+                            button.innerHTML = 'Other';
                             button.title = 'Other file exists - click to upload more';
                             console.log(`🟢🟢🟢 [OTHER] Updated ${type} button to GREEN for: ${clientName}`);
                         } else {
@@ -5159,7 +5159,7 @@ function immediateOtherButtonCheck(groupId, clientName, inspectionDate) {
                             button.style.color = 'white';
                             button.style.opacity = '1';
                             button.style.cursor = 'pointer';
-                            button.innerHTML = 'Upload';
+                            button.innerHTML = 'Other';
                             button.title = 'Upload Other file';
                             button.onclick = () => window.uploadOtherForInspection(null, groupId);
                             console.log(`⚫⚫⚫ [OTHER] Updated ${type} button to GREY for: ${clientName}`);
@@ -5817,7 +5817,7 @@ async function initializeOtherButtonsSimple() {
                         button.style.color = 'white';
                         button.style.opacity = '1';
                         button.style.cursor = 'pointer';
-                        button.innerHTML = 'Upload';
+                        button.innerHTML = 'Other';
                         button.title = 'Other file exists - click to upload more';
                         console.log(`SUCCESS [SIMPLE] Set ${clientName} Other button to GREEN`);
                     } else {
@@ -5828,7 +5828,7 @@ async function initializeOtherButtonsSimple() {
                         button.style.color = 'white';
                         button.style.opacity = '1';
                         button.style.cursor = 'pointer';
-                        button.innerHTML = 'Upload';
+                        button.innerHTML = 'Other';
                         button.title = 'Upload Other file';
                         console.log(`GREY [SIMPLE] Set ${clientName} Other button to GREY`);
                     }

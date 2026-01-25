@@ -13,7 +13,7 @@ class ClientForm(forms.ModelForm):
             'placeholder': 'Client name'
         })
     )
-    
+
     internal_account_code = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -21,11 +21,43 @@ class ClientForm(forms.ModelForm):
             'placeholder': 'Internal account code (from Google Sheets Column H)'
         })
     )
-    
+
+    town = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Town/Location'
+        })
+    )
+
+    corporate_group = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Pick n Pay - Franchise'
+        })
+    )
+
+    group_type = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Corporate Store, Franchise Store'
+        })
+    )
+
+    facility_type = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Retailer, Butchery, Re-Packer'
+        })
+    )
+
     class Meta:
         model = Client
-        fields = ['name', 'internal_account_code']
-        
+        fields = ['name', 'internal_account_code', 'town', 'corporate_group', 'group_type', 'facility_type']
+
     def clean_name(self):
         name = self.cleaned_data.get('name')
         if not name:
@@ -323,7 +355,7 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
 
     commodity = forms.ChoiceField(
         choices=COMMODITY_CHOICES,
-        required=True,
+        required=False,  # Validated in clean() - not required for occurrence reports
         widget=forms.Select(attrs={
             'class': 'form-control',
         })
@@ -454,6 +486,41 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
         })
     )
 
+    # Override additional_email to accept comma-separated emails
+    additional_email = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'client@example.com'
+        }),
+        help_text="Can contain multiple emails separated by commas"
+    )
+
+    corporate_group = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    group_type = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    facility_type = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control'
+        })
+    )
+
     class Meta:
         model = FoodSafetyAgencyInspection
         fields = [
@@ -461,7 +528,8 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
             'inspector_name', 'town', 'product_name', 'product_class',
             'inspected', 'is_sample_taken', 'bought_sample', 'km_traveled', 'hours',
             'lab', 'fat', 'protein', 'calcium', 'dna', 'needs_retest',
-            'follow_up', 'occurrence_report', 'dispensation_application', 'comment'
+            'follow_up', 'occurrence_report', 'dispensation_application', 'comment',
+            'additional_email', 'corporate_group', 'group_type', 'facility_type'
         ]
         widgets = {
             'inspected': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -482,8 +550,11 @@ class FoodSafetyAgencyInspectionForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        # Ensure required fields are provided
-        if not cleaned_data.get('commodity'):
+        # Skip commodity validation for occurrence reports
+        is_occurrence = getattr(self.instance, 'is_occurrence_report', False)
+
+        # Ensure required fields are provided (except commodity for occurrence reports)
+        if not is_occurrence and not cleaned_data.get('commodity'):
             self.add_error('commodity', 'Commodity is required.')
         if not cleaned_data.get('date_of_inspection'):
             self.add_error('date_of_inspection', 'Date of inspection is required.')

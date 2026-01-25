@@ -404,10 +404,38 @@ def user_management(request):
 
 @login_required(login_url='login')
 def client_list(request):
-   """View to list all clients."""
+   """View to list all clients with search functionality."""
    clear_messages(request)
-   clients = Client.objects.all().order_by('name')
-   return render(request, 'main/client_list.html', {'clients': clients})
+
+   # Get search parameters
+   search_query = request.GET.get('search', '').strip()
+
+   # Start with all clients
+   clients = Client.objects.all()
+
+   # Apply search filter if provided
+   if search_query:
+       from django.db.models import Q
+       clients = clients.filter(
+           Q(name__icontains=search_query) |
+           Q(client_id__icontains=search_query) |
+           Q(email__icontains=search_query) |
+           Q(internal_account_code__icontains=search_query)
+       )
+
+   # Order by name
+   clients = clients.order_by('name')
+
+   # Get count of inspections for each client
+   from django.db.models import Count
+   clients = clients.annotate(inspection_count=Count('inspections'))
+
+   context = {
+       'clients': clients,
+       'search_query': search_query,
+       'total_count': clients.count(),
+   }
+   return render(request, 'main/client_list.html', context)
 
 @login_required(login_url='login')
 def add_client(request):

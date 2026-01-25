@@ -736,7 +736,7 @@ function uploadInvoice(groupId) {
     }
 }
 
-// Upload Retest function
+// Upload Retest function - uses unified uploadDocumentForInspection when available
 function uploadRetest(groupId, inspectionId) {
     console.log('uploadRetest called with groupId:', groupId, 'inspectionId:', inspectionId);
 
@@ -745,6 +745,14 @@ function uploadRetest(groupId, inspectionId) {
         return;
     }
 
+    // Use unified upload function if available (same as compliance, composition, etc.)
+    if (window.uploadDocumentForInspection) {
+        console.log('Using unified uploadDocumentForInspection for retest');
+        window.uploadDocumentForInspection(inspectionId, groupId, 'retest');
+        return;
+    }
+
+    // Fallback to direct implementation
     try {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
@@ -1801,7 +1809,7 @@ async function deleteFile(filePath, fileName) {
                             } else if (documentType === 'lab_form') {
                                 specificButton.onclick = function() { uploadLabForm(inspectionId); };
                             } else if (documentType === 'retest') {
-                                specificButton.onclick = function() { uploadRetest(inspectionId); };
+                                specificButton.onclick = function() { uploadRetest(groupId, inspectionId); };
                             }
                             
                             console.log(`SUCCESS Reset specific ${documentType} button ${specificButtonId} to grey`);
@@ -5139,7 +5147,7 @@ function immediateOtherButtonCheck(groupId, clientName, inspectionDate) {
                             button.style.color = 'white';
                             button.style.opacity = '1';
                             button.style.cursor = 'pointer';
-                            button.innerHTML = 'Upload';
+                            button.innerHTML = 'Other';
                             button.title = 'Other file exists - click to upload more';
                             console.log(`🟢🟢🟢 [OTHER] Updated ${type} button to GREEN for: ${clientName}`);
                         } else {
@@ -5151,7 +5159,7 @@ function immediateOtherButtonCheck(groupId, clientName, inspectionDate) {
                             button.style.color = 'white';
                             button.style.opacity = '1';
                             button.style.cursor = 'pointer';
-                            button.innerHTML = 'Upload';
+                            button.innerHTML = 'Other';
                             button.title = 'Upload Other file';
                             button.onclick = () => window.uploadOtherForInspection(null, groupId);
                             console.log(`⚫⚫⚫ [OTHER] Updated ${type} button to GREY for: ${clientName}`);
@@ -5809,7 +5817,7 @@ async function initializeOtherButtonsSimple() {
                         button.style.color = 'white';
                         button.style.opacity = '1';
                         button.style.cursor = 'pointer';
-                        button.innerHTML = 'Upload';
+                        button.innerHTML = 'Other';
                         button.title = 'Other file exists - click to upload more';
                         console.log(`SUCCESS [SIMPLE] Set ${clientName} Other button to GREEN`);
                     } else {
@@ -5820,7 +5828,7 @@ async function initializeOtherButtonsSimple() {
                         button.style.color = 'white';
                         button.style.opacity = '1';
                         button.style.cursor = 'pointer';
-                        button.innerHTML = 'Upload';
+                        button.innerHTML = 'Other';
                         button.title = 'Upload Other file';
                         console.log(`GREY [SIMPLE] Set ${clientName} Other button to GREY`);
                     }

@@ -12,11 +12,9 @@ User.add_to_class('role', models.CharField(
     max_length=20,
     choices=[
         ('inspector', 'Inspector'),
-        ('admin', 'HR/Admin Staff'),
+        ('admin', 'Admin'),
         ('super_admin', 'Super Admin'),
-        ('financial_admin', 'Financial Admin'),
         ('lab_technician', 'Lab Technician'),
-        ('scientist', 'Scientist'),
         ('developer', 'Developer'),
     ],
     default='inspector',
@@ -41,25 +39,19 @@ def is_super_admin(self):
     return getattr(self, 'role', 'inspector') == 'super_admin'
 
 @property
-def is_financial_admin(self):
-    return getattr(self, 'role', 'inspector') == 'financial_admin'
-
-@property
 def is_lab_technician(self):
     return getattr(self, 'role', 'inspector') == 'lab_technician'
 
 @property
-def is_scientist(self):
-    return getattr(self, 'role', 'inspector') == 'scientist'
+def is_developer(self):
+    return getattr(self, 'role', 'inspector') == 'developer'
 
 def has_role_permission(self, required_role):
     """Check if user has the required role or higher"""
     role_hierarchy = {
         'inspector': 1,
         'admin': 2,
-        'financial_admin': 3,
         'lab_technician': 3,
-        'scientist': 3,
         'super_admin': 4,
         'developer': 5,
     }
@@ -72,9 +64,8 @@ def has_role_permission(self, required_role):
 User.add_to_class('is_inspector', is_inspector)
 User.add_to_class('is_admin', is_admin)
 User.add_to_class('is_super_admin', is_super_admin)
-User.add_to_class('is_financial_admin', is_financial_admin)
 User.add_to_class('is_lab_technician', is_lab_technician)
-User.add_to_class('is_scientist', is_scientist)
+User.add_to_class('is_developer', is_developer)
 User.add_to_class('has_role_permission', has_role_permission)
 
 class ClientManager(models.Manager):
@@ -226,6 +217,10 @@ class Client(models.Model):
     internal_account_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Internal Account Code", help_text="From Google Sheets Column H")
     email = models.EmailField(blank=True, null=True, verbose_name="Client Email", help_text="From Google Sheets Column K")
     manual_email = models.EmailField(blank=True, null=True, verbose_name="Manual Email Override", help_text="Manually added email that persists across syncs")
+    town = models.CharField(max_length=100, blank=True, null=True, verbose_name="Town/Location")
+    corporate_group = models.CharField(max_length=200, blank=True, null=True, verbose_name="Corporate Group", help_text="e.g., Pick n Pay - Franchise")
+    group_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Group Type", help_text="e.g., Corporate Store, Franchise Store")
+    facility_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Facility Type", help_text="e.g., Retailer, Butchery, Re-Packer")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -363,6 +358,7 @@ class FoodSafetyAgencyInspection(models.Model):
     # Location and inspection details
     inspection_location_type_id = models.IntegerField(blank=True, null=True, help_text="Inspection location type ID")
     is_direction_present_for_this_inspection = models.BooleanField(default=False, help_text="Direction present for this inspection")
+    is_product_compliant = models.BooleanField(default=True, help_text="Product compliance status (based on composition/RFI document)")
     inspector_id = models.IntegerField(blank=True, null=True, help_text="Inspector ID from remote system")
     inspector_name = models.CharField(max_length=100, blank=True, null=True, help_text="Human-readable inspector name")
     
@@ -382,7 +378,7 @@ class FoodSafetyAgencyInspection(models.Model):
     # New fields for manual entry
     km_traveled = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Manual entry of kilometers traveled")
     hours = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Manual entry of hours worked")
-    additional_email = models.EmailField(max_length=254, blank=True, null=True, help_text="Additional email for this specific inspection group")
+    additional_email = models.CharField(max_length=500, blank=True, null=True, help_text="Additional email(s) for this specific inspection group - can be comma-separated")
     approved_status = models.CharField(max_length=10, blank=True, null=True, help_text="Approval status for this inspection group",
                                      choices=[
                                          ('PENDING', 'Pending'),
@@ -447,12 +443,34 @@ class FoodSafetyAgencyInspection(models.Model):
     occurrence_uploaded_date = models.DateTimeField(blank=True, null=True, help_text="Date when Accurance document was uploaded")
     composition_uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name='composition_uploads', help_text="User who uploaded Composition document")
     composition_uploaded_date = models.DateTimeField(blank=True, null=True, help_text="Date when Composition document was uploaded")
+    other_uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name='other_uploads', help_text="User who uploaded Other document")
+    other_uploaded_date = models.DateTimeField(blank=True, null=True, help_text="Date when Other document was uploaded")
 
     # Invoice number (editable field for tracking invoiced items)
     invoice_number = models.CharField(max_length=100, blank=True, null=True, help_text="Invoice number assigned to this inspection")
 
     # Manual entry flag - prevents sync from overwriting this inspection
     is_manual = models.BooleanField(default=False, help_text="True if this inspection was manually entered (not synced from SQL Server)")
+
+    # New classification fields for manual inspections
+    corporate_group = models.CharField(max_length=200, blank=True, null=True, help_text="Corporate group (e.g., Pick n Pay, Checkers, Spar)")
+    group_type = models.CharField(max_length=100, blank=True, null=True, help_text="Group type (Corporate Store, Franchise Store, Individual)")
+    facility_type = models.CharField(max_length=100, blank=True, null=True, help_text="Facility type (Retailer, Butchery, Re-Packer, etc.)")
+
+    # Occurrence Report specific fields
+    is_occurrence_report = models.BooleanField(default=False, help_text="True if this is an occurrence report (not a regular inspection)")
+    registration_code = models.CharField(max_length=100, blank=True, null=True, help_text="Registration code (can include dashes, e.g., ABC-123-456)")
+    physical_address = models.TextField(blank=True, null=True, help_text="Physical address of the facility")
+    telephone = models.CharField(max_length=50, blank=True, null=True, help_text="Telephone number")
+    time_of_visit = models.TimeField(blank=True, null=True, help_text="Time of visit for occurrence report")
+    occurrence_findings = models.JSONField(blank=True, null=True, help_text="List of findings from occurrence report")
+    occurrence_description = models.TextField(blank=True, null=True, help_text="Description of events for occurrence report")
+    occurrence_inspector_name = models.CharField(max_length=200, blank=True, null=True, help_text="Auditor/Inspector name for occurrence report")
+    occurrence_inspector_date = models.DateField(blank=True, null=True, help_text="Inspector signature date")
+    occurrence_inspector_signature = models.TextField(blank=True, null=True, help_text="Inspector signature (base64 encoded image)")
+    occurrence_manager_name = models.CharField(max_length=200, blank=True, null=True, help_text="Manager/Owner name for occurrence report")
+    occurrence_manager_date = models.DateField(blank=True, null=True, help_text="Manager signature date")
+    occurrence_manager_signature = models.TextField(blank=True, null=True, help_text="Manager signature (base64 encoded image)")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -508,6 +526,31 @@ class FoodSafetyAgencyInspection(models.Model):
     def occurrence_uploaded(self):
         """Check if Accurance document has been uploaded"""
         return self.occurrence_uploaded_date is not None
+
+    @property
+    def coa_uploaded(self):
+        """Check if COA document has been uploaded"""
+        return self.coa_uploaded_date is not None
+
+    @property
+    def lab_form_uploaded(self):
+        """Check if Lab Form document has been uploaded"""
+        return self.lab_form_uploaded_date is not None
+
+    @property
+    def retest_uploaded(self):
+        """Check if Retest document has been uploaded"""
+        return self.retest_uploaded_date is not None
+
+    @property
+    def composition_uploaded(self):
+        """Check if Composition document has been uploaded"""
+        return self.composition_uploaded_date is not None
+
+    @property
+    def other_uploaded(self):
+        """Check if Other document has been uploaded"""
+        return self.other_uploaded_date is not None
 
 class Shipment(models.Model):
     """Shipment/Claim data model for legal system"""

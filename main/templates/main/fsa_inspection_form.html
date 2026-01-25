@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     {% load static %}
     <meta charset="UTF-8">
@@ -18,12 +19,14 @@
             --text: #1f2937;
             --border: #e5e7eb;
         }
+
         body {
             background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center fixed;
             background-size: cover;
             font-family: system-ui, -apple-system, sans-serif;
             min-height: 100vh;
         }
+
         body::before {
             content: '';
             position: fixed;
@@ -34,12 +37,14 @@
             background: rgba(0, 0, 0, 0.4);
             z-index: -1;
         }
+
         .wizard-container {
             background: rgba(255, 255, 255, 0.97);
             border-radius: 16px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             backdrop-filter: blur(10px);
         }
+
         .form-control {
             width: 100%;
             padding: 12px 16px;
@@ -49,11 +54,13 @@
             transition: all 0.2s;
             background: white;
         }
+
         .form-control:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 4px rgba(0, 120, 144, 0.15);
         }
+
         .form-label {
             display: block;
             font-weight: 600;
@@ -61,9 +68,11 @@
             margin-bottom: 6px;
             font-size: 14px;
         }
+
         .form-group {
             margin-bottom: 20px;
         }
+
         .btn {
             padding: 12px 24px;
             border-radius: 8px;
@@ -76,27 +85,33 @@
             align-items: center;
             gap: 8px;
         }
+
         .btn-primary {
             background: var(--primary);
             color: white;
         }
+
         .btn-primary:hover {
             background: #005a6b;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 120, 144, 0.3);
         }
+
         .btn-secondary {
             background: #6b7280;
             color: white;
         }
+
         .btn-secondary:hover {
             background: #4b5563;
         }
+
         .btn-outline {
-            background: rgba(255,255,255,0.9);
+            background: rgba(255, 255, 255, 0.9);
             border: 2px solid var(--border);
             color: var(--text);
         }
+
         .btn-outline:hover {
             background: white;
             border-color: var(--primary);
@@ -109,6 +124,7 @@
             margin-bottom: 32px;
             position: relative;
         }
+
         .wizard-steps::before {
             content: '';
             position: absolute;
@@ -119,6 +135,7 @@
             background: var(--border);
             z-index: 0;
         }
+
         .step {
             display: flex;
             flex-direction: column;
@@ -127,6 +144,7 @@
             z-index: 1;
             flex: 1;
         }
+
         .step-circle {
             width: 44px;
             height: 44px;
@@ -141,21 +159,25 @@
             margin-bottom: 8px;
             transition: all 0.3s;
         }
+
         .step.active .step-circle {
             background: var(--primary);
             color: white;
             box-shadow: 0 0 0 4px rgba(0, 120, 144, 0.2);
         }
+
         .step.completed .step-circle {
             background: #10b981;
             color: white;
         }
+
         .step-label {
             font-size: 13px;
             font-weight: 500;
             color: #9ca3af;
             text-align: center;
         }
+
         .step.active .step-label,
         .step.completed .step-label {
             color: var(--text);
@@ -166,12 +188,21 @@
             display: none;
             animation: fadeIn 0.3s ease;
         }
+
         .wizard-step-content.active {
             display: block;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Checkbox styling */
@@ -185,17 +216,21 @@
             transition: all 0.2s;
             background: white;
         }
+
         .checkbox-card:hover {
             border-color: var(--primary);
             background: var(--primary-light);
         }
-        .checkbox-card input:checked + .checkbox-content {
+
+        .checkbox-card input:checked+.checkbox-content {
             color: var(--primary);
         }
+
         .checkbox-card:has(input:checked) {
             border-color: var(--primary);
             background: var(--primary-light);
         }
+
         /* Special green styling for sample taken checkbox */
         .checkbox-card.sample-taken-card {
             position: relative;
@@ -204,9 +239,11 @@
             display: flex;
             align-items: center;
         }
+
         .checkbox-card.sample-taken-card input[type="checkbox"] {
             display: none;
         }
+
         .checkbox-card.sample-taken-card .custom-check {
             position: absolute;
             left: 14px;
@@ -221,36 +258,43 @@
             align-items: center;
             justify-content: center;
             transition: all 0.25s ease;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
         }
+
         .checkbox-card.sample-taken-card .custom-check i {
             font-size: 14px;
             color: transparent;
             transition: all 0.25s ease;
             transform: scale(0);
         }
+
         .checkbox-card.sample-taken-card:hover .custom-check {
             border-color: #10b981;
             background: #f0fdf4;
         }
+
         .checkbox-card.sample-taken-card:has(input:checked) {
             border-color: #10b981;
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
+
         .checkbox-card.sample-taken-card:has(input:checked) .custom-check {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border-color: #059669;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
         }
+
         .checkbox-card.sample-taken-card:has(input:checked) .custom-check i {
             color: white;
             transform: scale(1);
         }
+
         .checkbox-card.sample-taken-card:has(input:checked) .checkbox-content {
             color: #047857;
             font-weight: 600;
         }
+
         /* Testing checkbox styling (blue theme) */
         .checkbox-card.testing-card {
             position: relative;
@@ -259,9 +303,11 @@
             display: flex;
             align-items: center;
         }
+
         .checkbox-card.testing-card input[type="checkbox"] {
             display: none;
         }
+
         .checkbox-card.testing-card .custom-check {
             position: absolute;
             left: 12px;
@@ -277,32 +323,39 @@
             justify-content: center;
             transition: all 0.2s ease;
         }
+
         .checkbox-card.testing-card .custom-check i {
             font-size: 12px;
             color: transparent;
             transition: all 0.2s ease;
             transform: scale(0);
         }
+
         .checkbox-card.testing-card:hover .custom-check {
             border-color: var(--primary);
             background: var(--primary-light);
         }
+
         .checkbox-card.testing-card:has(input:checked) {
             border-color: var(--primary);
             background: var(--primary-light);
         }
+
         .checkbox-card.testing-card:has(input:checked) .custom-check {
             background: var(--primary);
             border-color: var(--primary);
         }
+
         .checkbox-card.testing-card:has(input:checked) .custom-check i {
             color: white;
             transform: scale(1);
         }
+
         .checkbox-card.testing-card:has(input:checked) .checkbox-content {
             color: var(--primary);
             font-weight: 600;
         }
+
         .checkbox-card input {
             width: 20px;
             height: 20px;
@@ -318,11 +371,13 @@
             align-items: center;
             gap: 10px;
         }
+
         .alert-error {
             background: #fef2f2;
             border: 1px solid #fecaca;
             color: #dc2626;
         }
+
         .alert-success {
             background: #f0fdf4;
             border: 1px solid #bbf7d0;
@@ -335,6 +390,7 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 16px;
         }
+
         .commodity-card {
             padding: 20px 24px;
             border: 2px solid var(--border);
@@ -343,26 +399,31 @@
             text-align: center;
             background: white;
         }
+
         .commodity-card:hover {
             border-color: var(--primary);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+
         .commodity-card.selected {
             border-color: var(--primary);
             background: var(--primary-light);
             box-shadow: 0 0 0 3px rgba(0, 120, 144, 0.2);
         }
+
         .commodity-card i {
             font-size: 32px;
             margin-bottom: 8px;
             color: var(--primary);
         }
+
         .commodity-card h4 {
             font-weight: 600;
             color: var(--text);
             font-size: 15px;
             margin-bottom: 12px;
         }
+
         .commodity-counter {
             display: flex;
             align-items: center;
@@ -370,6 +431,7 @@
             gap: 12px;
             margin-top: 8px;
         }
+
         .commodity-counter button {
             width: 32px;
             height: 32px;
@@ -385,19 +447,23 @@
             justify-content: center;
             transition: all 0.2s;
         }
+
         .commodity-counter button:hover {
             background: var(--primary);
             color: white;
         }
+
         .commodity-counter button:disabled {
             border-color: #ccc;
             color: #ccc;
             cursor: not-allowed;
         }
+
         .commodity-counter button:disabled:hover {
             background: white;
             color: #ccc;
         }
+
         .commodity-count {
             font-size: 20px;
             font-weight: bold;
@@ -411,7 +477,7 @@
             background: rgba(255, 255, 255, 0.95);
             border-radius: 12px;
             padding: 16px 24px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 24px;
         }
 
@@ -428,8 +494,9 @@
             max-height: 350px;
             overflow-y: auto;
             z-index: 1000;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
+
         .client-dropdown-item {
             padding: 14px 16px;
             cursor: pointer;
@@ -439,25 +506,30 @@
             flex-direction: column;
             gap: 4px;
         }
+
         .client-dropdown-item:hover,
         .client-dropdown-item.highlighted {
             background: var(--primary-light);
             border-left: 3px solid var(--primary);
         }
+
         .client-dropdown-item:last-child {
             border-bottom: none;
         }
+
         .client-dropdown-item .client-name {
             font-weight: 600;
             color: var(--text);
             font-size: 15px;
         }
+
         .client-dropdown-item .client-details {
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
             font-size: 12px;
         }
+
         .client-dropdown-item .client-id {
             background: var(--primary-light);
             color: var(--primary);
@@ -466,34 +538,42 @@
             font-family: monospace;
             font-weight: 500;
         }
+
         .client-dropdown-item .client-code {
             color: #6b7280;
         }
+
         .client-dropdown-item .client-email {
             color: #059669;
         }
+
         .client-dropdown-item .client-email i {
             margin-right: 4px;
         }
+
         .client-dropdown-item.new-client {
             background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
             border-top: 2px solid #10b981;
             flex-direction: row;
             align-items: center;
         }
+
         .client-dropdown-item.new-client:hover {
             background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
         }
+
         .client-dropdown-item.new-client .add-icon {
             color: #10b981;
             margin-right: 10px;
             font-size: 18px;
         }
+
         .no-results {
             padding: 20px;
             text-align: center;
             color: #6b7280;
         }
+
         .search-match {
             background: rgba(255, 235, 59, 0.4);
             padding: 0 2px;
@@ -693,7 +773,8 @@
             /* Form controls */
             .form-control {
                 padding: 10px 12px;
-                font-size: 16px; /* Prevent iOS zoom on focus */
+                font-size: 16px;
+                /* Prevent iOS zoom on focus */
             }
 
             .form-label {
@@ -866,7 +947,9 @@
         }
 
         /* Ensure inputs don't lose focus or values */
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
@@ -874,6 +957,7 @@
 
         /* Prevent zoom on iOS when focusing inputs */
         @media screen and (-webkit-min-device-pixel-ratio: 0) {
+
             select,
             textarea,
             input[type="text"],
@@ -884,6 +968,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="max-w-3xl mx-auto py-8 px-4">
 
@@ -891,7 +976,8 @@
         {% if messages %}
         {% for message in messages %}
         <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-            <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+            <i
+                class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
             {{ message }}
         </div>
         {% endfor %}
@@ -901,7 +987,8 @@
         <div class="wizard-container p-8">
             {% if is_occurrence_report %}
             <!-- Occurrence Report Badge -->
-            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <div
+                style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
                 <i class="fas fa-exclamation-triangle" style="color: #d97706;"></i>
                 <span style="color: #92400e; font-weight: 600;">Editing Occurrence Report</span>
             </div>
@@ -959,33 +1046,25 @@
                     <div class="form-group">
                         <label class="form-label">Client *</label>
                         <div class="client-search-container" style="position: relative;">
-                            <input type="text"
-                                   name="client_name"
-                                   id="client_name"
-                                   class="form-control"
-                                   placeholder="Start typing to search or add new client..."
-                                   value="{{ form.client_name.value|default:'' }}"
-                                   autocomplete="off"
-                                   required>
+                            <input type="text" name="client_name" id="client_name" class="form-control"
+                                placeholder="Start typing to search or add new client..."
+                                value="{{ form.client_name.value|default:'' }}" autocomplete="off" required>
                             <div id="clientDropdown" class="client-dropdown" style="display: none;">
                                 <!-- Results will be populated by JS -->
                             </div>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">
-                            <i class="fas fa-info-circle mr-1"></i>Type to search existing clients or enter a new client name
+                            <i class="fas fa-info-circle mr-1"></i>Type to search existing clients or enter a new client
+                            name
                         </p>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Town *</label>
                         <div class="town-search-container" style="position: relative;">
-                            <input type="text"
-                                   name="town"
-                                   id="town_input"
-                                   class="form-control"
-                                   placeholder="Start typing to search or add new town..."
-                                   value="{{ form.town.value|default:'' }}"
-                                   autocomplete="off">
+                            <input type="text" name="town" id="town_input" class="form-control"
+                                placeholder="Start typing to search or add new town..."
+                                value="{{ form.town.value|default:'' }}" autocomplete="off">
                             <div id="townDropdown" class="client-dropdown" style="display: none;">
                                 <!-- Town suggestions will be populated here -->
                             </div>
@@ -996,16 +1075,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input type="email"
-                               name="additional_email"
-                               id="additional_email"
-                               class="form-control"
-                               placeholder="client@example.com"
-                               value="{{ form.additional_email.value|default:'' }}"
-                               autocomplete="off">
+                        <label class="form-label">Client Email(s)</label>
+                        <div id="emailInputsContainer">
+                            <div class="email-input-row" style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <input type="email" name="additional_email" id="additional_email" class="form-control"
+                                    placeholder="client@example.com" value="{{ form.additional_email.value|default:'' }}"
+                                    autocomplete="off" style="flex: 1;">
+                                <button type="button" onclick="addEmailField()" class="btn btn-secondary" style="padding: 8px 12px;" title="Add another email">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-500 mt-1">
-                            <i class="fas fa-info-circle mr-1"></i>Email address for sending inspection documents
+                            <i class="fas fa-info-circle mr-1"></i>Auto-filled from client data. You can edit or click + to add more emails.
                         </p>
                     </div>
 
@@ -1049,9 +1131,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Group Type *</label>
-                        <select name="group_type" id="group_type" class="form-control" required>
-                            <option value="">Select group type (required)</option>
+                        <label class="form-label">Group Type</label>
+                        <select name="group_type" id="group_type" class="form-control">
+                            <option value="">Select group type (optional)</option>
                             <option value="Corporate Store">Corporate Store</option>
                             <option value="Franchise Store">Franchise Store</option>
                             <option value="Individual / Independent Owner">Individual / Independent Owner</option>
@@ -1068,6 +1150,7 @@
                             <option value="Production Plant">Production Plant</option>
                             <option value="Farm">Farm</option>
                             <option value="Abattoir">Abattoir</option>
+                            <option value="Importer">Importer</option>
                             <option value="Egg Producers">Egg Producers</option>
                         </select>
                     </div>
@@ -1080,36 +1163,44 @@
                                 <i class="fas fa-drumstick-bite"></i>
                                 <h4>Poultry</h4>
                                 <div class="commodity-counter">
-                                    <button type="button" onclick="adjustCommodity('POULTRY', -1)" class="decrement-btn">−</button>
+                                    <button type="button" onclick="adjustCommodity('POULTRY', -1)"
+                                        class="decrement-btn">−</button>
                                     <span class="commodity-count" data-commodity="POULTRY">0</span>
-                                    <button type="button" onclick="adjustCommodity('POULTRY', 1)" class="increment-btn">+</button>
+                                    <button type="button" onclick="adjustCommodity('POULTRY', 1)"
+                                        class="increment-btn">+</button>
                                 </div>
                             </div>
                             <div class="commodity-card" data-value="RAW">
                                 <i class="fas fa-bacon"></i>
                                 <h4>Raw Meat</h4>
                                 <div class="commodity-counter">
-                                    <button type="button" onclick="adjustCommodity('RAW', -1)" class="decrement-btn">−</button>
+                                    <button type="button" onclick="adjustCommodity('RAW', -1)"
+                                        class="decrement-btn">−</button>
                                     <span class="commodity-count" data-commodity="RAW">0</span>
-                                    <button type="button" onclick="adjustCommodity('RAW', 1)" class="increment-btn">+</button>
+                                    <button type="button" onclick="adjustCommodity('RAW', 1)"
+                                        class="increment-btn">+</button>
                                 </div>
                             </div>
                             <div class="commodity-card" data-value="PMP">
                                 <i class="fas fa-hamburger"></i>
                                 <h4>PMP (Processed)</h4>
                                 <div class="commodity-counter">
-                                    <button type="button" onclick="adjustCommodity('PMP', -1)" class="decrement-btn">−</button>
+                                    <button type="button" onclick="adjustCommodity('PMP', -1)"
+                                        class="decrement-btn">−</button>
                                     <span class="commodity-count" data-commodity="PMP">0</span>
-                                    <button type="button" onclick="adjustCommodity('PMP', 1)" class="increment-btn">+</button>
+                                    <button type="button" onclick="adjustCommodity('PMP', 1)"
+                                        class="increment-btn">+</button>
                                 </div>
                             </div>
                             <div class="commodity-card" data-value="EGGS">
                                 <i class="fas fa-egg"></i>
                                 <h4>Eggs</h4>
                                 <div class="commodity-counter">
-                                    <button type="button" onclick="adjustCommodity('EGGS', -1)" class="decrement-btn">−</button>
+                                    <button type="button" onclick="adjustCommodity('EGGS', -1)"
+                                        class="decrement-btn">−</button>
                                     <span class="commodity-count" data-commodity="EGGS">0</span>
-                                    <button type="button" onclick="adjustCommodity('EGGS', 1)" class="increment-btn">+</button>
+                                    <button type="button" onclick="adjustCommodity('EGGS', 1)"
+                                        class="increment-btn">+</button>
                                 </div>
                             </div>
                         </div>
@@ -1196,23 +1287,28 @@
                         <i class="fas fa-file-upload text-[var(--primary)] mr-2"></i>Upload Documents
                     </h3>
 
-                    <p class="text-gray-600 mb-6">Upload required documents for this inspection. Click on each card to select a file.</p>
+                    <p class="text-gray-600 mb-6">Upload documents for this inspection. Click on the card to select a file.</p>
 
-                    <!-- RFI Document (Required) -->
-                    <div class="file-upload-card" id="upload-rfi" onclick="triggerFileUpload('rfi')" style="max-width: 300px;">
+                    <!-- RFI Document (Required for Raw Meat/PMP only) -->
+                    <div class="file-upload-card" id="upload-rfi" onclick="triggerFileUpload('rfi')"
+                        style="max-width: 300px;">
                         <button type="button" class="remove-file" onclick="event.stopPropagation(); removeFile('rfi')">
                             <i class="fas fa-times"></i>
                         </button>
                         <i class="fas fa-file-invoice upload-icon"></i>
-                        <div class="upload-label">RFI Document <span style="color: #ef4444;">*</span></div>
-                        <div class="upload-hint">Request for Information (Required)</div>
-                        <input type="file" id="file-rfi" name="rfi_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleFileSelect(this, 'rfi')" required>
+                        <div class="upload-label" id="rfi-label">RFI Document <span id="rfi-required-star" style="color: #ef4444;">*</span></div>
+                        <div class="upload-hint" id="rfi-hint">Required for Raw Meat & PMP</div>
+                        <input type="file" id="file-rfi" name="rfi_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onchange="handleFileSelect(this, 'rfi')">
                         <div class="file-name" id="filename-rfi"></div>
                         <div class="upload-progress" id="progress-rfi">
                             <div class="upload-progress-bar" id="progress-bar-rfi"></div>
                         </div>
                         <div class="upload-status pending" id="status-rfi">Not uploaded</div>
                     </div>
+                    <p class="text-xs text-gray-500 mt-3" id="rfi-info-text">
+                        <i class="fas fa-info-circle mr-1"></i>RFI is required for Raw Meat and PMP commodities.
+                    </p>
                 </div>
                 {% endif %}
 
@@ -1223,7 +1319,8 @@
                     </h3>
 
                     <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                        <h4 class="font-semibold text-gray-700 mb-4">{% if is_occurrence_report %}Occurrence Report Summary{% else %}Inspection Summary{% endif %}</h4>
+                        <h4 class="font-semibold text-gray-700 mb-4">{% if is_occurrence_report %}Occurrence Report
+                            Summary{% else %}Inspection Summary{% endif %}</h4>
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             {% if not is_occurrence_report %}
                             <div class="p-3 bg-white rounded border">
@@ -1286,14 +1383,18 @@
                     {% endif %}
 
                     <!-- Validation Warning - shown when required fields are missing -->
-                    <div id="validationWarning" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm mb-4" style="display: none;">
+                    <div id="validationWarning"
+                        class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm mb-4"
+                        style="display: none;">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
                         <strong>Missing Required Fields:</strong>
                         <ul id="missingFieldsList" class="mt-2 ml-6 list-disc"></ul>
                     </div>
 
                     <!-- Success message - shown when all required fields are filled -->
-                    <div id="validationSuccess" class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm mb-4" style="display: none;">
+                    <div id="validationSuccess"
+                        class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm mb-4"
+                        style="display: none;">
                         <i class="fas fa-check-circle mr-2"></i>
                         All required fields are filled. You can now save the inspection.
                     </div>
@@ -1306,15 +1407,19 @@
                         <i class="fas fa-arrow-left"></i> <span id="prevBtnText">Back</span>
                     </button>
                     <div class="flex gap-3">
-                        {% if not is_occurrence_report %}
-                        <button type="button" id="occurrenceBtn" class="btn" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;" onclick="openOccurrenceReport()" onmouseenter="this.style.background='#d97706'" onmouseleave="this.style.background='#f59e0b'">
+                        {% if not is_occurrence_report and action != 'Edit' %}
+                        <button type="button" id="occurrenceBtn" class="btn"
+                            style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;"
+                            onclick="openOccurrenceReport()" onmouseenter="this.style.background='#d97706'"
+                            onmouseleave="this.style.background='#f59e0b'">
                             <i class="fas fa-exclamation-triangle"></i> Occurrence Report
                         </button>
                         {% endif %}
                         <button type="button" id="nextBtn" class="btn btn-primary" onclick="changeStep(1)">
                             Next <i class="fas fa-arrow-right"></i>
                         </button>
-                        <button type="submit" id="submitBtn" class="btn btn-primary" style="display: none; opacity: 0.5; cursor: not-allowed;" disabled>
+                        <button type="submit" id="submitBtn" class="btn btn-primary"
+                            style="display: none; opacity: 0.5; cursor: not-allowed;" disabled>
                             <i class="fas fa-save"></i> Save Inspection
                         </button>
                     </div>
@@ -1332,78 +1437,218 @@
     <div id="occurrenceWizard" class="max-w-3xl mx-auto" style="display: none;">
         <div class="wizard-container p-8">
             <!-- Occurrence Progress Steps -->
-            <div class="wizard-steps" style="max-width: 300px; margin: 0 auto 32px;">
+            <div class="wizard-steps" style="max-width: 500px; margin: 0 auto 32px;">
                 <div class="step active" data-occurrence-step="1">
                     <div class="step-circle" style="background: #f59e0b; color: white;">1</div>
-                    <span class="step-label">Occurrence Report</span>
+                    <span class="step-label">Facility Details</span>
                 </div>
                 <div class="step" data-occurrence-step="2">
                     <div class="step-circle">2</div>
+                    <span class="step-label">Findings</span>
+                </div>
+                <div class="step" data-occurrence-step="3">
+                    <div class="step-circle">3</div>
                     <span class="step-label">Review & Submit</span>
                 </div>
             </div>
 
-            <!-- Step 1: Occurrence Report Form -->
+            <!-- Step 1: Facility Details -->
             <div id="occurrenceStep1" class="wizard-step-content active">
-                <h2 style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                <h2
+                    style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
-                    Occurrence Report
+                    Occurrence Report - Facility Details
                 </h2>
 
-                <!-- Basic Info Section -->
+                <!-- Facility Type Header -->
+                <div
+                    style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-building" style="color: #f59e0b;"></i>
+                        Facility Type <span style="color: #ef4444;">*</span>
+                    </h3>
+                    <select id="occurrenceFacilityType" required
+                        style="width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 15px; font-weight: 500; box-sizing: border-box; background: white;">
+                        <option value="">Select facility type (required)</option>
+                        <option value="Abattoir">Abattoir</option>
+                        <option value="Production Plant">Production Plant</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Repacking Plant">Repacking Plant</option>
+                        <option value="Importer">Importer</option>
+                        <option value="Retailer">Retailer</option>
+                        <option value="Butchery">Butchery</option>
+                        <option value="Farm">Farm</option>
+                        <option value="Egg Producers">Egg Producers</option>
+                    </select>
+                </div>
+
+                <!-- Client Details Section -->
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-info-circle" style="color: #f59e0b;"></i>
-                        Basic Information
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-user-tie" style="color: #f59e0b;"></i>
+                        Client Details
                     </h3>
 
-                    <!-- Date of Inspection -->
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                            Date of Inspection <span style="color: #ef4444;">*</span>
-                        </label>
-                        <input type="date" id="occurrenceDate" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
-                    </div>
-
-                    <!-- Client -->
+                    <!-- Client Name -->
                     <div class="form-group" style="margin-bottom: 16px; position: relative;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                            Client <span style="color: #ef4444;">*</span>
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Client Name <span style="color: #ef4444;">*</span>
                         </label>
-                        <input type="text" id="occurrenceClientName" required placeholder="Start typing to search or add new client..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" oninput="searchOccurrenceClients(this.value)">
-                        <div id="occurrenceClientDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
-                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Type to search existing clients or enter a new client name</p>
-                    </div>
-
-                    <!-- Town -->
-                    <div class="form-group" style="margin-bottom: 16px; position: relative;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                            Town <span style="color: #ef4444;">*</span>
-                        </label>
-                        <input type="text" id="occurrenceTown" required placeholder="Start typing to search or add new town..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" oninput="searchOccurrenceTowns(this.value)">
-                        <div id="occurrenceTownDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
-                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Type to search existing towns or enter a new location</p>
-                    </div>
-
-                    <!-- Email -->
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                            Email
-                        </label>
-                        <input type="email" id="occurrenceEmail" placeholder="client@example.com" style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
-                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle" style="margin-right: 4px;"></i>Email address for sending inspection documents</p>
+                        <input type="text" id="occurrenceClientName" required
+                            placeholder="Start typing to search or add new client..." autocomplete="off"
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+                            oninput="searchOccurrenceClients(this.value)">
+                        <div id="occurrenceClientDropdown"
+                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        </div>
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle"
+                                style="margin-right: 4px;"></i>Type to search existing clients or enter a new client
+                            name</p>
                     </div>
 
                     <!-- Internal Account Code - hidden, auto-generated -->
                     <input type="hidden" id="occurrenceAccountCode" value="">
 
+                    <!-- Registration Code -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Registration Code (if applicable)
+                        </label>
+                        <input type="text" id="occurrenceRegistrationCode" placeholder="e.g., ABC-123-456 or 12-34-5678"
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 4px;"><i class="fas fa-info-circle"
+                                style="margin-right: 4px;"></i>Can include letters, numbers, and dashes</p>
+                    </div>
+
+                    <!-- Physical Address -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Physical Address <span style="color: #ef4444;">*</span>
+                        </label>
+                        <textarea id="occurrencePhysicalAddress" rows="2" required
+                            placeholder="Enter full physical address..."
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+                    </div>
+
+                    <!-- Town -->
+                    <div class="form-group" style="margin-bottom: 16px; position: relative;">
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Town <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="text" id="occurrenceTown" required
+                            placeholder="Start typing to search or add new town..." autocomplete="off"
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;"
+                            oninput="searchOccurrenceTowns(this.value)">
+                        <div id="occurrenceTownDropdown"
+                            style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <!-- Telephone Number -->
+                        <div>
+                            <label
+                                style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Telephone Number
+                            </label>
+                            <input type="tel" id="occurrenceTelephone" placeholder="e.g., 011 123 4567"
+                                style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label
+                                style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Client Email Address
+                            </label>
+                            <input type="email" id="occurrenceEmail" placeholder="client@example.com"
+                                style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visit Details Section -->
+                <div
+                    style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #0369a1; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-calendar-alt" style="color: #0ea5e9;"></i>
+                        Visit Details
+                    </h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <!-- Date(s) of Visit -->
+                        <div>
+                            <label
+                                style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Date(s) of Visit <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="date" id="occurrenceDate" required
+                                style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+
+                        <!-- Time of Visit -->
+                        <div>
+                            <label
+                                style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                                Time of Visit <span style="color: #ef4444;">*</span>
+                            </label>
+                            <select id="occurrenceTime" required
+                                style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                                <option value="">Select time...</option>
+                                <option value="06:00">06:00 AM</option>
+                                <option value="06:30">06:30 AM</option>
+                                <option value="07:00">07:00 AM</option>
+                                <option value="07:30">07:30 AM</option>
+                                <option value="08:00">08:00 AM</option>
+                                <option value="08:30">08:30 AM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="09:30">09:30 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="10:30">10:30 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="11:30">11:30 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="12:30">12:30 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="13:30">01:30 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="14:30">02:30 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="15:30">03:30 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                                <option value="16:30">04:30 PM</option>
+                                <option value="17:00">05:00 PM</option>
+                                <option value="17:30">05:30 PM</option>
+                                <option value="18:00">06:00 PM</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Corporate/Group Info (Hidden fields for internal use) -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-sitemap" style="color: #f59e0b;"></i>
+                        Corporate Information
+                    </h3>
+
                     <!-- Corporate Group -->
                     <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                            Corporate Group <span style="color: #ef4444;">*</span>
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Corporate Group
                         </label>
-                        <select id="occurrenceCorporateGroup" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
-                            <option value="">Select corporate group (required)</option>
+                        <select id="occurrenceCorporateGroup"
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                            <option value="">Select corporate group (optional)</option>
                             <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
                             <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
                             <option value="Fruit & Veg">Fruit & Veg</option>
@@ -1439,145 +1684,205 @@
                         </select>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                        <!-- Group Type -->
-                        <div>
-                            <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                                Group Type <span style="color: #ef4444;">*</span>
-                            </label>
-                            <select id="occurrenceGroupType" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
-                                <option value="">Select group type (required)</option>
-                                <option value="Corporate Store">Corporate Store</option>
-                                <option value="Franchise Store">Franchise Store</option>
-                                <option value="Individual / Independent Owner">Individual / Independent Owner</option>
-                            </select>
-                        </div>
-
-                        <!-- Facility Type -->
-                        <div>
-                            <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
-                                Facility Type <span style="color: #ef4444;">*</span>
-                            </label>
-                            <select id="occurrenceFacilityType" required style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
-                                <option value="">Select facility type (required)</option>
-                                <option value="Retailer">Retailer</option>
-                                <option value="Butchery">Butchery</option>
-                                <option value="Re-Packer">Re-Packer</option>
-                                <option value="Production Plant">Production Plant</option>
-                                <option value="Farm">Farm</option>
-                                <option value="Abattoir">Abattoir</option>
-                                <option value="Egg Producers">Egg Producers</option>
-                            </select>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Occurrence Details Section -->
-                <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-exclamation-circle" style="color: #f59e0b;"></i>
-                        Occurrence Details
-                    </h3>
-
-                    <!-- Reason/Comments -->
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px;">
-                            <i class="fas fa-comment-alt" style="color: #6b7280; margin-right: 6px;"></i>
-                            Reason / Comments <span style="color: #ef4444;">*</span>
+                    <!-- Group Type -->
+                    <div class="form-group">
+                        <label
+                            style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px;">
+                            Group Type
                         </label>
-                        <textarea id="occurrenceReason" rows="4" required placeholder="Describe the occurrence, reason, and any relevant details..." style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; transition: border-color 0.2s; box-sizing: border-box;" onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-                    </div>
-
-                    <!-- Document Upload -->
-                    <div>
-                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px;">
-                            <i class="fas fa-file-upload" style="color: #6b7280; margin-right: 6px;"></i>
-                            Upload Occurrence Document (PDF) <span style="color: #ef4444;">*</span>
-                        </label>
-                        <div id="occurrenceDropZone" style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: white;" onclick="document.getElementById('occurrenceFile').click()" ondragover="event.preventDefault(); this.style.borderColor='#f59e0b'; this.style.background='#fffbeb';" ondragleave="this.style.borderColor='#d1d5db'; this.style.background='white';" ondrop="handleOccurrenceDrop(event)">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 36px; color: #9ca3af; margin-bottom: 8px; display: block;"></i>
-                            <p style="margin: 0; color: #6b7280; font-size: 14px;">Click to browse or drag & drop</p>
-                            <p style="margin: 6px 0 0; font-size: 12px; color: #9ca3af;">PDF files only</p>
-                        </div>
-                        <input type="file" id="occurrenceFile" accept=".pdf" style="display: none;" onchange="handleOccurrenceFileSelect(this)">
-                        <div id="occurrenceFileName" style="margin-top: 12px; padding: 12px; background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; display: none;">
-                            <i class="fas fa-file-pdf" style="color: #22c55e; margin-right: 8px;"></i>
-                            <span id="occurrenceFileNameText" style="color: #166534;"></span>
-                            <button type="button" onclick="clearOccurrenceFile()" style="float: right; background: none; border: none; color: #ef4444; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
-                        </div>
+                        <select id="occurrenceGroupType"
+                            style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
+                            <option value="">Select group type (optional)</option>
+                            <option value="Corporate Store">Corporate Store</option>
+                            <option value="Franchise Store">Franchise Store</option>
+                            <option value="Individual / Independent Owner">Individual / Independent Owner</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Step 2: Review & Submit -->
+            <!-- Step 2: Findings -->
             <div id="occurrenceStep2" class="wizard-step-content" style="display: none;">
-                <h2 style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                <h2
+                    style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-clipboard-list" style="color: #f59e0b;"></i>
+                    Findings
+                </h2>
+
+                <!-- Description of Events -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-file-alt" style="color: #f59e0b;"></i>
+                        Description of Events
+                    </h3>
+                    <textarea id="occurrenceDescription" rows="5"
+                        placeholder="Provide a detailed description of events that occurred during the inspection..."
+                        style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; box-sizing: border-box;"
+                        onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
+                </div>
+
+                <!-- Document Upload (Optional) -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3
+                        style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-paperclip" style="color: #f59e0b;"></i>
+                        Occurrence Document *
+                    </h3>
+                    <div id="occurrenceDropZone"
+                        style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: white;"
+                        onclick="document.getElementById('occurrenceFile').click()"
+                        ondragover="event.preventDefault(); this.style.borderColor='#f59e0b'; this.style.background='#fffbeb';"
+                        ondragleave="this.style.borderColor='#d1d5db'; this.style.background='white';"
+                        ondrop="handleOccurrenceDrop(event)">
+                        <i class="fas fa-cloud-upload-alt"
+                            style="font-size: 36px; color: #9ca3af; margin-bottom: 8px; display: block;"></i>
+                        <p style="margin: 0; color: #6b7280; font-size: 14px;">Click to browse or drag & drop</p>
+                        <p style="margin: 6px 0 0; font-size: 12px; color: #9ca3af;">PDF files only</p>
+                    </div>
+                    <input type="file" id="occurrenceFile" name="occurrence_file" accept=".pdf" style="display: none;"
+                        onchange="handleOccurrenceFileSelect(this)">
+                    <div id="occurrenceFileName"
+                        style="margin-top: 12px; padding: 12px; background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; display: none;">
+                        <i class="fas fa-file-pdf" style="color: #22c55e; margin-right: 8px;"></i>
+                        <span id="occurrenceFileNameText" style="color: #166534;"></span>
+                        <button type="button" onclick="clearOccurrenceFile()"
+                            style="float: right; background: none; border: none; color: #ef4444; cursor: pointer; padding: 0;"><i
+                                class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Review & Submit -->
+            <div id="occurrenceStep3" class="wizard-step-content" style="display: none;">
+                <h2
+                    style="margin: 0 0 24px; color: #1f2937; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-clipboard-check" style="color: #f59e0b;"></i>
                     Review & Submit
                 </h2>
 
-                <!-- Basic Information Review -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151;">
-                        <i class="fas fa-info-circle" style="color: #f59e0b; margin-right: 8px;"></i>
-                        Basic Information
+                <!-- Facility Information Review -->
+                <div
+                    style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #92400e;">
+                        <i class="fas fa-building" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Facility Information
                     </h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Date of Inspection</span>
-                            <span id="reviewOccurrenceDate" style="font-weight: 500; color: #1f2937;">-</span>
+                        <div style="padding: 10px; background: white; border-radius: 6px; grid-column: span 2;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Facility
+                                Type</span>
+                            <span id="reviewOccurrenceFacilityType"
+                                style="font-weight: 600; color: #1f2937; font-size: 16px;">-</span>
                         </div>
                         <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Client</span>
+                            <span
+                                style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Owner/Manager
+                                Name</span>
                             <span id="reviewOccurrenceClient" style="font-weight: 500; color: #1f2937;">-</span>
                         </div>
                         <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Town</span>
+                            <span
+                                style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Registration
+                                Code</span>
+                            <span id="reviewOccurrenceRegistrationCode"
+                                style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px; grid-column: span 2;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Physical
+                                Address</span>
+                            <span id="reviewOccurrenceAddress" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span
+                                style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Town</span>
                             <span id="reviewOccurrenceTown" style="font-weight: 500; color: #1f2937;">-</span>
                         </div>
                         <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Email</span>
+                            <span
+                                style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Telephone</span>
+                            <span id="reviewOccurrenceTelephone" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span
+                                style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Email</span>
                             <span id="reviewOccurrenceEmail" style="font-weight: 500; color: #1f2937;">-</span>
-                        </div>
-                        <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Corporate Group</span>
-                            <span id="reviewOccurrenceCorporateGroup" style="font-weight: 500; color: #1f2937;">-</span>
-                        </div>
-                        <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Group Type</span>
-                            <span id="reviewOccurrenceGroupType" style="font-weight: 500; color: #1f2937;">-</span>
-                        </div>
-                        <div style="padding: 10px; background: white; border-radius: 6px;">
-                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Facility Type</span>
-                            <span id="reviewOccurrenceFacilityType" style="font-weight: 500; color: #1f2937;">-</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Occurrence Details Review -->
-                <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #92400e;">
-                        <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-right: 8px;"></i>
-                        Occurrence Details
+                <!-- Visit Details Review -->
+                <div
+                    style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #0369a1;">
+                        <i class="fas fa-calendar-alt" style="color: #0ea5e9; margin-right: 8px;"></i>
+                        Visit Details
                     </h3>
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; font-size: 12px; color: #92400e; margin-bottom: 4px; font-weight: 600;">Reason / Comments:</label>
-                        <p id="reviewOccurrenceReason" style="margin: 0; color: #1f2937; white-space: pre-wrap; background: white; padding: 12px; border-radius: 6px; font-size: 14px;">-</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Date of
+                                Visit</span>
+                            <span id="reviewOccurrenceDate" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Time of
+                                Visit</span>
+                            <span id="reviewOccurrenceTime" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
                     </div>
-                    <div>
-                        <label style="display: block; font-size: 12px; color: #92400e; margin-bottom: 4px; font-weight: 600;">Document:</label>
-                        <p id="reviewOccurrenceDocument" style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px; background: white; padding: 12px; border-radius: 6px;">
-                            <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
-                            <span>-</span>
-                        </p>
+                </div>
+
+                <!-- Description of Events Review -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151;">
+                        <i class="fas fa-file-alt" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Description of Events
+                    </h3>
+                    <p id="reviewOccurrenceDescription"
+                        style="margin: 0; color: #1f2937; white-space: pre-wrap; background: white; padding: 12px; border-radius: 6px; font-size: 14px;">
+                        -</p>
+                </div>
+
+                <!-- Corporate Info Review (if applicable) -->
+                <div id="reviewCorporateSection"
+                    style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px; display: none;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151;">
+                        <i class="fas fa-sitemap" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Corporate Information
+                    </h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Corporate
+                                Group</span>
+                            <span id="reviewOccurrenceCorporateGroup" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 6px;">
+                            <span style="display: block; font-size: 11px; color: #6b7280; margin-bottom: 2px;">Group
+                                Type</span>
+                            <span id="reviewOccurrenceGroupType" style="font-weight: 500; color: #1f2937;">-</span>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Occurrence Document Review -->
+                <div id="reviewDocumentSection"
+                    style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px; display: none;">
+                    <h3 style="margin: 0 0 16px; font-size: 1rem; color: #374151;">
+                        <i class="fas fa-paperclip" style="color: #f59e0b; margin-right: 8px;"></i>
+                        Occurrence Document
+                    </h3>
+                    <p id="reviewOccurrenceDocument"
+                        style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px; background: white; padding: 12px; border-radius: 6px;">
+                        <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+                        <span>-</span>
+                    </p>
                 </div>
 
                 <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
                     <p style="margin: 0; color: #991b1b; font-size: 14px;">
                         <i class="fas fa-exclamation-circle" style="margin-right: 6px;"></i>
-                        Please review the information above before submitting. Once submitted, the occurrence report will be recorded.
+                        Please review the information above before submitting. Once submitted, the occurrence report
+                        will be recorded.
                     </p>
                 </div>
             </div>
@@ -1588,10 +1893,14 @@
                     <i class="fas fa-arrow-left"></i> <span id="occurrencePrevBtnText">Back to Inspection</span>
                 </button>
                 <div class="flex gap-3">
-                    <button type="button" id="occurrenceNextBtn" class="btn" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500;" onclick="changeOccurrenceStep(1)">
+                    <button type="button" id="occurrenceNextBtn" class="btn"
+                        style="background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500;"
+                        onclick="changeOccurrenceStep(1)">
                         Next <i class="fas fa-arrow-right"></i>
                     </button>
-                    <button type="button" id="occurrenceSubmitBtn" class="btn" style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600;" onclick="submitOccurrenceReport()">
+                    <button type="button" id="occurrenceSubmitBtn" class="btn"
+                        style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600;"
+                        onclick="submitOccurrenceReport()">
                         <i class="fas fa-paper-plane"></i> Submit Report
                     </button>
                 </div>
@@ -1607,7 +1916,7 @@
     <script>
         let currentStep = 1;
         const totalSteps = 5;
-        const isOccurrenceReport = {% if is_occurrence_report %}true{% else %}false{% endif %};
+        const isOccurrenceReport = {% if is_occurrence_report %}true{% else %} false{% endif %};
 
         // Track uploaded files
         const uploadedFiles = {
@@ -1621,6 +1930,46 @@
             PMP: 0,
             EGGS: 0
         };
+
+        // Add additional email field
+        let emailFieldCount = 1;
+        function addEmailField() {
+            emailFieldCount++;
+            const container = document.getElementById('emailInputsContainer');
+            const newRow = document.createElement('div');
+            newRow.className = 'email-input-row';
+            newRow.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+            newRow.innerHTML = `
+                <input type="email" name="additional_email_${emailFieldCount}" class="form-control additional-email-input"
+                    placeholder="Enter additional email..." autocomplete="new-password" style="flex: 1;">
+                <button type="button" onclick="removeEmailField(this)" class="btn btn-danger" style="padding: 8px 12px;" title="Remove this email">
+                    <i class="fas fa-minus"></i>
+                </button>
+            `;
+            container.appendChild(newRow);
+            // Ensure the new field is empty and focused
+            const newInput = newRow.querySelector('input');
+            newInput.value = '';
+            newInput.focus();
+        }
+
+        function removeEmailField(button) {
+            const row = button.closest('.email-input-row');
+            row.remove();
+        }
+
+        // Get all email values for form submission
+        function getAllEmails() {
+            const emails = [];
+            const mainEmail = document.getElementById('additional_email').value.trim();
+            if (mainEmail) emails.push(mainEmail);
+
+            document.querySelectorAll('.additional-email-input').forEach(input => {
+                const email = input.value.trim();
+                if (email) emails.push(email);
+            });
+            return emails.join(', ');
+        }
 
         function adjustCommodity(commodity, delta) {
             // Update the count
@@ -1659,6 +2008,28 @@
 
             // Regenerate internal account code when commodity changes
             generateInternalAccountCode();
+
+            // Update RFI requirement display based on commodities
+            updateRfiRequirement();
+        }
+
+        // Update RFI requirement display - required for Raw/PMP, hidden for Poultry/Eggs only
+        function updateRfiRequirement() {
+            const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
+            const rfiCard = document.getElementById('upload-rfi');
+            const rfiInfoText = document.getElementById('rfi-info-text');
+
+            if (rfiCard) {
+                if (hasRawOrPmp) {
+                    // Show RFI upload for Raw/PMP
+                    rfiCard.style.display = 'block';
+                    if (rfiInfoText) rfiInfoText.style.display = 'block';
+                } else {
+                    // Hide RFI upload completely for Poultry/Eggs only
+                    rfiCard.style.display = 'none';
+                    if (rfiInfoText) rfiInfoText.style.display = 'none';
+                }
+            }
         }
 
         function updateDecrementButtons() {
@@ -1979,34 +2350,41 @@
         }
 
         // Shared trip values (default to 1 for km and hours)
+        // Initialize with edit mode data if available
         let sharedTripData = {
-            km_traveled: 1,
-            hours: 1,
-            time_traveled: 0
+            km_traveled: parseFloat('{{ form.km_traveled.value|default:"1" }}') || 1,
+            hours: parseFloat('{{ form.hours.value|default:"1" }}') || 1,
+            time_traveled: 0  // time_traveled is not stored in database, only used in UI
         };
 
         function generateInvoiceForms() {
             const container = document.getElementById('invoiceFormsContainer');
 
-            // Shared trip info section at the top
+            // Shared trip info section at the top (order: KM, Hours Worked, Time Traveled)
             let html = `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom: 20px;">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom: 24px;">
                 <div class="form-group">
                     <label class="form-label">Kilometers Traveled <span style="color: #ef4444;">*</span></label>
-                    <input type="number" step="0.1" class="form-control" id="shared_km" placeholder="1" value="${sharedTripData.km_traveled}"
+                    <input type="number" step="0.1" class="form-control" id="shared_km" name="km_traveled" placeholder="1" value="${sharedTripData.km_traveled}"
                            onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Time Traveled (mins) <span style="color: #ef4444;">*</span></label>
-                    <input type="number" step="1" class="form-control" id="shared_time_traveled" placeholder="0" value="${sharedTripData.time_traveled || 0}"
-                           onchange="sharedTripData.time_traveled = parseFloat(this.value) || 0" required>
-                </div>
-                <div class="form-group">
                     <label class="form-label">Hours Worked <span style="color: #ef4444;">*</span></label>
-                    <input type="number" step="0.1" class="form-control" id="shared_hours" placeholder="1" value="${sharedTripData.hours}"
+                    <input type="number" step="0.5" class="form-control" id="shared_hours" name="hours" placeholder="1" value="${sharedTripData.hours}"
                            onchange="sharedTripData.hours = parseFloat(this.value) || 1" required>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Time Traveled (mins) <span style="color: #ef4444;">*</span></label>
+                    <input type="number" step="1" class="form-control" id="shared_time_traveled" name="time_traveled" placeholder="0" value="${sharedTripData.time_traveled || 0}"
+                           onchange="sharedTripData.time_traveled = parseFloat(this.value) || 0" required>
+                </div>
             </div>
+
+            <!-- Product Info Header -->
+            <h4 style="font-weight: 600; color: #1e293b; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-box" style="color: var(--primary);"></i>
+                Product Details
+            </h4>
             `;
 
             // Per-product bought sample
@@ -2152,7 +2530,7 @@
 
         // Occurrence Wizard State
         let occurrenceStep = 1;
-        const totalOccurrenceSteps = 2;
+        const totalOccurrenceSteps = 3;
         let selectedOccurrenceCommodity = '';
 
         // Open Occurrence Report Wizard
@@ -2207,8 +2585,8 @@
 
             // Reset form fields with null checks
             const fields = ['occurrenceDate', 'occurrenceClientName', 'occurrenceTown', 'occurrenceEmail',
-                           'occurrenceCorporateGroup', 'occurrenceGroupType', 'occurrenceFacilityType',
-                           'occurrenceCommodity', 'occurrenceReason'];
+                'occurrenceCorporateGroup', 'occurrenceGroupType', 'occurrenceFacilityType',
+                'occurrenceCommodity', 'occurrenceReason'];
             fields.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -2347,7 +2725,7 @@
         }
 
         // Close occurrence dropdowns when clicking outside
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const clientDropdown = document.getElementById('occurrenceClientDropdown');
             const townDropdown = document.getElementById('occurrenceTownDropdown');
             const clientInput = document.getElementById('occurrenceClientName');
@@ -2369,25 +2747,27 @@
                 return;
             }
 
-            // Validate step 1 before going to step 2
+            // Validate step 1 before going to step 2 (Facility Details)
             if (direction === 1 && occurrenceStep === 1) {
-                const date = document.getElementById('occurrenceDate').value;
-                const clientName = document.getElementById('occurrenceClientName').value.trim();
-                const town = document.getElementById('occurrenceTown').value.trim();
-                const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
-                const groupType = document.getElementById('occurrenceGroupType').value;
                 const facilityType = document.getElementById('occurrenceFacilityType').value;
-                const reason = document.getElementById('occurrenceReason').value.trim();
-                const fileInput = document.getElementById('occurrenceFile');
-                const file = fileInput.files[0];
+                const clientName = document.getElementById('occurrenceClientName').value.trim();
+                const physicalAddress = document.getElementById('occurrencePhysicalAddress').value.trim();
+                const town = document.getElementById('occurrenceTown').value.trim();
+                const date = document.getElementById('occurrenceDate').value;
+                const time = document.getElementById('occurrenceTime').value;
 
-                if (!date) {
-                    alert('Please select the date of inspection.');
+                if (!facilityType) {
+                    alert('Please select a facility type.');
                     return;
                 }
 
                 if (!clientName) {
-                    alert('Please enter the client name.');
+                    alert('Please enter the owner/manager name.');
+                    return;
+                }
+
+                if (!physicalAddress) {
+                    alert('Please enter the physical address.');
                     return;
                 }
 
@@ -2396,31 +2776,20 @@
                     return;
                 }
 
-                if (!corporateGroup) {
-                    alert('Please select a corporate group.');
+                if (!date) {
+                    alert('Please select the date of visit.');
                     return;
                 }
 
-                if (!groupType) {
-                    alert('Please select a group type.');
+                if (!time) {
+                    alert('Please enter the time of visit.');
                     return;
                 }
 
-                if (!facilityType) {
-                    alert('Please select a facility type.');
-                    return;
-                }
+            }
 
-                if (!reason) {
-                    alert('Please enter the reason/comments for the occurrence.');
-                    return;
-                }
-
-                if (!file) {
-                    alert('Please upload an occurrence document (PDF).');
-                    return;
-                }
-
+            // Validate step 2 before going to step 3 (Review)
+            if (direction === 1 && occurrenceStep === 2) {
                 // Populate review section
                 populateOccurrenceReview();
             }
@@ -2455,9 +2824,10 @@
                 }
             });
 
-            // Show/hide step content
+            // Show/hide step content (3 steps now)
             document.getElementById('occurrenceStep1').style.display = occurrenceStep === 1 ? 'block' : 'none';
             document.getElementById('occurrenceStep2').style.display = occurrenceStep === 2 ? 'block' : 'none';
+            document.getElementById('occurrenceStep3').style.display = occurrenceStep === 3 ? 'block' : 'none';
 
             // Update navigation buttons
             const prevBtnText = document.getElementById('occurrencePrevBtnText');
@@ -2465,66 +2835,123 @@
 
             document.getElementById('occurrenceNextBtn').style.display = occurrenceStep === totalOccurrenceSteps ? 'none' : 'inline-flex';
             document.getElementById('occurrenceSubmitBtn').style.display = occurrenceStep === totalOccurrenceSteps ? 'inline-flex' : 'none';
+
+            // Scroll to top of page when changing steps
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // Populate the review section
         function populateOccurrenceReview() {
-            const date = document.getElementById('occurrenceDate').value;
-            const clientName = document.getElementById('occurrenceClientName').value.trim();
-            const town = document.getElementById('occurrenceTown').value.trim();
-            const email = document.getElementById('occurrenceEmail').value.trim();
-            const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
-            const groupType = document.getElementById('occurrenceGroupType').value;
+            // Step 1: Facility Details
             const facilityType = document.getElementById('occurrenceFacilityType').value;
-            const reason = document.getElementById('occurrenceReason').value.trim();
+            const clientName = document.getElementById('occurrenceClientName').value.trim();
+            const registrationCode = document.getElementById('occurrenceRegistrationCode').value.trim();
+            const physicalAddress = document.getElementById('occurrencePhysicalAddress').value.trim();
+            const town = document.getElementById('occurrenceTown').value.trim();
+            const telephone = document.getElementById('occurrenceTelephone').value.trim();
+            const email = document.getElementById('occurrenceEmail').value.trim();
+            const date = document.getElementById('occurrenceDate').value;
+            const time = document.getElementById('occurrenceTime').value;
+            const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
+            let groupType = document.getElementById('occurrenceGroupType').value;
+
+            // Default Group Type to "Individual / Independent Owner" if left blank
+            if (!groupType) {
+                groupType = 'Individual / Independent Owner';
+            }
+
+            // Step 2: Findings
+            const description = document.getElementById('occurrenceDescription').value.trim();
             const fileInput = document.getElementById('occurrenceFile');
             const file = fileInput.files[0];
 
-            // Format date for display
+            // Format dates for display
             const formattedDate = date ? new Date(date).toLocaleDateString('en-ZA') : '-';
+            const formattedTime = time || '-';
 
-            document.getElementById('reviewOccurrenceDate').textContent = formattedDate;
-            document.getElementById('reviewOccurrenceClient').textContent = clientName || '-';
-            document.getElementById('reviewOccurrenceTown').textContent = town || '-';
-            document.getElementById('reviewOccurrenceEmail').textContent = email || '-';
-            document.getElementById('reviewOccurrenceCorporateGroup').textContent = corporateGroup || '-';
-            document.getElementById('reviewOccurrenceGroupType').textContent = groupType || '-';
+            // Facility Information
             document.getElementById('reviewOccurrenceFacilityType').textContent = facilityType || '-';
-            document.getElementById('reviewOccurrenceReason').textContent = reason || '-';
-            document.getElementById('reviewOccurrenceDocument').innerHTML = file
-                ? '<i class="fas fa-file-pdf" style="color: #ef4444;"></i> <span>' + file.name + '</span>'
-                : '<span style="color: #9ca3af;">No document uploaded</span>';
+            document.getElementById('reviewOccurrenceClient').textContent = clientName || '-';
+            document.getElementById('reviewOccurrenceRegistrationCode').textContent = registrationCode || 'N/A';
+            document.getElementById('reviewOccurrenceAddress').textContent = physicalAddress || '-';
+            document.getElementById('reviewOccurrenceTown').textContent = town || '-';
+            document.getElementById('reviewOccurrenceTelephone').textContent = telephone || '-';
+            document.getElementById('reviewOccurrenceEmail').textContent = email || '-';
+
+            // Visit Details
+            document.getElementById('reviewOccurrenceDate').textContent = formattedDate;
+            document.getElementById('reviewOccurrenceTime').textContent = formattedTime;
+
+            // Description of Events
+            document.getElementById('reviewOccurrenceDescription').textContent = description || '-';
+
+            // Corporate Information (show section if values exist)
+            const corporateSection = document.getElementById('reviewCorporateSection');
+            if (corporateGroup || groupType) {
+                corporateSection.style.display = 'block';
+                document.getElementById('reviewOccurrenceCorporateGroup').textContent = corporateGroup || '-';
+                document.getElementById('reviewOccurrenceGroupType').textContent = groupType || '-';
+            } else {
+                corporateSection.style.display = 'none';
+            }
+
+            // Occurrence Document (required - always show)
+            const documentSection = document.getElementById('reviewDocumentSection');
+            documentSection.style.display = 'block';
+            if (file) {
+                document.getElementById('reviewOccurrenceDocument').innerHTML = '<i class="fas fa-file-pdf" style="color: #22c55e;"></i> <span>' + file.name + '</span>';
+            } else {
+                document.getElementById('reviewOccurrenceDocument').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> <span style="color: #ef4444;">No document uploaded (Required)</span>';
+            }
         }
 
         // Submit occurrence report
         function submitOccurrenceReport() {
-            const date = document.getElementById('occurrenceDate').value;
+            // Step 1: Facility Details
+            const facilityType = document.getElementById('occurrenceFacilityType').value;
             const clientName = document.getElementById('occurrenceClientName').value.trim();
+            const registrationCode = document.getElementById('occurrenceRegistrationCode').value.trim();
+            const physicalAddress = document.getElementById('occurrencePhysicalAddress').value.trim();
             const town = document.getElementById('occurrenceTown').value.trim();
+            const telephone = document.getElementById('occurrenceTelephone').value.trim();
             const email = document.getElementById('occurrenceEmail').value.trim();
+            const date = document.getElementById('occurrenceDate').value;
+            const time = document.getElementById('occurrenceTime').value;
             const accountCode = document.getElementById('occurrenceAccountCode').value.trim();
             const corporateGroup = document.getElementById('occurrenceCorporateGroup').value;
-            const groupType = document.getElementById('occurrenceGroupType').value;
-            const facilityType = document.getElementById('occurrenceFacilityType').value;
-            const reason = document.getElementById('occurrenceReason').value.trim();
+            let groupType = document.getElementById('occurrenceGroupType').value;
+
+            // Default Group Type to "Individual / Independent Owner" if left blank
+            if (!groupType) {
+                groupType = 'Individual / Independent Owner';
+            }
+
+            // Step 2: Findings
+            const description = document.getElementById('occurrenceDescription').value.trim();
             const fileInput = document.getElementById('occurrenceFile');
             const file = fileInput.files[0];
 
-            // Get inspector name from main form
-            const inspectorName = document.getElementById('inspector_name')?.value || '{{ default_inspector }}';
+            // Validate that occurrence document is uploaded (required)
+            if (!file) {
+                alert('Please upload an occurrence document. This field is required.');
+                return;
+            }
 
             // Create FormData for upload
             const formData = new FormData();
             formData.append('date_of_inspection', date);
+            formData.append('time_of_inspection', time);
             formData.append('client_name', clientName);
+            formData.append('registration_code', registrationCode);
+            formData.append('physical_address', physicalAddress);
             formData.append('town', town);
+            formData.append('telephone', telephone);
             formData.append('email', email);
             formData.append('internal_account_code', accountCode);
-            formData.append('inspector_name', inspectorName);
             formData.append('corporate_group', corporateGroup);
             formData.append('group_type', groupType);
             formData.append('facility_type', facilityType);
-            formData.append('reason', reason);
+            formData.append('description', description);
             formData.append('document_type', 'occurrence');
             formData.append('is_occurrence_report', 'true');
 
@@ -2556,35 +2983,176 @@
                     'X-CSRFToken': csrfToken
                 }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    alert('Occurrence report submitted successfully!');
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        alert('Occurrence report submitted successfully!');
 
-                    // Close wizard and go back to inspection form
-                    closeOccurrenceWizard();
-
-                    // Change the Occurrence Report button to green to indicate success
-                    const occurrenceBtn = document.getElementById('occurrenceBtn');
-                    if (occurrenceBtn) {
-                        occurrenceBtn.style.background = '#22c55e';
-                        occurrenceBtn.innerHTML = '<i class="fas fa-check"></i> Occurrence Submitted';
-                        occurrenceBtn.onmouseenter = function() { this.style.background = '#16a34a'; };
-                        occurrenceBtn.onmouseleave = function() { this.style.background = '#22c55e'; };
+                        // Redirect to inspection list page
+                        window.location.href = '/inspections/';
+                    } else {
+                        alert('Error submitting occurrence report: ' + (data.error || 'Unknown error'));
                     }
-                } else {
-                    alert('Error submitting occurrence report: ' + (data.error || 'Unknown error'));
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error submitting occurrence report. Please try again.');
+                })
+                .finally(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+        }
+
+        // ============== Findings Table Functions ==============
+        let findingRowCount = 1;
+
+        function addFindingRow() {
+            findingRowCount++;
+            const tbody = document.getElementById('findingsTableBody');
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-finding-row', findingRowCount);
+            newRow.innerHTML = `
+                <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center; background: #f9fafb; font-weight: 500;">${findingRowCount}</td>
+                <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                    <textarea class="finding-description" rows="2" placeholder="Describe the finding..." style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; resize: vertical; box-sizing: border-box;"></textarea>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">
+                    <button type="button" onclick="removeFindingRow(this)" style="background: #fee2e2; color: #dc2626; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+            updateFindingRowNumbers();
+        }
+
+        function removeFindingRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('findingsTableBody');
+            if (tbody.children.length > 1) {
+                row.remove();
+                updateFindingRowNumbers();
+            }
+        }
+
+        function updateFindingRowNumbers() {
+            const rows = document.querySelectorAll('#findingsTableBody tr');
+            rows.forEach((row, index) => {
+                const numCell = row.querySelector('td:first-child');
+                if (numCell) {
+                    numCell.textContent = index + 1;
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error submitting occurrence report. Please try again.');
-            })
-            .finally(() => {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
+                // Enable/disable remove button
+                const removeBtn = row.querySelector('button');
+                if (removeBtn) {
+                    removeBtn.disabled = rows.length === 1;
+                }
             });
+            findingRowCount = rows.length;
+        }
+
+        // ============== Signature Canvas Functions ==============
+        let signatureCanvases = {};
+
+        function initSignatureCanvases() {
+            ['inspector', 'manager'].forEach(type => {
+                const canvas = document.getElementById(type + 'SignatureCanvas');
+                if (canvas && !signatureCanvases[type]) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.strokeStyle = '#1f2937';
+                    ctx.lineWidth = 2;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+
+                    let isDrawing = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    const getCoordinates = (e) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        if (e.touches && e.touches.length > 0) {
+                            return {
+                                x: (e.touches[0].clientX - rect.left) * scaleX,
+                                y: (e.touches[0].clientY - rect.top) * scaleY
+                            };
+                        }
+                        return {
+                            x: (e.clientX - rect.left) * scaleX,
+                            y: (e.clientY - rect.top) * scaleY
+                        };
+                    };
+
+                    const startDrawing = (e) => {
+                        e.preventDefault();
+                        isDrawing = true;
+                        const coords = getCoordinates(e);
+                        lastX = coords.x;
+                        lastY = coords.y;
+                    };
+
+                    const draw = (e) => {
+                        if (!isDrawing) return;
+                        e.preventDefault();
+                        const coords = getCoordinates(e);
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                        ctx.lineTo(coords.x, coords.y);
+                        ctx.stroke();
+                        lastX = coords.x;
+                        lastY = coords.y;
+                    };
+
+                    const stopDrawing = () => {
+                        isDrawing = false;
+                    };
+
+                    // Mouse events
+                    canvas.addEventListener('mousedown', startDrawing);
+                    canvas.addEventListener('mousemove', draw);
+                    canvas.addEventListener('mouseup', stopDrawing);
+                    canvas.addEventListener('mouseout', stopDrawing);
+
+                    // Touch events
+                    canvas.addEventListener('touchstart', startDrawing);
+                    canvas.addEventListener('touchmove', draw);
+                    canvas.addEventListener('touchend', stopDrawing);
+
+                    signatureCanvases[type] = { canvas, ctx };
+                }
+            });
+        }
+
+        function clearSignature(type) {
+            const canvas = document.getElementById(type + 'SignatureCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function getSignatureData(type) {
+            const canvas = document.getElementById(type + 'SignatureCanvas');
+            if (canvas) {
+                // Check if canvas has any drawing
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                let hasDrawing = false;
+                for (let i = 3; i < data.length; i += 4) {
+                    if (data[i] > 0) {
+                        hasDrawing = true;
+                        break;
+                    }
+                }
+                if (hasDrawing) {
+                    return canvas.toDataURL('image/png');
+                }
+            }
+            return null;
         }
 
         // Handle file selection for occurrence
@@ -2654,6 +3222,10 @@
                 }
             } else {
                 // Regular inspection flow
+                // Check if only Poultry/Eggs (no Raw/PMP) - skip Documents step
+                const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
+                const skipDocumentsStep = !hasRawOrPmp;
+
                 // Validation for step 1
                 if (direction === 1 && currentStep === 1) {
                     if (!validateStep1()) {
@@ -2679,14 +3251,35 @@
                 currentStep += direction;
                 if (currentStep < 1) currentStep = 1;
                 if (currentStep > totalSteps) currentStep = totalSteps;
+
+                // Skip Documents step (4) for Poultry/Eggs only
+                if (skipDocumentsStep) {
+                    if (direction === 1 && currentStep === 4) {
+                        currentStep = 5; // Skip to Review
+                    } else if (direction === -1 && currentStep === 4) {
+                        currentStep = 3; // Skip back to Invoice Info
+                    }
+                }
             }
+
+            // Check if Documents step should be hidden
+            const hasRawOrPmpForUI = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
 
             // Update steps UI
             document.querySelectorAll('.step').forEach((step, index) => {
+                const stepNum = index + 1;
                 step.classList.remove('active', 'completed');
-                if (index + 1 < currentStep) {
+
+                // Hide Documents step (4) for Poultry/Eggs only
+                if (stepNum === 4 && !hasRawOrPmpForUI) {
+                    step.style.display = 'none';
+                } else {
+                    step.style.display = 'flex';
+                }
+
+                if (stepNum < currentStep) {
                     step.classList.add('completed');
-                } else if (index + 1 === currentStep) {
+                } else if (stepNum === currentStep) {
                     step.classList.add('active');
                 }
             });
@@ -2706,8 +3299,44 @@
 
             // Update review on last step
             if (currentStep === totalSteps) {
+                // Sync shared trip data into products before showing review
+                syncSharedTripDataToProducts();
                 updateReview();
             }
+
+            // Scroll to top of page when changing steps
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Sync shared trip data (km, hours, time) into each product
+        function syncSharedTripDataToProducts() {
+            const kmInput = document.getElementById('shared_km');
+            const hoursInput = document.getElementById('shared_hours');
+            const timeInput = document.getElementById('shared_time_traveled');
+
+            const kmValue = kmInput ? (parseFloat(kmInput.value) || 1) : (sharedTripData.km_traveled || 1);
+            const hoursValue = hoursInput ? (parseFloat(hoursInput.value) || 1) : (sharedTripData.hours || 1);
+            const timeValue = timeInput ? (parseFloat(timeInput.value) || 0) : (sharedTripData.time_traveled || 0);
+
+            // Update sharedTripData object
+            sharedTripData.km_traveled = kmValue;
+            sharedTripData.hours = hoursValue;
+            sharedTripData.time_traveled = timeValue;
+
+            // Copy into each product
+            productsData.forEach((product) => {
+                product.km_traveled = kmValue;
+                product.hours = hoursValue;
+                product.time_traveled = timeValue;
+            });
+
+            // Update the hidden input
+            const productsDataInput = document.getElementById('productsData');
+            if (productsDataInput) {
+                productsDataInput.value = JSON.stringify(productsData);
+            }
+
+            console.log('Synced trip data to products:', { km: kmValue, hours: hoursValue, time: timeValue });
         }
 
         // ===== FILE UPLOAD FUNCTIONS =====
@@ -2769,11 +3398,21 @@
 
         function updateDocumentReview() {
             const reviewEl = document.getElementById('review-rfi');
-            console.log('📄 updateDocumentReview called, uploadedFiles.rfi:', uploadedFiles.rfi);
+            const reviewDocsSection = document.getElementById('reviewDocuments')?.parentElement;
+            const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
+            const rfiRequired = hasRawOrPmp;
+
             if (reviewEl) {
                 const hasFile = uploadedFiles.rfi !== null || editModeData.existingFiles.rfi;
-                console.log('📄 hasFile:', hasFile, 'rfi:', uploadedFiles.rfi, 'existingFiles.rfi:', editModeData.existingFiles.rfi);
-                if (hasFile) {
+
+                if (!rfiRequired) {
+                    // Hide RFI review completely for Poultry/Eggs only
+                    reviewEl.style.display = 'none';
+                    // Hide the entire documents section if no RFI needed
+                    if (reviewDocsSection) reviewDocsSection.style.display = 'none';
+                } else if (hasFile) {
+                    reviewEl.style.display = 'flex';
+                    if (reviewDocsSection) reviewDocsSection.style.display = 'block';
                     const fileName = uploadedFiles.rfi ? uploadedFiles.rfi.name : 'Previously uploaded';
                     reviewEl.innerHTML = `
                         <i class="fas fa-check-circle text-green-500"></i>
@@ -2782,9 +3421,12 @@
                     reviewEl.style.background = '#f0fdf4';
                     reviewEl.style.borderColor = '#10b981';
                 } else {
+                    // RFI required but not uploaded
+                    reviewEl.style.display = 'flex';
+                    if (reviewDocsSection) reviewDocsSection.style.display = 'block';
                     reviewEl.innerHTML = `
                         <i class="fas fa-times-circle text-red-500"></i>
-                        <span>RFI: Not uploaded</span>
+                        <span>RFI: Not uploaded (Required)</span>
                     `;
                     reviewEl.style.background = '#fef2f2';
                     reviewEl.style.borderColor = '#ef4444';
@@ -2830,8 +3472,8 @@
                 if (occurrenceBtn) {
                     occurrenceBtn.style.background = '#22c55e';
                     occurrenceBtn.innerHTML = '<i class="fas fa-check"></i> Occurrence Submitted';
-                    occurrenceBtn.onmouseenter = function() { this.style.background = '#16a34a'; };
-                    occurrenceBtn.onmouseleave = function() { this.style.background = '#22c55e'; };
+                    occurrenceBtn.onmouseenter = function () { this.style.background = '#16a34a'; };
+                    occurrenceBtn.onmouseleave = function () { this.style.background = '#22c55e'; };
                 }
             }
         }
@@ -2883,8 +3525,10 @@
                 missingFields.push('Facility Type');
             }
 
-            // Check RFI document (required, but skip if editing with existing file or for occurrence reports)
-            if (!isOccurrenceReport && !uploadedFiles.rfi && !(editModeData.isEditMode && editModeData.existingFiles.rfi)) {
+            // Check RFI document - only required for RAW or PMP commodities (not for Poultry/Eggs only)
+            const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
+            const rfiRequired = hasRawOrPmp && !isOccurrenceReport;
+            if (rfiRequired && !uploadedFiles.rfi && !(editModeData.isEditMode && editModeData.existingFiles.rfi)) {
                 missingFields.push('RFI Document');
             }
 
@@ -2947,7 +3591,7 @@
 
             if (dateEl) dateEl.textContent = document.querySelector('[name="date_of_inspection"]')?.value || '-';
             if (clientEl) clientEl.textContent = document.querySelector('[name="client_name"]')?.value || '-';
-            if (emailEl) emailEl.textContent = document.getElementById('additional_email')?.value || '-';
+            if (emailEl) emailEl.textContent = getAllEmails() || '-';
 
             // Corporate Group
             const corporateGroupSelect = document.getElementById('corporate_group');
@@ -3009,14 +3653,17 @@
         // Client data from database - Enhanced with all searchable fields including town
         const clientsData = [
             {% for client in clients %}
-            {
-                name: "{{ client.name|escapejs }}",
-                code: "{{ client.internal_account_code|default:''|escapejs }}",
-                client_id: "{{ client.client_id|default:''|escapejs }}",
-                email: "{{ client.email|default:''|escapejs }}",
-                town: "{{ client.town|default:''|escapejs }}"
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
+        {
+            name: "{{ client.name|escapejs }}",
+            code: "{{ client.internal_account_code|default:''|escapejs }}",
+            client_id: "{{ client.client_id|default:''|escapejs }}",
+            email: "{{ client.email|default:''|escapejs }}",
+            town: "{{ client.town|default:''|escapejs }}",
+            corporate_group: "{{ client.corporate_group|default:''|escapejs }}",
+            group_type: "{{ client.group_type|default:''|escapejs }}",
+            facility_type: "{{ client.facility_type|default:''|escapejs }}"
+        } {% if not forloop.last %}, {% endif %}
+        {% endfor %}
         ];
 
         // Client autocomplete functionality - Enhanced search
@@ -3025,7 +3672,7 @@
         const accountCodeInput = document.getElementById('internal_account_code');
         let highlightedIndex = -1;
 
-        clientInput.addEventListener('input', function() {
+        clientInput.addEventListener('input', function () {
             const query = this.value.toLowerCase().trim();
 
             if (query.length === 0) {
@@ -3060,8 +3707,9 @@
                 displayMatches.forEach((client, index) => {
                     const townInfo = client.town ? ` <span style="color: #6b7280; font-size: 12px;">(${client.town})</span>` : '';
                     html += `
-                        <div class="client-dropdown-item" data-name="${client.name}" data-code="${client.code}" data-town="${client.town}" data-client-id="${client.client_id}" data-index="${index}">
+                        <div class="client-dropdown-item" data-name="${client.name}" data-code="${client.code || ''}" data-town="${client.town || ''}" data-client-id="${client.client_id || ''}" data-email="${client.email || ''}" data-corporate-group="${client.corporate_group || ''}" data-group-type="${client.group_type || ''}" data-facility-type="${client.facility_type || ''}" data-index="${index}">
                             <div class="client-name">${highlightMatch(client.name, query)}${townInfo}</div>
+                            ${client.email ? `<div style="font-size: 11px; color: #3b82f6;"><i class="fas fa-envelope" style="margin-right: 4px;"></i>${client.email}</div>` : ''}
                         </div>
                     `;
                 });
@@ -3075,7 +3723,7 @@
             const exactMatch = clientsData.some(c => c.name.toLowerCase() === query);
             if (!exactMatch && query.length > 0) {
                 html += `
-                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-code="" data-town="" data-client-id="" data-index="${matches.length}">
+                    <div class="client-dropdown-item new-client" data-name="${this.value}" data-code="" data-town="" data-client-id="" data-email="" data-corporate-group="" data-group-type="" data-facility-type="" data-index="${matches.length}">
                         <i class="fas fa-plus-circle add-icon"></i>
                         <span class="client-name">Add "${this.value}" as new client</span>
                     </div>
@@ -3092,8 +3740,8 @@
 
             // Add click handlers
             clientDropdown.querySelectorAll('.client-dropdown-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    selectClient(this.dataset.name, this.dataset.code, this.dataset.town, this.dataset.clientId);
+                item.addEventListener('click', function () {
+                    selectClient(this.dataset.name, this.dataset.code, this.dataset.town, this.dataset.clientId, this.dataset.email, this.dataset.corporateGroup, this.dataset.groupType, this.dataset.facilityType);
                 });
             });
         });
@@ -3105,7 +3753,7 @@
             return text.replace(regex, '<span class="search-match">$1</span>');
         }
 
-        function selectClient(name, code, town, clientId) {
+        function selectClient(name, code, town, clientId, email, corporateGroup, groupType, facilityType) {
             clientInput.value = name;
             accountCodeInput.value = code || '';
             clientDropdown.style.display = 'none';
@@ -3133,6 +3781,55 @@
                 }
             }
 
+            // Auto-populate email if available (remains editable)
+            const emailInput = document.getElementById('additional_email');
+            if (emailInput && email && email.trim() !== '') {
+                emailInput.value = email;
+                // Brief highlight to show it was auto-filled
+                emailInput.style.backgroundColor = '#d1fae5';
+                emailInput.style.transition = 'background-color 0.5s ease';
+                setTimeout(() => {
+                    emailInput.style.backgroundColor = '';
+                }, 1500);
+            }
+
+            // Auto-populate corporate group if available
+            const corporateGroupSelect = document.getElementById('corporate_group');
+            if (corporateGroupSelect && corporateGroup && corporateGroup.trim() !== '') {
+                // Try to find matching option
+                const options = corporateGroupSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === corporateGroup.toLowerCase()) {
+                        corporateGroupSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Auto-populate group type if available
+            const groupTypeSelect = document.getElementById('group_type');
+            if (groupTypeSelect && groupType && groupType.trim() !== '') {
+                const options = groupTypeSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === groupType.toLowerCase()) {
+                        groupTypeSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Auto-populate facility type if available
+            const facilityTypeSelect = document.getElementById('facility_type');
+            if (facilityTypeSelect && facilityType && facilityType.trim() !== '') {
+                const options = facilityTypeSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === facilityType.toLowerCase()) {
+                        facilityTypeSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
             // Validate step 1 after selection
             validateStep1();
 
@@ -3141,7 +3838,7 @@
         }
 
         // Keyboard navigation
-        clientInput.addEventListener('keydown', function(e) {
+        clientInput.addEventListener('keydown', function (e) {
             const items = clientDropdown.querySelectorAll('.client-dropdown-item');
 
             if (e.key === 'ArrowDown') {
@@ -3156,7 +3853,7 @@
                 e.preventDefault();
                 const item = items[highlightedIndex];
                 if (item) {
-                    selectClient(item.dataset.name, item.dataset.code, item.dataset.town, item.dataset.clientId);
+                    selectClient(item.dataset.name, item.dataset.code, item.dataset.town, item.dataset.clientId, item.dataset.email, item.dataset.corporateGroup, item.dataset.groupType, item.dataset.facilityType);
                 }
             } else if (e.key === 'Escape') {
                 clientDropdown.style.display = 'none';
@@ -3170,14 +3867,14 @@
         }
 
         // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!e.target.closest('.client-search-container')) {
                 clientDropdown.style.display = 'none';
             }
         });
 
         // Show dropdown on focus if there's text
-        clientInput.addEventListener('focus', function() {
+        clientInput.addEventListener('focus', function () {
             if (this.value.length > 0) {
                 this.dispatchEvent(new Event('input'));
             }
@@ -3186,15 +3883,15 @@
         // ===== TOWN AUTOCOMPLETE =====
         const townsData = [
             {% for town in towns %}
-            "{{ town|escapejs }}"{% if not forloop.last %},{% endif %}
-            {% endfor %}
+        "{{ town|escapejs }}"{% if not forloop.last %}, {% endif %}
+        {% endfor %}
         ];
 
         const townInput = document.getElementById('town_input');
         const townDropdown = document.getElementById('townDropdown');
         let townHighlightedIndex = -1;
 
-        townInput.addEventListener('input', function() {
+        townInput.addEventListener('input', function () {
             const query = this.value.toLowerCase().trim();
 
             if (query.length === 0) {
@@ -3255,7 +3952,7 @@
 
             // Add click handlers
             townDropdown.querySelectorAll('.client-dropdown-item').forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function () {
                     selectTown(this.dataset.name);
                 });
             });
@@ -3267,7 +3964,7 @@
         }
 
         // Keyboard navigation for town
-        townInput.addEventListener('keydown', function(e) {
+        townInput.addEventListener('keydown', function (e) {
             const items = townDropdown.querySelectorAll('.client-dropdown-item');
 
             if (e.key === 'ArrowDown') {
@@ -3296,14 +3993,14 @@
         }
 
         // Close town dropdown when clicking outside
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!e.target.closest('.town-search-container')) {
                 townDropdown.style.display = 'none';
             }
         });
 
         // Show town dropdown on focus if there's text
-        townInput.addEventListener('focus', function() {
+        townInput.addEventListener('focus', function () {
             if (this.value.length > 0) {
                 this.dispatchEvent(new Event('input'));
             }
@@ -3485,11 +4182,21 @@
                 labForm: '{{ inspection.lab_form_uploaded_date|default:"" }}' !== '',
                 composition: '{{ inspection.composition_uploaded_date|default:"" }}' !== '',
                 occurrence: '{{ inspection.occurrence_uploaded_date|default:"" }}' !== ''
+            },
+            // Commodity counts from all related inspections
+            commodityCounts: {
+                POULTRY: {{ commodity_counts.POULTRY|default:0 }},
+                RAW: {{ commodity_counts.RAW|default:0 }},
+                PMP: {{ commodity_counts.PMP|default:0 }},
+                EGGS: {{ commodity_counts.EGGS|default:0 }}
             }
         };
 
         // Set initial commodity if editing
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+            // Scroll to top when page loads/refreshes
+            window.scrollTo(0, 0);
+
             // Initialize decrement buttons as disabled (all counts start at 0)
             updateDecrementButtons();
 
@@ -3531,10 +4238,26 @@
                     townInput.value = editModeData.town;
                 }
 
-                // Pre-populate email
+                // Pre-populate email - split comma-separated emails into separate fields
                 const emailInput = document.getElementById('additional_email');
                 if (emailInput && editModeData.additionalEmail) {
-                    emailInput.value = editModeData.additionalEmail;
+                    // Split comma-separated emails
+                    const emailList = editModeData.additionalEmail.split(',').map(e => e.trim()).filter(e => e);
+
+                    if (emailList.length > 0) {
+                        // Set first email in main field
+                        emailInput.value = emailList[0];
+
+                        // Add additional fields for remaining emails
+                        for (let i = 1; i < emailList.length; i++) {
+                            addEmailField();
+                            // Find the last added email input and set its value
+                            const allEmailInputs = document.querySelectorAll('.additional-email-input');
+                            if (allEmailInputs.length >= i) {
+                                allEmailInputs[i - 1].value = emailList[i];
+                            }
+                        }
+                    }
                 }
 
                 // Pre-populate classification dropdowns
@@ -3558,18 +4281,27 @@
                     inspectorInput.value = editModeData.inspectorName;
                 }
 
-                // Pre-populate commodity from existing inspection
-                const inspectionCommodity = editModeData.commodity;
-                if (inspectionCommodity && commoditySelections[inspectionCommodity] !== undefined) {
-                    commoditySelections[inspectionCommodity] = 1;
-                    const countEl = document.querySelector('.commodity-count[data-commodity="' + inspectionCommodity + '"]');
-                    if (countEl) {
-                        countEl.textContent = '1';
+                // Pre-populate commodity counts from all related inspections
+                const commodityCounts = editModeData.commodityCounts;
+                let hasAnyCommodity = false;
+
+                // Set counts for all commodities from related inspections
+                for (const [commodity, count] of Object.entries(commodityCounts)) {
+                    if (count > 0 && commoditySelections[commodity] !== undefined) {
+                        hasAnyCommodity = true;
+                        commoditySelections[commodity] = count;
+                        const countEl = document.querySelector('.commodity-count[data-commodity="' + commodity + '"]');
+                        if (countEl) {
+                            countEl.textContent = count.toString();
+                        }
+                        const card = document.querySelector('.commodity-card[data-value="' + commodity + '"]');
+                        if (card) {
+                            card.classList.add('selected');
+                        }
                     }
-                    const card = document.querySelector('.commodity-card[data-value="' + inspectionCommodity + '"]');
-                    if (card) {
-                        card.classList.add('selected');
-                    }
+                }
+
+                if (hasAnyCommodity) {
                     updateDecrementButtons();
 
                     // Generate product forms for edit mode
@@ -3578,7 +4310,7 @@
                     }
 
                     // Pre-populate product details after forms are generated
-                    setTimeout(function() {
+                    setTimeout(function () {
                         // Product name
                         const productNameInput = document.querySelector('[name="product_name"]');
                         if (productNameInput) productNameInput.value = editModeData.productName;
@@ -3639,7 +4371,7 @@
                     }, 100);
                 } else {
                     // Even without commodity, populate other fields (occurrence reports)
-                    setTimeout(function() {
+                    setTimeout(function () {
                         const commentInput = document.querySelector('[name="comment"]');
                         if (commentInput && editModeData.comment) {
                             commentInput.value = editModeData.comment;
@@ -3688,20 +4420,25 @@
             validateStep1();
 
             // Clear storage and set defaults on form submission
-            form.addEventListener('submit', function(e) {
-                // Set default values for empty numeric fields
-                const boughtSample = form.querySelector('[name="bought_sample"]');
-                const kmTraveled = form.querySelector('[name="km_traveled"]');
-                const hours = form.querySelector('[name="hours"]');
+            form.addEventListener('submit', function (e) {
+                // Sync shared trip data (km, hours, time) into products before submit
+                syncSharedTripDataToProducts();
 
-                if (boughtSample && !boughtSample.value) {
-                    boughtSample.value = '0';
+                // Combine all email fields into the main additional_email field
+                const mainEmailField = document.getElementById('additional_email');
+                const allEmails = getAllEmails();
+                console.log('[FORM SUBMIT DEBUG] All emails collected:', allEmails);
+                console.log('[FORM SUBMIT DEBUG] Number of email inputs found:', document.querySelectorAll('.additional-email-input').length);
+                console.log('[FORM SUBMIT DEBUG] Main email field value before:', mainEmailField ? mainEmailField.value : 'NULL');
+                if (mainEmailField) {
+                    mainEmailField.value = allEmails;
+                    console.log('[FORM SUBMIT DEBUG] Main email field value after:', mainEmailField.value);
                 }
-                if (kmTraveled && !kmTraveled.value) {
-                    kmTraveled.value = '0';
-                }
-                if (hours && !hours.value) {
-                    hours.value = '0';
+
+                // Default Group Type to "Individual / Independent Owner" if left blank
+                const groupTypeField = document.getElementById('group_type');
+                if (groupTypeField && !groupTypeField.value) {
+                    groupTypeField.value = 'Individual / Independent Owner';
                 }
 
                 clearFormStorage();
@@ -3716,10 +4453,16 @@
 
         // Override changeStep to also save to storage
         const originalChangeStepFunc = changeStep;
-        changeStep = function(direction) {
+        changeStep = function (direction) {
             originalChangeStepFunc(direction);
             saveFormToStorage();
         };
+
+        // Also scroll to top when page is shown from cache (back button)
+        window.addEventListener('pageshow', function (event) {
+            window.scrollTo(0, 0);
+        });
     </script>
 </body>
+
 </html>

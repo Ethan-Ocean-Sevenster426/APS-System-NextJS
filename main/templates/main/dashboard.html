@@ -457,7 +457,7 @@
             <a href="{% url 'client_allocation' %}" class="btn btn-primary">
                 <i class="fas fa-database"></i> Google Sheets Data
             </a>
-            {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+            {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
             <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
                 <i class="fas fa-file-export"></i> Export Sheet
             </a>

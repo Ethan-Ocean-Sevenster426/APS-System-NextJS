@@ -87,8 +87,8 @@ def inspector_only_inspections(view_func):
         
         user_role = getattr(request.user, 'role', 'inspector')
         
-        # If user is an inspector or scientist (lab technician), redirect to inspections page
-        if user_role == 'inspector' or user_role == 'scientist':
+        # If user is an inspector or lab technician, redirect to inspections page
+        if user_role == 'inspector' or user_role == 'lab_technician':
             role_display = "Inspector" if user_role == 'inspector' else "Lab Technician"
             return redirect('shipment_list')
         
@@ -98,51 +98,58 @@ def inspector_only_inspections(view_func):
     return _wrapped_view
 
 
-def scientist_only(view_func):
+def lab_technician_only(view_func):
     """
-    Decorator to restrict access to scientist features only.
-    Only scientist, admin, and super_admin roles can access.
+    Decorator to restrict access to lab technician features only.
+    Only lab_technician, admin, super_admin, and developer roles can access.
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        
+
         user_role = getattr(request.user, 'role', 'inspector')
-        allowed_roles = ['scientist', 'admin', 'super_admin']
-        
+        allowed_roles = ['lab_technician', 'admin', 'super_admin', 'developer']
+
         if user_role in allowed_roles:
             return view_func(request, *args, **kwargs)
         else:
             return redirect('home')
-    
+
     return _wrapped_view
 
+# Alias for backwards compatibility
+scientist_only = lab_technician_only
 
-def no_inspector_scientist(view_func):
+
+def no_inspector_lab_tech(view_func):
     """
-    Decorator to block inspector and scientist access to specific functions.
-    Used for functions that should only be accessible by admin, super_admin, developer, and financial roles.
+    Decorator to block inspector and lab technician access to specific functions.
+    Used for functions that should only be accessible by admin, super_admin, and developer roles.
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        
+
         user_role = getattr(request.user, 'role', 'inspector')
-        
-        # Block inspectors and scientists from accessing this function
-        if user_role in ['inspector', 'scientist']:
+
+        # Block inspectors and lab technicians from accessing this function
+        if user_role in ['inspector', 'lab_technician']:
             from django.http import JsonResponse
             return JsonResponse({
-                'success': False, 
-                'error': f'Access denied: {user_role.title()}s cannot perform this action'
+                'success': False,
+                'error': f'Access denied: {user_role.replace("_", " ").title()}s cannot perform this action'
             })
-        
+
         # Allow access for all other roles
         return view_func(request, *args, **kwargs)
-    
+
     return _wrapped_view
+
+# Alias for backwards compatibility
+no_inspector_scientist = no_inspector_lab_tech
+
 
 def ratelimit(max_attempts=5, window_seconds=300, block_duration=900):
     """

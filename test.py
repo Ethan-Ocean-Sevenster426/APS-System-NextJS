@@ -1,208 +1,110 @@
-"""
-Test script to verify file detection for button colors
-"""
 import os
 import sys
-import re
-from datetime import date
-
-# Setup Django
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
-
 import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 django.setup()
 
-from django.conf import settings
-from django.core.cache import cache
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+import random
 
-# Clear all caches first
-print("=" * 60)
-print("CLEARING ALL CACHES")
-print("=" * 60)
-cache.clear()
-print("Django cache cleared!")
+User = get_user_model()
 
-# Test configuration
-CLIENT_NAME = 'Chicken King Farms'
-INSPECTION_DATE = date(2026, 1, 6)
+def create_inspector_mapping():
+    """Create InspectorMapping for test_inspector"""
+    from main.models import InspectorMapping
 
-print("\n" + "=" * 60)
-print(f"TESTING FILE DETECTION FOR: {CLIENT_NAME}")
-print(f"DATE: {INSPECTION_DATE}")
-print("=" * 60)
+    try:
+        inspector = User.objects.get(username='test_inspector')
+    except User.DoesNotExist:
+        print("test_inspector user not found!")
+        return
 
-def create_folder_name(name):
-    if not name:
-        return "unknown_client"
-    clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-    clean_name = clean_name.replace(' ', '_').replace('-', '_')
-    clean_name = re.sub(r'_+', '_', clean_name)
-    clean_name = clean_name.strip('_').lower()
-    return clean_name or "unknown_client"
+    # Create or update the inspector mapping
+    mapping, created = InspectorMapping.objects.update_or_create(
+        inspector_name=inspector.username,
+        defaults={
+            'inspector_id': str(inspector.id),
+        }
+    )
 
-# Build folder variations
-sanitized = create_folder_name(CLIENT_NAME)
-folder_variations = [
-    sanitized,
-    f'btn_{sanitized}',
-    f'group_{sanitized}',
-    CLIENT_NAME
-]
-
-print(f"\nFolder variations to check: {folder_variations}")
-
-# Build path
-inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
-year = INSPECTION_DATE.strftime('%Y')
-month = INSPECTION_DATE.strftime('%B')
-parent_path = os.path.join(inspection_base, year, month)
-
-print(f"Base path: {parent_path}")
-print(f"Path exists: {os.path.exists(parent_path)}")
-
-# Check what folders actually exist
-print("\n" + "-" * 60)
-print("FOLDERS THAT EXIST:")
-print("-" * 60)
-for folder in folder_variations:
-    full_path = os.path.join(parent_path, folder)
-    exists = os.path.exists(full_path)
-    if exists:
-        contents = os.listdir(full_path)
-        print(f"  [EXISTS] {folder}/")
-        for item in contents:
-            item_path = os.path.join(full_path, item)
-            if os.path.isdir(item_path):
-                files = os.listdir(item_path)
-                print(f"           -> {item}/ ({len(files)} files)")
-                for f in files[:3]:  # Show first 3 files
-                    print(f"              - {f}")
-                if len(files) > 3:
-                    print(f"              ... and {len(files) - 3} more")
+    if created:
+        print(f"Created InspectorMapping: {mapping.inspector_name} -> {mapping.inspector_id}")
     else:
-        print(f"  [MISSING] {folder}/")
+        print(f"Updated InspectorMapping: {mapping.inspector_name} -> {mapping.inspector_id}")
 
-# Now run the actual detection
-print("\n" + "-" * 60)
-print("FILE DETECTION RESULTS:")
-print("-" * 60)
+    return mapping
 
-has_rfi = has_invoice = has_lab = has_compliance = has_composition = has_occurrence = False
+def create_test_inspections():
+    """Create test inspections for the test_inspector user"""
+    from main.models import FoodSafetyAgencyInspection
 
-for folder_variation in folder_variations:
-    test_path = os.path.join(parent_path, folder_variation)
-    if not os.path.exists(test_path):
-        continue
+    # Get the test_inspector user
+    try:
+        inspector = User.objects.get(username='test_inspector')
+    except User.DoesNotExist:
+        print("test_inspector user not found! Run the account creation first.")
+        return
 
-    # Check RFI
-    for rfi_var in ['RFI', 'rfi', 'Request For Invoice', 'request for invoice']:
-        rfi_path = os.path.join(test_path, rfi_var)
-        if os.path.exists(rfi_path) and os.listdir(rfi_path):
-            has_rfi = True
-            print(f"  RFI: FOUND in {folder_variation}/{rfi_var}/ -> {os.listdir(rfi_path)}")
+    print(f"Creating inspections for: {inspector.username}")
+    print("=" * 60)
 
-    # Check Invoice
-    for inv_var in ['Invoice', 'invoice']:
-        invoice_path = os.path.join(test_path, inv_var)
-        if os.path.exists(invoice_path) and os.listdir(invoice_path):
-            has_invoice = True
-            print(f"  Invoice: FOUND in {folder_variation}/{inv_var}/ -> {os.listdir(invoice_path)}")
+    # Sample data for inspections
+    clients = [
+        {"name": "Pick n Pay Sandton", "code": "PNP001", "town": "Sandton", "email": "sandton@pnp.co.za", "group": "Pick n Pay - Corporate"},
+        {"name": "Checkers Rosebank", "code": "CHK002", "town": "Rosebank", "email": "rosebank@checkers.co.za", "group": "Checkers"},
+        {"name": "Spar Midrand", "code": "SPR003", "town": "Midrand", "email": "midrand@spar.co.za", "group": "Spar"},
+        {"name": "Woolworths Fourways", "code": "WW004", "town": "Fourways", "email": "fourways@woolworths.co.za", "group": "Woolworths"},
+        {"name": "Food Lovers Centurion", "code": "FLM005", "town": "Centurion", "email": "centurion@flm.co.za", "group": "Food Lovers Market"},
+        {"name": "Shoprite Pretoria", "code": "SHP006", "town": "Pretoria", "email": "pretoria@shoprite.co.za", "group": "Shoprite"},
+        {"name": "Boxer Soweto", "code": "BOX007", "town": "Soweto", "email": "soweto@boxer.co.za", "group": "Boxer"},
+        {"name": "OK Foods Benoni", "code": "OKF008", "town": "Benoni", "email": "benoni@okfoods.co.za", "group": "OK Foods"},
+    ]
 
-    # Check Lab
-    for lab_var in ['Lab', 'lab', 'Lab Results', 'lab results']:
-        lab_path = os.path.join(test_path, lab_var)
-        if os.path.exists(lab_path) and os.listdir(lab_path):
-            has_lab = True
-            print(f"  Lab: FOUND in {folder_variation}/{lab_var}/ -> {os.listdir(lab_path)}")
+    commodities = ["POULTRY", "RAW MEAT", "PMP", "EGGS"]
+    facility_types = ["Retailer", "Re-Packer", "Processor", "Wholesaler"]
+    group_types = ["Corporate Store", "Franchise Store", "Individual / Independent Owner"]
 
-    # Check Compliance
-    for comp_var in ['Compliance', 'compliance']:
-        comp_path = os.path.join(test_path, comp_var)
-        if os.path.exists(comp_path) and os.listdir(comp_path):
-            has_compliance = True
-            print(f"  Compliance: FOUND in {folder_variation}/{comp_var}/ -> {os.listdir(comp_path)}")
+    created_count = 0
 
-    # Check Composition
-    for comp_var in ['Composition', 'composition']:
-        comp_path = os.path.join(test_path, comp_var)
-        if os.path.exists(comp_path) and os.listdir(comp_path):
-            has_composition = True
-            print(f"  Composition: FOUND in {folder_variation}/{comp_var}/ -> {os.listdir(comp_path)}")
+    for i, client in enumerate(clients):
+        # Create inspection for each client
+        date = timezone.now().date() - timedelta(days=random.randint(0, 30))
+        commodity = random.choice(commodities)
 
-    # Check Occurrence
-    for occ_var in ['Occurrence', 'occurrence']:
-        occ_path = os.path.join(test_path, occ_var)
-        if os.path.exists(occ_path) and os.listdir(occ_path):
-            has_occurrence = True
-            print(f"  Occurrence: FOUND in {folder_variation}/{occ_var}/ -> {os.listdir(occ_path)}")
+        inspection = FoodSafetyAgencyInspection.objects.create(
+            date_of_inspection=date,
+            client_name=client["name"],
+            internal_account_code=client["code"],
+            town=client["town"],
+            additional_email=client["email"],
+            corporate_group=client["group"],
+            group_type=random.choice(group_types),
+            facility_type=random.choice(facility_types),
+            commodity=commodity,
+            inspector_name=inspector.username,
+            inspector_id=str(inspector.id),
+            is_manual=True,
+            is_sample_taken=random.choice([True, False]),
+            is_direction_present_for_this_inspection=random.choice([True, False, False, False]),
+        )
 
-print("\n" + "=" * 60)
-print("FINAL RESULTS (what buttons should show):")
-print("=" * 60)
-print(f"  RFI:         {'GREEN (file exists)' if has_rfi else 'RED (no file)'}")
-print(f"  Invoice:     {'GREEN (file exists)' if has_invoice else 'RED (no file)'}")
-print(f"  Lab/COA:     {'GREEN (file exists)' if has_lab else 'RED (no file)'}")
-print(f"  Compliance:  {'GREEN (file exists)' if has_compliance else 'RED (no file)'}")
-print(f"  Composition: {'GREEN (file exists)' if has_composition else 'RED (no file)'}")
-print(f"  Occurrence:  {'GREEN (file exists)' if has_occurrence else 'RED (no file)'}")
-print("=" * 60)
+        created_count += 1
+        status = "Non-Compliant" if inspection.is_direction_present_for_this_inspection else "Compliant"
+        print(f"Created: {client['name']} - {commodity} - {date} ({status})")
 
-# Summary
-print("\nSUMMARY:")
-print(f"  has_rfi = {has_rfi}")
-print(f"  has_invoice = {has_invoice}")
-print(f"  has_lab = {has_lab}")
-print(f"  has_compliance = {has_compliance}")
-print(f"  has_composition = {has_composition}")
-print(f"  has_occurrence = {has_occurrence}")
+    print("=" * 60)
+    print(f"\nCreated {created_count} inspections for test_inspector")
+    print("Login with: test_inspector / Test123!")
 
-print("\n" + "=" * 60)
-print("TESTING FILE LISTING (View Files popup)")
-print("=" * 60)
+if __name__ == '__main__':
+    # First create the inspector mapping
+    print("Step 1: Creating InspectorMapping...")
+    create_inspector_mapping()
+    print()
 
-# Test the file listing with folder variations
-category_folder_variations = {
-    'rfi': ['rfi', 'RFI', 'Request For Invoice', 'request for invoice'],
-    'invoice': ['invoice', 'Invoice'],
-    'lab': ['lab', 'Lab', 'lab results', 'Lab Results', 'coa', 'COA'],
-    'compliance': ['compliance', 'Compliance'],
-    'occurrence': ['occurrence', 'Occurrence'],
-    'composition': ['composition', 'Composition'],
-    'other': ['other', 'Other']
-}
-
-files_found = {}
-for folder_variation in folder_variations:
-    test_path = os.path.join(parent_path, folder_variation)
-    if not os.path.exists(test_path):
-        continue
-
-    print(f"\nSearching in: {folder_variation}/")
-
-    for category_key, folder_vars in category_folder_variations.items():
-        for folder_var in folder_vars:
-            category_path = os.path.join(test_path, folder_var)
-            if os.path.exists(category_path):
-                files = [f for f in os.listdir(category_path) if os.path.isfile(os.path.join(category_path, f))]
-                if files:
-                    if category_key not in files_found:
-                        files_found[category_key] = []
-                    files_found[category_key].extend(files)
-                    print(f"  {category_key} ({folder_var}): {len(files)} files")
-
-print("\n" + "-" * 60)
-print("FILES THAT SHOULD APPEAR IN VIEW FILES POPUP:")
-print("-" * 60)
-for cat, files in files_found.items():
-    print(f"  {cat.upper()}: {len(files)} files")
-    for f in files[:2]:
-        print(f"    - {f}")
-    if len(files) > 2:
-        print(f"    ... and {len(files) - 2} more")
-
-print("\n" + "=" * 60)
-print("If buttons show wrong colors after page refresh,")
-print("the issue is likely browser caching.")
-print("Try: Ctrl+Shift+R or clear browser cache")
-print("=" * 60)
+    # Then create the inspections
+    print("Step 2: Creating test inspections...")
+    create_test_inspections()

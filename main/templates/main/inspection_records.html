@@ -7162,7 +7162,7 @@
         };
 
         // Generic upload function for all document types
-        window.uploadDocumentForInspection = function (productId, groupId, documentType) {
+        window.uploadDocumentForInspection = function (productId, groupId, documentType, complianceStatus) {
             console.log('='.repeat(80));
             console.log('[UPLOAD DEBUG] uploadDocumentForInspection CALLED');
             console.log('='.repeat(80));
@@ -7176,6 +7176,7 @@
             console.log('[UPLOAD DEBUG]   groupId type:', typeof groupId);
             console.log('[UPLOAD DEBUG]   groupId length:', groupId ? groupId.length : 'N/A');
             console.log('[UPLOAD DEBUG]   documentType:', documentType);
+            console.log('[UPLOAD DEBUG]   complianceStatus:', complianceStatus);
             console.log('-'.repeat(80));
 
             // Validate that at least one ID is provided
@@ -7207,6 +7208,8 @@
                     // Only send values if they're truthy (not empty string, null, undefined)
                     if (productId) formData.append('inspection_id', productId);
                     if (groupId) formData.append('group_id', groupId);
+                    // Add compliance status for COA/Lab uploads
+                    if (complianceStatus) formData.append('compliance_status', complianceStatus);
 
                     // Log what we're sending
                     console.log('[UPLOAD DEBUG] FormData contents:');
@@ -7305,6 +7308,21 @@
                                     });
                                 }
 
+                                // Update sample compliance badge immediately for COA/Lab uploads
+                                if (documentType === 'lab' || documentType === 'coa') {
+                                    const badge = document.getElementById('sample-badge-' + productId);
+                                    if (badge && complianceStatus) {
+                                        if (complianceStatus === 'compliant') {
+                                            badge.textContent = 'Sample: Compliant';
+                                            badge.style.background = '#22c55e';
+                                        } else if (complianceStatus === 'non-compliant') {
+                                            badge.textContent = 'Sample: Non-Compliant';
+                                            badge.style.background = '#ef4444';
+                                        }
+                                        console.log('✅ Updated sample compliance badge to:', complianceStatus);
+                                    }
+                                }
+
                                 // Show toast notification instead of alert
                                 const toast = document.createElement('div');
                                 toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
@@ -7343,15 +7361,132 @@
 
         window.uploadComplianceForInspection = function (productId, groupId) {
             console.log('[UPLOAD DEBUG] uploadComplianceForInspection called with productId:', productId, 'groupId:', groupId);
-            window.uploadDocumentForInspection(productId, groupId, 'compliance');
+            // Store the pending upload info and show product compliance modal
+            window._pendingProductUpload = { productId, groupId, documentType: 'compliance' };
+            const modal = document.getElementById('productComplianceModal');
+            if (modal) modal.style.display = 'flex';
         };
 
         window.uploadCompositionForInspection = function (productId, groupId) {
-            window.uploadDocumentForInspection(productId, groupId, 'composition');
+            // Store the pending upload info and show product compliance modal
+            window._pendingProductUpload = { productId, groupId, documentType: 'composition' };
+            const modal = document.getElementById('productComplianceModal');
+            if (modal) modal.style.display = 'flex';
         };
 
         window.uploadLabForInspection = function (productId, groupId) {
-            window.uploadDocumentForInspection(productId, groupId, 'lab');
+            // Store the IDs for later use
+            window._pendingLabUpload = { productId, groupId };
+
+            // Show compliance status modal
+            const modal = document.getElementById('coaComplianceModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        };
+
+        window.selectCoaCompliance = function(complianceStatus) {
+            const { productId, groupId } = window._pendingLabUpload || {};
+            if (!productId && !groupId) {
+                alert('Error: Upload session expired. Please try again.');
+                closeCoaComplianceModal();
+                return;
+            }
+
+            // Close modal
+            closeCoaComplianceModal();
+
+            // Proceed with upload, passing compliance status
+            window.uploadDocumentForInspection(productId, groupId, 'lab', complianceStatus);
+        };
+
+        window.closeCoaComplianceModal = function() {
+            const modal = document.getElementById('coaComplianceModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            window._pendingLabUpload = null;
+        };
+
+        window.closeProductComplianceModal = function() {
+            const modal = document.getElementById('productComplianceModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            window._pendingProductUpload = null;
+        };
+
+        window.selectProductCompliance = function(complianceStatus) {
+            const { productId, groupId, documentType } = window._pendingProductUpload || {};
+
+            if (!productId || !documentType) {
+                alert('Error: Upload information not found. Please try again.');
+                window.closeProductComplianceModal();
+                return;
+            }
+
+            window.closeProductComplianceModal();
+
+            // Now trigger the file picker
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.pdf,.jpg,.jpeg,.png';
+            fileInput.style.display = 'none';
+
+            fileInput.onchange = function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('inspection_id', productId);
+                    formData.append('document_type', documentType);
+                    formData.append('group_id', groupId);
+                    formData.append('product_compliance_status', complianceStatus);
+
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token|escapejs }}';
+                    formData.append('csrfmiddlewaretoken', csrfToken);
+
+                    fetch('/upload-document/', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('✅ ' + documentType + ' uploaded for inspection ' + productId);
+                                // Turn button green
+                                const btn = document.querySelector('[data-upload-btn="' + documentType + '-' + productId + '"]');
+                                if (btn) btn.style.background = '#22c55e';
+
+                                // Update product compliance badge immediately
+                                const badge = document.getElementById('product-badge-' + productId);
+                                if (badge) {
+                                    if (complianceStatus === 'compliant') {
+                                        badge.textContent = 'Product: Compliant';
+                                        badge.style.background = '#22c55e';
+                                    } else {
+                                        badge.textContent = 'Product: Non-Compliant';
+                                        badge.style.background = '#ef4444';
+                                    }
+                                }
+
+                                // Silent success - no popup
+                                console.log('✅ ' + documentType + ' uploaded successfully! Product marked as ' + complianceStatus);
+                            } else {
+                                console.error('❌ Error uploading ' + documentType + ':', data.error);
+                                alert('Error uploading ' + documentType + ': ' + (data.error || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('❌ Error uploading ' + documentType + ':', error);
+                            alert('Error uploading ' + documentType + ': ' + error.message);
+                        });
+                }
+            };
+
+            document.body.appendChild(fileInput);
+            fileInput.click();
+            document.body.removeChild(fileInput);
         };
 
         window.uploadOccurrenceForInspection = function (productId, groupId) {
@@ -7387,6 +7522,60 @@
             console.log('deleteDocForInspection called:', productId, docType);
         };
 
+        // Delete inspection group function
+        window.deleteInspectionGroup = function(groupId, clientName) {
+            console.log('[DELETE] Starting delete for group:', groupId, 'client:', clientName);
+
+            if (!confirm('Are you sure you want to delete the inspection for "' + clientName + '"?\n\nThis will permanently delete all associated data and files.')) {
+                console.log('[DELETE] User cancelled');
+                return;
+            }
+
+            var row = document.querySelector('tr.group-row[data-group-id="' + groupId + '"]');
+            if (row) {
+                row.style.opacity = '0.5';
+                row.style.pointerEvents = 'none';
+            }
+
+            console.log('[DELETE] Sending request to /inspections/delete-group/');
+
+            fetch('/inspections/delete-group/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ group_id: groupId })
+            })
+            .then(function(response) {
+                console.log('[DELETE] Response status:', response.status);
+                return response.json();
+            })
+            .then(function(data) {
+                console.log('[DELETE] Response data:', data);
+                if (data.success) {
+                    var detailRow = document.getElementById('detail-' + groupId);
+                    if (detailRow) detailRow.remove();
+                    if (row) row.remove();
+                    alert('Inspection deleted successfully.');
+                } else {
+                    alert('Error deleting inspection: ' + (data.error || 'Unknown error'));
+                    if (row) {
+                        row.style.opacity = '1';
+                        row.style.pointerEvents = 'auto';
+                    }
+                }
+            })
+            .catch(function(error) {
+                console.error('[DELETE] Error:', error);
+                alert('Error deleting inspection. Please try again.');
+                if (row) {
+                    row.style.opacity = '1';
+                    row.style.pointerEvents = 'auto';
+                }
+            });
+        };
+
         console.log('✅ Critical functions defined in HEAD');
     </script>
 </head>
@@ -7398,6 +7587,97 @@
         <div id="loadingMessage">Loading {{ total_shipments }} records... Please wait...</div>
     </div>
 
+    <!-- COA/Lab Compliance Status Modal -->
+    <div id="coaComplianceModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 8px; padding: 0; max-width: 500px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #007890 0%, #005a6b 100%); padding: 20px 24px; border-radius: 8px 8px 0 0; border-bottom: 3px solid #EC343C;">
+                <h3 style="font-size: 20px; font-weight: 700; color: white; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-flask" style="font-size: 24px;"></i>
+                    Sample Compliance Status
+                </h3>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 28px 24px 24px;">
+                <p style="color: #374151; margin-bottom: 24px; font-size: 15px; line-height: 1.6;">
+                    Please select the compliance status for this sample:
+                </p>
+
+                <!-- Compliance Options -->
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                    <button onclick="selectCoaCompliance('compliant')"
+                        onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#16a34a';"
+                        onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#22c55e';"
+                        style="padding: 18px 20px; border: 2px solid #22c55e; background: #f0fdf4; color: #166534; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-check-circle" style="font-size: 20px; color: #22c55e;"></i>
+                        <span>Compliant</span>
+                    </button>
+                    <button onclick="selectCoaCompliance('non-compliant')"
+                        onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#dc2626';"
+                        onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#ef4444';"
+                        style="padding: 18px 20px; border: 2px solid #ef4444; background: #fef2f2; color: #991b1b; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-times-circle" style="font-size: 20px; color: #ef4444;"></i>
+                        <span>Non-Compliant</span>
+                    </button>
+                </div>
+
+                <!-- Cancel Button -->
+                <button onclick="closeCoaComplianceModal()"
+                    onmouseover="this.style.background='#e5e7eb';"
+                    onmouseout="this.style.background='#f3f4f6';"
+                    style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Compliance Status Modal (for Composition/RFI upload) -->
+    <div id="productComplianceModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 8px; padding: 0; max-width: 500px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #007890 0%, #005a6b 100%); padding: 20px 24px; border-radius: 8px 8px 0 0; border-bottom: 3px solid #EC343C;">
+                <h3 style="font-size: 20px; font-weight: 700; color: white; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-file-alt" style="font-size: 24px;"></i>
+                    Product Compliance Status
+                </h3>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 28px 24px 24px;">
+                <p style="color: #374151; margin-bottom: 24px; font-size: 15px; line-height: 1.6;">
+                    Please select the compliance status for this product:
+                </p>
+
+                <!-- Compliance Options -->
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                    <button onclick="window.selectProductCompliance('compliant')"
+                        onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#16a34a';"
+                        onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#22c55e';"
+                        style="padding: 18px 20px; border: 2px solid #22c55e; background: #f0fdf4; color: #166534; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-check-circle" style="font-size: 20px; color: #22c55e;"></i>
+                        <span>Compliant</span>
+                    </button>
+                    <button onclick="window.selectProductCompliance('non-compliant')"
+                        onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#dc2626';"
+                        onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#ef4444';"
+                        style="padding: 18px 20px; border: 2px solid #ef4444; background: #fef2f2; color: #991b1b; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-times-circle" style="font-size: 20px; color: #ef4444;"></i>
+                        <span>Non-Compliant</span>
+                    </button>
+                </div>
+
+                <!-- Cancel Button -->
+                <button onclick="window.closeProductComplianceModal()"
+                    onmouseover="this.style.background='#e5e7eb';"
+                    onmouseout="this.style.background='#f3f4f6';"
+                    style="width: 100%; padding: 12px; background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Mobile Menu Button -->
     <button id="mobile-menu-btn"
@@ -7716,6 +7996,24 @@
                                         <option value="">All Inspectors</option>
                                         {% for inspector in inspectors %}
                                         <option value="{{ inspector }}" {% if request.GET.branch == inspector %}selected{% endif %}>{{ inspector }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="filter-field">
+                                    <label class="form-label">Corporate Group</label>
+                                    <select class="form-control" name="corporate_group">
+                                        <option value="">All Groups</option>
+                                        {% for group in corporate_groups %}
+                                        <option value="{{ group }}" {% if request.GET.corporate_group == group %}selected{% endif %}>{{ group }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="filter-field">
+                                    <label class="form-label">Group Type</label>
+                                    <select class="form-control" name="group_type">
+                                        <option value="">All Types</option>
+                                        {% for gtype in group_types %}
+                                        <option value="{{ gtype }}" {% if request.GET.group_type == gtype %}selected{% endif %}>{{ gtype }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -8041,7 +8339,8 @@
                                             {% endif %}
                                         </div>
 
-                                        <!-- Occurrence Button (mobile card) -->
+                                        <!-- Occurrence Button (mobile card) - Only show for occurrence reports -->
+                                        {% if shipment.is_occurrence_report %}
                                         <div class="mt-2">
                                             {% if request.user.role == 'lab_technician' %}
                                             <!-- Lab technician: Occurrence disabled -->
@@ -8068,6 +8367,7 @@
                                             </button>
                                             {% endif %}
                                         </div>
+                                        {% endif %}
 
                                         <!-- Composition Button (mobile card) -->
                                         <div class="mt-2">
@@ -8156,19 +8456,22 @@
                                     <div class="space-y-3 text-sm">
                                         <!-- Email Section -->
                                         <div>
-                                            <label class="block text-gray-600 font-medium mb-1">Email</label>
+                                            <label class="block text-gray-600 font-medium mb-1">Email(s)</label>
                                             <div class="space-y-1">
-                                                {% if shipment.client_emails %}
-                                                {% for item in shipment.client_emails %}
-                                                <div class="bg-white p-2 rounded border">
-                                                    <span class="text-xs"
-                                                        style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
-                                                        title="{{ item.email }}">{{ item.email }}</span>
-                                                </div>
-                                                {% endfor %}
+                                                {% with unique_emails=shipment|get_unique_emails %}
+                                                {% if unique_emails %}
+                                                    {% for email in unique_emails %}
+                                                    <div class="bg-blue-50 p-2 rounded border border-blue-200">
+                                                        <span class="text-xs text-blue-700 additional-emails-display"
+                                                            style="display: block; word-break: break-word; max-width: 100%;"
+                                                            title="{{ email }}"
+                                                            data-emails="{{ email }}">{{ email }}</span>
+                                                    </div>
+                                                    {% endfor %}
                                                 {% else %}
-                                                <span class="text-gray-400 text-xs">No emails</span>
+                                                    <span class="text-gray-400 text-xs">No emails</span>
                                                 {% endif %}
+                                                {% endwith %}
                                             </div>
                                         </div>
 
@@ -8262,20 +8565,43 @@
                                                             <span class="text-gray-500">Commodity:</span>
                                                             <span class="font-medium">{{ product.commodity|default:"-" }}</span>
                                                         </div>
-                                                        <div>
-                                                            <span class="text-gray-500">Status:</span>
-                                                            {% if product.is_direction_present_for_this_inspection %}
-                                                            <span class="text-red-600 font-medium">Non-Compliant</span>
-                                                            {% else %}
-                                                            <span class="text-green-600 font-medium">Compliant</span>
-                                                            {% endif %}
-                                                        </div>
+                                                        <!-- Hide Sample row for POULTRY/EGGS -->
+                                                        {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div>
                                                             <span class="text-gray-500">Sample:</span>
-                                                            {% if product.is_sample_taken %}
-                                                            <span class="text-green-600 font-medium">✓ Taken</span>
+                                                            {% if shipment.is_occurrence_report %}
+                                                            <span class="text-gray-500 font-medium">N/A</span>
+                                                            {% elif product.coa_uploaded %}
+                                                                {% if product.is_sample_taken %}
+                                                                    {% if product.is_direction_present_for_this_inspection %}
+                                                                    <span class="text-red-600 font-medium">Non-Compliant (Sampled)</span>
+                                                                    {% else %}
+                                                                    <span class="text-green-600 font-medium">Compliant (Sampled)</span>
+                                                                    {% endif %}
+                                                                {% else %}
+                                                                    {% if product.is_direction_present_for_this_inspection %}
+                                                                    <span class="text-red-600 font-medium">Non-Compliant</span>
+                                                                    {% else %}
+                                                                    <span class="text-green-600 font-medium">Compliant</span>
+                                                                    {% endif %}
+                                                                {% endif %}
                                                             {% else %}
-                                                            <span class="text-gray-500">Not Taken</span>
+                                                            <span class="text-gray-500 font-medium">N/A</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endif %}
+                                                        <div>
+                                                            <span class="text-gray-500">Product:</span>
+                                                            {% if shipment.is_occurrence_report %}
+                                                            <span class="text-gray-500 font-medium">N/A</span>
+                                                            {% elif shipment.has_compliance or product.composition_uploaded %}
+                                                                {% if product.is_product_compliant %}
+                                                                <span class="text-green-600 font-medium">Compliant</span>
+                                                                {% else %}
+                                                                <span class="text-red-600 font-medium">Non-Compliant</span>
+                                                                {% endif %}
+                                                            {% else %}
+                                                            <span class="text-gray-500 font-medium">N/A</span>
                                                             {% endif %}
                                                         </div>
                                                     </div>
@@ -8406,6 +8732,7 @@
                                                     <div class="space-y-2">
                                                         {% if request.user.role == 'inspector' or request.user.role == 'admin' %}
                                                         <!-- Inspector/Admin: COA/Lab, Lab Form, Retest disabled -->
+                                                        {% if product.commodity|upper != 'POULTRY' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
                                                                 class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
@@ -8425,8 +8752,10 @@
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
                                                         </div>
+                                                        {% endif %}
                                                         {% else %}
                                                         <!-- Non-Inspector: Show Lab, Retest, and Lab Form buttons -->
+                                                        {% if product.commodity|upper != 'POULTRY' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
@@ -8460,6 +8789,7 @@
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
                                                         </div>
+                                                        {% endif %}
                                                         {% endif %}
                                                     </div>
                                                 </div>
@@ -8495,7 +8825,7 @@
                                             style="width: 80px;">Sent</th>
                                         {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 60px;">Edit</th>
+                                            style="width: 90px;">Actions</th>
                                         {% endif %}
                                     </tr>
                                 </thead>
@@ -8522,6 +8852,8 @@
                                         </td>
                                         <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
+                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
+                                            <!-- Approval editable for admin, super_admin, developer only -->
                                             <select class="approved-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
                                                 data-group-id="{{ fallback_group_id }}"
@@ -8529,11 +8861,26 @@
                                                 <option value="PENDING" {% if shipment.approved_status == 'PENDING' or not shipment.approved_status %}selected{% endif %}>Pending</option>
                                                 <option value="APPROVED" {% if shipment.approved_status == 'APPROVED' %}selected{% endif %}>Approved</option>
                                             </select>
+                                            {% else %}
+                                            <!-- Approval read-only for inspector, lab_technician -->
+                                            <span class="approved-status-readonly" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-block; {% if shipment.approved_status == 'APPROVED' %}background: #dcfce7; color: #166534;{% else %}background: #fef3c7; color: #92400e;{% endif %}">
+                                                {% if shipment.approved_status == 'APPROVED' %}Approved{% else %}Pending{% endif %}
+                                            </span>
+                                            {% endif %}
                                         </td>
                                         <td class="px-2 py-2 text-center text-xs text-gray-600"
-                                            style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                                            title="{% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}">
-                                            {% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}
+                                            style="max-width: 150px;">
+                                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                            {% with unique_emails=shipment|get_unique_emails %}
+                                            {% if unique_emails %}
+                                                {% for email in unique_emails %}
+                                                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;" title="{{ email }}">{{ email }}</div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <div>-</div>
+                                            {% endif %}
+                                            {% endwith %}
+                                            </div>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
@@ -8556,13 +8903,22 @@
                                         </td>
                                         {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                                         <td class="px-2 py-2 text-center">
-                                            <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
-                                                onclick="event.stopPropagation();"
-                                                style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;"
-                                                onmouseover="this.style.background='#2563eb'"
-                                                onmouseout="this.style.background='#3b82f6'" title="Edit Inspection">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
+                                            <div style="display: flex; gap: 4px; justify-content: center;">
+                                                <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
+                                                    onclick="event.stopPropagation();"
+                                                    style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;"
+                                                    onmouseover="this.style.background='#2563eb'"
+                                                    onmouseout="this.style.background='#3b82f6'" title="Edit Inspection">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button type="button"
+                                                    onclick="event.stopPropagation(); deleteInspectionGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
+                                                    style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;"
+                                                    onmouseover="this.style.background='#dc2626'"
+                                                    onmouseout="this.style.background='#ef4444'" title="Delete Inspection">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         {% endif %}
                                     </tr>
@@ -8583,20 +8939,65 @@
                                                             Facility</div>
                                                         <div style="font-size: 11px; color: #374151; font-weight: 500;">
                                                             {{ shipment.client_name|truncatechars:22 }}</div>
+                                                        {% if shipment.group_type %}
+                                                        <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">
+                                                            <span style="padding: 1px 4px; background: #e5e7eb; border-radius: 2px;">{{ shipment.group_type }}</span>
+                                                        </div>
+                                                        {% endif %}
+                                                        {% if shipment.facility_type %}
+                                                        <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">
+                                                            <span style="padding: 1px 4px; background: #dbeafe; color: #1e40af; border-radius: 2px;">{{ shipment.facility_type }}</span>
+                                                        </div>
+                                                        {% endif %}
                                                         {% if shipment.is_occurrence_report %}
                                                         <div style="margin: 4px 0;">
                                                             <span style="font-size: 8px; padding: 2px 6px; background: #fef3c7; color: #92400e; border-radius: 3px; font-weight: 600;">
                                                                 <i class="fas fa-exclamation-triangle" style="margin-right: 2px;"></i>OCCURRENCE REPORT
                                                             </span>
                                                         </div>
+                                                        <!-- Occurrence Report Details -->
+                                                        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #fcd34d;">
+                                                            {% if shipment.registration_code %}
+                                                            <div style="font-size: 8px; color: #6b7280; margin-bottom: 3px;">
+                                                                <i class="fas fa-id-card" style="width: 12px; color: #f59e0b;"></i>
+                                                                <span style="font-weight: 500;">Reg:</span> {{ shipment.registration_code }}
+                                                            </div>
+                                                            {% endif %}
+                                                            {% if shipment.physical_address %}
+                                                            <div style="font-size: 8px; color: #6b7280; margin-bottom: 3px;">
+                                                                <i class="fas fa-map-marker-alt" style="width: 12px; color: #f59e0b;"></i>
+                                                                {{ shipment.physical_address|truncatechars:30 }}
+                                                            </div>
+                                                            {% endif %}
+                                                            {% if shipment.telephone %}
+                                                            <div style="font-size: 8px; color: #6b7280; margin-bottom: 3px;">
+                                                                <i class="fas fa-phone" style="width: 12px; color: #f59e0b;"></i>
+                                                                {{ shipment.telephone }}
+                                                            </div>
+                                                            {% endif %}
+                                                            {% if shipment.time_of_visit %}
+                                                            <div style="font-size: 8px; color: #6b7280; margin-bottom: 3px;">
+                                                                <i class="fas fa-clock" style="width: 12px; color: #f59e0b;"></i>
+                                                                <span style="font-weight: 500;">Time:</span> {{ shipment.time_of_visit|time:"H:i" }}
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
                                                         {% endif %}
                                                         <div
                                                             style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
                                                             {{ shipment.internal_account_code|default:"-" }}</div>
-                                                        <div
-                                                            style="font-size: 8px; color: #3b82f6; margin-bottom: 6px; word-break: break-all;">
-                                                            {% if shipment.client_emails %}{% for e in shipment.client_emails %}{{ e.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}
+                                                        <div style="margin-bottom: 6px;">
+                                                            {% with unique_emails=shipment|get_unique_emails %}
+                                                            {% if unique_emails %}
+                                                                {% for email in unique_emails %}
+                                                                <div style="font-size: 8px; color: #3b82f6; word-break: break-all;">{{ email }}</div>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <div style="font-size: 8px; color: #6b7280;">-</div>
+                                                            {% endif %}
+                                                            {% endwith %}
                                                         </div>
+                                                        {% if not shipment.is_occurrence_report %}
                                                         <div
                                                             style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
                                                             <div style="display: flex; align-items: center; gap: 4px;">
@@ -8621,6 +9022,7 @@
                                                                     onclick="event.stopPropagation()">
                                                             </div>
                                                         </div>
+                                                        {% endif %}
                                                         {% if shipment.products %}
                                                         <div
                                                             style="display: flex; gap: 4px; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 6px;">
@@ -8666,6 +9068,9 @@
                                                         style="flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-x: auto;">
                                                         {% if shipment.products %}
                                                         {% for product in shipment.products %}
+                                                        {% if shipment.is_occurrence_report and not forloop.first %}
+                                                        {% comment %}Skip additional rows for occurrence reports - only show first one{% endcomment %}
+                                                        {% else %}
                                                         <!-- Single Inspection Row -->
                                                         <div
                                                             style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: stretch; background: white; border-radius: 6px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
@@ -8673,23 +9078,52 @@
                                                             <div
                                                                 style="flex: 0 0 180px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 6px;">
                                                                 <div style="font-size: 9px; color: #6b7280;">Commodity:
-                                                                    <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"-"|truncatechars:12 }}</span>
+                                                                    <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"N/A"|truncatechars:12 }}</span>
                                                                 </div>
                                                                 <div
                                                                     style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
                                                                     Product: <span
-                                                                        style="font-weight: 600; color: #374151;">{{ product.product_name|default:"-"|truncatechars:16 }}</span></div>
-                                                                <div style="display: flex; flex-wrap: wrap; gap: 2px;">
-                                                                    {% if product.is_sample_taken %}<span
-                                                                        style="font-size: 7px; padding: 2px 4px; background: #3b82f6; color: white; border-radius: 2px;">Sampled</span>{% endif %}
-                                                                    {% if product.is_direction_present_for_this_inspection %}
-                                                                    <span style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Non-Compliant</span>
+                                                                        style="font-weight: 600; color: #374151;">{{ product.product_name|default:"N/A"|truncatechars:16 }}</span></div>
+                                                                <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+                                                                    <!-- Sample Compliance Badge - Hide for POULTRY/EGGS -->
+                                                                    {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
+                                                                        {% if shipment.is_occurrence_report %}
+                                                                        <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Sample: N/A</span>
+                                                                        {% elif product.coa_uploaded %}
+                                                                            {% if product.is_sample_taken %}
+                                                                                {% if product.is_direction_present_for_this_inspection %}
+                                                                                <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Sample: Non-Compliant (Sampled)</span>
+                                                                                {% else %}
+                                                                                <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Sample: Compliant (Sampled)</span>
+                                                                                {% endif %}
+                                                                            {% else %}
+                                                                                {% if product.is_direction_present_for_this_inspection %}
+                                                                                <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Sample: Non-Compliant</span>
+                                                                                {% else %}
+                                                                                <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Sample: Compliant</span>
+                                                                                {% endif %}
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                        <span id="sample-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Sample: N/A</span>
+                                                                        {% endif %}
+                                                                    {% endif %}
+
+                                                                    <!-- Product Compliance Badge -->
+                                                                    {% if shipment.is_occurrence_report %}
+                                                                    <span id="product-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Product: N/A</span>
+                                                                    {% elif shipment.has_compliance or product.composition_uploaded %}
+                                                                        {% if product.is_product_compliant %}
+                                                                        <span id="product-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Product: Compliant</span>
+                                                                        {% else %}
+                                                                        <span id="product-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Product: Non-Compliant</span>
+                                                                        {% endif %}
                                                                     {% else %}
-                                                                    <span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Compliant</span>
+                                                                    <span id="product-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Product: N/A</span>
                                                                     {% endif %}
                                                                 </div>
                                                             </div>
-                                                            <!-- DNA/Fat/Protein/Calcium -->
+                                                            <!-- DNA/Fat/Protein/Calcium - Only show for RAW, PMP, etc. NOT for POULTRY or EGGS -->
+                                                            {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                             <div
                                                                 style="flex: 0 0 135px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; padding: 8px; background: #f9fafb; border-radius: 4px;">
                                                                 <div><span style="color: #6b7280;">DNA:</span> <span
@@ -8701,36 +9135,34 @@
                                                                 <div><span style="color: #6b7280;">Cal:</span> <span
                                                                         style="color: {% if product.calcium %}#22c55e{% else %}#ef4444{% endif %}; font-weight: 500;">{{ product.calcium|yesno:"Y,N" }}</span></div>
                                                             </div>
+                                                            {% endif %}
                                                             <!-- Upload Buttons -->
                                                             <div
                                                                 style="flex: 1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                                                                 {% if shipment.is_occurrence_report %}
-                                                                <!-- Disabled buttons for occurrence reports -->
+                                                                <!-- Occurrence reports: Only Occurrence button enabled -->
                                                                 <button data-upload-btn="compliance-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">Compliance</button>
+                                                                    disabled title="Not available for occurrence reports">Compliance</button>
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">Composition</button>
+                                                                    disabled title="Not available for occurrence reports">Composition</button>
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">COA/Lab</button>
+                                                                    disabled title="Not available for occurrence reports">COA/Lab</button>
                                                                 <button data-upload-btn="lab_form-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">Lab Form</button>
+                                                                    disabled title="Not available for occurrence reports">Lab Form</button>
                                                                 <button data-upload-btn="retest-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">Retest</button>
-                                                                <!-- Occurrence button stays enabled -->
+                                                                    disabled title="Not available for occurrence reports">Retest</button>
                                                                 <button data-upload-btn="occurrence-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
                                                                 <button data-upload-btn="other-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Disabled for occurrence reports">Other</button>
-                                                                {% else %}
-                                                                <!-- Normal buttons -->
-                                                                {% if request.user.role == 'lab_technician' %}
+                                                                    disabled title="Not available for occurrence reports">Other</button>
+                                                                {% elif request.user.role == 'lab_technician' %}
                                                                 <!-- Lab technician: Only COA/Lab, Lab Form, Retest enabled -->
                                                                 <button data-upload-btn="compliance-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
@@ -8738,6 +9170,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for lab technicians">Composition</button>
+                                                                {% if product.commodity|upper != 'POULTRY' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
@@ -8750,9 +9183,10 @@
                                                                 <button data-upload-btn="retest-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.retest_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Retest</button>
-                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                {% endif %}
+                                                                {% if shipment.is_occurrence_report %}<button data-upload-btn="occurrence-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Not available for lab technicians">Occurrence</button>
+                                                                    disabled title="Not available for lab technicians">Occurrence</button>{% endif %}
                                                                 <button data-upload-btn="other-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for lab technicians">Other</button>
@@ -8764,6 +9198,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
+                                                                {% if product.commodity|upper != 'POULTRY' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">COA/Lab</button>
@@ -8773,11 +9208,12 @@
                                                                 <button data-upload-btn="retest-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">Retest</button>
-                                                                <button data-upload-btn="occurrence-{{ product.id }}"
+                                                                {% endif %}
+                                                                {% if shipment.is_occurrence_report %}<button data-upload-btn="occurrence-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
-                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
+                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>{% endif %}
                                                                 <button data-upload-btn="other-{{ product.id }}"
-                                                                    style="padding: 6px 14px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    style="padding: 6px 14px; background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
                                                                 {% else %}
                                                                 <!-- Other roles: All buttons enabled -->
@@ -8787,6 +9223,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
+                                                                {% if product.commodity|upper != 'POULTRY' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
@@ -8799,16 +9236,17 @@
                                                                 <button data-upload-btn="retest-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.retest_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadRetestForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Retest</button>
-                                                                <button data-upload-btn="occurrence-{{ product.id }}"
-                                                                    style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
-                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>
-                                                                <button data-upload-btn="other-{{ product.id }}"
-                                                                    style="padding: 6px 14px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
-                                                                    onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
                                                                 {% endif %}
+                                                                {% if shipment.is_occurrence_report %}<button data-upload-btn="occurrence-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Occurrence</button>{% endif %}
+                                                                <button data-upload-btn="other-{{ product.id }}"
+                                                                    style="padding: 6px 14px; background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
                                                                 {% endif %}
                                                             </div>
                                                         </div>
+                                                        {% endif %}
                                                         {% endfor %}
                                                         {% else %}
                                                         <div
@@ -9248,7 +9686,7 @@
             <!-- Load sent status functionality from external file -->
             <script src="{% static 'js/sent_status.js' %}?v=20260112-cache-bust"></script>
             <!-- Load clean upload functions -->
-            <script src="{% static 'js/upload_functions.js'%}?v=20260116-V2"></script>
+            <script src="{% static 'js/upload_functions.js'%}?v=20260125-V1"></script>
             <!-- Load bought sample functionality -->
             <script src="{% static 'js/bought_sample.js' %}?v=20251003-FINAL-FIX"></script>
             <!-- Load KM and Hours functions fix (before main JS to ensure functions are available) -->
@@ -9688,6 +10126,7 @@
                 // CRITICAL: Define core functions FIRST
                 // These must be available immediately for onclick handlers
                 // ============================================
+                // Note: deleteInspectionGroup is defined in HEAD section
 
                 // Files popup function (main implementation)
                 window.openFilesPopup = window.openFilesPopup || function (groupId, clientName, inspectionDate) {
@@ -10430,7 +10869,7 @@
                                     const allCompBtns = document.querySelectorAll('[data-upload-btn*="composition"]');
                                     allCompBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'Composition';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10444,7 +10883,7 @@
                                     const allRetestBtns = document.querySelectorAll('[data-upload-btn*="retest"]');
                                     allRetestBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'Retest';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10458,7 +10897,7 @@
                                     const allLabBtns = document.querySelectorAll('[data-upload-btn*="lab"]');
                                     allLabBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'COA/Lab';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10472,7 +10911,7 @@
                                     const allOccBtns = document.querySelectorAll('[data-upload-btn*="occurrence"]');
                                     allOccBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'Occurrence';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10486,7 +10925,7 @@
                                     const allOtherBtns = document.querySelectorAll('[data-upload-btn*="other"]');
                                     allOtherBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'Other';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10500,7 +10939,7 @@
                                     const allComplianceBtns = document.querySelectorAll('[data-upload-btn*="compliance"]');
                                     allComplianceBtns.forEach(btn => {
                                         btn.style.background = '#6c757d';
-                                        btn.innerHTML = 'Upload';
+                                        btn.innerHTML = 'Compliance';
                                         btn.disabled = false;
                                     });
                                 }
@@ -10516,17 +10955,21 @@
 
                             // Refresh the files display while preserving scroll position
                             if (window.currentFilesClient && window.currentFilesDate) {
-                                // Save current scroll position
+                                // Save current scroll positions - both modal and main page
                                 const modalBody = document.querySelector('#filesModal .modal-body');
-                                const scrollTop = modalBody ? modalBody.scrollTop : 0;
+                                const modalScrollTop = modalBody ? modalBody.scrollTop : 0;
+                                const pageScrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
                                 openFilesPopup(window.currentFilesGroupId, window.currentFilesClient, window.currentFilesDate);
 
-                                // Restore scroll position after content loads
+                                // Restore scroll positions after content loads
                                 setTimeout(() => {
+                                    // Restore modal scroll
                                     if (modalBody) {
-                                        modalBody.scrollTop = scrollTop;
+                                        modalBody.scrollTop = modalScrollTop;
                                     }
+                                    // Restore main page scroll
+                                    window.scrollTo(0, pageScrollTop);
                                 }, 100);
                             }
                         } else {
@@ -11179,7 +11622,8 @@
                             body: JSON.stringify({
                                 client_name: clientName,
                                 inspection_date: inspectionDate,
-                                group_id: groupId
+                                group_id: groupId,
+                                _force_refresh: true
                             })
                         });
 
@@ -11855,10 +12299,10 @@
                                             compositionBtns.forEach(btn => {
                                                 if (compositionFiles.length > 0) {
                                                     btn.style.background = '#22c55e';
-                                                    btn.innerHTML = 'Upload ✓';
+                                                    btn.innerHTML = 'Composition ✓';
                                                 } else {
                                                     btn.style.background = '#6c757d';
-                                                    btn.innerHTML = 'Upload';
+                                                    btn.innerHTML = 'Composition';
                                                 }
                                             });
                                         }
@@ -11868,10 +12312,10 @@
                                         labBtns.forEach(btn => {
                                             if (labFiles.length > 0) {
                                                 btn.style.background = '#22c55e';
-                                                btn.innerHTML = 'Upload ✓';
+                                                btn.innerHTML = 'COA/Lab ✓';
                                             } else {
                                                 btn.style.background = '#6c757d';
-                                                btn.innerHTML = 'Upload';
+                                                btn.innerHTML = 'COA/Lab';
                                             }
                                         });
 
@@ -11880,10 +12324,10 @@
                                         occurrenceBtns.forEach(btn => {
                                             if (occurrenceFiles.length > 0) {
                                                 btn.style.background = '#22c55e';
-                                                btn.innerHTML = 'Upload ✓';
+                                                btn.innerHTML = 'Occurrence ✓';
                                             } else {
                                                 btn.style.background = '#6c757d';
-                                                btn.innerHTML = 'Upload';
+                                                btn.innerHTML = 'Occurrence';
                                             }
                                         });
                                     }
@@ -12217,7 +12661,6 @@
                     <div class="file-category">
                         <div class="file-category-header">
                             <div class="category-title">
-                                <i class="${category.icon}"></i>
                                 ${category.name}
                             </div>
                             <div class="file-count">${categoryFiles.length}</div>
@@ -13677,79 +14120,6 @@
                 // Inspection-level upload functions
                 // ============================================
 
-                // Upload Compliance for a specific inspection
-                window.uploadComplianceForInspection = function (productId, groupId) {
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.accept = '.pdf,.jpg,.jpeg,.png';
-                    fileInput.style.display = 'none';
-
-                    fileInput.onchange = function (e) {
-                        const file = e.target.files[0];
-                        if (file) {
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('inspection_id', productId);
-                            formData.append('document_type', 'compliance');
-                            formData.append('group_id', groupId);
-
-                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token|escapejs }}';
-                            formData.append('csrfmiddlewaretoken', csrfToken);
-
-                            fetch('/upload-document/', {
-                                method: 'POST',
-                                body: formData
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        console.log('✅ Compliance uploaded for inspection ' + productId);
-                                        // Turn button green but keep enabled for multiple uploads
-                                        const btn = document.querySelector('.upload-btn[data-type="compliance"][data-id="' + productId + '"]');
-                                        if (btn) {
-                                            btn.style.backgroundColor = '#22c55e';
-                                            btn.style.borderColor = '#22c55e';
-                                            btn.disabled = false;
-                                            btn.style.cursor = 'pointer';
-                                            btn.title = 'Compliance file exists - click to upload more';
-                                            // Ensure this button can be found by id-based reset/check logic
-                                            if (!btn.id) btn.id = 'compliance-' + productId;
-                                            // Persist upload state so loadUploadStatus/check routines pick this up
-                                            try {
-                                                const uploadStatus = JSON.parse(localStorage.getItem('uploadStatus') || '{}');
-                                                uploadStatus[btn.id] = true;
-                                                localStorage.setItem('uploadStatus', JSON.stringify(uploadStatus));
-                                            } catch (e) {
-                                                console.error('Error saving uploadStatus for compliance:', e);
-                                            }
-                                        }
-                                        // Also update template-style button
-                                        const templateBtn = document.querySelector('[data-upload-btn="compliance-' + productId + '"]');
-                                        if (templateBtn) {
-                                            templateBtn.style.backgroundColor = '#22c55e';
-                                            templateBtn.style.borderColor = '#22c55e';
-                                            templateBtn.disabled = false;
-                                            templateBtn.style.cursor = 'pointer';
-                                            templateBtn.title = 'Compliance file exists - click to upload more';
-                                        }
-                                        alert('Compliance document uploaded successfully!');
-                                    } else {
-                                        console.error('❌ Error uploading compliance:', data.error);
-                                        alert('Error uploading compliance: ' + (data.error || 'Unknown error'));
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('❌ Error uploading compliance:', error);
-                                    alert('Error uploading compliance: ' + error.message);
-                                });
-                        }
-                    };
-
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    document.body.removeChild(fileInput);
-                };
-
                 // Upload Lab/COA for a specific inspection
                 window.uploadLabForInspection = function (productId, groupId) {
                     const fileInput = document.createElement('input');
@@ -13842,54 +14212,6 @@
                                 .catch(error => {
                                     console.error('❌ Error uploading invoice:', error);
                                     alert('Error uploading invoice: ' + error.message);
-                                });
-                        }
-                    };
-
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    document.body.removeChild(fileInput);
-                };
-
-                // Upload Composition for a specific inspection
-                window.uploadCompositionForInspection = function (productId, groupId) {
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.accept = '.pdf,.jpg,.jpeg,.png';
-                    fileInput.style.display = 'none';
-
-                    fileInput.onchange = function (e) {
-                        const file = e.target.files[0];
-                        if (file) {
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('inspection_id', productId);
-                            formData.append('document_type', 'composition');
-                            formData.append('group_id', groupId);
-
-                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token|escapejs }}';
-                            formData.append('csrfmiddlewaretoken', csrfToken);
-
-                            fetch('/upload-document/', {
-                                method: 'POST',
-                                body: formData
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        console.log('✅ Composition uploaded for inspection ' + productId);
-                                        // Turn button green
-                                        const btn = document.querySelector('.upload-btn[data-type="composition"][data-id="' + productId + '"]');
-                                        if (btn) btn.style.background = '#22c55e';
-                                        alert('Composition uploaded successfully!');
-                                    } else {
-                                        console.error('❌ Error uploading composition:', data.error);
-                                        alert('Error uploading composition: ' + (data.error || 'Unknown error'));
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('❌ Error uploading composition:', error);
-                                    alert('Error uploading composition: ' + error.message);
                                 });
                         }
                     };

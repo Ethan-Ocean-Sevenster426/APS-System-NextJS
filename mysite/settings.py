@@ -110,41 +110,58 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
-# SQLite database - commented out for MySQL
+# Local SQLite database (commented out)
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
+#         'NAME': BASE_DIR / 'db_local.sqlite3',
 #     },
 # }
 
-# MySQL database (active)
+# Local MySQL database
 DATABASES = {
     'default': {
-        'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
-        'NAME': env('DB_NAME', default='v4_worksheet'),
-        'USER': env('DB_USER', default='v4_user'),
-        'PASSWORD': env('DB_PASSWORD', default='V4_Secure@2024!'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='3306'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'inspection_system',
+        'USER': 'inspection_user',
+        'PASSWORD': 'inspection_pass_2026',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
         'OPTIONS': {
             'charset': 'utf8mb4',
         },
     },
-    # SQL Server disabled - we only want local/manual inspections
-    # 'sql_server': {
-    #     'ENGINE': env('SQL_SERVER_ENGINE', default='mssql'),
-    #     'NAME': env('SQL_SERVER_NAME', default='AFS'),
-    #     'USER': env('SQL_SERVER_USER', default='FSAUser2'),
-    #     'PASSWORD': env('SQL_SERVER_PASSWORD', default='password'),
-    #     'HOST': env('SQL_SERVER_HOST', default='102.67.140.12'),
-    #     'PORT': env('SQL_SERVER_PORT', default='1053'),
-    #     'OPTIONS': {
-    #         'driver': 'ODBC Driver 17 for SQL Server',
-    #         'trusted_connection': 'no',
-    #     },
-    # }
 }
+
+# Remote MySQL direct connection to production server (commented out)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'v4_worksheet',
+#         'USER': 'v4_user',
+#         'PASSWORD': 'V4_Secure@2024!',
+#         'HOST': '167.88.43.168',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#         },
+#     },
+# }
+
+# Remote MySQL database (commented out)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
+#         'NAME': env('DB_NAME', default='v4_worksheet'),
+#         'USER': env('DB_USER', default='v4_user'),
+#         'PASSWORD': env('DB_PASSWORD', default='V4_Secure@2024!'),
+#         'HOST': env('DB_HOST', default='localhost'),
+#         'PORT': env('DB_PORT', default='3306'),
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#         },
+#     },
+# }
 
 # Use local memory cache for development (no Redis dependency)
 CACHES = {

@@ -3142,7 +3142,7 @@
             <div style="font-size: 14px; font-weight: bold;">Food Safety Agency</div>
         </div>
         <div class="mobile-nav-links">
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin'
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin'
             %}
             <a href="{% url 'home' %}">
                 <i class="fas fa-home"></i> Home
@@ -3153,7 +3153,7 @@
                 <i class="fas fa-clipboard-check"></i> Inspections
             </a>
 
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
             <a href="{% url 'client_allocation' %}">
                 <i class="fas fa-users"></i> Manage Clients
             </a>
@@ -3169,7 +3169,7 @@
             </a>
             {% endif %}
 
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
             <button onclick="syncInspectionsFromShipmentList()">
                 <i class="fas fa-sync-alt"></i> <span class="btn-text">Sync Inspections</span>
             </button>
@@ -3214,7 +3214,7 @@
 
         <div class="action-bar">
             <!-- Home Button -->
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin'
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin'
             %}
             <a href="{% url 'home' %}" class="btn" style="background: #10b981; color: white;"
                 onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
@@ -3223,7 +3223,7 @@
             {% endif %}
 
             <!-- Sync Shipments Button - Hidden for administrators -->
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin'
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin'
             %}
             <form action="{% url 'refresh_inspections' %}" method="post" style="display: inline;">
                 {% csrf_token %}
@@ -3243,7 +3243,7 @@
             </button>
 
             <!-- Analytics Dashboard Button (NEW) - Hidden for administrators -->
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' and request.user.role != 'admin'
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin'
             %}
             <a href="{% url 'analytics_dashboard' %}" class="btn btn-analytics">
                 <i class="fas fa-chart-line"></i> Analytics Dashboard
@@ -3251,7 +3251,7 @@
             {% endif %}
 
             <!-- Manage Clients Button -->
-            {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+            {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
             <a href="{% url 'client_allocation' %}" class="btn btn-allocation">
                 <i class="fas fa-users"></i> Manage Clients
             </a>
@@ -3303,7 +3303,7 @@
                             <select class="form-control" name="branch">
                                 <option value="">All Inspectors</option>
                                 {% for inspector in inspectors %}
-                                <option value="{{ inspector }}" {% if request.GET.branch==inspector %}selected{% endif
+                                <option value="{{ inspector }}" {% if request.GET.branch == inspector %}selected{% endif
                                     %}>{{ inspector }}</option>
                                 {% endfor %}
                             </select>
@@ -3500,7 +3500,7 @@
                                         RFI
                                     </button>
                                     {% endif %}
-                                    {% elif request.user.role != 'scientist' %}
+                                    {% elif request.user.role != 'lab_technician' %}
                                     {% if shipment.rfi_uploaded %}
                                     <button class="btn btn-sm btn-success" id="rfi-{{ fallback_group_id }}" disabled
                                         title="RFI file exists"
@@ -3521,7 +3521,7 @@
                                 <!-- Invoice Column -->
                                 {% if user.role != 'inspector' %}
                                 <td class="col-invoice">
-                                    {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+                                    {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
                                     {% if shipment.invoice_uploaded %}
                                     <button class="btn btn-sm btn-success" id="invoice-{{ fallback_group_id }}" disabled
                                         title="Invoice file exists"
@@ -3550,7 +3550,7 @@
                                         value="{{ shipment.km_traveled|default:'' }}" placeholder="0.0" step="0.1"
                                         min="0" onchange="updateGroupKmTraveled(this)"
                                         title="Total kilometers traveled for this inspection group">
-                                    {% elif request.user.role != 'scientist' %}
+                                    {% elif request.user.role != 'lab_technician' %}
                                     <input type="number" class="form-control form-control-sm group-km-input"
                                         data-group-id="{{ fallback_group_id }}"
                                         value="{{ shipment.km_traveled|default:'' }}" placeholder="0.0" step="0.1"
@@ -3568,7 +3568,7 @@
                                         data-group-id="{{ fallback_group_id }}" value="{{ shipment.hours|default:'' }}"
                                         placeholder="0.0" step="0.1" min="0" onchange="updateGroupHours(this)"
                                         title="Total hours spent on this inspection group">
-                                    {% elif request.user.role != 'scientist' %}
+                                    {% elif request.user.role != 'lab_technician' %}
                                     <input type="number" class="form-control form-control-sm group-hours-input"
                                         data-group-id="{{ fallback_group_id }}" value="{{ shipment.hours|default:'' }}"
                                         placeholder="0.0" step="0.1" min="0" onchange="updateGroupHours(this)"
@@ -3580,7 +3580,7 @@
 
                                 <!-- Sent Status Column -->
                                 <td class="col-send">
-                                    {% if user_role != 'inspector' and user_role != 'scientist' %}
+                                    {% if user_role != 'inspector' and user_role != 'lab_technician' %}
                                     <select
                                         class="form-control form-control-sm sent-status-dropdown {% if shipment.is_sent %}sent-yes{% elif shipment.is_sent == False %}sent-no{% endif %}{% if shipment.compliance_status != 'complete' %} disabled-dropdown{% endif %}"
                                         data-group-id="{{ fallback_group_id }}"
@@ -4452,7 +4452,7 @@
     </style>
 
     <!-- Load sent status functionality from external file -->
-    <script src="{% static 'js/sent_status.js' %}?v=20250925-fix-endpoint-calls"></script>
+    <script src="{% static 'js/sent_status.js' %}?v=20260112-cache-bust"></script>
     <!-- Load clean upload functions -->
     <script src="{% static 'js/upload_functions.js' %}?v=20250925-fix-endpoint-calls"></script>
     <script>
@@ -4697,14 +4697,8 @@
 
         // CSRF functions now defined at top of script section
 
-        // Delete file function - Only compliance documents are protected from deletion
+        // Delete file function - All document types can be deleted
         async function deleteFile(filePath, category) {
-            // Prevent deletion of compliance documents only
-            if (category === 'compliance' || (filePath && filePath.toLowerCase().includes('compliance'))) {
-                alert('Compliance documents cannot be deleted for security and audit purposes.');
-                return;
-            }
-
             if (!confirm('Are you sure you want to delete this ' + category + ' file? This action cannot be undone.')) {
                 return;
             }

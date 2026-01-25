@@ -10,7 +10,7 @@ https://v4-project.moc-pty.com
 ## MySQL Database Credentials
 - **Database:** v4_worksheet
 - **User:** v4_user
-- **Password:** v4_password
+- **Password:** V4_Secure@2024!
 - **Host:** localhost
 - **Port:** 3306
 

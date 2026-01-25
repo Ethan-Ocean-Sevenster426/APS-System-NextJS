@@ -1,0 +1,135 @@
+{% load static %}
+{% load group_filters %}
+{% load inspector_extras %}
+                {% if request.user.role == 'inspector' %}
+                <!-- Inspector-specific menu: Only Dashboard, Inspections, Settings, Expand/Collapse -->
+                <li class="nav-item">
+                    <a href="{% url 'inspector_dashboard' %}" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'shipment_list' %}" class="nav-link active">
+                        <i class="fas fa-clipboard-check"></i>
+                        Inspections
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'submit_ticket' %}" class="nav-link">
+                        <i class="fas fa-ticket-alt" style="color: #f87171;"></i>
+                        Submit Ticket
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'settings' %}" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        Inspector Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <button onclick="expandAll()" class="nav-link"
+                        style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
+                        <i class="fas fa-expand-alt"></i>
+                        Expand All
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button onclick="collapseAll()" class="nav-link"
+                        style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
+                        <i class="fas fa-compress-alt"></i>
+                        Collapse All
+                    </button>
+                </li>
+                {% else %}
+                <!-- Full menu for non-inspector users -->
+                <li class="nav-item">
+                    <a href="{% url 'home' %}" class="nav-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'client_list' %}" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        Clients
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'shipment_list' %}" class="nav-link active">
+                        <i class="fas fa-clipboard-check"></i>
+                        Inspections
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'user_management' %}" class="nav-link">
+                        <i class="fas fa-users-cog"></i>
+                        User Management
+                    </a>
+                </li>
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                <li class="nav-item">
+                    <a href="{% url 'system_logs' %}" class="nav-link">
+                        <i class="fas fa-list-alt"></i>
+                        System Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'fsa_operations_board' %}" class="nav-link">
+                        <i class="fas fa-ticket-alt" style="color: #22d3ee;"></i>
+                        Support Tickets
+                    </a>
+                </li>
+                {% endif %}
+                {% if request.user.role == 'developer' %}
+                <li class="nav-item">
+                    <a href="{% url 'onedrive_view' %}" class="nav-link">
+                        <i class="fas fa-cloud"></i>
+                        OneDrive View
+                    </a>
+                </li>
+                {% endif %}
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                <li class="nav-item">
+                    <a href="{% url 'server_view' %}" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Server View
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a href="{% url 'submit_ticket' %}" class="nav-link">
+                        <i class="fas fa-ticket-alt" style="color: #f87171;"></i>
+                        Submit Ticket
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'settings' %}" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </a>
+                </li>
+
+                <!-- Shipment-specific functionality -->
+                {% if request.user.role != 'inspector' and request.user.role != 'scientist' %}
+                <li class="nav-item">
+                    <button onclick="syncInspectionsFromShipmentList()" class="nav-link"
+                        style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
+                        <i class="fas fa-sync-alt"></i>
+                        Sync Inspections
+                    </button>
+                </li>
+
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role ==
+                'financial_admin' %}
+                <li class="nav-item">
+                    <a href="{% url 'export_sheet' %}" class="nav-link"
+                        style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer; text-decoration: none;">
+                        <i class="fas fa-file-export"></i>
+                        Export Sheet
+                    </a>
+                </li>
+                {% endif %}
+                {% endif %}
+                {% endif %}
+

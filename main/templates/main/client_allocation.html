@@ -2000,7 +2000,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
                         <a href="{% url 'export_sheet' %}"
                             class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
@@ -2227,38 +2227,23 @@
                                 <thead>
                                     <tr>
                                         <th>Client ID</th>
-                                        <th>Facility Type</th>
-                                        <th>Group Type</th>
-                                        <th>Commodity</th>
-                                        <th>Province</th>
-                                        <th>Corporate Group</th>
-                                        <th>Internal Account Code</th>
                                         <th>Client Name</th>
-                                        <th>Representative Email</th>
-                                        <th>Phone Number</th>
+                                        <th>Email</th>
+                                        <th>Account Code</th>
+                                        <th>Inspections</th>
                                     </tr>
                                 </thead>
                                 <tbody id="clientTableBody">
                                     {% for client in clients %}
                                     <tr data-client-id="{{ client.id }}"
                                         data-filter-client-id="{{ client.client_id|lower }}"
-                                        data-filter-facility-type="{{ client.facility_type|default:''|lower }}"
-                                        data-filter-group-type="{{ client.group_type|default:''|lower }}"
-                                        data-filter-commodity="{{ client.commodity|default:''|lower }}"
-                                        data-filter-province="{{ client.province|default:''|lower }}"
-                                        data-filter-corporate-group="{{ client.corporate_group|default:''|lower }}"
                                         data-filter-account-code="{{ client.internal_account_code|default:''|lower }}"
-                                        data-filter-client-name="{{ client.eclick_name|default:''|lower }}">
+                                        data-filter-client-name="{{ client.name|default:''|lower }}">
                                         <td>{{ client.client_id }}</td>
-                                        <td>{{ client.facility_type|default:"-" }}</td>
-                                        <td>{{ client.group_type|default:"-" }}</td>
-                                        <td>{{ client.commodity|default:"-" }}</td>
-                                        <td>{{ client.province|default:"-" }}</td>
-                                        <td>{{ client.corporate_group|default:"-" }}</td>
-                                        <td>{{ client.internal_account_code }}</td>
-                                        <td>{{ client.eclick_name|default:"-" }}</td>
-                                        <td>{{ client.representative_email|default:"-" }}</td>
-                                        <td>{{ client.phone_number|default:"-" }}</td>
+                                        <td>{{ client.name|default:"-" }}</td>
+                                        <td>{{ client.email|default:client.manual_email|default:"-" }}</td>
+                                        <td>{{ client.internal_account_code|default:"-" }}</td>
+                                        <td>{{ client.inspection_count|default:"0" }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -2270,49 +2255,24 @@
                             {% for client in clients %}
                             <div class="client-card" data-client-id="{{ client.id }}"
                                 data-filter-client-id="{{ client.client_id|lower }}"
-                                data-filter-facility-type="{{ client.facility_type|default:''|lower }}"
-                                data-filter-group-type="{{ client.group_type|default:''|lower }}"
-                                data-filter-commodity="{{ client.commodity|default:''|lower }}"
-                                data-filter-province="{{ client.province|default:''|lower }}"
-                                data-filter-corporate-group="{{ client.corporate_group|default:''|lower }}"
                                 data-filter-account-code="{{ client.internal_account_code|default:''|lower }}"
-                                data-filter-client-name="{{ client.eclick_name|default:''|lower }}">
+                                data-filter-client-name="{{ client.name|default:''|lower }}">
                                 <div class="client-card-header">
-                                    <h3 class="client-name">{{ client.client_id }}</h3>
-                                    <span class="client-id">{{ client.facility_type|default:"-" }}</span>
+                                    <h3 class="client-name">{{ client.name }}</h3>
+                                    <span class="client-id">{{ client.client_id }}</span>
                                 </div>
                                 <div class="client-card-body">
                                     <div class="client-field">
-                                        <label>Group Type:</label>
-                                        <span>{{ client.group_type|default:"-" }}</span>
-                                    </div>
-                                    <div class="client-field">
-                                        <label>Commodity:</label>
-                                        <span>{{ client.commodity|default:"-" }}</span>
-                                    </div>
-                                    <div class="client-field">
-                                        <label>Province:</label>
-                                        <span>{{ client.province|default:"-" }}</span>
-                                    </div>
-                                    <div class="client-field">
-                                        <label>Corporate Group:</label>
-                                        <span>{{ client.corporate_group|default:"-" }}</span>
+                                        <label>Email:</label>
+                                        <span>{{ client.email|default:client.manual_email|default:"-" }}</span>
                                     </div>
                                     <div class="client-field">
                                         <label>Account Code:</label>
-                                        <span>{{ client.internal_account_code }}</span>
+                                        <span>{{ client.internal_account_code|default:"-" }}</span>
                                     </div>
                                     <div class="client-field">
-                                        <label>Client Name:</label>
-                                        <span>{{ client.eclick_name|default:"-" }}</span>
-                                    </div>
-                                    <div class="client-field">
-                                        <label>Email:</label>
-                                        <span>{{ client.representative_email|default:"-" }}</span>
-                                    </div>
-                                    <div class="client-field">
-                                        <label>Phone Number:</label>
-                                        <span>{{ client.phone_number|default:"-" }}</span>
+                                        <label>Inspections:</label>
+                                        <span>{{ client.inspection_count|default:"0" }}</span>
                                     </div>
                                 </div>
                             </div>

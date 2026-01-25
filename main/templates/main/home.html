@@ -772,12 +772,12 @@
                         </a>
                     </li>
                     {% else %}
-                    <!-- 2. Client Allocation -->
+                    <!-- 2. Clients -->
                     <li>
                         <a href="{% url 'client_allocation' %}"
                             class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
                             <i class="fas fa-address-book mr-2 w-4 text-center"></i>
-                            Client Allocation
+                            Clients
                         </a>
                     </li>
                     <!-- 3. Inspection Records -->
@@ -825,18 +825,7 @@
                         </a>
                     </li>
 
-                    <!-- 8. OneDrive View (developer only) -->
-                    {% if request.user.role == 'developer' %}
-                    <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    <!-- 9. Server View -->
+                    <!-- 8. Server View -->
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
                         <a href="{% url 'server_view' %}"
@@ -848,7 +837,7 @@
                     {% endif %}
 
                     <!-- 10. Export Sheet -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'financial_admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
                         <a href="{% url 'export_sheet' %}"
                             class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
@@ -957,7 +946,7 @@
                 <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
                     <h3 class="card-title text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
                     <div class="quick-actions space-y-3">
-                        <a href="{% url 'client_list' %}"
+                        <a href="{% url 'client_allocation' %}"
                             class="quick-action-link block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                             <div class="flex items-center gap-3">
                                 <i class="quick-action-icon fas fa-users text-primary"></i>

@@ -104,26 +104,33 @@
             const mobileMenuBtn = document.getElementById('mobile-menu-btn');
             const mobileNav = document.getElementById('mobile-nav');
             const mobileOverlay = document.getElementById('mobile-overlay');
-            
+
+            // Only set up mobile nav if elements exist
+            if (!mobileMenuBtn || !mobileNav || !mobileOverlay) {
+                return;
+            }
+
             function toggleMobileNav() {
                 mobileNav.classList.toggle('show');
                 mobileOverlay.classList.toggle('show');
-                
+
                 // Update menu button icon
                 const icon = mobileMenuBtn.querySelector('i');
-                if (mobileNav.classList.contains('show')) {
-                    icon.className = 'fas fa-times';
-                } else {
-                    icon.className = 'fas fa-bars';
+                if (icon) {
+                    if (mobileNav.classList.contains('show')) {
+                        icon.className = 'fas fa-times';
+                    } else {
+                        icon.className = 'fas fa-bars';
+                    }
                 }
             }
-            
+
             // Toggle navigation when menu button is clicked
             mobileMenuBtn.addEventListener('click', toggleMobileNav);
-            
+
             // Close navigation when overlay is clicked
             mobileOverlay.addEventListener('click', toggleMobileNav);
-            
+
             // Close navigation when a navigation link is clicked (on mobile)
             const navLinks = mobileNav.querySelectorAll('a');
             navLinks.forEach(link => {
@@ -146,13 +153,24 @@
         });
         
         // CSRF functions now defined at top of script section
-        
+
+        // Show message helper function
+        function showMessage(message, type) {
+            if (type === 'success') {
+                alert('✅ ' + message);
+            } else if (type === 'error') {
+                alert('❌ ' + message);
+            } else {
+                alert(message);
+            }
+        }
+
         // Delete file function
         async function deleteFile(filePath, category) {
             if (!confirm('Are you sure you want to delete this ' + category + ' file? This action cannot be undone.')) {
                 return;
             }
-            
+
             try {
                 const response = await fetch('/delete-inspection-file/', {
                     method: 'POST',
@@ -166,13 +184,36 @@
                         inspection_date: window.currentFilesDate
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     // Show success message
                     showMessage(result.message, 'success');
-                    
+
+                    // Update upload button to grey if no more files in this category
+                    // Find buttons matching this category and set to grey
+                    const matchingButtons = document.querySelectorAll('[data-upload-btn*="' + category + '"]');
+                    matchingButtons.forEach(btn => {
+                        btn.style.background = '#6c757d';  // Grey - no files
+                        btn.style.backgroundColor = '#6c757d';
+                        btn.innerHTML = 'Upload';
+                        btn.disabled = false;
+                    });
+
+                    // Also handle RFI/Invoice buttons
+                    if (category === 'rfi' || category === 'invoice') {
+                        const groupId = window.currentFilesGroupId;
+                        if (groupId) {
+                            const btn = document.getElementById(category + '-' + groupId);
+                            if (btn) {
+                                btn.style.backgroundColor = '#ef4444';  // Red - no files
+                                btn.style.background = '#ef4444';
+                                btn.innerHTML = category.toUpperCase();
+                            }
+                        }
+                    }
+
                     // Refresh the files display
                     if (window.currentFilesClient && window.currentFilesDate) {
                         openFilesPopup(window.currentFilesGroupId, window.currentFilesClient, window.currentFilesDate);
@@ -180,7 +221,7 @@
                 } else {
                     showMessage(result.error || 'Failed to delete file', 'error');
                 }
-                
+
             } catch (error) {
                 console.error('Error deleting file:', error);
                 showMessage('Error deleting file: ' + error.message, 'error');
@@ -654,26 +695,13 @@
         });
         
         // Set up a periodic check to ensure sent status styling is maintained
+        // DISABLED: This was overriding user changes to sent status
+        // The styling is now handled by updateSentStatus() in sent_status.js
+        /*
         setInterval(() => {
-            const sentRows = document.querySelectorAll('tr[data-sent-status="yes"]');
-            sentRows.forEach(row => {
-                if (!row.classList.contains('inspection-complete') || 
-                    row.style.backgroundColor !== 'rgb(34, 197, 94)') {
-                    console.log('🔧 [SENT STATUS] Re-applying styling to row:', row.getAttribute('data-group-id'));
-                    row.classList.add('inspection-complete');
-                    row.style.setProperty('background-color', '#22c55e', 'important');
-                    row.style.setProperty('color', 'white', 'important');
-                    row.style.setProperty('border-color', '#16a34a', 'important');
-                    
-                    const tds = row.querySelectorAll('td');
-                    tds.forEach(td => {
-                        td.style.setProperty('background-color', '#22c55e', 'important');
-                        td.style.setProperty('color', 'white', 'important');
-                        td.style.setProperty('border-color', '#16a34a', 'important');
-                    });
-                }
-            });
-        }, 5000); // Check every 5 seconds
+            // Removed - was causing green to re-appear after user changed to NO
+        }, 5000);
+        */
         
         // Automatically check file status for all clients on page load
         // Add a delay to ensure all buttons are fully rendered and prevent conflicts
@@ -894,7 +922,9 @@
         }
 
         // Flag to prevent duplicate status checks
-        let statusCheckInProgress = false;
+        if (typeof statusCheckInProgress === 'undefined') {
+            var statusCheckInProgress = false;
+        }
         
         async function checkAllClientFileStatus() {
             // Check file status for all clients on current page and update button colors
@@ -1394,19 +1424,22 @@
             const categories = [
                 { key: 'rfi', name: 'RFI Documents', icon: 'fas fa-file-alt' },
                 { key: 'invoice', name: 'Invoice Documents', icon: 'fas fa-file-invoice' },
-                { key: 'lab', name: 'Lab Results', icon: 'fas fa-flask' },
+                { key: 'lab', name: 'COA', icon: 'fas fa-flask' },
+                { key: 'lab_form', name: 'Lab Form Documents', icon: 'fas fa-file-medical' },
                 { key: 'retest', name: 'Retest Documents', icon: 'fas fa-redo' },
-                { key: 'compliance', name: 'Compliance Documents', icon: 'fas fa-shield-alt' }
+                { key: 'compliance', name: 'Compliance Documents', icon: 'fas fa-shield-alt' },
+                { key: 'composition', name: 'Composition Documents', icon: 'fas fa-vial' },
+                { key: 'occurrence', name: 'Occurrence Documents', icon: 'fas fa-exclamation-triangle' },
+                { key: 'other', name: 'Other Documents', icon: 'fas fa-folder' }
             ];
             
             categories.forEach(category => {
                 const categoryFiles = files[category.key] || [];
                 
-                html += 
+                html +=
                     '<div class="file-category">' +
                         '<div class="file-category-header">' +
                             '<div class="category-title">' +
-                                '<i class="' + category.icon + '"></i>' +
                                 category.name +
                             '</div>' +
                             '<div class="file-count">' + categoryFiles.length + '</div>' +
@@ -1430,11 +1463,14 @@
                                         '</div>' +
                                     '</div>' +
                                 '</div>' +
-                                '<div class="file-actions">' +
+                                '<div class="file-actions" style="display: flex !important; gap: 6px !important;">' +
                                     getViewButton(file) +
-                                    '<a href="' + (file.url || `/download-inspection-file/?file=${encodeURIComponent(file.relative_path)}&source=${file.source || 'local'}`) + '" class="btn btn-file btn-secondary" title="Download File">' +
+                                    '<a href="/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download" download="' + (file.name || 'file') + '" class="btn btn-file btn-secondary" style="background: #10b981 !important; color: white !important; padding: 6px 10px; border-radius: 6px;" title="Download File">' +
                                         '<i class="fas fa-download"></i>' +
                                     '</a>' +
+                                    '<button class="btn btn-file btn-danger" onclick="deleteFile(\'' + (file.relative_path || file.path || file.name).replace(/'/g, "\\'") + '\', \'' + category.key + '\')" title="Delete File" style="background: #ef4444 !important; color: white !important; width: 36px; height: 36px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); transition: all 0.2s ease; cursor: pointer;" onmouseenter="this.style.transform=\'scale(1.1)\'; this.style.boxShadow=\'0 4px 12px rgba(239, 68, 68, 0.5)\';" onmouseleave="this.style.transform=\'scale(1)\'; this.style.boxShadow=\'0 2px 8px rgba(239, 68, 68, 0.4)\';">' +
+                                        '<i class="fas fa-trash" style="font-size: 14px;"></i>' +
+                                    '</button>' +
                                 '</div>' +
                             '</div>';
                     });
@@ -1447,7 +1483,8 @@
         }
         
         function getFileIcon(filename) {
-            const ext = filename.split('.').pop().toLowerCase();
+            if (!filename) return 'fas fa-file';
+            const ext = String(filename).split('.').pop().toLowerCase();
             switch(ext) {
                 case 'pdf': return 'fas fa-file-pdf';
                 case 'xlsx': case 'xls': return 'fas fa-file-excel';
@@ -1459,32 +1496,33 @@
         }
         
         function getViewButton(file) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            
-            // For ZIP files, show extract/contents button instead of view
-            if (ext === 'zip' || ext === 'rar') {
-                return '<button class="btn btn-file btn-warning" onclick="showZipContents(\'' + file.relative_path + '\', \'' + (file.source || 'local') + '\')" title="Show ZIP Contents">' +
-                        '<i class="fas fa-eye"></i>' +
-                    '</button>';
+            try {
+                const filename = file.filename || file.name || 'unknown';
+                const ext = filename.split('.').pop().toLowerCase();
+                const filePath = file.relative_path || file.path || '';
+
+                if (!filePath) {
+                    return '';
+                }
+
+                // For ZIP files, show extract/contents button instead of view
+                if (ext === 'zip' || ext === 'rar') {
+                    return '<button class="btn btn-file btn-warning" onclick="showZipContents(\'' + filePath + '\', \'' + (file.source || 'local') + '\')" title="Show ZIP Contents" style="background: #f59e0b !important; color: white !important; padding: 6px 10px; border-radius: 6px; border: none;"><i class="fas fa-eye"></i></button>';
+                }
+
+                // For viewable files (PDF, images, etc.), show view button
+                const viewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
+                if (viewableTypes.includes(ext)) {
+                    const viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(filePath) + '&source=' + (file.source || 'local') + '&action=view';
+                    return '<a href="' + viewUrl + '" class="btn btn-file btn-primary" target="_blank" title="View File" style="background: #3b82f6 !important; color: white !important; padding: 6px 10px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center;"><i class="fas fa-eye"></i></a>';
+                }
+
+                // For other files (Excel, Word), show info button
+                return '<button class="btn btn-file btn-info" onclick="alert(\'This file type opens best when downloaded\')" title="Download to View" style="background: #06b6d4 !important; color: white !important; padding: 6px 10px; border-radius: 6px; border: none;"><i class="fas fa-info"></i></button>';
+            } catch (e) {
+                console.error('getViewButton error:', e);
+                return '';
             }
-            
-            // For viewable files (PDF, images, etc.), show view button
-            const viewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
-            if (viewableTypes.includes(ext)) {
-                // Use OneDrive URL if available, otherwise use local URL
-                const viewUrl = file.url || '/download-inspection-file/?file=' + encodeURIComponent(file.relative_path) + '&source=' + file.source || 'local';
-                return 
-                    '<a href="' + viewUrl + '" class="btn btn-file btn-primary" target="_blank" title="View File">' +
-                        '<i class="fas fa-eye"></i>' +
-                    '</a>';
-            }
-            
-            // For other files (Excel, Word), show download-only
-            return `
-                <button class="btn btn-file btn-info" onclick="alert('This file type opens best when downloaded')" title="Download to View">
-                    <i class="fas fa-info"></i>
-                </button>
-            `;
         }
         
         async function showZipContents(relativePath, source = 'local') {
