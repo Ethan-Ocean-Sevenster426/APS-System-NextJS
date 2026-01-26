@@ -1409,12 +1409,24 @@
                         margin-bottom: 2px;
                         color: #64748b;
                     }
-                    .export-filter-field input {
+                    .export-filter-field input,
+                    .export-filter-field select {
                         width: 100%;
                         padding: 6px 10px;
                         border: 1px solid var(--border);
                         border-radius: 4px;
                         font-size: 0.8rem;
+                        background: var(--card-bg);
+                        color: var(--text);
+                    }
+                    .export-filter-field select {
+                        cursor: pointer;
+                    }
+                    .export-filter-field select:focus,
+                    .export-filter-field input:focus {
+                        outline: none;
+                        border-color: var(--primary);
+                        box-shadow: 0 0 0 2px rgba(0, 120, 144, 0.1);
                     }
                     .export-actions {
                         display: flex;
@@ -1464,6 +1476,25 @@
                     <div class="export-filter-field">
                         <label for="inspectorFilter">Inspector</label>
                         <input type="text" id="inspectorFilter" placeholder="Search...">
+                    </div>
+                    <div class="export-filter-field">
+                        <label for="monthFilter">Month</label>
+                        <select id="monthFilter">
+                            <option value="">All Months</option>
+                            <option value="2026-01">January 2026</option>
+                            <option value="2025-12">December 2025</option>
+                            <option value="2025-11">November 2025</option>
+                            <option value="2025-10">October 2025</option>
+                            <option value="2025-09">September 2025</option>
+                            <option value="2025-08">August 2025</option>
+                            <option value="2025-07">July 2025</option>
+                            <option value="2025-06">June 2025</option>
+                            <option value="2025-05">May 2025</option>
+                            <option value="2025-04">April 2025</option>
+                            <option value="2025-03">March 2025</option>
+                            <option value="2025-02">February 2025</option>
+                            <option value="2025-01">January 2025</option>
+                        </select>
                     </div>
                     <div class="export-filter-field">
                         <label for="invoiceDateFromFilter">Date From</label>
@@ -2172,10 +2203,52 @@
 
         // Function to clear all filters
         function clearAllFilters() {
+            // Clear month dropdown
+            const monthSelect = document.getElementById('monthFilter');
+            if (monthSelect) {
+                monthSelect.value = '';
+            }
+
             // Reload page without any query parameters (will use default yesterday-today)
             const url = new URL(window.location.href);
             url.search = ''; // Clear all query params
             window.location.href = url.toString();
+        }
+
+        // Handle month filter selection
+        function handleMonthFilter() {
+            const monthSelect = document.getElementById('monthFilter');
+            const dateFromInput = document.getElementById('invoiceDateFromFilter');
+            const dateToInput = document.getElementById('invoiceDateToFilter');
+
+            if (monthSelect && dateFromInput && dateToInput) {
+                monthSelect.addEventListener('change', function() {
+                    const selectedMonth = this.value;
+
+                    if (selectedMonth) {
+                        // Parse year and month
+                        const [year, month] = selectedMonth.split('-');
+
+                        // Get first day of month
+                        const firstDay = `${year}-${month}-01`;
+
+                        // Get last day of month
+                        const lastDay = new Date(year, month, 0).getDate();
+                        const lastDayFormatted = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+                        // Set the date inputs
+                        dateFromInput.value = firstDay;
+                        dateToInput.value = lastDayFormatted;
+
+                        // Automatically apply the filter
+                        applyDateFilter();
+                    } else {
+                        // Clear month filter - clear dates
+                        dateFromInput.value = '';
+                        dateToInput.value = '';
+                    }
+                });
+            }
         }
 
         // Legacy function for backward compatibility
@@ -2641,6 +2714,9 @@
                 // Set date to to today
                 DOM.filters.dateTo.value = defaultEndDate;
             }
+
+            // Initialize month filter handler
+            handleMonthFilter();
 
             // Use requestAnimationFrame for smooth loading
             requestAnimationFrame(() => {
