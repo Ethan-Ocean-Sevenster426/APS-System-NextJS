@@ -1109,7 +1109,7 @@ def edit_fsa_inspection(request, pk):
                         print(f"[EDIT FORM DEBUG] Inspection {rel_insp.id} ({commodity}) will be deleted (commodity removed)")
 
             # Now update the main inspection with common fields from form
-            form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
+            form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES, instance=inspection)
             if form.is_valid():
                 try:
                     # Preserve upload tracking fields before saving
@@ -1212,6 +1212,62 @@ def edit_fsa_inspection(request, pk):
                             )
                             print(f"[EDIT FORM DEBUG] Created new inspection {new_inspection.id} for {commodity} #{idx+1}: {product.get('product_name')}")
 
+                    # Handle file uploads for the inspection group
+                    # Upload tracking is already preserved above, but we need to save actual files
+                    files_uploaded = False
+                    if 'rfi_file' in request.FILES:
+                        save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
+                        inspection.rfi_uploaded_by = request.user
+                        inspection.rfi_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded RFI file for inspection {inspection.id}")
+
+                    if 'invoice_file' in request.FILES:
+                        save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
+                        inspection.invoice_uploaded_by = request.user
+                        inspection.invoice_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded Invoice file for inspection {inspection.id}")
+
+                    if 'labform_file' in request.FILES:
+                        save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
+                        inspection.lab_form_uploaded_by = request.user
+                        inspection.lab_form_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded Lab Form file for inspection {inspection.id}")
+
+                    if 'coa_file' in request.FILES:
+                        save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
+                        inspection.coa_uploaded_by = request.user
+                        inspection.coa_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded COA file for inspection {inspection.id}")
+
+                    if 'composition_file' in request.FILES:
+                        save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
+                        inspection.composition_uploaded_by = request.user
+                        inspection.composition_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded Composition file for inspection {inspection.id}")
+
+                    if 'occurrence_file' in request.FILES:
+                        save_uploaded_file(request.FILES['occurrence_file'], inspection, 'occurrence')
+                        inspection.occurrence_uploaded_by = request.user
+                        inspection.occurrence_uploaded_date = timezone.now()
+                        files_uploaded = True
+                        print(f"[EDIT FORM DEBUG] Uploaded Occurrence file for inspection {inspection.id}")
+
+                    if files_uploaded:
+                        inspection.save()
+                        print(f"[EDIT FORM DEBUG] Saved file upload tracking for inspection {inspection.id}")
+
+                        # Clear file cache
+                        from django.core.cache import cache
+                        cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
+                        cache.delete(cache_key)
+                        cache.delete(f"{cache_key}_timestamp")
+                        print(f"[EDIT FORM DEBUG] Cleared cache for inspection {inspection.id}")
+
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
                 except Exception as e:
@@ -1222,10 +1278,57 @@ def edit_fsa_inspection(request, pk):
                         messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
         else:
             # Fallback to single inspection update if no products_data
-            form = FoodSafetyAgencyInspectionForm(request.POST, instance=inspection)
+            form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES, instance=inspection)
             if form.is_valid():
                 try:
                     inspection = form.save()
+
+                    # Handle file uploads
+                    files_uploaded = False
+                    if 'rfi_file' in request.FILES:
+                        save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
+                        inspection.rfi_uploaded_by = request.user
+                        inspection.rfi_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if 'invoice_file' in request.FILES:
+                        save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
+                        inspection.invoice_uploaded_by = request.user
+                        inspection.invoice_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if 'labform_file' in request.FILES:
+                        save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
+                        inspection.lab_form_uploaded_by = request.user
+                        inspection.lab_form_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if 'coa_file' in request.FILES:
+                        save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
+                        inspection.coa_uploaded_by = request.user
+                        inspection.coa_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if 'composition_file' in request.FILES:
+                        save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
+                        inspection.composition_uploaded_by = request.user
+                        inspection.composition_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if 'occurrence_file' in request.FILES:
+                        save_uploaded_file(request.FILES['occurrence_file'], inspection, 'occurrence')
+                        inspection.occurrence_uploaded_by = request.user
+                        inspection.occurrence_uploaded_date = timezone.now()
+                        files_uploaded = True
+
+                    if files_uploaded:
+                        inspection.save()
+                        # Clear file cache
+                        from django.core.cache import cache
+                        cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
+                        cache.delete(cache_key)
+                        cache.delete(f"{cache_key}_timestamp")
+
                     messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
                 except Exception as e:
