@@ -825,39 +825,40 @@ def add_fsa_inspection(request):
                 first_inspection = None
                 total_created = 0
 
-                # Generate shared internal_account_code ONCE for the entire group
-                # This ensures all commodities in a multi-commodity inspection have the SAME code
-                shared_account_code = None
+                # NEW PARENT-CHILD SYSTEM:
+                # Create InspectionGroup (parent) FIRST, then link all children to it
                 if products_data:
-                    first_product = products_data[0]
-                    # Use first commodity to generate the base code
-                    temp_client_name = form.cleaned_data.get('client_name')
-                    temp_date = form.cleaned_data.get('date_of_inspection')
-                    temp_facility = request.POST.get('facility_type', '')
-                    temp_group = request.POST.get('group_type', '')
-                    temp_commodity = first_product.get('commodity', '')
-                    temp_corporate = request.POST.get('corporate_group', '')
-
                     # Get or create client first
+                    temp_client_name = form.cleaned_data.get('client_name')
                     temp_client = Client.objects.filter(name__iexact=temp_client_name).first()
                     if not temp_client:
                         temp_client = Client.objects.create(
                             name=temp_client_name or "Unknown Client",
                             town=form.cleaned_data.get('town', ''),
-                            corporate_group=temp_corporate,
-                            group_type=temp_group,
-                            facility_type=temp_facility,
+                            corporate_group=request.POST.get('corporate_group', ''),
+                            group_type=request.POST.get('group_type', ''),
+                            facility_type=request.POST.get('facility_type', ''),
                         )
 
-                    shared_account_code = generate_unique_internal_account_code(
-                        client_name=temp_client_name,
-                        date_of_inspection=temp_date,
-                        facility_type=temp_facility,
-                        group_type=temp_group,
-                        commodity=temp_commodity,
-                        corporate_group=temp_corporate,
-                        client_id=temp_client.id if temp_client else None
+                    # Create parent InspectionGroup
+                    from main.models import InspectionGroup
+                    parent_group = InspectionGroup.objects.create(
+                        client=temp_client,
+                        client_name=form.cleaned_data.get('client_name'),
+                        date_of_inspection=form.cleaned_data.get('date_of_inspection'),
+                        inspector_name=form.cleaned_data.get('inspector_name', ''),
+                        town=form.cleaned_data.get('town', ''),
+                        facility_type=request.POST.get('facility_type', ''),
+                        group_type=request.POST.get('group_type', ''),
+                        corporate_group=request.POST.get('corporate_group', ''),
+                        additional_email=request.POST.get('additional_email', ''),
+                        comment=form.cleaned_data.get('comment', ''),
+                        km_traveled=float(request.POST.get('km_traveled', 0) or 0),
+                        hours=float(request.POST.get('hours', 0) or 0),
+                        is_manual=True,
                     )
+                else:
+                    parent_group = None
 
                 for sequence_num, product_info in enumerate(products_data, start=1):
                     # Convert checkbox boolean to value (True -> 1.0, False -> None)
@@ -904,25 +905,15 @@ def add_fsa_inspection(request):
                     else:
                         inspection.remote_id = min_remote_id - 1
 
-                    # Link to client
-                    client = Client.objects.filter(name__iexact=inspection.client_name).first()
-                    if not client:
-                        # Create new client with classification fields from the form
-                        client = Client.objects.create(
-                            name=inspection.client_name or "Unknown Client",
-                            town=form.cleaned_data.get('town', ''),
-                            corporate_group=request.POST.get('corporate_group', ''),
-                            group_type=request.POST.get('group_type', ''),
-                            facility_type=request.POST.get('facility_type', ''),
-                        )
-                    inspection.client = client
-
-                    # Use the shared internal_account_code for ALL commodities in this group
-                    # This ensures they group together in the shipment list
-                    inspection.internal_account_code = shared_account_code
+                    # NEW PARENT-CHILD SYSTEM: Link to parent group
+                    inspection.inspection_group = parent_group
+                    inspection.client = temp_client
 
                     # Assign sequence number (1, 2, 3, etc.) to track individual inspections within the group
                     inspection.inspection_sequence = sequence_num
+
+                    # Account code no longer needed for grouping, but keep null for backward compatibility
+                    inspection.internal_account_code = None
 
                     inspection.save()
                     created_inspections.append(inspection)
