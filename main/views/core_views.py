@@ -827,6 +827,9 @@ def add_fsa_inspection(request):
 
                 # NEW PARENT-CHILD SYSTEM:
                 # Create InspectionGroup (parent) FIRST, then link all children to it
+                temp_client = None
+                parent_group = None
+
                 if products_data:
                     # Get or create client first
                     temp_client_name = form.cleaned_data.get('client_name')
@@ -857,8 +860,6 @@ def add_fsa_inspection(request):
                         hours=float(request.POST.get('hours', 0) or 0),
                         is_manual=True,
                     )
-                else:
-                    parent_group = None
 
                 for sequence_num, product_info in enumerate(products_data, start=1):
                     # Convert checkbox boolean to value (True -> 1.0, False -> None)
