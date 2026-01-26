@@ -1484,11 +1484,6 @@
                                 <span>Export to Excel</span>
                             </div>
                             <div class="export-dropdown-separator"></div>
-                            <div class="export-dropdown-item" onclick="exportAsGoogleSheets(); hideExportDropdown();">
-                                <i class="fab fa-google"></i>
-                                <span>Export as Google Sheets</span>
-                            </div>
-                            <div class="export-dropdown-separator"></div>
                             <div class="export-dropdown-item" onclick="exportAsCSV(); hideExportDropdown();">
                                 <i class="fas fa-file-csv"></i>
                                 <span>Export as CSV</span>
@@ -2658,6 +2653,9 @@
             // Initialize table navigation
             initTableNavigation();
 
+            // Pre-load fees for instant display when modal opens
+            preloadFees();
+
             const mobileMenuBtn = document.getElementById('mobile-menu-btn');
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -2703,13 +2701,35 @@
 
         // Manage Fees Modal Functions
         let currentFees = [];
+        let feesLoaded = false;
+
+        // Pre-load fees when page loads for instant display
+        function preloadFees() {
+            fetch('/api/fees/get/')
+                .then(response => response.json())
+                .then(data => {
+                    currentFees = data.fees;
+                    feesLoaded = true;
+                })
+                .catch(error => {
+                    console.error('Error preloading fees:', error);
+                    feesLoaded = false;
+                });
+        }
 
         function showManageFeesModal() {
             const modal = document.getElementById('manageFeesModal');
             if (modal) {
                 modal.classList.add('show');
                 document.body.style.overflow = 'hidden';
-                loadFees();
+
+                // Display cached fees immediately if already loaded
+                if (feesLoaded && currentFees.length > 0) {
+                    displayFees(currentFees);
+                } else {
+                    // If not preloaded yet, load now
+                    loadFees();
+                }
             }
         }
 
@@ -2722,15 +2742,23 @@
         }
 
         function loadFees() {
+            const feesList = document.getElementById('fees-list');
+            if (feesList) {
+                feesList.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-light, #666); font-size: 0.875rem;"><i class="fas fa-spinner fa-spin"></i> Loading fees...</p>';
+            }
+
             fetch('/api/fees/get/')
                 .then(response => response.json())
                 .then(data => {
                     currentFees = data.fees;
+                    feesLoaded = true;
                     displayFees(currentFees);
                 })
                 .catch(error => {
                     console.error('Error loading fees:', error);
-                    alert('Failed to load fees');
+                    if (feesList) {
+                        feesList.innerHTML = '<p style="text-align: center; padding: 2rem; color: #ef4444; font-size: 0.875rem;"><i class="fas fa-exclamation-triangle"></i> Failed to load fees</p>';
+                    }
                 });
         }
 
@@ -3059,6 +3087,9 @@
             <div class="modal-footer-new">
                 <button type="button" onclick="closeManageFeesModal()" class="btn-cancel-new">
                     Close
+                </button>
+                <button type="button" onclick="loadFees()" class="btn btn-secondary" style="margin-right: 0.5rem;" title="Refresh fees data">
+                    <i class="fas fa-sync-alt"></i>
                 </button>
                 <button type="button" onclick="showFeeHistory()" class="btn btn-warning" style="margin-right: auto;">
                     <i class="fas fa-history"></i> View Changes
