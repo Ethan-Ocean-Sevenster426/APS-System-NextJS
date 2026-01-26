@@ -3106,9 +3106,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Show success message
-                        alert('Occurrence report submitted successfully!');
-
                         // Redirect to inspection list page
                         window.location.href = '/inspections/';
                     } else {
