@@ -1562,25 +1562,30 @@
                     [data-theme="dark"] .export-table-compact .client-meta {
                         color: #64748b;
                     }
-                    /* Light mode - softer green background with dark text */
+                    /* Light mode - darker green background with white text */
                     .export-table-compact tr.invoiced {
-                        background: #d1fae5;
-                        color: #065f46;
+                        background: #10b981;
+                        color: #ffffff;
                     }
                     .export-table-compact tr.invoiced td {
-                        color: #065f46;
+                        color: #ffffff;
                     }
                     .export-table-compact tr.invoiced:hover {
-                        background: #a7f3d0;
+                        background: #059669;
                     }
                     .export-table-compact tr.invoiced .desc-text {
-                        color: #047857;
+                        color: #ffffff;
                     }
                     .export-table-compact tr.invoiced .client-info {
-                        color: #064e3b;
+                        color: #ffffff;
                     }
                     .export-table-compact tr.invoiced .client-meta {
-                        color: #059669;
+                        color: #ffffff;
+                    }
+                    /* Keep invoice input with black text */
+                    .export-table-compact tr.invoiced .invoice-input-compact {
+                        color: #000000 !important;
+                        background: #ffffff !important;
                     }
 
                     /* Dark mode - darker green background with lighter text */
@@ -1735,20 +1740,21 @@
                         /* Mobile invoiced rows - light mode */
                         .export-table-compact tr.invoiced {
                             border-left: 4px solid #10b981;
-                            background: #d1fae5 !important;
+                            background: #10b981 !important;
                         }
                         .export-table-compact tr.invoiced td {
-                            color: #065f46 !important;
+                            color: #ffffff !important;
                         }
                         .export-table-compact tr.invoiced td.col-client,
                         .export-table-compact tr.invoiced .client-info {
-                            color: #064e3b !important;
+                            color: #ffffff !important;
                         }
                         .export-table-compact tr.invoiced .client-meta {
-                            color: #059669 !important;
+                            color: #ffffff !important;
                         }
                         .export-table-compact tr.invoiced td.col-invoice input {
-                            color: #1f2937 !important;
+                            color: #000000 !important;
+                            background: #ffffff !important;
                         }
 
                         /* Mobile invoiced rows - dark mode */
