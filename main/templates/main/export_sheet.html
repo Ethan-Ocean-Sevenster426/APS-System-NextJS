@@ -2784,6 +2784,31 @@
             const headerBorder = isDarkMode ? '#404040' : '#e5e7eb';
             const textColor = isDarkMode ? '#e0e0e0' : '#374151';
             const subTextColor = isDarkMode ? '#9ca3af' : '#6b7280';
+            const rowHoverBg = isDarkMode ? 'rgba(0, 115, 135, 0.08)' : 'rgba(0, 115, 135, 0.04)';
+
+            // Categorize fees
+            const categories = {
+                inspection: {
+                    title: 'Inspection Fees',
+                    icon: '🔍',
+                    fees: fees.filter(f => f.fee_code.includes('inspection') && !f.fee_code.includes('_rate'))
+                },
+                travel: {
+                    title: 'Travel & Time',
+                    icon: '🚗',
+                    fees: fees.filter(f => f.fee_code.includes('_rate'))
+                },
+                lab: {
+                    title: 'Laboratory Tests',
+                    icon: '🧪',
+                    fees: fees.filter(f => f.fee_code.includes('lab_test'))
+                },
+                other: {
+                    title: 'Other Fees',
+                    icon: '📋',
+                    fees: fees.filter(f => !f.fee_code.includes('inspection') && !f.fee_code.includes('_rate') && !f.fee_code.includes('lab_test'))
+                }
+            };
 
             let html = `
                 <div style="padding: 1rem 1.25rem; background: ${headerBg}; border-bottom: 1px solid ${headerBorder};">
@@ -2802,40 +2827,70 @@
                 </div>
             `;
 
-            html += fees.map(fee => {
-                const effectiveDateText = fee.effective_date
-                    ? `Current since: ${new Date(fee.effective_date).toLocaleDateString()}`
-                    : 'No history';
+            // Display each category as a table
+            Object.entries(categories).forEach(([key, category]) => {
+                if (category.fees.length === 0) return;
 
-                const historyBadge = fee.has_history
-                    ? `<span style="font-size: 0.7rem; color: #6b7280; margin-left: 0.5rem;" title="This fee has ${fee.history_count} historical version(s)">📊 ${fee.history_count} versions</span>`
-                    : '';
+                html += `
+                    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid ${headerBorder};">
+                        <h3 style="font-size: 0.875rem; font-weight: 700; color: ${textColor}; margin: 0 0 0.75rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>${category.icon}</span>
+                            <span>${category.title}</span>
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8125rem;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid ${headerBorder};">
+                                    <th style="text-align: left; padding: 0.5rem; color: ${textColor}; font-weight: 600;">Fee Name</th>
+                                    <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 120px;">Effective Since</th>
+                                    <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 80px;">History</th>
+                                    <th style="text-align: right; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 130px;">Rate (R)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
 
-                return `
-                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb; background: var(--card-bg); transition: background 0.15s ease;" onmouseenter="this.style.background='rgba(0, 115, 135, 0.04)'" onmouseleave="this.style.background='var(--card-bg)'">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; font-size: 0.8125rem; color: var(--text); margin-bottom: 0.25rem;">${fee.fee_name}</div>
-                            <div style="font-size: 0.7rem; color: #6b7280; display: flex; align-items: center;">
-                                ${effectiveDateText}${historyBadge}
-                            </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.375rem;">
-                            <span style="font-weight: 600; font-size: 0.8125rem; color: var(--text);">R</span>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value="${fee.rate}"
-                                data-fee-id="${fee.id}"
-                                data-original-rate="${fee.rate}"
-                                class="fee-rate-input"
-                                style="width: 100px; padding: 0.375rem 0.5rem; font-size: 0.8125rem; border: 1px solid #d1d5db; border-radius: 5px; background: var(--card-bg); color: var(--text); transition: all 0.2s ease;"
-                                onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 0 2px rgba(0, 120, 144, 0.1)';"
-                                onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none';"
-                            />
-                        </div>
+                category.fees.forEach((fee, index) => {
+                    const effectiveDate = fee.effective_date
+                        ? new Date(fee.effective_date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'N/A';
+
+                    const historyBadge = fee.has_history
+                        ? `<span style="color: #6b7280; cursor: help;" title="This fee has ${fee.history_count} historical version(s)">📊 ${fee.history_count}</span>`
+                        : '<span style="color: #d1d5db;">-</span>';
+
+                    html += `
+                        <tr style="border-bottom: 1px solid ${headerBorder}; transition: background 0.15s ease;"
+                            onmouseenter="this.style.background='${rowHoverBg}'"
+                            onmouseleave="this.style.background='transparent'">
+                            <td style="padding: 0.625rem 0.5rem; color: ${textColor}; font-weight: 500;">${fee.fee_name}</td>
+                            <td style="padding: 0.625rem 0.5rem; text-align: center; color: ${subTextColor}; font-size: 0.75rem;">${effectiveDate}</td>
+                            <td style="padding: 0.625rem 0.5rem; text-align: center; font-size: 0.75rem;">${historyBadge}</td>
+                            <td style="padding: 0.625rem 0.5rem; text-align: right;">
+                                <div style="display: inline-flex; align-items: center; gap: 0.375rem;">
+                                    <span style="font-weight: 600; color: ${textColor};">R</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value="${fee.rate}"
+                                        data-fee-id="${fee.id}"
+                                        data-original-rate="${fee.rate}"
+                                        class="fee-rate-input"
+                                        style="width: 90px; padding: 0.375rem 0.5rem; font-size: 0.8125rem; border: 1px solid #d1d5db; border-radius: 5px; background: var(--card-bg); color: var(--text); transition: all 0.2s ease; text-align: right;"
+                                        onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 0 2px rgba(0, 120, 144, 0.1)';"
+                                        onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none';"
+                                    />
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
                     </div>
                 `;
-            }).join('');
+            });
 
             feesList.innerHTML = html;
         }
