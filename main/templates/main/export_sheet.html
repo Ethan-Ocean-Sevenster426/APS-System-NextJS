@@ -2653,35 +2653,6 @@
             // Cell selection disabled
         }
 
-            // Horizontal scroll
-            const cellLeft = cell.offsetLeft;
-            const cellRight = cellLeft + cell.offsetWidth;
-            const scrollLeft = tableContainer.scrollLeft;
-            const containerWidth = tableContainer.clientWidth;
-
-            if (cellLeft < scrollLeft) {
-                // Cell is to the left of visible area
-                tableContainer.scrollLeft = cellLeft - 20;
-            } else if (cellRight > scrollLeft + containerWidth) {
-                // Cell is to the right of visible area
-                tableContainer.scrollLeft = cellRight - containerWidth + 20;
-            }
-
-            // Vertical scroll
-            const cellTop = cell.offsetTop;
-            const cellBottom = cellTop + cell.offsetHeight;
-            const scrollTop = tableContainer.scrollTop;
-            const containerHeight = tableContainer.clientHeight;
-
-            if (cellTop < scrollTop) {
-                // Cell is above visible area
-                tableContainer.scrollTop = cellTop - 20;
-            } else if (cellBottom > scrollTop + containerHeight) {
-                // Cell is below visible area
-                tableContainer.scrollTop = cellBottom - containerHeight + 20;
-            }
-        }
-
         // Mobile Menu Toggle
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize table navigation
