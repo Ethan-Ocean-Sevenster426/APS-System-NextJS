@@ -533,8 +533,8 @@
         }
 
         .client-modal {
-            width: 600px;
-            max-width: 90%;
+            width: 1200px;
+            max-width: 95%;
             padding: 0;
             overflow: visible;
             max-height: 85vh;
@@ -661,7 +661,17 @@
             transform: translateY(0);
         }
 
+        .fee-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
         @media (max-width: 768px) {
+            .fee-grid {
+                grid-template-columns: 1fr;
+            }
             .client-modal {
                 max-width: 95%;
                 width: 95%;
@@ -2827,35 +2837,40 @@
                 </div>
             `;
 
-            // Display each category as a table
+            // Display categories in 2x2 grid
+            html += `<div class="fee-grid">`;
+
             Object.entries(categories).forEach(([key, category]) => {
                 if (category.fees.length === 0) return;
 
                 html += `
-                    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid ${headerBorder};">
-                        <h3 style="font-size: 0.875rem; font-weight: 700; color: ${textColor}; margin: 0 0 0.75rem 0; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>${category.icon}</span>
-                            <span>${category.title}</span>
-                        </h3>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8125rem;">
-                            <thead>
-                                <tr style="border-bottom: 2px solid ${headerBorder};">
-                                    <th style="text-align: left; padding: 0.5rem; color: ${textColor}; font-weight: 600;">Fee Name</th>
-                                    <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 120px;">Effective Since</th>
-                                    <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 80px;">History</th>
-                                    <th style="text-align: right; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 130px;">Rate (R)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <div style="border: 1px solid ${headerBorder}; border-radius: 8px; background: var(--card-bg); overflow: hidden;">
+                        <div style="padding: 0.75rem 1rem; background: ${headerBg}; border-bottom: 2px solid ${headerBorder};">
+                            <h3 style="font-size: 0.875rem; font-weight: 700; color: ${textColor}; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>${category.icon}</span>
+                                <span>${category.title}</span>
+                            </h3>
+                        </div>
+                        <div style="padding: 0.75rem;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8125rem;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid ${headerBorder};">
+                                        <th style="text-align: left; padding: 0.5rem; color: ${textColor}; font-weight: 600;">Fee Name</th>
+                                        <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 100px;">Since</th>
+                                        <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 50px;">📊</th>
+                                        <th style="text-align: right; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 120px;">Rate (R)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                 `;
 
                 category.fees.forEach((fee, index) => {
                     const effectiveDate = fee.effective_date
-                        ? new Date(fee.effective_date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', year: 'numeric' })
+                        ? new Date(fee.effective_date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
                         : 'N/A';
 
-                    const historyBadge = fee.has_history
-                        ? `<span style="color: #6b7280; cursor: help;" title="This fee has ${fee.history_count} historical version(s)">📊 ${fee.history_count}</span>`
+                    const historyCount = fee.has_history
+                        ? `<span style="color: #6b7280; cursor: help;" title="This fee has ${fee.history_count} historical version(s)">${fee.history_count}</span>`
                         : '<span style="color: #d1d5db;">-</span>';
 
                     html += `
@@ -2864,7 +2879,7 @@
                             onmouseleave="this.style.background='transparent'">
                             <td style="padding: 0.625rem 0.5rem; color: ${textColor}; font-weight: 500;">${fee.fee_name}</td>
                             <td style="padding: 0.625rem 0.5rem; text-align: center; color: ${subTextColor}; font-size: 0.75rem;">${effectiveDate}</td>
-                            <td style="padding: 0.625rem 0.5rem; text-align: center; font-size: 0.75rem;">${historyBadge}</td>
+                            <td style="padding: 0.625rem 0.5rem; text-align: center; font-size: 0.75rem;">${historyCount}</td>
                             <td style="padding: 0.625rem 0.5rem; text-align: right;">
                                 <div style="display: inline-flex; align-items: center; gap: 0.375rem;">
                                     <span style="font-weight: 600; color: ${textColor};">R</span>
@@ -2875,7 +2890,7 @@
                                         data-fee-id="${fee.id}"
                                         data-original-rate="${fee.rate}"
                                         class="fee-rate-input"
-                                        style="width: 90px; padding: 0.375rem 0.5rem; font-size: 0.8125rem; border: 1px solid #d1d5db; border-radius: 5px; background: var(--card-bg); color: var(--text); transition: all 0.2s ease; text-align: right;"
+                                        style="width: 85px; padding: 0.375rem 0.5rem; font-size: 0.8125rem; border: 1px solid #d1d5db; border-radius: 5px; background: var(--card-bg); color: var(--text); transition: all 0.2s ease; text-align: right;"
                                         onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 0 2px rgba(0, 120, 144, 0.1)';"
                                         onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none';"
                                     />
@@ -2886,11 +2901,14 @@
                 });
 
                 html += `
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 `;
             });
+
+            html += `</div>`;
 
             feesList.innerHTML = html;
         }
