@@ -8168,11 +8168,6 @@
                                     <!-- Key Info -->
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between">
-                                            <span class="text-gray-500">Account Code:</span>
-                                            <span
-                                                class="font-mono text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">{{ shipment.internal_account_code|default:"-" }}</span>
-                                        </div>
-                                        <div class="flex justify-between">
                                             <span class="text-gray-500">Inspector:</span>
                                             <span class="font-medium">{{ shipment.inspector_name|display_inspector:shipment.inspector_id }}</span>
                                         </div>
@@ -8983,9 +8978,6 @@
                                                             {% endif %}
                                                         </div>
                                                         {% endif %}
-                                                        <div
-                                                            style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                            {{ shipment.internal_account_code|default:"-" }}</div>
                                                         <div style="margin-bottom: 6px;">
                                                             {% with unique_emails=shipment|get_unique_emails %}
                                                             {% if unique_emails %}

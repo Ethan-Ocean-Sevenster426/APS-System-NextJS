@@ -637,17 +637,16 @@ def delete_inspection(request, pk):
 
 def generate_unique_internal_account_code(client_name, date_of_inspection, facility_type, group_type, commodity, corporate_group, client_id=None):
     """
-    Generate unique internal_account_code with daily sequence number.
-    Based on Excel formula with added sequence for uniqueness:
-    =UPPER(LEFT(B,2)) & "-" & IF(C="Corporate Store","COR",IF(C="Franchise","FRN","IND")) & "-" &
-     IF(D="PMP","PMP",IF(D="RAW","RAW",IF(D="EGG","EGG",IF(D="PLT","PLT","OTH")))) & "-" &
-     IF(F="None","NA",LOOKUP_CODE) & "-" & TEXT(ID,"0000") & "-" & SEQUENCE
+    Generate unique internal_account_code (GROUP identifier) with daily sequence number.
+    NOTE: commodity parameter is kept for backward compatibility but is NO LONGER used in the code.
 
-    Format: {FACILITY_2_CHARS}-{GROUP_TYPE}-{COMMODITY}-{CORP_CODE}-{CLIENT_ID_4_DIGITS}-{DAILY_SEQ_3_DIGITS}
-    Example: FA-IND-PLT-NA-0036-001
+    The internal_account_code represents a GROUP of inspections (multi-commodity).
+    Individual commodities within the group are tracked by inspection_sequence field (1, 2, 3, etc.)
 
-    The daily sequence ensures that multiple identical inspections (same client, date, commodity)
-    each get a unique code and appear as separate entries in shipment list.
+    Format: {FACILITY_2_CHARS}-{GROUP_TYPE}-{CORP_CODE}-{CLIENT_ID_4_DIGITS}-{DAILY_SEQ_3_DIGITS}
+    Example: FA-IND-NA-0036-001 (no commodity - this is the GROUP code)
+
+    The daily sequence ensures multiple inspection groups for the same client/date get unique codes.
     """
     from main.models import Client, FoodSafetyAgencyInspection
 
@@ -668,22 +667,8 @@ def generate_unique_internal_account_code(client_name, date_of_inspection, facil
     else:
         group_abbrev = 'IND'
 
-    # Part 3: Commodity - PMP/RAW/EGG/PLT/OTH
-    commodity_clean = (commodity or '').upper().strip()
-    if commodity_clean == 'PMP':
-        commodity_abbrev = 'PMP'
-    elif commodity_clean == 'RAW':
-        commodity_abbrev = 'RAW'
-    elif commodity_clean in ['EGG', 'EGGS']:
-        commodity_abbrev = 'EGG'
-    elif commodity_clean in ['PLT', 'POULTRY']:
-        commodity_abbrev = 'PLT'
-    elif commodity_clean == 'OCC':
-        commodity_abbrev = 'OCC'
-    else:
-        commodity_abbrev = 'OTH'
-
-    # Part 4: Corporate Group Code - lookup in codes table or use "NA"
+    # Part 3: Corporate Group Code - lookup in codes table or use "NA"
+    # NOTE: Commodity is NO LONGER part of the account code (removed for multi-commodity groups)
     corporate_group_clean = (corporate_group or '').strip()
     if not corporate_group_clean or corporate_group_clean in ['None', 'Not Applicable (None)', 'Not Applicable']:
         corp_abbrev = 'NA'
@@ -702,7 +687,7 @@ def generate_unique_internal_account_code(client_name, date_of_inspection, facil
             # CorporateGroupCode model doesn't exist, use first 3 letters
             corp_abbrev = corporate_group_clean[:3].upper() if len(corporate_group_clean) >= 3 else 'OTH'
 
-    # Part 5: Client ID padded to 4 digits
+    # Part 4: Client ID padded to 4 digits
     if client_id:
         # Use provided client_id
         try:
@@ -721,9 +706,10 @@ def generate_unique_internal_account_code(client_name, date_of_inspection, facil
         except Exception:
             client_id_str = '0001'
 
-    # Part 6: Daily sequence number (to make identical inspections unique)
-    # Find existing inspections with same base code on the same date
-    base_code = f"{facility_abbrev}-{group_abbrev}-{commodity_abbrev}-{corp_abbrev}-{client_id_str}"
+    # Part 5: Daily sequence number (to make identical inspection GROUPS unique)
+    # Find existing inspection groups with same base code on the same date
+    # NOTE: No commodity in base code - this is the GROUP identifier
+    base_code = f"{facility_abbrev}-{group_abbrev}-{corp_abbrev}-{client_id_str}"
 
     # Count existing inspections with this exact pattern on this date
     from datetime import datetime
@@ -745,6 +731,35 @@ def generate_unique_internal_account_code(client_name, date_of_inspection, facil
     full_code = f"{base_code}-{daily_seq_str}"
 
     return full_code
+
+
+def save_uploaded_file(uploaded_file, insp, category):
+    """
+    Save uploaded file to the proper folder structure.
+    Used by both create and edit views.
+    """
+    from django.conf import settings
+    import os
+    from main.models import Client
+
+    # Ensure inspection has a linked Client
+    if not insp.client:
+        client = Client.objects.filter(name__iexact=insp.client_name).first()
+        if not client:
+            client = Client.objects.create(name=insp.client_name or "Unknown Client")
+        insp.client = client
+        insp.save(update_fields=['client'])
+
+    folder_path = os.path.join(
+        settings.MEDIA_ROOT, 'docs',
+        str(insp.client.id), str(insp.id), category
+    )
+    os.makedirs(folder_path, exist_ok=True)
+    file_path = os.path.join(folder_path, uploaded_file.name)
+    with open(file_path, 'wb+') as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+    return file_path
 
 
 @login_required(login_url='login')
@@ -805,37 +820,46 @@ def add_fsa_inspection(request):
 
                 # Handle file uploads - save to proper folder structure
                 from django.utils import timezone
-                from django.conf import settings
-                import os
-                import re
-                from main.models import Client
-
-                def save_uploaded_file(uploaded_file, insp, category):
-                    """Save uploaded file to the proper folder structure."""
-                    # Ensure inspection has a linked Client
-                    if not insp.client:
-                        client = Client.objects.filter(name__iexact=insp.client_name).first()
-                        if not client:
-                            client = Client.objects.create(name=insp.client_name or "Unknown Client")
-                        insp.client = client
-                        insp.save(update_fields=['client'])
-
-                    folder_path = os.path.join(
-                        settings.MEDIA_ROOT, 'docs',
-                        str(insp.client.id), str(insp.id), category
-                    )
-                    os.makedirs(folder_path, exist_ok=True)
-                    file_path = os.path.join(folder_path, uploaded_file.name)
-                    with open(file_path, 'wb+') as destination:
-                        for chunk in uploaded_file.chunks():
-                            destination.write(chunk)
-                    return file_path
 
                 # Create inspections for each product
                 first_inspection = None
                 total_created = 0
 
-                for product_info in products_data:
+                # Generate shared internal_account_code ONCE for the entire group
+                # This ensures all commodities in a multi-commodity inspection have the SAME code
+                shared_account_code = None
+                if products_data:
+                    first_product = products_data[0]
+                    # Use first commodity to generate the base code
+                    temp_client_name = form.cleaned_data.get('client_name')
+                    temp_date = form.cleaned_data.get('date_of_inspection')
+                    temp_facility = request.POST.get('facility_type', '')
+                    temp_group = request.POST.get('group_type', '')
+                    temp_commodity = first_product.get('commodity', '')
+                    temp_corporate = request.POST.get('corporate_group', '')
+
+                    # Get or create client first
+                    temp_client = Client.objects.filter(name__iexact=temp_client_name).first()
+                    if not temp_client:
+                        temp_client = Client.objects.create(
+                            name=temp_client_name or "Unknown Client",
+                            town=form.cleaned_data.get('town', ''),
+                            corporate_group=temp_corporate,
+                            group_type=temp_group,
+                            facility_type=temp_facility,
+                        )
+
+                    shared_account_code = generate_unique_internal_account_code(
+                        client_name=temp_client_name,
+                        date_of_inspection=temp_date,
+                        facility_type=temp_facility,
+                        group_type=temp_group,
+                        commodity=temp_commodity,
+                        corporate_group=temp_corporate,
+                        client_id=temp_client.id if temp_client else None
+                    )
+
+                for sequence_num, product_info in enumerate(products_data, start=1):
                     # Convert checkbox boolean to value (True -> 1.0, False -> None)
                     def checkbox_to_value(val):
                         return 1.0 if val else None
@@ -893,16 +917,12 @@ def add_fsa_inspection(request):
                         )
                     inspection.client = client
 
-                    # Generate unique internal_account_code matching Excel formula
-                    inspection.internal_account_code = generate_unique_internal_account_code(
-                        client_name=inspection.client_name,
-                        date_of_inspection=inspection.date_of_inspection,
-                        facility_type=request.POST.get('facility_type', ''),
-                        group_type=request.POST.get('group_type', ''),
-                        commodity=inspection.commodity,
-                        corporate_group=request.POST.get('corporate_group', ''),
-                        client_id=client.id if client else None
-                    )
+                    # Use the shared internal_account_code for ALL commodities in this group
+                    # This ensures they group together in the shipment list
+                    inspection.internal_account_code = shared_account_code
+
+                    # Assign sequence number (1, 2, 3, etc.) to track individual inspections within the group
+                    inspection.inspection_sequence = sequence_num
 
                     inspection.save()
                     created_inspections.append(inspection)
@@ -1041,11 +1061,20 @@ def edit_fsa_inspection(request, pk):
         # Update ALL related inspections in the group
         if products_data:
             # Get all related inspections
-            related_inspections = FoodSafetyAgencyInspection.objects.filter(
-                client_name=inspection.client_name,
-                date_of_inspection=inspection.date_of_inspection,
-                internal_account_code=inspection.internal_account_code
-            )
+            # NEW PARENT-CHILD SYSTEM: Query by inspection_group instead of account code
+            if inspection.inspection_group:
+                related_inspections = FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group=inspection.inspection_group
+                )
+                print(f"[EDIT FORM DEBUG] Found {related_inspections.count()} related inspections in group #{inspection.inspection_group.id}")
+            else:
+                # No parent group - find all inspections for this client/date
+                # This shouldn't happen with the new system, but keep as fallback
+                related_inspections = FoodSafetyAgencyInspection.objects.filter(
+                    client_name=inspection.client_name,
+                    date_of_inspection=inspection.date_of_inspection
+                )
+                print(f"[EDIT FORM DEBUG] WARNING: Inspection {pk} has no parent group!")
 
             # Group products_data by commodity (keep as lists to preserve duplicates)
             from collections import defaultdict
@@ -1178,13 +1207,19 @@ def edit_fsa_inspection(request, pk):
                             else:
                                 new_remote_id = min_remote_id - 1
 
-                            # Use the SAME internal_account_code as the existing inspection
-                            # so they group together in the shipment list
-                            new_internal_code = inspection.internal_account_code
-                            print(f"[EDIT FORM DEBUG] Using same account code for new {commodity} #{idx+1}: {new_internal_code}")
+                            # NEW PARENT-CHILD SYSTEM:
+                            # Use the SAME parent group as the existing inspection
+                            parent_group = inspection.inspection_group
+                            if parent_group:
+                                print(f"[EDIT FORM DEBUG] Using parent group #{parent_group.id} for new {commodity}")
+                            else:
+                                print(f"[EDIT FORM DEBUG] WARNING: No parent group found, inspection may be orphaned!")
 
-                            # Create new inspection
+                            # Create new inspection with PARENT GROUP reference
                             new_inspection = FoodSafetyAgencyInspection.objects.create(
+                                # NEW: Link to parent group!
+                                inspection_group=parent_group,
+
                                 remote_id=new_remote_id,
                                 client=inspection.client,
                                 client_name=inspection.client_name,
@@ -1207,66 +1242,27 @@ def edit_fsa_inspection(request, pk):
                                 corporate_group=inspection.corporate_group,
                                 group_type=inspection.group_type,
                                 facility_type=inspection.facility_type,
-                                internal_account_code=new_internal_code,
+                                internal_account_code=None,  # No longer needed!
                                 is_manual=True,
                             )
                             print(f"[EDIT FORM DEBUG] Created new inspection {new_inspection.id} for {commodity} #{idx+1}: {product.get('product_name')}")
 
-                    # Handle file uploads for the inspection group
-                    # Upload tracking is already preserved above, but we need to save actual files
-                    files_uploaded = False
-                    if 'rfi_file' in request.FILES:
-                        save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
-                        inspection.rfi_uploaded_by = request.user
-                        inspection.rfi_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded RFI file for inspection {inspection.id}")
+                    # Re-sequence ALL inspections in the group after adds/deletes
+                    # This ensures sequences remain continuous (1, 2, 3, 4...) without gaps
+                    # NEW: Use parent group instead of account code
+                    if inspection.inspection_group:
+                        final_inspections = FoodSafetyAgencyInspection.objects.filter(
+                            inspection_group=inspection.inspection_group
+                        ).order_by('id')  # Order by ID to maintain creation order
 
-                    if 'invoice_file' in request.FILES:
-                        save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
-                        inspection.invoice_uploaded_by = request.user
-                        inspection.invoice_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded Invoice file for inspection {inspection.id}")
+                        for seq_num, insp in enumerate(final_inspections, start=1):
+                            insp.inspection_sequence = seq_num
+                            insp.save(update_fields=['inspection_sequence'])
+                        print(f"[EDIT FORM DEBUG] Re-sequenced inspection {insp.id} ({insp.commodity}) as #{seq_num}")
 
-                    if 'labform_file' in request.FILES:
-                        save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
-                        inspection.lab_form_uploaded_by = request.user
-                        inspection.lab_form_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded Lab Form file for inspection {inspection.id}")
-
-                    if 'coa_file' in request.FILES:
-                        save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
-                        inspection.coa_uploaded_by = request.user
-                        inspection.coa_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded COA file for inspection {inspection.id}")
-
-                    if 'composition_file' in request.FILES:
-                        save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
-                        inspection.composition_uploaded_by = request.user
-                        inspection.composition_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded Composition file for inspection {inspection.id}")
-
-                    if 'occurrence_file' in request.FILES:
-                        save_uploaded_file(request.FILES['occurrence_file'], inspection, 'occurrence')
-                        inspection.occurrence_uploaded_by = request.user
-                        inspection.occurrence_uploaded_date = timezone.now()
-                        files_uploaded = True
-                        print(f"[EDIT FORM DEBUG] Uploaded Occurrence file for inspection {inspection.id}")
-
-                    if files_uploaded:
-                        inspection.save()
-                        print(f"[EDIT FORM DEBUG] Saved file upload tracking for inspection {inspection.id}")
-
-                        # Clear file cache
-                        from django.core.cache import cache
-                        cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
-                        cache.delete(cache_key)
-                        cache.delete(f"{cache_key}_timestamp")
-                        print(f"[EDIT FORM DEBUG] Cleared cache for inspection {inspection.id}")
+                    # File uploads are disabled in edit mode
+                    # Users should manage files (upload/delete) through the "View Files" button in shipment list
+                    # This prevents confusion and ensures files are managed in one centralized location
 
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
@@ -1283,51 +1279,8 @@ def edit_fsa_inspection(request, pk):
                 try:
                     inspection = form.save()
 
-                    # Handle file uploads
-                    files_uploaded = False
-                    if 'rfi_file' in request.FILES:
-                        save_uploaded_file(request.FILES['rfi_file'], inspection, 'rfi')
-                        inspection.rfi_uploaded_by = request.user
-                        inspection.rfi_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if 'invoice_file' in request.FILES:
-                        save_uploaded_file(request.FILES['invoice_file'], inspection, 'invoice')
-                        inspection.invoice_uploaded_by = request.user
-                        inspection.invoice_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if 'labform_file' in request.FILES:
-                        save_uploaded_file(request.FILES['labform_file'], inspection, 'lab')
-                        inspection.lab_form_uploaded_by = request.user
-                        inspection.lab_form_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if 'coa_file' in request.FILES:
-                        save_uploaded_file(request.FILES['coa_file'], inspection, 'compliance')
-                        inspection.coa_uploaded_by = request.user
-                        inspection.coa_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if 'composition_file' in request.FILES:
-                        save_uploaded_file(request.FILES['composition_file'], inspection, 'composition')
-                        inspection.composition_uploaded_by = request.user
-                        inspection.composition_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if 'occurrence_file' in request.FILES:
-                        save_uploaded_file(request.FILES['occurrence_file'], inspection, 'occurrence')
-                        inspection.occurrence_uploaded_by = request.user
-                        inspection.occurrence_uploaded_date = timezone.now()
-                        files_uploaded = True
-
-                    if files_uploaded:
-                        inspection.save()
-                        # Clear file cache
-                        from django.core.cache import cache
-                        cache_key = f"docs_files:{inspection.client.id}:{inspection.id}"
-                        cache.delete(cache_key)
-                        cache.delete(f"{cache_key}_timestamp")
+                    # File uploads are disabled in edit mode
+                    # Users should manage files (upload/delete) through the "View Files" button in shipment list
 
                     messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
@@ -2166,11 +2119,12 @@ def shipment_list(request):
     # Get page number first
     page_number = request.GET.get('page', 1)
     
-    # Create the base queryset for groups
+    # Create the base queryset for groups using new parent-child system
+    # Group by inspection_group instead of internal_account_code
     groups_queryset = inspections.values(
+        'inspection_group',  # NEW: Use parent group ID for grouping
         'client_name',
         'date_of_inspection',
-        'internal_account_code'
     ).annotate(
         inspection_count=Count('id'),
         latest_inspection_id=Max('id'),
@@ -2366,24 +2320,28 @@ def shipment_list(request):
     # Get all inspection IDs for the groups we're processing
     group_conditions = Q()
     for group in client_date_groups:
-        group_conditions |= Q(
-            client_name=group['client_name'],
-            date_of_inspection=group['date_of_inspection'],
-            internal_account_code=group['internal_account_code']
-        )
-    
+        # NEW: Use inspection_group for filtering
+        if group.get('inspection_group'):
+            group_conditions |= Q(inspection_group_id=group['inspection_group'])
+        else:
+            # Fallback for inspections without group (shouldn't happen after migration)
+            group_conditions |= Q(
+                client_name=group['client_name'],
+                date_of_inspection=group['date_of_inspection']
+            )
+
     # Load all inspections for these groups in one query
-    all_group_inspections = inspections.filter(group_conditions).order_by('client_name', 'date_of_inspection', 'internal_account_code', 'id')
-    
+    all_group_inspections = inspections.filter(group_conditions).order_by('inspection_group', 'inspection_sequence')
+
     # Log potential data issues for debugging
     if len(all_group_inspections) == 0 and len(client_date_groups) > 0:
         print(f"WARNING: No inspections found for {len(client_date_groups)} groups - may be permission filtering issue")
-    
-    # Group them by client_name, date_of_inspection, and internal_account_code
+
+    # Group them by inspection_group_id (much simpler now!)
     from collections import defaultdict
     grouped_inspections_dict = defaultdict(list)
     for inspection in all_group_inspections:
-        key = (inspection.client_name, inspection.date_of_inspection, inspection.internal_account_code)
+        key = inspection.inspection_group_id  # NEW: Simple group key
         grouped_inspections_dict[key].append(inspection)
     
     # Helper function to check files for a single group (fast version for page load)
@@ -2544,14 +2502,14 @@ def shipment_list(request):
     for group in client_date_groups:
         client_name = group['client_name']
         date_of_inspection = group['date_of_inspection']
-        internal_account_code = group['internal_account_code']
+        inspection_group_id = group['inspection_group']  # NEW: Use inspection_group as key
         inspection_count = group['inspection_count']
 
         # REMOVED: Excessive per-group debug logging for performance
-        # print(f"[DEBUG] Processing group: {client_name} - {date_of_inspection} - {internal_account_code} (expected: {inspection_count})")
+        # print(f"[DEBUG] Processing group: {client_name} - {date_of_inspection} - Group ID: {inspection_group_id} (expected: {inspection_count})")
 
-        # Get inspections from our pre-loaded dictionary
-        group_inspections = grouped_inspections_dict.get((client_name, date_of_inspection, internal_account_code), [])
+        # Get inspections from our pre-loaded dictionary (keyed by group ID now)
+        group_inspections = grouped_inspections_dict.get(inspection_group_id, [])
 
         # Log when we have empty groups but expected products (potential data integrity issue)
         if not group_inspections and inspection_count > 0:

@@ -346,8 +346,70 @@ class Inspection(models.Model):
     def __str__(self):
         return f"{self.inspector} - {self.facility_client_name} - {self.inspection_date}"
 
+
+class InspectionGroup(models.Model):
+    """
+    Parent group for multi-commodity inspections.
+
+    One group can have multiple inspections (commodities) that all share common fields:
+    - Same client, date, inspector, location
+    - Same km_traveled, hours, additional_email
+    - Each inspection (child) has its own commodity, product, samples, etc.
+
+    This replaces the internal_account_code system and provides proper parent-child relationships.
+    """
+
+    # Link to client
+    client = models.ForeignKey('Client', on_delete=models.SET_NULL, blank=True, null=True, related_name='inspection_groups')
+
+    # Common fields shared by all inspections in this group
+    client_name = models.CharField(max_length=200, help_text="Client name")
+    date_of_inspection = models.DateField(help_text="Date of inspection")
+    inspector_name = models.CharField(max_length=100, blank=True, null=True, help_text="Inspector name")
+    town = models.CharField(max_length=100, blank=True, null=True, help_text="Town/location")
+
+    # Classification fields
+    facility_type = models.CharField(max_length=100, blank=True, null=True, help_text="Facility type")
+    group_type = models.CharField(max_length=100, blank=True, null=True, help_text="Group type")
+    corporate_group = models.CharField(max_length=100, blank=True, null=True, help_text="Corporate group")
+
+    # Shared metadata
+    additional_email = models.EmailField(blank=True, null=True, help_text="Additional email for this group")
+    comment = models.TextField(blank=True, null=True, help_text="Comment for this group")
+    km_traveled = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Kilometers traveled")
+    hours = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Hours worked")
+
+    # Flags
+    is_manual = models.BooleanField(default=True, help_text="Manually created (vs synced from server)")
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'inspection_groups'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client_name', 'date_of_inspection'], name='idx_group_client_date'),
+            models.Index(fields=['created_at'], name='idx_group_created'),
+        ]
+
+    def __str__(self):
+        return f"{self.client_name} - {self.date_of_inspection} (Group #{self.id})"
+
+
 class FoodSafetyAgencyInspection(models.Model):
     """Food Safety Agency Inspection data copied from remote SQL Server"""
+
+    # PARENT GROUP - New parent-child relationship
+    inspection_group = models.ForeignKey(
+        'InspectionGroup',
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name='inspections',
+        help_text="Parent group that this inspection belongs to"
+    )
     
     # Basic inspection details
     commodity = models.CharField(max_length=50, blank=True, null=True, help_text="Commodity type (e.g., POULTRY, RAW, PMP, EGGS)")
@@ -400,6 +462,7 @@ class FoodSafetyAgencyInspection(models.Model):
     client_name = models.CharField(max_length=200, blank=True, null=True, help_text="Client name (updated from Google Sheets if match found)")
     client = models.ForeignKey('Client', on_delete=models.SET_NULL, blank=True, null=True, related_name='inspections', help_text="Link to Client record for file storage")
     internal_account_code = models.CharField(max_length=100, blank=True, null=True, db_index=True, help_text="Internal Account Code from SQL Server (used to match with Google Sheets)")
+    inspection_sequence = models.IntegerField(default=1, help_text="Sequence number for this inspection within its group (1, 2, 3, etc.)")
     town = models.CharField(max_length=100, blank=True, null=True, help_text="Town/location of inspection")
 
     # Inspection activities
