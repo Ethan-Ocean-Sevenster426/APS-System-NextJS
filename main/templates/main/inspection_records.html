@@ -8727,7 +8727,7 @@
                                                     <div class="space-y-2">
                                                         {% if request.user.role == 'inspector' or request.user.role == 'admin' %}
                                                         <!-- Inspector/Admin: COA/Lab, Lab Form, Retest disabled -->
-                                                        {% if product.commodity|upper != 'POULTRY' %}
+                                                        {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
                                                                 class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
@@ -8750,7 +8750,7 @@
                                                         {% endif %}
                                                         {% else %}
                                                         <!-- Non-Inspector: Show Lab, Retest, and Lab Form buttons -->
-                                                        {% if product.commodity|upper != 'POULTRY' %}
+                                                        {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
                                                                 class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
@@ -9162,7 +9162,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for lab technicians">Composition</button>
-                                                                {% if product.commodity|upper != 'POULTRY' %}
+                                                                {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
@@ -9190,7 +9190,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
-                                                                {% if product.commodity|upper != 'POULTRY' %}
+                                                                {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">COA/Lab</button>
@@ -9215,7 +9215,7 @@
                                                                 <button data-upload-btn="composition-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Composition</button>
-                                                                {% if product.commodity|upper != 'POULTRY' %}
+                                                                {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                                 <button data-upload-btn="lab-{{ product.id }}"
                                                                     style="padding: 6px 14px; background: {% if product.coa_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
                                                                     onclick="event.stopPropagation(); uploadLabForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">COA/Lab</button>
