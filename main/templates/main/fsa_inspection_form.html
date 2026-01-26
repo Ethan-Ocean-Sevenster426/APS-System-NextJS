@@ -1018,6 +1018,7 @@
                     <div class="step-circle">3</div>
                     <span class="step-label">Invoice Info</span>
                 </div>
+                {% if action != 'Edit' %}
                 <div class="step" data-step="4">
                     <div class="step-circle">4</div>
                     <span class="step-label">Documents</span>
@@ -1026,6 +1027,12 @@
                     <div class="step-circle">5</div>
                     <span class="step-label">Review</span>
                 </div>
+                {% else %}
+                <div class="step" data-step="4">
+                    <div class="step-circle">4</div>
+                    <span class="step-label">Review</span>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
@@ -1282,6 +1289,7 @@
                 </div>
 
                 <!-- Step 4: Documents -->
+                {% if action != 'Edit' %}
                 <div class="wizard-step-content" data-step="4">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
                         <i class="fas fa-file-upload text-[var(--primary)] mr-2"></i>Upload Documents
@@ -1311,9 +1319,10 @@
                     </p>
                 </div>
                 {% endif %}
+                {% endif %}
 
-                <!-- Step 5: Review -->
-                <div class="wizard-step-content" data-step="5">
+                <!-- Step 4/5: Review (4 in Edit mode, 5 in Add mode) -->
+                <div class="wizard-step-content" data-step="{% if action == 'Edit' %}4{% else %}5{% endif %}">
                     <h3 class="text-xl font-bold text-gray-800 mb-6">
                         <i class="fas fa-check-circle text-[var(--primary)] mr-2"></i>Review & Submit
                     </h3>
@@ -1369,7 +1378,7 @@
                         </div>
                     </div>
 
-                    {% if not is_occurrence_report %}
+                    {% if not is_occurrence_report and action != 'Edit' %}
                     <!-- Documents Summary -->
                     <div class="bg-gray-50 rounded-lg p-6 mb-6">
                         <h4 class="font-semibold text-gray-700 mb-4">Document Uploaded</h4>
@@ -1915,8 +1924,9 @@
 
     <script>
         let currentStep = 1;
-        const totalSteps = 5;
+        const totalSteps = {% if action == 'Edit' %}4{% else %}5{% endif %}; // 4 steps in Edit mode (no Documents), 5 in Add mode
         const isOccurrenceReport = {% if is_occurrence_report %}true{% else %} false{% endif %};
+        const isEditMode = {% if action == 'Edit' %}true{% else %}false{% endif %};
 
         // Track uploaded files
         const uploadedFiles = {
@@ -3362,13 +3372,14 @@
                 if (currentStep < 1) currentStep = 1;
                 if (currentStep > totalSteps) currentStep = totalSteps;
 
-                // Skip Documents step (4) for Poultry/Eggs only
-                if (skipDocumentsStep) {
-                    if (direction === 1 && currentStep === 4) {
-                        currentStep = 5; // Skip to Review
-                    } else if (direction === -1 && currentStep === 4) {
-                        currentStep = 3; // Skip back to Invoice Info
+                // Skip Documents step (4) for Edit mode OR Poultry/Eggs only
+                if (isEditMode || skipDocumentsStep) {
+                    if (direction === 1 && currentStep === 4 && !isEditMode) {
+                        currentStep = 5; // Skip to Review (only in Add mode)
+                    } else if (direction === -1 && currentStep === 4 && !isEditMode) {
+                        currentStep = 3; // Skip back to Invoice Info (only in Add mode)
                     }
+                    // In Edit mode, step 4 IS the review step, so no skipping needed
                 }
             }
 
@@ -3636,9 +3647,10 @@
             }
 
             // Check RFI document - only required for RAW or PMP commodities (not for Poultry/Eggs only)
+            // Skip RFI validation in edit mode - files are managed through "View Files" button
             const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
             const rfiRequired = hasRawOrPmp && !isOccurrenceReport;
-            if (rfiRequired && !uploadedFiles.rfi && !(editModeData.isEditMode && editModeData.existingFiles.rfi)) {
+            if (rfiRequired && !uploadedFiles.rfi && !isEditMode) {
                 missingFields.push('RFI Document');
             }
 
