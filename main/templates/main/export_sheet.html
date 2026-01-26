@@ -2718,6 +2718,34 @@
             // Initialize month filter handler
             handleMonthFilter();
 
+            // Detect if current dates match a month filter and set dropdown accordingly
+            if (DOM.filters.dateFrom && DOM.filters.dateTo) {
+                const dateFrom = DOM.filters.dateFrom.value;
+                const dateTo = DOM.filters.dateTo.value;
+
+                if (dateFrom && dateTo) {
+                    // Check if dateFrom is the 1st of a month
+                    const fromParts = dateFrom.split('-');
+                    if (fromParts.length === 3 && fromParts[2] === '01') {
+                        const year = fromParts[0];
+                        const month = fromParts[1];
+
+                        // Check if dateTo is the last day of the same month
+                        const lastDay = new Date(year, month, 0).getDate();
+                        const expectedDateTo = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+                        if (dateTo === expectedDateTo) {
+                            // This is a month filter! Set the dropdown
+                            const monthSelect = document.getElementById('monthFilter');
+                            const monthValue = `${year}-${month}`;
+                            if (monthSelect) {
+                                monthSelect.value = monthValue;
+                            }
+                        }
+                    }
+                }
+            }
+
             // Use requestAnimationFrame for smooth loading
             requestAnimationFrame(() => {
                 // Get all rows once
