@@ -1520,6 +1520,7 @@
                         font-size: 0.8rem;
                         table-layout: auto;
                     }
+                    /* Light mode - table headers */
                     .export-table-compact th {
                         background: #f8fafc;
                         padding: 8px 6px;
@@ -1539,15 +1540,68 @@
                     .export-table-compact tr:hover {
                         background: #f8fafc;
                     }
+
+                    /* Dark mode - table headers and rows */
+                    [data-theme="dark"] .export-table-compact th {
+                        background: #1e293b;
+                        color: #94a3b8;
+                        border-bottom-color: #334155;
+                    }
+                    [data-theme="dark"] .export-table-compact td {
+                        border-bottom-color: #334155;
+                    }
+                    [data-theme="dark"] .export-table-compact tr:hover {
+                        background: #1e293b;
+                    }
+                    [data-theme="dark"] .export-table-compact .desc-text {
+                        color: #94a3b8;
+                    }
+                    [data-theme="dark"] .export-table-compact .client-info {
+                        color: #e2e8f0;
+                    }
+                    [data-theme="dark"] .export-table-compact .client-meta {
+                        color: #64748b;
+                    }
+                    /* Light mode - softer green background with dark text */
                     .export-table-compact tr.invoiced {
-                        background: #22C55E;
-                        color: white;
+                        background: #d1fae5;
+                        color: #065f46;
                     }
                     .export-table-compact tr.invoiced td {
-                        color: white;
+                        color: #065f46;
                     }
                     .export-table-compact tr.invoiced:hover {
-                        background: #16a34a;
+                        background: #a7f3d0;
+                    }
+                    .export-table-compact tr.invoiced .desc-text {
+                        color: #047857;
+                    }
+                    .export-table-compact tr.invoiced .client-info {
+                        color: #064e3b;
+                    }
+                    .export-table-compact tr.invoiced .client-meta {
+                        color: #059669;
+                    }
+
+                    /* Dark mode - darker green background with lighter text */
+                    [data-theme="dark"] .export-table-compact tr.invoiced {
+                        background: #064e3b;
+                        color: #d1fae5;
+                    }
+                    [data-theme="dark"] .export-table-compact tr.invoiced td {
+                        color: #d1fae5;
+                    }
+                    [data-theme="dark"] .export-table-compact tr.invoiced:hover {
+                        background: #065f46;
+                    }
+                    [data-theme="dark"] .export-table-compact tr.invoiced .desc-text {
+                        color: #a7f3d0;
+                    }
+                    [data-theme="dark"] .export-table-compact tr.invoiced .client-info {
+                        color: #d1fae5;
+                    }
+                    [data-theme="dark"] .export-table-compact tr.invoiced .client-meta {
+                        color: #6ee7b7;
                     }
                     .export-table-compact .col-client { white-space: nowrap; }
                     .export-table-compact .col-date { white-space: nowrap; text-align: center; }
@@ -1580,11 +1634,23 @@
                         border-radius: 4px;
                         font-size: 0.75rem;
                         background: #fff;
+                        color: #1f2937;
                     }
                     .export-table-compact .invoice-input-compact:focus {
                         outline: none;
                         border-color: var(--primary);
                         box-shadow: 0 0 0 2px rgba(0, 120, 144, 0.1);
+                    }
+
+                    /* Dark mode - invoice input */
+                    [data-theme="dark"] .export-table-compact .invoice-input-compact {
+                        background: #1e293b;
+                        border-color: #334155;
+                        color: #e2e8f0;
+                    }
+                    [data-theme="dark"] .export-table-compact .invoice-input-compact:focus {
+                        border-color: var(--primary);
+                        box-shadow: 0 0 0 2px rgba(0, 120, 144, 0.2);
                     }
                     .status-dot {
                         display: inline-block;
@@ -1602,8 +1668,13 @@
                         display: inline-flex;
                         align-items: center;
                     }
+                    /* Light mode status badges */
                     .compact-status.pending { background: #fef3c7; color: #92400e; }
                     .compact-status.invoiced { background: #dcfce7; color: #166534; }
+
+                    /* Dark mode status badges */
+                    [data-theme="dark"] .compact-status.pending { background: #78350f; color: #fef3c7; }
+                    [data-theme="dark"] .compact-status.invoiced { background: #064e3b; color: #d1fae5; }
 
                     /* Mobile card label */
                     .mobile-label {
@@ -1661,22 +1732,43 @@
                             background: #fff;
                             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
                         }
+                        /* Mobile invoiced rows - light mode */
                         .export-table-compact tr.invoiced {
-                            border-left: 4px solid #22C55E;
-                            background: #22C55E !important;
-                            color: white !important;
+                            border-left: 4px solid #10b981;
+                            background: #d1fae5 !important;
                         }
                         .export-table-compact tr.invoiced td {
-                            color: white !important;
+                            color: #065f46 !important;
                         }
                         .export-table-compact tr.invoiced td.col-client,
-                        .export-table-compact tr.invoiced .client-info,
-                        .export-table-compact tr.invoiced .client-meta {
-                            color: white !important;
+                        .export-table-compact tr.invoiced .client-info {
+                            color: #064e3b !important;
                         }
-                        .export-table-compact tr.invoiced td.col-invoice,
+                        .export-table-compact tr.invoiced .client-meta {
+                            color: #059669 !important;
+                        }
                         .export-table-compact tr.invoiced td.col-invoice input {
-                            color: #000000 !important;
+                            color: #1f2937 !important;
+                        }
+
+                        /* Mobile invoiced rows - dark mode */
+                        [data-theme="dark"] .export-table-compact tr.invoiced {
+                            border-left: 4px solid #10b981;
+                            background: #064e3b !important;
+                        }
+                        [data-theme="dark"] .export-table-compact tr.invoiced td {
+                            color: #d1fae5 !important;
+                        }
+                        [data-theme="dark"] .export-table-compact tr.invoiced td.col-client,
+                        [data-theme="dark"] .export-table-compact tr.invoiced .client-info {
+                            color: #d1fae5 !important;
+                        }
+                        [data-theme="dark"] .export-table-compact tr.invoiced .client-meta {
+                            color: #6ee7b7 !important;
+                        }
+                        [data-theme="dark"] .export-table-compact tr.invoiced td.col-invoice input {
+                            color: #1f2937 !important;
+                            background: #f3f4f6 !important;
                         }
                         .export-table-compact td {
                             border: none;
