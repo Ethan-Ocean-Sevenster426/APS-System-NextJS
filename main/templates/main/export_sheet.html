@@ -442,12 +442,12 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.25rem;
-            padding: 0.35rem 0.65rem;
-            border-radius: 4px;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--radius);
             border: none;
             font-weight: 500;
-            font-size: 0.6875rem;
+            font-size: 0.875rem;
             cursor: pointer;
             transition: all 0.15s ease;
             text-decoration: none;
@@ -610,15 +610,19 @@
         }
 
         .btn-cancel-new {
-            padding: 0.35rem 0.65rem;
+            padding: 10px 16px;
             border: 1px solid #d1d5db;
             background: white;
             color: #6b7280;
-            border-radius: 4px;
+            border-radius: var(--radius);
             font-weight: 500;
-            font-size: 0.6875rem;
+            font-size: 0.875rem;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn-cancel-new:hover {
@@ -637,18 +641,19 @@
         }
 
         .btn-submit-new {
-            padding: 0.35rem 0.65rem;
+            padding: 10px 16px;
             border: none;
             background: linear-gradient(135deg, var(--primary) 0%, #005a6e 100%);
             color: white;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.6875rem;
+            border-radius: var(--radius);
+            font-weight: 500;
+            font-size: 0.875rem;
             cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
+            transition: all 0.15s ease;
+            display: inline-flex;
             align-items: center;
-            gap: 0.25rem;
+            justify-content: center;
+            gap: 8px;
             box-shadow: 0 1px 3px rgba(0, 120, 144, 0.2);
         }
 
@@ -2800,22 +2805,18 @@
             const categories = {
                 inspection: {
                     title: 'Inspection Fees',
-                    icon: '🔍',
                     fees: fees.filter(f => f.fee_code.includes('inspection') && !f.fee_code.includes('_rate'))
                 },
                 travel: {
                     title: 'Travel & Time',
-                    icon: '🚗',
                     fees: fees.filter(f => f.fee_code.includes('_rate'))
                 },
                 lab: {
                     title: 'Laboratory Tests',
-                    icon: '🧪',
                     fees: fees.filter(f => f.fee_code.includes('lab_test'))
                 },
                 other: {
                     title: 'Other Fees',
-                    icon: '📋',
                     fees: fees.filter(f => !f.fee_code.includes('inspection') && !f.fee_code.includes('_rate') && !f.fee_code.includes('lab_test'))
                 }
             };
@@ -2845,10 +2846,9 @@
 
                 html += `
                     <div style="border: 1px solid ${headerBorder}; border-radius: 8px; background: var(--card-bg); overflow: hidden;">
-                        <div style="padding: 0.75rem 1rem; background: ${headerBg}; border-bottom: 2px solid ${headerBorder};">
-                            <h3 style="font-size: 0.875rem; font-weight: 700; color: ${textColor}; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                                <span>${category.icon}</span>
-                                <span>${category.title}</span>
+                        <div style="padding: 0.75rem 1rem; border-bottom: 2px solid ${headerBorder};">
+                            <h3 style="font-size: 0.875rem; font-weight: 700; color: ${textColor}; margin: 0;">
+                                ${category.title}
                             </h3>
                         </div>
                         <div style="padding: 0.75rem;">
@@ -2857,7 +2857,7 @@
                                     <tr style="border-bottom: 2px solid ${headerBorder};">
                                         <th style="text-align: left; padding: 0.5rem; color: ${textColor}; font-weight: 600;">Fee Name</th>
                                         <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 100px;">Since</th>
-                                        <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 50px;">📊</th>
+                                        <th style="text-align: center; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 60px;">History</th>
                                         <th style="text-align: right; padding: 0.5rem; color: ${textColor}; font-weight: 600; width: 120px;">Rate (R)</th>
                                     </tr>
                                 </thead>
