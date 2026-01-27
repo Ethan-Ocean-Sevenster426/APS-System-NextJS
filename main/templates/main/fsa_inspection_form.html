@@ -2388,9 +2388,9 @@
                                 <span style="font-size: 13px; font-weight: 500;">DNA</span>
                             </label>
                             ${isEditMode ? `
-                            <label class="sample-checkbox" id="needs-retest-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                            <label class="sample-checkbox test-option" id="needs-retest-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: not-allowed; padding: 8px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; opacity: 0.5;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
-                                       data-product-idx="${idx}" data-field="needs_retest"
+                                       data-product-idx="${idx}" data-field="needs_retest" disabled
                                        onchange="updateProductData(${idx}, 'needs_retest', this.checked ? 'YES' : 'NO'); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">Needs Retest</span>
                             </label>
@@ -2441,7 +2441,7 @@
             }
         }
 
-        // Toggle sample test options (Fat, Protein, Calcium, DNA) and lab field based on Sampled checkbox
+        // Toggle sample test options (Fat, Protein, Calcium, DNA, Needs Retest) and lab field based on Sampled checkbox
         function toggleSampleOptions(idx) {
             const sampledCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="is_sample_taken"]`);
             const labField = document.getElementById(`lab-field-${idx}`);
@@ -2475,6 +2475,29 @@
                     }
                 }
             });
+
+            // Also handle needs_retest checkbox (edit mode only)
+            if (isEditMode) {
+                const needsRetestCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="needs_retest"]`);
+                const needsRetestLabel = document.getElementById(`needs-retest-label-${idx}`);
+
+                if (needsRetestCheckbox && needsRetestLabel) {
+                    if (isSampled) {
+                        needsRetestCheckbox.disabled = false;
+                        needsRetestLabel.style.opacity = '1';
+                        needsRetestLabel.style.cursor = 'pointer';
+                        needsRetestLabel.style.background = needsRetestCheckbox.checked ? '#22c55e' : '#f1f5f9';
+                    } else {
+                        needsRetestCheckbox.disabled = true;
+                        needsRetestCheckbox.checked = false;
+                        updateProductData(idx, 'needs_retest', 'NO');
+                        needsRetestLabel.style.opacity = '0.5';
+                        needsRetestLabel.style.cursor = 'not-allowed';
+                        needsRetestLabel.style.background = '#e2e8f0';
+                        needsRetestLabel.style.color = 'inherit';
+                    }
+                }
+            }
         }
 
         // Shared trip values (default to 1 for km and hours)
@@ -4505,10 +4528,13 @@
 
                             // Sample taken checkbox
                             const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
-                            if (sampleTakenCheckbox && data.is_sample_taken) {
-                                sampleTakenCheckbox.checked = data.is_sample_taken;
-                                updateProductData(productIdx, 'is_sample_taken', data.is_sample_taken);
-                                toggleCheckboxStyle(sampleTakenCheckbox);
+                            if (sampleTakenCheckbox) {
+                                if (data.is_sample_taken) {
+                                    sampleTakenCheckbox.checked = data.is_sample_taken;
+                                    updateProductData(productIdx, 'is_sample_taken', data.is_sample_taken);
+                                    toggleCheckboxStyle(sampleTakenCheckbox);
+                                }
+                                // Always call toggleSampleOptions to set proper enabled/disabled state
                                 toggleSampleOptions(productIdx);
                             }
 
