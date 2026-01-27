@@ -2307,6 +2307,8 @@
 
         // Get data for export
         function getExportData() {
+            console.log('[EXPORT] getExportData() called');
+
             // Xero-compatible headers with all required columns (exact order as specified)
             const headers = [
                 '*ContactName',
@@ -2344,11 +2346,18 @@
 
             // Get all visible table rows (only rows that are not hidden by filters)
             const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
+            console.log(`[EXPORT] Found ${rows.length} total rows in DOM`);
+
+            let visibleCount = 0;
+            let hiddenCount = 0;
+
             rows.forEach(row => {
                 // Skip hidden rows (filtered out)
                 if (row.style.display === 'none') {
+                    hiddenCount++;
                     return;
                 }
+                visibleCount++;
 
                 const contactName = row.getAttribute('data-contact') || '';
                 const city = row.getAttribute('data-city') || '';
@@ -2397,6 +2406,9 @@
                     ''                        // BrandingTheme (blank)
                 ]);
             });
+
+            console.log(`[EXPORT] Processed ${visibleCount} visible rows, skipped ${hiddenCount} hidden rows`);
+            console.log(`[EXPORT] Returning ${data.length} total rows (including header)`);
 
             return data;
         }
@@ -2472,11 +2484,15 @@
             }
 
             const exportData = getExportData();
+            const rowCount = exportData.length - 1;
+            console.log(`[EXPORT CSV] Exporting ${rowCount} rows`);
+
             // Use tabs instead of commas for Xero import
             const csvRows = exportData.map(row => row.join('\t'));
             const csvContent = csvRows.join('\n');
 
             downloadFile(csvContent, 'text/tab-separated-values', 'Xero_Import.txt');
+            console.log('[EXPORT CSV] Download initiated');
         }
 
         // Export as CSV (Excel) - Tab-separated for Xero
@@ -2489,6 +2505,8 @@
             }
 
             const exportData = getExportData();
+            const rowCount = exportData.length - 1;
+            console.log(`[EXPORT Excel CSV] Exporting ${rowCount} rows`);
 
             // Excel CSV needs BOM for UTF-8
             // Use tabs instead of commas for Xero import
@@ -2497,6 +2515,7 @@
             const csvContent = BOM + csvRows.join('\r\n');
 
             downloadFile(csvContent, 'text/tab-separated-values', 'Xero_Import.txt');
+            console.log('[EXPORT Excel CSV] Download initiated');
         }
 
         // Helper function to download file
@@ -2541,10 +2560,16 @@
         async function exportToExcel() {
             const exportData = getExportData();
 
+            // Log export data for debugging
+            const rowCount = exportData.length - 1; // Minus header row
+            console.log(`[EXPORT] Exporting ${rowCount} rows (including header: ${exportData.length} total)`);
+
             if (exportData.length <= 1) {
                 alert('No data to export');
                 return;
             }
+
+            console.log(`[EXPORT] Starting Excel export with ${rowCount} invoice line items`);
 
             // Create a new workbook using ExcelJS
             const workbook = new ExcelJS.Workbook();
