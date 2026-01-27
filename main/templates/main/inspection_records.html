@@ -8717,9 +8717,9 @@
                                                             data-inspection-id="{{ product.remote_id }}" {% if not product.is_sample_taken %}disabled
                                                             style="opacity: 0.5; cursor: not-allowed;"
                                                             title="No sample taken - retest options disabled" {% endif %} onchange="updateNeedsRetest(this)">
-                                                            <option value="">Select Option</option>
-                                                            <option value="yes" {% if product.needs_retest == 'yes' %}selected{% endif %}>Yes</option>
-                                                            <option value="no" {% if product.needs_retest == 'no' %}selected{% endif %}>No</option>
+                                                            <option value="">N/A</option>
+                                                            <option value="yes" {% if product.needs_retest|upper == 'YES' %}selected{% endif %}>Yes</option>
+                                                            <option value="no" {% if product.needs_retest|upper == 'NO' %}selected{% endif %}>No</option>
                                                         </select>
                                                     </div>
 
@@ -9111,6 +9111,17 @@
                                                                         {% endif %}
                                                                     {% else %}
                                                                     <span id="product-badge-{{ product.id }}" style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Product: N/A</span>
+                                                                    {% endif %}
+
+                                                                    <!-- Needs Retest Badge -->
+                                                                    {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
+                                                                        {% if product.needs_retest|upper == 'YES' %}
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #f59e0b; color: white; border-radius: 2px;">Retest: Yes</span>
+                                                                        {% elif product.needs_retest|upper == 'NO' %}
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Retest: No</span>
+                                                                        {% else %}
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Retest: N/A</span>
+                                                                        {% endif %}
                                                                     {% endif %}
                                                                 </div>
                                                             </div>
