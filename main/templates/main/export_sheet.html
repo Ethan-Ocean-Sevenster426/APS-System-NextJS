@@ -1470,12 +1470,31 @@
                 <!-- Filter Fields -->
                 <div class="export-filters">
                     <div class="export-filter-field">
-                        <label for="contactNameFilter">Contact</label>
-                        <input type="text" id="contactNameFilter" placeholder="Search...">
+                        <label for="contactNameFilter">Client</label>
+                        <select id="contactNameFilter">
+                            <option value="">All Clients</option>
+                            {% for client in clients_list %}
+                            <option value="{{ client }}">{{ client }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="export-filter-field">
                         <label for="inspectorFilter">Inspector</label>
-                        <input type="text" id="inspectorFilter" placeholder="Search...">
+                        <select id="inspectorFilter">
+                            <option value="">All Inspectors</option>
+                            {% for inspector in inspectors_list %}
+                            <option value="{{ inspector }}">{{ inspector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="export-filter-field">
+                        <label for="corporateGroupFilter">Corporate Group</label>
+                        <select id="corporateGroupFilter">
+                            <option value="">All Groups</option>
+                            {% for group in corporate_groups_list %}
+                            <option value="{{ group }}">{{ group }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="export-filter-field">
                         <label for="monthFilter">Month</label>
@@ -2033,6 +2052,7 @@
                     reference: document.getElementById('referenceFilter'),
                     city: document.getElementById('cityFilter'),
                     inspector: document.getElementById('inspectorFilter'),
+                    corporateGroup: document.getElementById('corporateGroupFilter'),
                     dateFrom: document.getElementById('invoiceDateFromFilter'),
                     dateTo: document.getElementById('invoiceDateToFilter')
                 };
@@ -2107,6 +2127,7 @@
                 reference: document.getElementById('referenceFilter'),
                 city: document.getElementById('cityFilter'),
                 inspector: document.getElementById('inspectorFilter'),
+                corporateGroup: document.getElementById('corporateGroupFilter'),
                 dateFrom: document.getElementById('invoiceDateFromFilter'),
                 dateTo: document.getElementById('invoiceDateToFilter')
             };
@@ -2116,13 +2137,14 @@
             const reference = filters.reference?.value?.toLowerCase().trim() || '';
             const city = filters.city?.value?.toLowerCase().trim() || '';
             const inspector = filters.inspector?.value?.toLowerCase().trim() || '';
+            const corporateGroup = filters.corporateGroup?.value?.toLowerCase().trim() || '';
             const invoiceDateFrom = filters.dateFrom?.value || '';
             const invoiceDateTo = filters.dateTo?.value || '';
 
-            console.log('Filter values:', { contactName, reference, city, inspector, invoiceDateFrom, invoiceDateTo });
+            console.log('Filter values:', { contactName, reference, city, inspector, corporateGroup, invoiceDateFrom, invoiceDateTo });
 
             // Check if any filters are active
-            const hasFilters = contactName || reference || city || inspector || invoiceDateFrom || invoiceDateTo;
+            const hasFilters = contactName || reference || city || inspector || corporateGroup || invoiceDateFrom || invoiceDateTo;
 
             const rows = document.querySelectorAll('#exportTableBody tr[data-contact]');
             const rowCount = rows.length;
@@ -2170,6 +2192,12 @@
                     if (show && inspector) {
                         const rowInspector = (row.getAttribute('data-inspector') || '').toLowerCase();
                         show = rowInspector.includes(inspector);
+                    }
+
+                    // Corporate Group filter
+                    if (show && corporateGroup) {
+                        const rowCorporateGroup = (row.getAttribute('data-corporate-group') || '').toLowerCase();
+                        show = rowCorporateGroup.includes(corporateGroup);
                     }
 
                     // Invoice Date range filter
@@ -2855,24 +2883,16 @@
                 }
 
                 function setupEventListeners() {
-                    // Create debounced filter function
-                    const debouncedApplyFilters = debounce(applyFilters, 300);
-
-                    // Add input event listeners for text filters (with debounce)
-                    ['contactName', 'reference', 'city', 'inspector'].forEach(key => {
-                        const input = DOM.filters[key];
-                        if (input) {
-                            input.addEventListener('input', debouncedApplyFilters);
-                            input.addEventListener('keypress', function(e) {
-                                if (e.key === 'Enter') {
-                                    applyFilters();
-                                }
-                            });
+                    // Add change event listeners for dropdown filters (instant filtering)
+                    ['contactName', 'inspector', 'corporateGroup'].forEach(key => {
+                        const select = DOM.filters[key];
+                        if (select) {
+                            select.addEventListener('change', applyFilters);
                         }
                     });
 
                     // Note: Date filters require clicking Apply button to reload page
-                    // Other filters (text inputs) can still use instant filtering
+                    // Dropdown filters (client, inspector, corporate group) apply instantly on change
 
                     // Auto-apply frontend filters on initial load (for non-date filters)
                     applyFilters();

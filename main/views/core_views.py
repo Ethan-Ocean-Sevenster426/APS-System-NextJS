@@ -6545,8 +6545,15 @@ def export_sheet(request):
             )
             invoice_items.extend(test_items)
 
-    # Calculate unique inspectors
+    # Calculate unique values for filters
     unique_inspectors = set(item['inspector_name'] for item in invoice_items if item.get('inspector_name'))
+    unique_clients = set(item['client_name'] for item in invoice_items if item.get('client_name'))
+    unique_corporate_groups = set(item.get('corporate_group', '') for item in invoice_items if item.get('corporate_group'))
+
+    # Sort for dropdowns
+    sorted_inspectors = sorted(unique_inspectors)
+    sorted_clients = sorted(unique_clients)
+    sorted_corporate_groups = sorted(unique_corporate_groups)
 
     # Debug: Final summary
     print(f"[EXPORT_SHEET] Processed {inspections_processed} inspections, generated {len(invoice_items)} line items")
@@ -6568,6 +6575,9 @@ def export_sheet(request):
         'total_items': len(invoice_items),
         'inspections_processed': inspections_processed,
         'unique_inspectors': len(unique_inspectors),
+        'inspectors_list': sorted_inspectors,
+        'clients_list': sorted_clients,
+        'corporate_groups_list': sorted_corporate_groups,
         'settings': settings,
         'default_start_date': start_date.strftime('%Y-%m-%d'),
         'default_end_date': end_date.strftime('%Y-%m-%d'),
