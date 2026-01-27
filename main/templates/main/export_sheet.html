@@ -1471,12 +1471,7 @@
                 <div class="export-filters">
                     <div class="export-filter-field">
                         <label for="contactNameFilter">Client</label>
-                        <select id="contactNameFilter">
-                            <option value="">All Clients</option>
-                            {% for client in clients_list %}
-                            <option value="{{ client }}">{{ client }}</option>
-                            {% endfor %}
-                        </select>
+                        <input type="text" id="contactNameFilter" placeholder="Search...">
                     </div>
                     <div class="export-filter-field">
                         <label for="inspectorFilter">Inspector</label>
@@ -2883,8 +2878,22 @@
                 }
 
                 function setupEventListeners() {
+                    // Create debounced filter function
+                    const debouncedApplyFilters = debounce(applyFilters, 300);
+
+                    // Add input event listener for client text search (with debounce)
+                    const clientInput = DOM.filters.contactName;
+                    if (clientInput) {
+                        clientInput.addEventListener('input', debouncedApplyFilters);
+                        clientInput.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                applyFilters();
+                            }
+                        });
+                    }
+
                     // Add change event listeners for dropdown filters (instant filtering)
-                    ['contactName', 'inspector', 'corporateGroup'].forEach(key => {
+                    ['inspector', 'corporateGroup'].forEach(key => {
                         const select = DOM.filters[key];
                         if (select) {
                             select.addEventListener('change', applyFilters);
@@ -2892,7 +2901,8 @@
                     });
 
                     // Note: Date filters require clicking Apply button to reload page
-                    // Dropdown filters (client, inspector, corporate group) apply instantly on change
+                    // Client filter is text search with debounce
+                    // Inspector and Corporate Group dropdowns apply instantly on change
 
                     // Auto-apply frontend filters on initial load (for non-date filters)
                     applyFilters();
