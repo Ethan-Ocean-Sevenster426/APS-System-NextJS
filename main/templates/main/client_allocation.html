@@ -2238,7 +2238,13 @@
                                     <tr data-client-id="{{ client.id }}"
                                         data-filter-client-id="{{ client.client_id|lower }}"
                                         data-filter-account-code="{{ client.internal_account_code|default:''|lower }}"
-                                        data-filter-client-name="{{ client.name|default:''|lower }}">
+                                        data-filter-client-name="{{ client.name|default:''|lower }}"
+                                        data-client-name="{{ client.name }}"
+                                        data-facility-type="{{ client.facility_type|default:'' }}"
+                                        data-group-type="{{ client.group_type|default:'' }}"
+                                        data-town="{{ client.town|default:'' }}"
+                                        data-corporate-group="{{ client.corporate_group|default:'' }}"
+                                        data-email="{{ client.email|default:'' }}">
                                         <td>{{ client.client_id }}</td>
                                         <td>{{ client.name|default:"-" }}</td>
                                         <td>{{ client.email|default:client.manual_email|default:"-" }}</td>
@@ -2256,7 +2262,13 @@
                             <div class="client-card" data-client-id="{{ client.id }}"
                                 data-filter-client-id="{{ client.client_id|lower }}"
                                 data-filter-account-code="{{ client.internal_account_code|default:''|lower }}"
-                                data-filter-client-name="{{ client.name|default:''|lower }}">
+                                data-filter-client-name="{{ client.name|default:''|lower }}"
+                                data-client-name="{{ client.name }}"
+                                data-facility-type="{{ client.facility_type|default:'' }}"
+                                data-group-type="{{ client.group_type|default:'' }}"
+                                data-town="{{ client.town|default:'' }}"
+                                data-corporate-group="{{ client.corporate_group|default:'' }}"
+                                data-email="{{ client.email|default:'' }}">
                                 <div class="client-card-header">
                                     <h3 class="client-name">{{ client.name }}</h3>
                                     <span class="client-id">{{ client.client_id }}</span>
@@ -2455,52 +2467,21 @@
                             </div>
 
                             <div class="form-group-new">
-                                <label class="form-label-new">Commodity</label>
-                                <select name="commodity" id="edit_commodity" class="form-input-new" required>
-                                    <option value="">Select Commodity</option>
-                                    <option value="Certain Raw Processed Meat">Certain Raw Processed Meat</option>
-                                    <option value="Eggs">Eggs</option>
-                                    <option value="Poultry">Poultry</option>
-                                    <option value="Processed Meat Products (PMP)">Processed Meat Products (PMP)</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group-new">
-                                <label class="form-label-new">Province</label>
-                                <select name="province" id="edit_province" class="form-input-new" required>
-                                    <option value="">Select Province</option>
-                                    <option value="Eastern Cape">Eastern Cape</option>
-                                    <option value="Free State">Free State</option>
-                                    <option value="Gauteng">Gauteng</option>
-                                    <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                                    <option value="Limpopo">Limpopo</option>
-                                    <option value="Mpumalanga">Mpumalanga</option>
-                                    <option value="North West">North West</option>
-                                    <option value="Northern Cape">Northern Cape</option>
-                                    <option value="Western Cape">Western Cape</option>
-                                </select>
+                                <label class="form-label-new">Town (Optional)</label>
+                                <input type="text" name="province" id="edit_province" class="form-input-new"
+                                    placeholder="e.g. Johannesburg, Cape Town">
                             </div>
 
                             <div class="form-group-new">
                                 <label class="form-label-new">Corporate Group (Optional)</label>
-                                <select name="corporate_group" id="edit_corporate_group" class="form-input-new">
-                                    <option value="">Will be auto-detected if not selected</option>
-                                    {% for group in unique_corporate_groups %}
-                                    <option value="{{ group }}">{{ group }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" name="corporate_group" id="edit_corporate_group" class="form-input-new"
+                                    placeholder="e.g. Pick n Pay, Shoprite">
                             </div>
 
                             <div class="form-group-new">
                                 <label class="form-label-new">Email Address (Optional)</label>
                                 <input type="email" name="representative_email" id="edit_email" class="form-input-new"
                                     placeholder="email@example.com">
-                            </div>
-
-                            <div class="form-group-new">
-                                <label class="form-label-new">Phone Number</label>
-                                <input type="tel" name="phone_number" id="edit_phone_number" class="form-input-new"
-                                    placeholder="+27 123 456 789">
                             </div>
                         </div>
 
@@ -2572,11 +2553,9 @@
                     document.getElementById('edit_eclick_name').value = clientData.eclick_name || '';
                     document.getElementById('edit_facility_type').value = clientData.facility_type || '';
                     document.getElementById('edit_group_type').value = clientData.group_type || '';
-                    document.getElementById('edit_commodity').value = clientData.commodity || '';
                     document.getElementById('edit_province').value = clientData.province || '';
                     document.getElementById('edit_corporate_group').value = clientData.corporate_group || '';
                     document.getElementById('edit_email').value = clientData.representative_email || '';
-                    document.getElementById('edit_phone_number').value = clientData.phone_number || '';
 
                     document.getElementById('editClientModal').classList.add('show');
                 }
@@ -2607,40 +2586,16 @@
                             e.preventDefault();
                             currentClientRow = this;
 
-                            // Extract client data from the row
-                            const cells = this.querySelectorAll('td');
-                            if (cells.length >= 10) {
-                                // Desktop table view
-                                currentClientData = {
-                                    id: this.getAttribute('data-client-id'),
-                                    client_id: cells[0].textContent.trim(),
-                                    facility_type: cells[1].textContent.trim(),
-                                    group_type: cells[2].textContent.trim(),
-                                    commodity: cells[3].textContent.trim(),
-                                    province: cells[4].textContent.trim(),
-                                    corporate_group: cells[5].textContent.trim(),
-                                    account_code: cells[6].textContent.trim(),
-                                    eclick_name: cells[7].textContent.trim(),
-                                    representative_email: cells[8].textContent.trim(),
-                                    phone_number: cells[9].textContent.trim()
-                                };
-                            } else {
-                                // Mobile card view - extract from card fields
-                                const fields = this.querySelectorAll('.client-field');
-                                currentClientData = {
-                                    id: this.getAttribute('data-client-id'),
-                                    client_id: this.querySelector('.client-name')?.textContent.trim(),
-                                    facility_type: this.querySelector('.client-id')?.textContent.trim(),
-                                    group_type: fields[0]?.querySelector('span')?.textContent.trim(),
-                                    commodity: fields[1]?.querySelector('span')?.textContent.trim(),
-                                    province: fields[2]?.querySelector('span')?.textContent.trim(),
-                                    corporate_group: fields[3]?.querySelector('span')?.textContent.trim(),
-                                    account_code: fields[4]?.querySelector('span')?.textContent.trim(),
-                                    eclick_name: fields[5]?.querySelector('span')?.textContent.trim(),
-                                    representative_email: fields[6]?.querySelector('span')?.textContent.trim(),
-                                    phone_number: fields[7]?.querySelector('span')?.textContent.trim()
-                                };
-                            }
+                            // Extract client data from the row using data attributes
+                            currentClientData = {
+                                id: this.getAttribute('data-client-id'),
+                                eclick_name: this.getAttribute('data-client-name') || '',
+                                facility_type: this.getAttribute('data-facility-type') || '',
+                                group_type: this.getAttribute('data-group-type') || '',
+                                province: this.getAttribute('data-town') || '',
+                                corporate_group: this.getAttribute('data-corporate-group') || '',
+                                representative_email: this.getAttribute('data-email') || ''
+                            };
 
                             // Position and show context menu
                             contextMenu.classList.add('show');

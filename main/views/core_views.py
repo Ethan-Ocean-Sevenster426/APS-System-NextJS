@@ -4834,6 +4834,34 @@ def client_allocation(request):
     """Client allocation view - shows clients from Client model."""
     from ..models import Client
     from django.db.models import Count, Q
+    from django.contrib import messages
+
+    # Handle POST requests (edit client)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'edit_client':
+            try:
+                client_id = request.POST.get('client_id')
+                client = Client.objects.get(id=client_id)
+
+                # Update client fields
+                client.name = request.POST.get('business_name', client.name)
+                client.facility_type = request.POST.get('facility_type', '')
+                client.group_type = request.POST.get('group_type', '')
+                client.town = request.POST.get('province', '')  # Using province as town
+                client.corporate_group = request.POST.get('corporate_group', '')
+                client.email = request.POST.get('representative_email', '') or None
+
+                client.save()
+
+                messages.success(request, f'Client "{client.name}" updated successfully!')
+                return redirect('client_allocation')
+
+            except Client.DoesNotExist:
+                messages.error(request, 'Client not found!')
+            except Exception as e:
+                messages.error(request, f'Error updating client: {str(e)}')
 
     # Get search parameter
     search_query = request.GET.get('search', '').strip()
