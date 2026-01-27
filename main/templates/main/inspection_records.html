@@ -9116,11 +9116,11 @@
                                                                     <!-- Needs Retest Badge -->
                                                                     {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                                         {% if product.needs_retest|upper == 'YES' %}
-                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #f59e0b; color: white; border-radius: 2px;">Retest: Yes</span>
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Needs Retest: Yes</span>
                                                                         {% elif product.needs_retest|upper == 'NO' %}
-                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #22c55e; color: white; border-radius: 2px;">Retest: No</span>
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #ef4444; color: white; border-radius: 2px;">Needs Retest: No</span>
                                                                         {% else %}
-                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Retest: N/A</span>
+                                                                        <span style="font-size: 7px; padding: 2px 4px; background: #9ca3af; color: white; border-radius: 2px;">Needs Retest: N/A</span>
                                                                         {% endif %}
                                                                     {% endif %}
                                                                 </div>
