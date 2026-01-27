@@ -1926,7 +1926,6 @@
                             <th class="col-qty">Qty</th>
                             <th class="col-rate">Rate</th>
                             <th class="col-total">Total</th>
-                            <th class="col-invoice">Invoice #</th>
                             <th class="col-status">Status</th>
                         </tr>
                     </thead>
@@ -1976,16 +1975,6 @@
                                 <span class="mobile-label">Total</span>
                                 R{{ item.total|floatformat:2 }}
                             </td>
-                            <td class="col-invoice" data-label="Invoice">
-                                <span class="mobile-label">Invoice #</span>
-                                <input type="text"
-                                       class="invoice-input-compact"
-                                       placeholder="Invoice #"
-                                       value="{{ item.invoice_number|default:'' }}"
-                                       onchange="updateInvoiceNumber(this, '{{ item.id }}')"
-                                       onblur="updateInvoiceNumber(this, '{{ item.id }}')"
-                                       data-invoice-input>
-                            </td>
                             <td class="col-status" data-label="Status">
                                 <span class="compact-status {% if item.invoice_number %}invoiced{% else %}pending{% endif %}" data-status-badge>
                                     <span class="status-dot {% if item.invoice_number %}invoiced{% else %}pending{% endif %}"></span>
@@ -1995,7 +1984,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" style="padding: 40px; text-align: center; color: #94a3b8;">
+                            <td colspan="8" style="padding: 40px; text-align: center; color: #94a3b8;">
                                 <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 8px; display: block;"></i>
                                 <p>No invoice items found. Complete inspections with hours, travel, and test data to generate invoice line items.</p>
                             </td>
