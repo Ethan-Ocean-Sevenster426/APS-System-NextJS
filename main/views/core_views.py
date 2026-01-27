@@ -876,7 +876,7 @@ def add_fsa_inspection(request):
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         # Use product-specific sample data (checkboxes)
                         is_sample_taken=bool(product_info.get('is_sample_taken', False)),
-                        needs_retest=form.cleaned_data.get('needs_retest', 'PENDING'),
+                        needs_retest=form.cleaned_data.get('needs_retest', 'NO'),
                         fat=bool(product_info.get('fat', False)),
                         protein=bool(product_info.get('protein', False)),
                         calcium=bool(product_info.get('calcium', False)),
