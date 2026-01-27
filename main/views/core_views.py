@@ -1107,6 +1107,7 @@ def edit_fsa_inspection(request, pk):
                         rel_insp.bought_sample = product.get('bought_sample', 0)
                         rel_insp.km_traveled = product.get('km_traveled', 0)
                         rel_insp.hours = product.get('hours', 0)
+                        rel_insp.needs_retest = product.get('needs_retest', 'NO')
                         inspections_to_update.append(rel_insp)
                         print(f"[EDIT FORM DEBUG] Matched product #{idx+1} to inspection {rel_insp.id} ({commodity})")
                     else:
@@ -1388,6 +1389,7 @@ def edit_fsa_inspection(request, pk):
                         'protein': insp.protein,
                         'calcium': insp.calcium,
                         'dna': insp.dna,
+                        'needs_retest': insp.needs_retest or 'NO',
                     }
     else:
         # For occurrence reports, no commodity data

@@ -2356,7 +2356,7 @@
                     ${!isPoultryOrEggs ? `
                     <!-- Sample Section - Only for Raw Meat and PMP -->
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div class="grid grid-cols-2 md:grid-cols-${isEditMode ? '6' : '5'} gap-3">
                             <label class="sample-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
                                 <input type="checkbox" style="width: 18px; height: 18px;"
                                        data-product-idx="${idx}" data-field="is_sample_taken"
@@ -2387,6 +2387,14 @@
                                        onchange="updateProductData(${idx}, 'dna', this.checked); toggleCheckboxStyle(this)">
                                 <span style="font-size: 13px; font-weight: 500;">DNA</span>
                             </label>
+                            ${isEditMode ? `
+                            <label class="sample-checkbox" id="needs-retest-label-${idx}" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; transition: all 0.2s;">
+                                <input type="checkbox" style="width: 18px; height: 18px;"
+                                       data-product-idx="${idx}" data-field="needs_retest"
+                                       onchange="updateProductData(${idx}, 'needs_retest', this.checked ? 'YES' : 'NO'); toggleCheckboxStyle(this)">
+                                <span style="font-size: 13px; font-weight: 500;">Needs Retest</span>
+                            </label>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -4324,7 +4332,8 @@
                     fat: {{ data.fat|lower }},
                     protein: {{ data.protein|lower }},
                     calcium: {{ data.calcium|lower }},
-                    dna: {{ data.dna|lower }}
+                    dna: {{ data.dna|lower }},
+                    needs_retest: '{{ data.needs_retest|default:"NO"|escapejs }}'
                 }{% if not forloop.last %},{% endif %}
                 {% endfor %}
             }
@@ -4530,6 +4539,16 @@
                                 dnaCheckbox.checked = data.dna;
                                 updateProductData(productIdx, 'dna', data.dna);
                                 toggleCheckboxStyle(dnaCheckbox);
+                            }
+
+                            // Needs Retest checkbox (edit mode only)
+                            const needsRetestCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="needs_retest"]`);
+                            if (needsRetestCheckbox && data.needs_retest) {
+                                // Check if needs_retest is 'YES' or 'yes' (case insensitive)
+                                const isYes = data.needs_retest.toString().toUpperCase() === 'YES';
+                                needsRetestCheckbox.checked = isYes;
+                                updateProductData(productIdx, 'needs_retest', isYes ? 'YES' : 'NO');
+                                toggleCheckboxStyle(needsRetestCheckbox);
                             }
 
                             // Update productsData array with values from commodity data
