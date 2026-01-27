@@ -988,7 +988,7 @@ def add_fsa_inspection(request):
         default_inspector = full_name if full_name else request.user.username
 
     # Get clients for dropdown with their associated towns
-    from ..models import Client
+    # Client is already imported at top of file
     clients_qs = Client.objects.all().order_by('name')
 
     # Build clients list with town data from most recent inspection
