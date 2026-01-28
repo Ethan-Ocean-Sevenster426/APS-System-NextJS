@@ -998,7 +998,7 @@
                     <div class="step-circle">1</div>
                     <span class="step-label">Basic Info</span>
                 </div>
-                <div class="step" data-step="5">
+                <div class="step" data-step="4">
                     <div class="step-circle">2</div>
                     <span class="step-label">Review</span>
                 </div>
@@ -2809,7 +2809,10 @@
                     const escapedEmail = (client.email || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const escapedTown = (client.town || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const escapedCode = (client.code || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    return '<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'white\'" onclick="selectOccurrenceClient(\'' + escapedName + '\', \'' + escapedEmail + '\', \'' + escapedTown + '\', \'' + escapedCode + '\')">' +
+                    const escapedCorporateGroup = (client.corporate_group || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const escapedGroupType = (client.group_type || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const escapedFacilityType = (client.facility_type || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    return '<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'white\'" onclick="selectOccurrenceClient(\'' + escapedName + '\', \'' + escapedEmail + '\', \'' + escapedTown + '\', \'' + escapedCode + '\', \'' + escapedCorporateGroup + '\', \'' + escapedGroupType + '\', \'' + escapedFacilityType + '\')">' +
                         '<strong>' + client.name + '</strong>' +
                         (client.code ? '<br><small style="color: #f59e0b; font-weight: 500;">' + client.code + '</small>' : '') +
                         (client.town ? '<br><small style="color: #6b7280;">' + client.town + '</small>' : '') +
@@ -2823,11 +2826,24 @@
         }
 
         // Select occurrence client from dropdown
-        function selectOccurrenceClient(name, email, town, code) {
+        function selectOccurrenceClient(name, email, town, code, corporateGroup, groupType, facilityType) {
             document.getElementById('occurrenceClientName').value = name;
             if (email) document.getElementById('occurrenceEmail').value = email;
             if (town) document.getElementById('occurrenceTown').value = town;
             if (code) document.getElementById('occurrenceAccountCode').value = code;
+            // Also populate corporate group, group type, and facility type
+            if (corporateGroup) {
+                const corpGroupSelect = document.getElementById('occurrenceCorporateGroup');
+                if (corpGroupSelect) corpGroupSelect.value = corporateGroup;
+            }
+            if (groupType) {
+                const groupTypeSelect = document.getElementById('occurrenceGroupType');
+                if (groupTypeSelect) groupTypeSelect.value = groupType;
+            }
+            if (facilityType) {
+                const facilityTypeSelect = document.getElementById('occurrenceFacilityType');
+                if (facilityTypeSelect) facilityTypeSelect.value = facilityType;
+            }
             document.getElementById('occurrenceClientDropdown').style.display = 'none';
         }
 
@@ -3358,14 +3374,14 @@
         }
 
         function changeStep(direction) {
-            // For occurrence reports, skip steps 2-4 (go directly from 1 to 5)
+            // For occurrence reports in edit mode, skip steps 2-3 (go directly from 1 to 4/Review)
             if (isOccurrenceReport) {
                 if (direction === 1 && currentStep === 1) {
                     if (!validateStep1()) {
                         return;
                     }
-                    currentStep = 5; // Jump to review
-                } else if (direction === -1 && currentStep === 5) {
+                    currentStep = 4; // Jump to review (step 4 in edit mode)
+                } else if (direction === -1 && currentStep === 4) {
                     currentStep = 1; // Jump back to basic info
                 }
             } else {
@@ -3443,8 +3459,8 @@
 
             // Update buttons
             updatePrevButtonText();
-            // For occurrence reports, step 5 is the final review step regardless of totalSteps
-            const isLastStep = isOccurrenceReport ? (currentStep === 5) : (currentStep === totalSteps);
+            // For occurrence reports in edit mode, step 4 is the review step (same as totalSteps)
+            const isLastStep = currentStep === totalSteps;
             document.getElementById('nextBtn').style.display = isLastStep ? 'none' : 'inline-flex';
             document.getElementById('submitBtn').style.display = isLastStep ? 'inline-flex' : 'none';
 
