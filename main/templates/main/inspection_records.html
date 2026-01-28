@@ -8830,8 +8830,8 @@
                                         </td>
                                         <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
-                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
-                                            <!-- Approval editable for admin, super_admin, developer only -->
+                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' or request.user.role == 'inspector' %}
+                                            <!-- Approval editable for admin, super_admin, developer, inspector -->
                                             <select class="approved-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
                                                 data-group-id="{{ fallback_group_id }}"
@@ -8840,7 +8840,7 @@
                                                 <option value="APPROVED" {% if shipment.approved_status == 'APPROVED' %}selected{% endif %}>Approved</option>
                                             </select>
                                             {% else %}
-                                            <!-- Approval read-only for inspector, lab_technician -->
+                                            <!-- Approval read-only for lab_technician -->
                                             <span class="approved-status-readonly" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-block; {% if shipment.approved_status == 'APPROVED' %}background: #dcfce7; color: #166534;{% else %}background: #fef3c7; color: #92400e;{% endif %}">
                                                 {% if shipment.approved_status == 'APPROVED' %}Approved{% else %}Pending{% endif %}
                                             </span>
