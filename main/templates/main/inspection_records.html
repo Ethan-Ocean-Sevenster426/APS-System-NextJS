@@ -7815,14 +7815,6 @@
 
                 <!-- Shipment-specific functionality -->
                 {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
-                <li class="nav-item">
-                    <button onclick="syncInspectionsFromShipmentList()" class="nav-link"
-                        style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
-                        <i class="fas fa-sync-alt"></i>
-                        Sync Inspections
-                    </button>
-                </li>
-
                 {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                 <li class="nav-item">
                     <a href="{% url 'export_sheet' %}" class="nav-link"
@@ -7927,16 +7919,7 @@
                     </a>
                     {% endif %}
 
-                    <!-- Sync Shipments Button - Hidden for administrators -->
-                    {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' and request.user.role != 'admin' %}
-                    <form action="{% url 'refresh_inspections' %}" method="post" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn" style="background: #007890; color: white;"
-                            onmouseover="this.style.background='#005a6b'" onmouseout="this.style.background='#007890'">
-                            <i class="fas fa-sync-alt"></i> Sync Inspections
-                        </button>
-                    </form>
-                    {% endif %}
+                    <!-- Sync Shipments Button - REMOVED from UI -->
 
                     <!-- Manage Clients Button -->
                     {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}

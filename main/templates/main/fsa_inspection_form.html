@@ -4294,8 +4294,10 @@
                         }
                     });
                     updatePrevButtonText();
-                    document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-flex';
-                    document.getElementById('submitBtn').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
+                    // For occurrence reports, step 4 is the last step
+                    const isLastStep = currentStep === totalSteps;
+                    document.getElementById('nextBtn').style.display = isLastStep ? 'none' : 'inline-flex';
+                    document.getElementById('submitBtn').style.display = isLastStep ? 'inline-flex' : 'none';
                 }
 
                 return true;
@@ -4635,9 +4637,14 @@
                         // Generate internal account code for edit mode
                         generateInternalAccountCode();
 
-                        // For occurrence reports, update review step data
+                        // For occurrence reports, update review step data and button states
                         if (isOccurrenceReport) {
                             updateReview();
+                            // Ensure buttons are correct for occurrence reports on page load
+                            // In edit mode, occurrence reports go directly to step 4 (Review)
+                            const isLastStep = currentStep === totalSteps;
+                            document.getElementById('nextBtn').style.display = isLastStep ? 'none' : 'inline-flex';
+                            document.getElementById('submitBtn').style.display = isLastStep ? 'inline-flex' : 'none';
                         }
                     }, 100);
                 }
