@@ -2202,21 +2202,11 @@
                         {% else %}
                         <div class="table-controls">
                             <div class="table-info">
-                                {% if show_all %}
-                                Showing all {{ total_clients }} client{{ total_clients|pluralize }}
+                                {% if search_query %}
+                                Found {{ total_clients }} client{{ total_clients|pluralize }} (showing {{ clients|length }} per page)
                                 {% else %}
-                                Showing {{ clients|length }} client{{ clients|length|pluralize }} of {{ total_clients }}
+                                Showing {{ clients|length }} of {{ total_clients }} client{{ total_clients|pluralize }}
                                 {% endif %}
-                            </div>
-                            <div class="view-options">
-                                <a href="?{% if request.GET.client_id %}client_id={{ request.GET.client_id }}&{% endif %}{% if request.GET.client %}client={{ request.GET.client }}&{% endif %}{% if request.GET.account_code %}account_code={{ request.GET.account_code }}&{% endif %}{% if request.GET.date_from %}date_from={{ request.GET.date_from }}&{% endif %}{% if request.GET.date_to %}date_to={{ request.GET.date_to }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}show_all=false"
-                                    class="btn btn-secondary {% if not show_all %}active{% endif %}">
-                                    <i class="fas fa-list"></i> <span class="btn-text">Paginated</span>
-                                </a>
-                                <a href="?{% if request.GET.client_id %}client_id={{ request.GET.client_id }}&{% endif %}{% if request.GET.client %}client={{ request.GET.client }}&{% endif %}{% if request.GET.account_code %}account_code={{ request.GET.account_code }}&{% endif %}{% if request.GET.date_from %}date_from={{ request.GET.date_from }}&{% endif %}{% if request.GET.date_to %}date_to={{ request.GET.date_to }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}show_all=true"
-                                    class="btn btn-secondary {% if show_all %}active{% endif %}">
-                                    <i class="fas fa-th-list"></i> <span class="btn-text">Show All</span>
-                                </a>
                             </div>
                         </div>
 
@@ -2292,22 +2282,22 @@
                         </div>
 
                         <!-- Pagination -->
-                        {% if not show_all and page_obj and page_obj.has_other_pages %}
-                        <div class="pagination">
+                        {% if page_obj and page_obj.has_other_pages %}
+                        <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 20px 0;">
                             {% if page_obj.has_previous %}
-                            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.client_id %}&client_id={{ request.GET.client_id }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.account_code %}&account_code={{ request.GET.account_code }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}&show_all=false"
-                                class="btn btn-secondary">
+                            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}"
+                                style="padding: 8px 16px; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; display: flex; align-items: center; gap: 5px;">
                                 <i class="fas fa-chevron-left"></i> Previous
                             </a>
                             {% endif %}
 
-                            <span class="page-info">
-                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            <span style="font-size: 14px; color: var(--text);">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ total_clients }} total)
                             </span>
 
                             {% if page_obj.has_next %}
-                            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.client_id %}&client_id={{ request.GET.client_id }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.account_code %}&account_code={{ request.GET.account_code }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}&show_all=false"
-                                class="btn btn-secondary">
+                            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}"
+                                style="padding: 8px 16px; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; display: flex; align-items: center; gap: 5px;">
                                 Next <i class="fas fa-chevron-right"></i>
                             </a>
                             {% endif %}
@@ -2907,16 +2897,6 @@
                     const hasActiveFilters = Object.values(filters).some(value => value !== '');
 
                     // If filters are active and we're in paginated mode, switch to show all
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const showAll = urlParams.get('show_all') === 'true';
-
-                    if (hasActiveFilters && !showAll) {
-                        // Reload page with show_all=true to load all clients
-                        urlParams.set('show_all', 'true');
-                        window.location.search = urlParams.toString();
-                        return;
-                    }
-
                     // Get all client rows (both desktop table and mobile cards)
                     const tableRows = document.querySelectorAll('#clientTableBody tr');
                     const mobileCards = document.querySelectorAll('#clientMobileView .client-card');
@@ -3023,10 +3003,8 @@
                     document.getElementById('filter-account-code').value = '';
                     document.getElementById('filter-group-type').value = '';
 
-                    // Return to paginated mode when filters are cleared
-                    const urlParams = new URLSearchParams(window.location.search);
-                    urlParams.set('show_all', 'false');
-                    window.location.search = urlParams.toString();
+                    // Reload page to clear filters
+                    window.location.href = window.location.pathname;
                 }
 
                 function exportFilteredClients() {

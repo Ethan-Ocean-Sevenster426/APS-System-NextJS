@@ -4872,7 +4872,7 @@ def client_allocation(request):
         inspection_count=Count('inspections', distinct=True)
     ).order_by('name')
 
-    # Apply search filter if provided
+    # Apply search filter if provided (searches through ALL clients)
     if search_query:
         clients = clients.filter(
             Q(name__icontains=search_query) |
@@ -4884,12 +4884,26 @@ def client_allocation(request):
 
     total_clients = clients.count()
 
+    # Paginate results - 50 clients per page
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    paginator = Paginator(clients, 50)  # Show 50 clients per page
+    page_number = request.GET.get('page', 1)
+
+    try:
+        clients_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        clients_page = paginator.page(1)
+    except EmptyPage:
+        clients_page = paginator.page(paginator.num_pages)
+
     context = {
-        'clients': clients,
+        'clients': clients_page,
         'total_clients': total_clients,
         'has_data': total_clients > 0,
         'search_query': search_query,
         'show_all': show_all,
+        'paginator': paginator,
+        'page_obj': clients_page,
     }
 
     return render(request, 'main/client_allocation.html', context)
