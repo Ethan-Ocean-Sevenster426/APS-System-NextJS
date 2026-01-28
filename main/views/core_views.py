@@ -3203,6 +3203,11 @@ def upload_document(request):
                         client_id=occurrence_client.id if occurrence_client else None
                     )
 
+                    # Create unique inspection_group for this occurrence report
+                    # Use timestamp to ensure uniqueness even for same client/date
+                    import time
+                    occurrence_group_id = f"OCC_{new_remote_id}_{int(time.time())}"
+
                     # Create the occurrence report inspection
                     new_inspection = FoodSafetyAgencyInspection.objects.create(
                         remote_id=new_remote_id,
@@ -3213,6 +3218,7 @@ def upload_document(request):
                         inspector_name=inspector_name,
                         inspector_id=inspector_id,
                         internal_account_code=occurrence_account_code,
+                        inspection_group=occurrence_group_id,  # Unique group for each occurrence report
                         corporate_group=request.POST.get('corporate_group', ''),
                         group_type=request.POST.get('group_type', ''),
                         facility_type=request.POST.get('facility_type', ''),
