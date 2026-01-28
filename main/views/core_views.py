@@ -2740,6 +2740,7 @@ def shipment_list(request):
             'client_emails': _get_client_emails(client_name),
             'is_complete': False,  # Default to False - will be checked on-demand
             'group_id': group_id,
+            'inspection_group_id': inspection_group_id,  # Database inspection_group ID for precise filtering
             'inspector_name': inspector_name,
             'town': group_town,  # Include town for display
             'inspector_id': next((inspection.inspector_id for inspection in group_inspections if getattr(inspection, 'inspector_id', None)), None),
@@ -13486,16 +13487,52 @@ def update_sent_status(request):
     try:
         group_id = request.POST.get('group_id')
         sent_status = request.POST.get('sent_status')
-        
-        print(f" Group ID: '{group_id}', Status: '{sent_status}'")
-        
+        inspection_group_id = request.POST.get('inspection_group_id')  # NEW: Database group ID
+
+        print(f" Group ID: '{group_id}', Status: '{sent_status}', inspection_group_id: '{inspection_group_id}'")
+
         if not group_id:
             print(" No group ID provided")
             return JsonResponse({'success': False, 'error': 'Group ID is required'})
-        
+
+        # If inspection_group_id is provided, use it directly for precise filtering
+        from ..models import FoodSafetyAgencyInspection
+        if inspection_group_id:
+            print(f" Using inspection_group_id={inspection_group_id} for precise filtering")
+            matching_inspections = list(FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ))
+            if matching_inspections:
+                # Skip the legacy client name + date matching
+                print(f" Found {len(matching_inspections)} inspections in inspection_group {inspection_group_id}")
+                # Jump to the update section
+                is_sent = sent_status == 'YES' if sent_status else False
+                from django.utils import timezone
+                sent_date = timezone.now() if is_sent else None
+                sent_by = request.user if is_sent else None
+
+                updated_count = 0
+                for inspection in matching_inspections:
+                    inspection.is_sent = is_sent
+                    inspection.sent_date = sent_date
+                    inspection.sent_by = sent_by
+                    inspection.save(update_fields=['is_sent', 'sent_date', 'sent_by'])
+                    updated_count += 1
+
+                print(f" Updated sent status for {updated_count} inspections in inspection_group {inspection_group_id}")
+
+                # Clear cache
+                try:
+                    from django.core.cache import cache
+                    cache.clear()
+                except Exception as cache_error:
+                    print(f"[WARNING] Could not clear cache: {cache_error}")
+
+                return JsonResponse({'success': True, 'updated_count': updated_count})
+
         print(f" Updating sent status for group {group_id}: {sent_status}")
-        
-        # Parse group_id to get client_name and date
+
+        # Parse group_id to get client_name and date (legacy fallback)
         # group_id format: "ClientName_YYYYMMDD"
         parts = group_id.rsplit('_', 1)
         if len(parts) != 2:
@@ -13513,24 +13550,38 @@ def update_sent_status(request):
         
         # Find all inspections in this group and update their sent status
         from ..models import FoodSafetyAgencyInspection
-        
+
         # We need to find the original client name from the sanitized version
         # Get all inspections for this date and find matching client
         inspections = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_obj)
-        
+
         # Find inspections where sanitized client name matches
         import re
         matching_inspections = []
+        target_inspection_group_id = None  # Track the inspection_group of the first match
+
         for inspection in inspections:
             if inspection.client_name:
                 # Use the same sanitization logic as group ID creation (frontend logic)
                 sanitized_client = re.sub(r'[^a-zA-Z0-9_]', '_', inspection.client_name)
                 sanitized_client = re.sub(r'_+', '_', sanitized_client)
                 sanitized_client = sanitized_client.strip('_')
-                
+
                 if sanitized_client.lower() == client_name_sanitized.lower():
+                    # If this is the first match, remember its inspection_group_id
+                    if target_inspection_group_id is None and inspection.inspection_group_id:
+                        target_inspection_group_id = inspection.inspection_group_id
                     matching_inspections.append(inspection)
-        
+
+        # If we found an inspection_group, filter to only include inspections in that group
+        # This prevents updating multiple groups with the same client name + date
+        if target_inspection_group_id is not None:
+            matching_inspections = [
+                insp for insp in matching_inspections
+                if insp.inspection_group_id == target_inspection_group_id
+            ]
+            print(f" Filtering to inspection_group_id={target_inspection_group_id}, {len(matching_inspections)} inspections")
+
         if not matching_inspections:
             return JsonResponse({'success': False, 'error': 'No inspections found for this group'})
 

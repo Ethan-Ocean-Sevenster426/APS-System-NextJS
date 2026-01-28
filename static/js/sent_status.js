@@ -3,10 +3,11 @@ console.log('Sent status JS loaded (simplified)');
 
 function updateSentStatus(dropdown) {
     const groupId = dropdown.getAttribute('data-group-id');
+    const inspectionGroupId = dropdown.getAttribute('data-inspection-group-id');
     const sentStatus = dropdown.value;
     const row = dropdown.closest('tr');
 
-    console.log('Updating sent status:', groupId, '=', sentStatus);
+    console.log('Updating sent status:', groupId, '=', sentStatus, 'inspection_group_id:', inspectionGroupId);
 
     if (!groupId) {
         console.error('No group ID');
@@ -40,6 +41,9 @@ function updateSentStatus(dropdown) {
     formData.append('group_id', groupId);
     formData.append('sent_status', sentStatus);
     formData.append('csrfmiddlewaretoken', csrfToken);
+    if (inspectionGroupId) {
+        formData.append('inspection_group_id', inspectionGroupId);
+    }
 
     fetch('/inspections/update-sent-status/', {
         method: 'POST',

@@ -8883,6 +8883,7 @@
                                             <select class="sent-status-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
                                                 data-group-id="{{ fallback_group_id }}"
+                                                data-inspection-group-id="{{ shipment.inspection_group_id|default:'' }}"
                                                 onchange="event.stopPropagation(); updateSentStatus(this)">
                                                 <option value="NO" {% if not shipment.is_sent %}selected{% endif %}>No
                                                 </option>
