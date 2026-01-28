@@ -8830,7 +8830,7 @@
                                         </td>
                                         <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
-                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
+                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'inspector' %}
                                             <!-- Approval editable for admin, super_admin, developer only -->
                                             <select class="approved-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
