@@ -1439,10 +1439,10 @@ def edit_fsa_inspection(request, pk):
                         'bought_sample': float(insp.bought_sample) if insp.bought_sample else 0,
                         'km_traveled': float(insp.km_traveled) if insp.km_traveled else 0,
                         'hours': float(insp.hours) if insp.hours else 0,
-                        'fat': insp.fat,
-                        'protein': insp.protein,
-                        'calcium': insp.calcium,
-                        'dna': insp.dna,
+                        'fat': bool(insp.fat),
+                        'protein': bool(insp.protein),
+                        'calcium': bool(insp.calcium),
+                        'dna': bool(insp.dna),
                         'needs_retest': insp.needs_retest or 'NO',
                     }
     else:

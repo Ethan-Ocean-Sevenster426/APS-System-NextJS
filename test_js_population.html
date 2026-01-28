@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Edit Form Checkbox Population</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .product-form { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .sample-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            transition: all 0.2s;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .test-option {
+            background: #e2e8f0;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .test-option.enabled {
+            opacity: 1;
+            cursor: pointer;
+        }
+        input[type="checkbox"] { width: 18px; height: 18px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        h2 { color: #333; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test: Edit Form Checkbox Population</h1>
+    <p>This simulates what happens when editing inspection 2725 (which has RAW meat with sampled=true, fat=true, protein=true, calcium=true)</p>
+
+    <h2>Simulated editModeData (from Django):</h2>
+    <pre id="editModeDataDisplay"></pre>
+
+    <h2>Product Forms (Generated):</h2>
+    <div id="productFormsContainer"></div>
+
+    <h2>Console Log:</h2>
+    <div id="log" class="log"></div>
+
+    <h2>Test Results:</h2>
+    <div id="results"></div>
+
+    <script>
+        // Logging function
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += msg + '\n';
+            console.log(msg);
+        }
+
+        // Simulated data from Django (exactly what the template would render)
+        const editModeData = {
+            isEditMode: true,
+            commodityCounts: {
+                POULTRY: 1,
+                RAW: 1,
+                PMP: 0,
+                EGGS: 0
+            },
+            commodityData: {
+                RAW: {
+                    id: 2726,
+                    product_name: 'Burger',
+                    product_class: 'Raw Braaiwors / Sizzler',
+                    lab: 'lab_b',
+                    is_sample_taken: true,  // TRUE!
+                    bought_sample: 0,
+                    km_traveled: 0,
+                    hours: 0,
+                    fat: true,              // TRUE!
+                    protein: true,          // TRUE!
+                    calcium: true,          // TRUE!
+                    dna: false,
+                    needs_retest: 'NO'
+                },
+                POULTRY: {
+                    id: 2725,
+                    product_name: 'CHicken Legs',
+                    product_class: '',
+                    lab: '',
+                    is_sample_taken: false,
+                    bought_sample: 0,
+                    km_traveled: 0,
+                    hours: 0,
+                    fat: false,
+                    protein: false,
+                    calcium: false,
+                    dna: false,
+                    needs_retest: 'NO'
+                }
+            }
+        };
+
+        document.getElementById('editModeDataDisplay').textContent = JSON.stringify(editModeData, null, 2);
+
+        // Simulated commoditySelections (order matters!)
+        const commoditySelections = {
+            POULTRY: 1,
+            RAW: 1,
+            PMP: 0,
+            EGGS: 0
+        };
+
+        // productsData array
+        let productsData = [];
+
+        // Helper functions (copied from the template)
+        function toggleCheckboxStyle(checkbox) {
+            const label = checkbox.parentElement;
+            if (checkbox.checked) {
+                label.style.background = '#22c55e';
+                label.style.color = 'white';
+                log(`  toggleCheckboxStyle: Setting ${checkbox.dataset.field} label to GREEN`);
+            } else {
+                label.style.background = '#f1f5f9';
+                label.style.color = 'inherit';
+                log(`  toggleCheckboxStyle: Setting ${checkbox.dataset.field} label to gray`);
+            }
+        }
+
+        function toggleSampleOptions(idx) {
+            const sampledCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="is_sample_taken"]`);
+            const testFields = ['fat', 'protein', 'calcium', 'dna'];
+            const isSampled = sampledCheckbox && sampledCheckbox.checked;
+
+            log(`  toggleSampleOptions(${idx}): isSampled=${isSampled}`);
+
+            testFields.forEach(field => {
+                const checkbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="${field}"]`);
+                const label = checkbox ? checkbox.parentElement : null;
+
+                if (checkbox && label) {
+                    if (isSampled) {
+                        checkbox.disabled = false;
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                        label.classList.add('enabled');
+                        log(`    Enabled ${field} checkbox`);
+                    } else {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                        label.style.opacity = '0.5';
+                        label.style.cursor = 'not-allowed';
+                        label.classList.remove('enabled');
+                    }
+                } else {
+                    log(`    ${field} checkbox not found for idx ${idx}`);
+                }
+            });
+        }
+
+        function updateProductData(idx, field, value) {
+            if (productsData[idx]) {
+                productsData[idx][field] = value;
+            }
+        }
+
+        function getSelectedCommodities() {
+            return Object.entries(commoditySelections)
+                .filter(([_, count]) => count > 0)
+                .map(([name, count]) => ({ name, count }));
+        }
+
+        // Generate product forms (simplified)
+        function generateProductForms() {
+            const container = document.getElementById('productFormsContainer');
+            const selectedCommodities = getSelectedCommodities();
+
+            log('generateProductForms() called');
+            log('Selected commodities: ' + JSON.stringify(selectedCommodities));
+
+            const products = [];
+            selectedCommodities.forEach(({ name, count }) => {
+                for (let i = 0; i < count; i++) {
+                    products.push({ commodity: name, index: i + 1, total: count });
+                }
+            });
+
+            log('Products array: ' + JSON.stringify(products));
+
+            // Build productsData
+            productsData = products.map((p, idx) => {
+                const commodity = p.commodity;
+                if (editModeData.isEditMode && editModeData.commodityData[commodity]) {
+                    const backendData = editModeData.commodityData[commodity];
+                    log(`productsData[${idx}]: Using backend data for ${commodity}`);
+                    return {
+                        commodity: p.commodity,
+                        product_name: backendData.product_name || '',
+                        is_sample_taken: backendData.is_sample_taken || false,
+                        fat: backendData.fat || false,
+                        protein: backendData.protein || false,
+                        calcium: backendData.calcium || false,
+                        dna: backendData.dna || false,
+                    };
+                }
+                return { commodity: p.commodity, product_name: '', is_sample_taken: false, fat: false, protein: false, calcium: false, dna: false };
+            });
+
+            log('productsData: ' + JSON.stringify(productsData, null, 2));
+
+            // Generate HTML
+            let html = '';
+            products.forEach((product, idx) => {
+                const isPoultryOrEggs = product.commodity === 'POULTRY' || product.commodity === 'EGGS';
+
+                html += `
+                <div class="product-form">
+                    <h3>${idx + 1}. ${product.commodity}</h3>
+                    <p>Product: ${productsData[idx].product_name || '(none)'}</p>
+                    ${!isPoultryOrEggs ? `
+                    <div style="display: flex; flex-wrap: wrap;">
+                        <label class="sample-checkbox">
+                            <input type="checkbox" data-product-idx="${idx}" data-field="is_sample_taken">
+                            <span>Sampled</span>
+                        </label>
+                        <label class="sample-checkbox test-option" id="fat-label-${idx}">
+                            <input type="checkbox" data-product-idx="${idx}" data-field="fat" disabled>
+                            <span>Fat</span>
+                        </label>
+                        <label class="sample-checkbox test-option" id="protein-label-${idx}">
+                            <input type="checkbox" data-product-idx="${idx}" data-field="protein" disabled>
+                            <span>Protein</span>
+                        </label>
+                        <label class="sample-checkbox test-option" id="calcium-label-${idx}">
+                            <input type="checkbox" data-product-idx="${idx}" data-field="calcium" disabled>
+                            <span>Calcium</span>
+                        </label>
+                        <label class="sample-checkbox test-option" id="dna-label-${idx}">
+                            <input type="checkbox" data-product-idx="${idx}" data-field="dna" disabled>
+                            <span>DNA</span>
+                        </label>
+                    </div>
+                    ` : '<p><em>(No sampling section for Poultry/Eggs)</em></p>'}
+                </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Population code (copied from the template)
+        function populateEditModeData() {
+            log('\n--- POPULATION CODE START ---');
+
+            for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
+                const commodity = productsData[productIdx].commodity;
+                const data = editModeData.commodityData[commodity];
+
+                log(`\nProcessing productIdx=${productIdx}, commodity=${commodity}`);
+
+                if (!data) {
+                    log(`  No data found for ${commodity}`);
+                    continue;
+                }
+
+                log(`  Data found: is_sample_taken=${data.is_sample_taken}, fat=${data.fat}, protein=${data.protein}, calcium=${data.calcium}, dna=${data.dna}`);
+
+                // Sample taken checkbox
+                const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
+                if (sampleTakenCheckbox) {
+                    log(`  Found is_sample_taken checkbox`);
+                    if (data.is_sample_taken) {
+                        sampleTakenCheckbox.checked = data.is_sample_taken;
+                        updateProductData(productIdx, 'is_sample_taken', data.is_sample_taken);
+                        toggleCheckboxStyle(sampleTakenCheckbox);
+                        log(`  Set is_sample_taken to ${data.is_sample_taken}`);
+                    }
+                    toggleSampleOptions(productIdx);
+                } else {
+                    log(`  is_sample_taken checkbox NOT FOUND (expected for Poultry/Eggs)`);
+                }
+
+                // Fat
+                const fatCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="fat"]`);
+                log(`  Looking for fat checkbox: ${fatCheckbox ? 'FOUND' : 'NOT FOUND'}`);
+                if (fatCheckbox && data.fat) {
+                    fatCheckbox.checked = data.fat;
+                    updateProductData(productIdx, 'fat', data.fat);
+                    toggleCheckboxStyle(fatCheckbox);
+                    log(`  Set fat to ${data.fat} and styled GREEN`);
+                }
+
+                // Protein
+                const proteinCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="protein"]`);
+                log(`  Looking for protein checkbox: ${proteinCheckbox ? 'FOUND' : 'NOT FOUND'}`);
+                if (proteinCheckbox && data.protein) {
+                    proteinCheckbox.checked = data.protein;
+                    updateProductData(productIdx, 'protein', data.protein);
+                    toggleCheckboxStyle(proteinCheckbox);
+                    log(`  Set protein to ${data.protein} and styled GREEN`);
+                }
+
+                // Calcium
+                const calciumCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="calcium"]`);
+                log(`  Looking for calcium checkbox: ${calciumCheckbox ? 'FOUND' : 'NOT FOUND'}`);
+                if (calciumCheckbox && data.calcium) {
+                    calciumCheckbox.checked = data.calcium;
+                    updateProductData(productIdx, 'calcium', data.calcium);
+                    toggleCheckboxStyle(calciumCheckbox);
+                    log(`  Set calcium to ${data.calcium} and styled GREEN`);
+                }
+
+                // DNA
+                const dnaCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="dna"]`);
+                log(`  Looking for dna checkbox: ${dnaCheckbox ? 'FOUND' : 'NOT FOUND'}`);
+                if (dnaCheckbox && data.dna) {
+                    dnaCheckbox.checked = data.dna;
+                    updateProductData(productIdx, 'dna', data.dna);
+                    toggleCheckboxStyle(dnaCheckbox);
+                    log(`  Set dna to ${data.dna} and styled GREEN`);
+                }
+            }
+
+            log('\n--- POPULATION CODE END ---');
+        }
+
+        // Run test
+        function runTest() {
+            log('=== TEST STARTED ===\n');
+
+            // Step 1: Generate forms
+            generateProductForms();
+
+            // Step 2: Simulate setTimeout delay then populate
+            setTimeout(() => {
+                populateEditModeData();
+
+                // Step 3: Verify results
+                verifyResults();
+            }, 100);
+        }
+
+        function verifyResults() {
+            log('\n=== VERIFICATION ===');
+
+            const results = document.getElementById('results');
+            let html = '<ul>';
+            let allPassed = true;
+
+            // Check RAW product (should be at idx 1 because POULTRY is first in commoditySelections)
+            const rawIdx = productsData.findIndex(p => p.commodity === 'RAW');
+            log(`RAW product is at index ${rawIdx}`);
+
+            if (rawIdx >= 0) {
+                const sampledCb = document.querySelector(`input[data-product-idx="${rawIdx}"][data-field="is_sample_taken"]`);
+                const fatCb = document.querySelector(`input[data-product-idx="${rawIdx}"][data-field="fat"]`);
+                const proteinCb = document.querySelector(`input[data-product-idx="${rawIdx}"][data-field="protein"]`);
+                const calciumCb = document.querySelector(`input[data-product-idx="${rawIdx}"][data-field="calcium"]`);
+                const dnaCb = document.querySelector(`input[data-product-idx="${rawIdx}"][data-field="dna"]`);
+
+                // Check Sampled
+                if (sampledCb && sampledCb.checked) {
+                    html += '<li class="success">✅ Sampled checkbox is CHECKED</li>';
+                    const label = sampledCb.parentElement;
+                    if (label.style.background === 'rgb(34, 197, 94)') {
+                        html += '<li class="success">✅ Sampled label is GREEN</li>';
+                    } else {
+                        html += `<li class="error">❌ Sampled label is NOT green (${label.style.background})</li>`;
+                        allPassed = false;
+                    }
+                } else {
+                    html += '<li class="error">❌ Sampled checkbox is NOT checked</li>';
+                    allPassed = false;
+                }
+
+                // Check Fat
+                if (fatCb && fatCb.checked) {
+                    html += '<li class="success">✅ Fat checkbox is CHECKED</li>';
+                    const label = fatCb.parentElement;
+                    if (label.style.background === 'rgb(34, 197, 94)') {
+                        html += '<li class="success">✅ Fat label is GREEN</li>';
+                    } else {
+                        html += `<li class="error">❌ Fat label is NOT green (${label.style.background})</li>`;
+                        allPassed = false;
+                    }
+                } else {
+                    html += '<li class="error">❌ Fat checkbox is NOT checked</li>';
+                    allPassed = false;
+                }
+
+                // Check Protein
+                if (proteinCb && proteinCb.checked) {
+                    html += '<li class="success">✅ Protein checkbox is CHECKED</li>';
+                    const label = proteinCb.parentElement;
+                    if (label.style.background === 'rgb(34, 197, 94)') {
+                        html += '<li class="success">✅ Protein label is GREEN</li>';
+                    } else {
+                        html += `<li class="error">❌ Protein label is NOT green (${label.style.background})</li>`;
+                        allPassed = false;
+                    }
+                } else {
+                    html += '<li class="error">❌ Protein checkbox is NOT checked</li>';
+                    allPassed = false;
+                }
+
+                // Check Calcium
+                if (calciumCb && calciumCb.checked) {
+                    html += '<li class="success">✅ Calcium checkbox is CHECKED</li>';
+                    const label = calciumCb.parentElement;
+                    if (label.style.background === 'rgb(34, 197, 94)') {
+                        html += '<li class="success">✅ Calcium label is GREEN</li>';
+                    } else {
+                        html += `<li class="error">❌ Calcium label is NOT green (${label.style.background})</li>`;
+                        allPassed = false;
+                    }
+                } else {
+                    html += '<li class="error">❌ Calcium checkbox is NOT checked</li>';
+                    allPassed = false;
+                }
+
+                // Check DNA (should be unchecked)
+                if (dnaCb && !dnaCb.checked) {
+                    html += '<li class="success">✅ DNA checkbox is correctly UNCHECKED</li>';
+                } else if (dnaCb && dnaCb.checked) {
+                    html += '<li class="error">❌ DNA checkbox should NOT be checked</li>';
+                    allPassed = false;
+                }
+            }
+
+            html += '</ul>';
+
+            if (allPassed) {
+                html = '<h3 class="success">✅ ALL TESTS PASSED - Checkboxes turn GREEN correctly!</h3>' + html;
+            } else {
+                html = '<h3 class="error">❌ SOME TESTS FAILED</h3>' + html;
+            }
+
+            results.innerHTML = html;
+        }
+
+        // Run on page load
+        window.onload = runTest;
+    </script>
+</body>
+</html>
