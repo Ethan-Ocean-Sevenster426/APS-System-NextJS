@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fix existing occurrence reports by giving each a unique inspection_group.
+Fix existing occurrence reports by giving each a unique InspectionGroup.
 This prevents multiple occurrence reports from being grouped together
 and having their sent status changed together.
 """
@@ -12,7 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
-from main.models import FoodSafetyAgencyInspection
+from main.models import FoodSafetyAgencyInspection, InspectionGroup
 
 print("\n" + "="*80)
 print("FIX OCCURRENCE REPORT GROUPS")
@@ -27,26 +27,39 @@ occurrence_reports = FoodSafetyAgencyInspection.objects.filter(
 
 print(f"\nFound {occurrence_reports.count()} occurrence reports")
 
-# Also reset is_sent to False for all of them so user can re-set correctly
+# Fix each occurrence report
 fixed_count = 0
 for report in occurrence_reports:
-    # Create unique group ID using the report's primary key
-    unique_group = f"OCC_{report.id}_{report.remote_id or 0}"
+    # Only fix if inspection_group is not set
+    if not report.inspection_group:
+        # Create a unique InspectionGroup for this occurrence report
+        new_group = InspectionGroup.objects.create(
+            client_name=report.client_name or 'Unknown',
+            date_of_inspection=report.date_of_inspection,
+            inspector_name=report.inspector_name,
+            town=report.town,
+            facility_type=report.facility_type,
+            group_type=report.group_type,
+            corporate_group=report.corporate_group,
+            additional_email=report.additional_email,
+            is_manual=True,
+        )
 
-    # Only update if inspection_group is empty/null or doesn't start with OCC_
-    if not report.inspection_group or not report.inspection_group.startswith('OCC_'):
-        report.inspection_group = unique_group
+        # Assign the group and reset sent status
+        report.inspection_group = new_group
         report.is_sent = False  # Reset sent status
         report.sent_date = None
         report.sent_by = None
         report.save(update_fields=['inspection_group', 'is_sent', 'sent_date', 'sent_by'])
         fixed_count += 1
-        print(f"  Fixed: {report.client_name} ({report.date_of_inspection}) -> {unique_group}")
+        print(f"  Fixed: {report.client_name} ({report.date_of_inspection}) -> Group #{new_group.id}")
+    else:
+        print(f"  Skipped: {report.client_name} ({report.date_of_inspection}) - already has group #{report.inspection_group.id}")
 
 print("\n" + "="*80)
 print("SUMMARY")
 print("="*80)
 print(f"Fixed: {fixed_count} occurrence reports")
-print(f"Each occurrence report now has a unique inspection_group")
+print(f"Each occurrence report now has a unique InspectionGroup")
 print(f"Sent status has been reset - please re-mark as sent as needed")
 print("="*80 + "\n")
