@@ -8193,7 +8193,7 @@
                                     <!-- Action Buttons -->
                                     <div class="mt-4 space-y-2">
                                         <!-- Edit Inspection Button -->
-                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        {% if request.user.role == 'inspector' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'developer' %}
                                         <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
                                             class="btn btn-sm w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200"
                                             style="background: #3b82f6; display: flex; align-items: center; justify-content: center; text-decoration: none;"
@@ -8801,7 +8801,7 @@
                                             style="width: 150px;">Email</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Sent</th>
-                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 90px;">Actions</th>
                                         {% endif %}
@@ -8830,7 +8830,7 @@
                                         </td>
                                         <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
-                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'inspector' %}
+                                            {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
                                             <!-- Approval editable for admin, super_admin, developer only -->
                                             <select class="approved-dropdown"
                                                 style="width: 72px; display: block; margin: 0 auto;"
@@ -8880,7 +8880,7 @@
                                             </span>
                                             {% endif %}
                                         </td>
-                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
                                         <td class="px-2 py-2 text-center">
                                             <div style="display: flex; gap: 4px; justify-content: center;">
                                                 <a href="{% url 'edit_fsa_inspection' shipment.products.0.id %}"
@@ -8890,6 +8890,7 @@
                                                     onmouseout="this.style.background='#3b82f6'" title="Edit Inspection">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                                                 <button type="button"
                                                     onclick="event.stopPropagation(); deleteInspectionGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
                                                     style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;"
@@ -8897,13 +8898,14 @@
                                                     onmouseout="this.style.background='#ef4444'" title="Delete Inspection">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                         {% endif %}
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
                                     <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
-                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}6{% else %}5{% endif %}"
+                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}6{% else %}5{% endif %}"
                                             class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
                                                 <!-- Main Layout: Facility info on left, Products list on right -->

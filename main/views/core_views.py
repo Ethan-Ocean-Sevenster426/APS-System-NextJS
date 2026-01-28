@@ -1030,12 +1030,66 @@ def add_fsa_inspection(request):
 
 
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def edit_fsa_inspection(request, pk):
     """Edit an existing Food Safety Agency inspection."""
     clear_messages(request)
 
     inspection = get_object_or_404(FoodSafetyAgencyInspection, pk=pk)
+
+    # Inspectors may only edit their own inspections
+    if getattr(request.user, 'role', None) == 'inspector':
+        try:
+            from ..models import InspectorMapping
+            inspector_id = None
+            inspector_name = None
+
+            # Try match by full name first, then username (mirrors edit_inspection)
+            try:
+                inspector_mapping = InspectorMapping.objects.get(
+                    inspector_name=request.user.get_full_name() or request.user.username
+                )
+                inspector_id = inspector_mapping.inspector_id
+                inspector_name = inspector_mapping.inspector_name
+            except InspectorMapping.DoesNotExist:
+                try:
+                    inspector_mapping = InspectorMapping.objects.get(
+                        inspector_name=request.user.username
+                    )
+                    inspector_id = inspector_mapping.inspector_id
+                    inspector_name = inspector_mapping.inspector_name
+                except InspectorMapping.DoesNotExist:
+                    inspector_id = None
+                    inspector_name = None
+
+            # Match either by inspector_id (preferred) OR inspector_name (for records with no IDs)
+            inspection_inspector_id = getattr(inspection, 'inspector_id', None)
+            inspection_inspector_name = (getattr(inspection, 'inspector_name', None) or '').strip()
+
+            user_full_name = (request.user.get_full_name() or '').strip()
+            user_username = (request.user.username or '').strip()
+
+            id_match = (
+                inspector_id is not None and
+                inspection_inspector_id is not None and
+                int(inspection_inspector_id) == int(inspector_id)
+            )
+            name_match = False
+            if inspection_inspector_name:
+                # Prefer mapping name if we have it, otherwise fall back to user names
+                if inspector_name and inspection_inspector_name.lower() == str(inspector_name).strip().lower():
+                    name_match = True
+                elif user_full_name and inspection_inspector_name.lower() == user_full_name.lower():
+                    name_match = True
+                elif user_username and inspection_inspector_name.lower() == user_username.lower():
+                    name_match = True
+
+            if not (id_match or name_match):
+                messages.error(request, 'You can only edit your own inspections.')
+                return redirect('shipment_list')
+        except Exception as e:
+            messages.error(request, f'Error verifying inspector permissions: {str(e)}')
+            return redirect('shipment_list')
 
     if request.method == 'POST':
         print(f"[EDIT FORM DEBUG] Received POST data for inspection {pk}")
