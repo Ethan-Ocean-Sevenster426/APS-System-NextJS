@@ -732,7 +732,7 @@
             downloadBtn.style.display = 'none';
         }
         
-        // Download all files for current inspection group individually
+        // Download all files for current inspection group as ZIP folder
         async function downloadAllFiles() {
             const downloadBtn = document.getElementById('downloadAllBtn');
             const clientName = window.currentFilesClient;
@@ -752,8 +752,7 @@
             try {
                 console.log('🗂️ Starting download of all files for ' + clientName + ' on ' + inspectionDate);
 
-                // First get the list of files
-                const response = await fetch('/inspections/files/', {
+                const response = await fetch('/inspections/download-all-files/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -762,63 +761,33 @@
                     body: JSON.stringify({
                         client_name: clientName,
                         inspection_date: inspectionDate,
-                        group_id: groupId,
-                        _force_refresh: true
+                        group_id: groupId
                     })
                 });
 
                 if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.files) {
-                        // Collect all file URLs from all categories
-                        const allFiles = [];
-                        const categories = ['rfi', 'invoice', 'lab', 'lab_form', 'compliance', 'coa', 'composition', 'retest', 'occurrence', 'other'];
+                    const blob = await response.blob();
+                    const contentDisposition = response.headers.get('Content-Disposition');
 
-                        categories.forEach(cat => {
-                            if (result.files[cat] && Array.isArray(result.files[cat])) {
-                                result.files[cat].forEach(file => {
-                                    if (file.url) {
-                                        allFiles.push({
-                                            url: file.url,
-                                            name: file.name || file.url.split('/').pop()
-                                        });
-                                    }
-                                });
-                            }
-                        });
-
-                        if (allFiles.length === 0) {
-                            alert('No files found to download');
-                            return;
+                    let filename = clientName + '_' + inspectionDate + '_files.zip';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename[^;=\n]*=([^;\n]*)/);
+                        if (match && match[1]) {
+                            filename = match[1].replace(/["']/g, '');
                         }
-
-                        console.log('📁 Found ' + allFiles.length + ' files to download');
-
-                        // Download each file with a small delay between downloads
-                        let downloadCount = 0;
-                        for (const file of allFiles) {
-                            try {
-                                const a = document.createElement('a');
-                                a.href = file.url;
-                                a.download = file.name;
-                                a.style.display = 'none';
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                downloadCount++;
-                                console.log('✅ Downloaded: ' + file.name);
-
-                                // Small delay between downloads to prevent browser blocking
-                                await new Promise(resolve => setTimeout(resolve, 300));
-                            } catch (err) {
-                                console.error('Failed to download: ' + file.name, err);
-                            }
-                        }
-
-                        console.log('✅ Download completed: ' + downloadCount + ' files');
-                    } else {
-                        alert('No files found for this inspection');
                     }
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    console.log('✅ Download completed: ' + filename);
                 } else {
                     const errorData = await response.json();
                     alert('Download failed: ' + (errorData.error || 'Unknown error'));
