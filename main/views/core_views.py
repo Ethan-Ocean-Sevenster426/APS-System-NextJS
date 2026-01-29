@@ -1408,12 +1408,15 @@ def edit_fsa_inspection(request, pk):
     is_occurrence = getattr(inspection, 'is_occurrence_report', False)
 
     if not is_occurrence:
-        # Get all related inspections (same client, date, internal_account_code) to count commodities
-        related_inspections = FoodSafetyAgencyInspection.objects.filter(
-            client_name=inspection.client_name,
-            date_of_inspection=inspection.date_of_inspection,
-            internal_account_code=inspection.internal_account_code
-        )
+        # Get all related inspections in the same group
+        if inspection.inspection_group_id:
+            # Use the proper InspectionGroup relationship
+            related_inspections = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection.inspection_group_id
+            )
+        else:
+            # Fallback: just get this single inspection if no group exists
+            related_inspections = FoodSafetyAgencyInspection.objects.filter(pk=inspection.pk)
 
         # Count commodities from all related inspections (show all in the group)
         commodity_counts = {
