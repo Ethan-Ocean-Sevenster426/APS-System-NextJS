@@ -1732,12 +1732,18 @@
                 </div>
 
                 <!-- Document Upload (Optional) -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px; position: relative;">
                     <h3
                         style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-paperclip" style="color: #f59e0b;"></i>
                         Occurrence Document *
                     </h3>
+                    <!-- Loading overlay -->
+                    <div id="occurrenceUploadLoading" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); border-radius: 12px; z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 36px; color: #f59e0b; margin-bottom: 12px;"></i>
+                        <p style="margin: 0; color: #92400e; font-weight: 600; font-size: 14px;">Uploading...</p>
+                        <p style="margin: 6px 0 0; color: #6b7280; font-size: 12px;">Please wait</p>
+                    </div>
                     <div id="occurrenceDropZone"
                         style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: white;"
                         onclick="document.getElementById('occurrenceFile').click()"
@@ -2810,8 +2816,19 @@
             // Limit to 10 results
             const limitedMatches = matches.slice(0, 10);
 
+            // Build dropdown HTML
+            let dropdownHTML = '';
+
+            // Add "Add new client" option at the top
+            const escapedQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            dropdownHTML += '<div style="padding: 10px; cursor: pointer; border-bottom: 2px solid #f59e0b; background: #fef3c7;" onmouseover="this.style.background=\'#fde68a\'" onmouseout="this.style.background=\'#fef3c7\'" onclick="addNewOccurrenceClient(\'' + escapedQuery + '\')">' +
+                '<i class="fas fa-plus-circle" style="color: #f59e0b; margin-right: 6px;"></i>' +
+                '<strong style="color: #92400e;">Add new client: "' + query + '"</strong>' +
+                '</div>';
+
+            // Add existing matches
             if (limitedMatches.length > 0) {
-                dropdown.innerHTML = limitedMatches.map(client => {
+                dropdownHTML += limitedMatches.map(client => {
                     const escapedName = client.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const escapedEmail = (client.email || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const escapedTown = (client.town || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -2826,10 +2843,18 @@
                         (client.email ? '<br><small style="color: #9ca3af;">' + client.email + '</small>' : '') +
                         '</div>';
                 }).join('');
-                dropdown.style.display = 'block';
-            } else {
-                dropdown.style.display = 'none';
             }
+
+            dropdown.innerHTML = dropdownHTML;
+            dropdown.style.display = 'block';
+        }
+
+        // Add new client for occurrence report
+        function addNewOccurrenceClient(clientName) {
+            document.getElementById('occurrenceClientName').value = clientName;
+            document.getElementById('occurrenceClientDropdown').style.display = 'none';
+            // Clear other fields for new client
+            document.getElementById('occurrenceAccountCode').value = '';
         }
 
         // Select occurrence client from dropdown
@@ -2881,15 +2906,32 @@
             // Limit to 10 results
             const limitedMatches = matches.slice(0, 10);
 
+            // Build dropdown HTML
+            let dropdownHTML = '';
+
+            // Add "Add new town" option at the top
+            const escapedQuery = query.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            dropdownHTML += '<div style="padding: 10px; cursor: pointer; border-bottom: 2px solid #f59e0b; background: #fef3c7;" onmouseover="this.style.background=\'#fde68a\'" onmouseout="this.style.background=\'#fef3c7\'" onclick="addNewOccurrenceTown(\'' + escapedQuery + '\')">' +
+                '<i class="fas fa-plus-circle" style="color: #f59e0b; margin-right: 6px;"></i>' +
+                '<strong style="color: #92400e;">Add new town: "' + query + '"</strong>' +
+                '</div>';
+
+            // Add existing matches
             if (limitedMatches.length > 0) {
-                dropdown.innerHTML = limitedMatches.map(town => {
+                dropdownHTML += limitedMatches.map(town => {
                     const escapedTown = town.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     return '<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'white\'" onclick="selectOccurrenceTown(\'' + escapedTown + '\')">' + town + '</div>';
                 }).join('');
-                dropdown.style.display = 'block';
-            } else {
-                dropdown.style.display = 'none';
             }
+
+            dropdown.innerHTML = dropdownHTML;
+            dropdown.style.display = 'block';
+        }
+
+        // Add new town for occurrence report
+        function addNewOccurrenceTown(townName) {
+            document.getElementById('occurrenceTown').value = townName;
+            document.getElementById('occurrenceTownDropdown').style.display = 'none';
         }
 
         // Select occurrence town from dropdown
@@ -3326,6 +3368,21 @@
             return null;
         }
 
+        // Show/hide occurrence upload loading
+        function showOccurrenceLoading(show) {
+            const loading = document.getElementById('occurrenceUploadLoading');
+            const dropZone = document.getElementById('occurrenceDropZone');
+            if (show) {
+                loading.style.display = 'flex';
+                dropZone.style.pointerEvents = 'none';
+                dropZone.style.opacity = '0.5';
+            } else {
+                loading.style.display = 'none';
+                dropZone.style.pointerEvents = 'auto';
+                dropZone.style.opacity = '1';
+            }
+        }
+
         // Handle file selection for occurrence
         function handleOccurrenceFileSelect(input) {
             const file = input.files[0];
@@ -3335,10 +3392,17 @@
                     input.value = '';
                     return;
                 }
-                document.getElementById('occurrenceFileNameText').textContent = file.name;
-                document.getElementById('occurrenceFileName').style.display = 'block';
-                document.getElementById('occurrenceDropZone').style.borderColor = '#22c55e';
-                document.getElementById('occurrenceDropZone').style.background = '#f0fdf4';
+                // Show loading
+                showOccurrenceLoading(true);
+
+                // Simulate brief processing delay for better UX
+                setTimeout(() => {
+                    document.getElementById('occurrenceFileNameText').textContent = file.name;
+                    document.getElementById('occurrenceFileName').style.display = 'block';
+                    document.getElementById('occurrenceDropZone').style.borderColor = '#22c55e';
+                    document.getElementById('occurrenceDropZone').style.background = '#f0fdf4';
+                    showOccurrenceLoading(false);
+                }, 500);
             }
         }
 
@@ -3355,15 +3419,22 @@
                     alert('Only PDF files are allowed.');
                     return;
                 }
+                // Show loading
+                showOccurrenceLoading(true);
+
                 // Set the file to the input
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
                 document.getElementById('occurrenceFile').files = dataTransfer.files;
 
-                document.getElementById('occurrenceFileNameText').textContent = file.name;
-                document.getElementById('occurrenceFileName').style.display = 'block';
-                dropZone.style.borderColor = '#22c55e';
-                dropZone.style.background = '#f0fdf4';
+                // Simulate brief processing delay for better UX
+                setTimeout(() => {
+                    document.getElementById('occurrenceFileNameText').textContent = file.name;
+                    document.getElementById('occurrenceFileName').style.display = 'block';
+                    dropZone.style.borderColor = '#22c55e';
+                    dropZone.style.background = '#f0fdf4';
+                    showOccurrenceLoading(false);
+                }, 500);
             }
         }
 
