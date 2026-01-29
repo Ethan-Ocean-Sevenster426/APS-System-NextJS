@@ -4556,10 +4556,15 @@
                             // Sample taken checkbox
                             const sampleTakenCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="is_sample_taken"]`);
                             if (sampleTakenCheckbox) {
-                                if (data.is_sample_taken) {
-                                    sampleTakenCheckbox.checked = data.is_sample_taken;
-                                    updateProductData(productIdx, 'is_sample_taken', data.is_sample_taken);
+                                // Auto-check is_sample_taken if ANY test flags are true (data consistency fix)
+                                const hasAnyTestFlag = data.fat || data.protein || data.calcium || data.dna;
+                                const shouldBeSampled = data.is_sample_taken || hasAnyTestFlag;
+
+                                if (shouldBeSampled) {
+                                    sampleTakenCheckbox.checked = true;
+                                    updateProductData(productIdx, 'is_sample_taken', true);
                                     toggleCheckboxStyle(sampleTakenCheckbox);
+                                    console.log(`[EDIT] Auto-set is_sample_taken=true for ${commodity} (hasAnyTestFlag=${hasAnyTestFlag})`);
                                 }
                                 // Always call toggleSampleOptions to set proper enabled/disabled state
                                 toggleSampleOptions(productIdx);
