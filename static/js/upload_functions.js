@@ -7276,7 +7276,7 @@ async function downloadAllFiles() {
     
     // Show loading state
     const originalText = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating ZIP...';
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
     downloadBtn.disabled = true;
     
     try {
