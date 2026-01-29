@@ -513,7 +513,7 @@ class FoodSafetyAgencyInspection(models.Model):
     invoice_number = models.CharField(max_length=100, blank=True, null=True, help_text="Invoice number assigned to this inspection")
 
     # Manual entry flag - prevents sync from overwriting this inspection
-    is_manual = models.BooleanField(default=False, help_text="True if this inspection was manually entered (not synced from SQL Server)")
+    is_manual = models.BooleanField(default=True, help_text="True if this inspection was manually entered (not synced from SQL Server)")
 
     # New classification fields for manual inspections
     corporate_group = models.CharField(max_length=200, blank=True, null=True, help_text="Corporate group (e.g., Pick n Pay, Checkers, Spar)")

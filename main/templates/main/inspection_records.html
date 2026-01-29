@@ -8823,7 +8823,7 @@
                                             <span style="font-size: 10px; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
-                                            {% if shipment.is_occurrence_report %}<i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-right: 4px; font-size: 11px;" title="Occurrence Report"></i>{% endif %}<button
+                                            {% if shipment.is_occurrence_report %}<i class="fas fa-id-badge" style="color: #f59e0b; margin-right: 4px; font-size: 11px;" title="Occurrence Report"></i>{% endif %}<button
                                                 style="padding: 3px 6px; background: #007890; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;"
                                                 onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d" }}')" title="View All Files"><i
                                                     class="fas fa-folder-open"></i></button>
