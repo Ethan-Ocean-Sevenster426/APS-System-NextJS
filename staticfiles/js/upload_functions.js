@@ -7262,27 +7262,28 @@ function updateMainTableButtons(documentType, groupId, clientName, inspectionDat
 
 // updateButtonAfterUpload function removed - we now use markAsUploaded to show username instead
 
-// Download all files for current inspection group as ZIP
+// Download all files for current inspection group individually
 async function downloadAllFiles() {
     const downloadBtn = document.getElementById('downloadAllBtn');
     const clientName = window.currentFilesClient;
     const inspectionDate = window.currentFilesDate;
     const groupId = window.currentFilesGroupId;
-    
+
     if (!clientName || !inspectionDate) {
         alert('Error: Missing client or inspection date information');
         return;
     }
-    
+
     // Show loading state
     const originalText = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating ZIP...';
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
     downloadBtn.disabled = true;
-    
+
     try {
         console.log('🗂️ Starting download of all files for ' + clientName + ' on ' + inspectionDate);
-        
-        const response = await fetch('/inspections/download-all-files/', {
+
+        // First get the list of files
+        const response = await fetch('/inspections/files/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7291,38 +7292,68 @@ async function downloadAllFiles() {
             body: JSON.stringify({
                 client_name: clientName,
                 inspection_date: inspectionDate,
-                group_id: groupId
+                group_id: groupId,
+                _force_refresh: true
             })
         });
-        
+
         if (response.ok) {
-            // Get the filename from the response headers
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'inspection_files.zip';
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (filenameMatch) {
-                    filename = filenameMatch[1];
+            const result = await response.json();
+            if (result.success && result.files) {
+                // Collect all file URLs from all categories
+                const allFiles = [];
+                const categories = ['rfi', 'invoice', 'lab', 'lab_form', 'compliance', 'coa', 'composition', 'retest', 'occurrence', 'other'];
+
+                categories.forEach(cat => {
+                    if (result.files[cat] && Array.isArray(result.files[cat])) {
+                        result.files[cat].forEach(file => {
+                            if (file.url) {
+                                allFiles.push({
+                                    url: file.url,
+                                    name: file.name || file.url.split('/').pop()
+                                });
+                            }
+                        });
+                    }
+                });
+
+                if (allFiles.length === 0) {
+                    alert('No files found to download');
+                    return;
                 }
+
+                console.log('📁 Found ' + allFiles.length + ' files to download');
+
+                // Download each file with a small delay between downloads
+                let downloadCount = 0;
+                for (const file of allFiles) {
+                    try {
+                        const a = document.createElement('a');
+                        a.href = file.url;
+                        a.download = file.name;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        downloadCount++;
+                        console.log('✅ Downloaded: ' + file.name);
+
+                        // Small delay between downloads to prevent browser blocking
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    } catch (err) {
+                        console.error('Failed to download: ' + file.name, err);
+                    }
+                }
+
+                console.log('✅ Download completed: ' + downloadCount + ' files');
+            } else {
+                alert('No files found for this inspection');
             }
-            
-            // Download the file
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            console.log('SUCCESS Download completed:', filename);
         } else {
             const errorData = await response.json();
             alert('Download failed: ' + (errorData.error || 'Unknown error'));
         }
-        
+
     } catch (error) {
         console.error('Download error:', error);
         alert('Download error: ' + error.message);
