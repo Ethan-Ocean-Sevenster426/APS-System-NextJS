@@ -3404,7 +3404,12 @@
                     }
 
                     // Generate product forms when moving to step 2
-                    generateProductForms();
+                    // Skip if edit mode and forms already populated (to preserve checkbox states)
+                    if (!isEditMode || productsData.length === 0) {
+                        generateProductForms();
+                    } else {
+                        console.log('[STEP NAV] Skipping generateProductForms in edit mode - forms already populated');
+                    }
                     // Set initial button state for step 2 (will be disabled until fields filled)
                     setTimeout(() => validateStep2(), 0);
                 }
