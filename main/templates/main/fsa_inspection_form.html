@@ -2463,7 +2463,14 @@
                         checkbox.disabled = false;
                         label.style.opacity = '1';
                         label.style.cursor = 'pointer';
-                        label.style.background = checkbox.checked ? '#22c55e' : '#f1f5f9';
+                        // Use toggleCheckboxStyle to set proper background based on checked state
+                        if (checkbox.checked) {
+                            label.style.background = '#22c55e';
+                            label.style.color = 'white';
+                        } else {
+                            label.style.background = '#f1f5f9';
+                            label.style.color = 'inherit';
+                        }
                     } else {
                         checkbox.disabled = true;
                         checkbox.checked = false;
@@ -4558,43 +4565,58 @@
                                 toggleSampleOptions(productIdx);
                             }
 
-                            // Test flags
+                            // Test flags - set checkbox values and update styles
                             const fatCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="fat"]`);
-                            if (fatCheckbox && data.fat) {
-                                fatCheckbox.checked = data.fat;
-                                updateProductData(productIdx, 'fat', data.fat);
+                            if (fatCheckbox) {
+                                if (data.fat) {
+                                    fatCheckbox.checked = true;
+                                    updateProductData(productIdx, 'fat', true);
+                                }
+                                // Always update style to reflect current state
                                 toggleCheckboxStyle(fatCheckbox);
+                                console.log(`[EDIT] Fat checkbox: checked=${fatCheckbox.checked}, data.fat=${data.fat}`);
                             }
 
                             const proteinCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="protein"]`);
-                            if (proteinCheckbox && data.protein) {
-                                proteinCheckbox.checked = data.protein;
-                                updateProductData(productIdx, 'protein', data.protein);
+                            if (proteinCheckbox) {
+                                if (data.protein) {
+                                    proteinCheckbox.checked = true;
+                                    updateProductData(productIdx, 'protein', true);
+                                }
                                 toggleCheckboxStyle(proteinCheckbox);
+                                console.log(`[EDIT] Protein checkbox: checked=${proteinCheckbox.checked}, data.protein=${data.protein}`);
                             }
 
                             const calciumCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="calcium"]`);
-                            if (calciumCheckbox && data.calcium) {
-                                calciumCheckbox.checked = data.calcium;
-                                updateProductData(productIdx, 'calcium', data.calcium);
+                            if (calciumCheckbox) {
+                                if (data.calcium) {
+                                    calciumCheckbox.checked = true;
+                                    updateProductData(productIdx, 'calcium', true);
+                                }
                                 toggleCheckboxStyle(calciumCheckbox);
+                                console.log(`[EDIT] Calcium checkbox: checked=${calciumCheckbox.checked}, data.calcium=${data.calcium}`);
                             }
 
                             const dnaCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="dna"]`);
-                            if (dnaCheckbox && data.dna) {
-                                dnaCheckbox.checked = data.dna;
-                                updateProductData(productIdx, 'dna', data.dna);
+                            if (dnaCheckbox) {
+                                if (data.dna) {
+                                    dnaCheckbox.checked = true;
+                                    updateProductData(productIdx, 'dna', true);
+                                }
                                 toggleCheckboxStyle(dnaCheckbox);
+                                console.log(`[EDIT] DNA checkbox: checked=${dnaCheckbox.checked}, data.dna=${data.dna}`);
                             }
 
                             // Needs Retest checkbox (edit mode only)
                             const needsRetestCheckbox = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="needs_retest"]`);
-                            if (needsRetestCheckbox && data.needs_retest) {
-                                // Check if needs_retest is 'YES' or 'yes' (case insensitive)
-                                const isYes = data.needs_retest.toString().toUpperCase() === 'YES';
-                                needsRetestCheckbox.checked = isYes;
-                                updateProductData(productIdx, 'needs_retest', isYes ? 'YES' : 'NO');
+                            if (needsRetestCheckbox) {
+                                const isYes = data.needs_retest && data.needs_retest.toString().toUpperCase() === 'YES';
+                                if (isYes) {
+                                    needsRetestCheckbox.checked = true;
+                                    updateProductData(productIdx, 'needs_retest', 'YES');
+                                }
                                 toggleCheckboxStyle(needsRetestCheckbox);
+                                console.log(`[EDIT] Retest checkbox: checked=${needsRetestCheckbox.checked}, data.needs_retest=${data.needs_retest}`);
                             }
 
                             // Update productsData array with values from commodity data
