@@ -13318,6 +13318,25 @@ def download_all_inspection_files(request):
             with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                 files_added = 0
                 added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
+                used_arcnames = set()  # Track used archive names for flat structure
+
+                # Create a single parent folder name for all files
+                safe_folder_name = re.sub(r'[^a-zA-Z0-9._-]', '_', f"{client_name}_{inspection_date}")
+                safe_folder_name = re.sub(r'_+', '_', safe_folder_name).strip('_')
+
+                def get_unique_arcname(base_filename):
+                    """Get a unique filename for flat ZIP structure, adding suffix if needed."""
+                    if base_filename not in used_arcnames:
+                        used_arcnames.add(base_filename)
+                        return f"{safe_folder_name}/{base_filename}"
+                    # Add numeric suffix to make unique
+                    name, ext = os.path.splitext(base_filename)
+                    counter = 1
+                    while f"{name}_{counter}{ext}" in used_arcnames:
+                        counter += 1
+                    unique_name = f"{name}_{counter}{ext}"
+                    used_arcnames.add(unique_name)
+                    return f"{safe_folder_name}/{unique_name}"
 
                 # First add files from docs structure
                 for file_path, category, filename in docs_files:
@@ -13332,8 +13351,8 @@ def download_all_inspection_files(request):
                         file_key = f"{filename}_{file_size}_{file_mtime}"
 
                         if file_key not in added_files:
-                            # Add to ZIP with category folder structure
-                            zip_path = f"{category.capitalize()}/{filename}"
+                            # Add to ZIP with flat structure (all files in root)
+                            zip_path = get_unique_arcname(filename)
                             zip_file.write(file_path, zip_path)
                             added_files[file_key] = True
                             files_added += 1
@@ -13393,16 +13412,6 @@ def download_all_inspection_files(request):
                                         else:
                                             doc_type = category
                                         
-                                        # Create archive path based on document type:
-                                        # RFI and Invoice always go to root
-                                        # Lab, Lab Form, COA, Composition, Retest, Occurrence, Other go to inspection-XXXX folders
-                                        if doc_type in ['RFI', 'Invoice']:
-                                            arcname = f"{doc_type}/{filename}"
-                                        elif inspection_id and doc_type in ['Lab', 'Lab Form', 'Retest', 'COA', 'Composition', 'Occurrence', 'Other']:
-                                            arcname = f"inspection-{inspection_id}/{doc_type}/{filename}"
-                                        else:
-                                            arcname = f"{doc_type}/{filename}"
-                                        
                                         # Get file stats for duplicate detection
                                         try:
                                             # Verify file still exists before adding (prevent race conditions with deletions)
@@ -13413,19 +13422,22 @@ def download_all_inspection_files(request):
                                             stat = os.stat(file_path)
                                             file_size = stat.st_size
                                             file_modified = stat.st_mtime
-                                            file_key = f"{arcname}_{file_size}_{file_modified}"
+                                            file_key = f"{filename}_{file_size}_{file_modified}"
 
                                             # Check if we've already added this exact file (same name, size, and modified time)
                                             if file_key not in added_files:
+                                                # Flat structure: all files in single folder
+                                                arcname = get_unique_arcname(filename)
                                                 zip_file.write(file_path, arcname)
                                                 added_files[file_key] = arcname
                                                 files_added += 1
                                                 safe_print(f"Added {category}: {arcname} ({file_size} bytes)")
                                             else:
-                                                safe_print(f"Skipped {category} (exact duplicate): {arcname}")
+                                                safe_print(f"Skipped {category} (exact duplicate): {filename}")
                                         except Exception as e:
                                             safe_print(f"Error getting file stats for {file_path}: {e}")
                                             # If we can't get stats, include the file to be safe
+                                            arcname = get_unique_arcname(filename)
                                             zip_file.write(file_path, arcname)
                                             files_added += 1
                                             safe_print(f"Added {category}: {arcname} (no stats)")
@@ -13454,42 +13466,29 @@ def download_all_inspection_files(request):
                                     if os.path.isfile(file_path):
                                         # Filter compliance files by inspection date
                                         if is_file_for_inspection_date(filename, inspection_date):
-                                            # Extract inspection ID from filename
-                                            inspection_id = None
-                                            id_match = re.match(r'^(\d+)_', filename)
-                                            if id_match:
-                                                inspection_id = id_match.group(1)
-                                            
-                                            # Create archive path:
-                                            # If inspection ID matches one in this group, put in inspection-XXXX/Compliance/
-                                            # Otherwise, put in root Compliance/ folder
-                                            if inspection_id and inspection_id in inspection_ids_str:
-                                                arcname = f"inspection-{inspection_id}/Compliance/{commodity_folder}/{filename}"
-                                            else:
-                                                arcname = f"Compliance/{commodity_folder}/{filename}"
-                                            
                                             # Get file stats for duplicate detection
                                             try:
                                                 stat = os.stat(file_path)
                                                 file_size = stat.st_size
                                                 file_modified = stat.st_mtime
-                                                
+
                                                 # For compliance files, use filename + size for duplicate detection
-                                                # This allows multiple files with same name but different sizes (different inspections)
-                                                # but prevents true duplicates (same name AND same size)
                                                 file_key = f"{filename}_{file_size}"
-                                                
+
                                                 # Check if we've already added this exact file (same name and size)
                                                 if file_key not in added_files:
+                                                    # Flat structure: all files in single folder
+                                                    arcname = get_unique_arcname(filename)
                                                     zip_file.write(file_path, arcname)
                                                     added_files[file_key] = arcname
                                                     files_added += 1
                                                     safe_print(f"   Added compliance: {arcname} ({file_size} bytes)")
                                                 else:
-                                                    safe_print(f"   Skipped compliance (exact duplicate): {arcname} (same name and size already added)")
+                                                    safe_print(f"   Skipped compliance (exact duplicate): {filename}")
                                             except Exception as e:
                                                 safe_print(f"   Error getting file stats for {file_path}: {e}")
                                                 # If we can't get stats, include the file to be safe
+                                                arcname = get_unique_arcname(filename)
                                                 zip_file.write(file_path, arcname)
                                                 files_added += 1
                                                 safe_print(f"   Added compliance: {arcname} (no stats)")
