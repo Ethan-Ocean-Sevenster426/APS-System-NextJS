@@ -2106,12 +2106,50 @@
         
         // Upload RFI function
         function uploadRFI(groupId) {
+            // Get button elements for loading state
+            const desktopBtn = document.getElementById('rfi-' + groupId);
+            const mobileBtn = document.getElementById('rfi-mobile-' + groupId);
+
+            // Store original button states
+            let desktopOriginalHTML = '';
+            let mobileOriginalHTML = '';
+
+            // Helper to show loading state
+            function showRFILoading() {
+                if (desktopBtn) {
+                    desktopOriginalHTML = desktopBtn.innerHTML;
+                    desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    desktopBtn.disabled = true;
+                    desktopBtn.style.cursor = 'not-allowed';
+                }
+                if (mobileBtn) {
+                    mobileOriginalHTML = mobileBtn.innerHTML;
+                    mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                    mobileBtn.disabled = true;
+                    mobileBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            // Helper to hide loading state (only on error)
+            function hideRFILoading() {
+                if (desktopBtn) {
+                    desktopBtn.disabled = false;
+                    desktopBtn.style.cursor = 'pointer';
+                    desktopBtn.innerHTML = desktopOriginalHTML || 'RFI';
+                }
+                if (mobileBtn) {
+                    mobileBtn.disabled = false;
+                    mobileBtn.style.cursor = 'pointer';
+                    mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-alt mr-1"></i> RFI';
+                }
+            }
+
             // Create a file input element
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = '.pdf';
             fileInput.style.display = 'none';
-            
+
             fileInput.onchange = function(e) {
                 const file = e.target.files[0];
                 if (file) {
@@ -2120,17 +2158,21 @@
                         alert('Only PDF files are allowed. Please select a PDF document.');
                         return;
                     }
+
+                    // Show loading state
+                    showRFILoading();
+
                     // Create form data
                     const formData = new FormData();
                     formData.append('file', file);
                     formData.append('group_id', groupId);
                     formData.append('document_type', 'rfi');
-                    
+
                     // Get CSRF token
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
                                      'V6UGNQxSJlybzoWeD5dtV5pDYIZ1plaXcjuv4YOLEN2LRzOy6zTdUdf7Wvj6d7Ow';
                     formData.append('csrfmiddlewaretoken', csrfToken);
-                    
+
                     // Upload file
                     fetch('/upload-document/', {
                         method: 'POST',
@@ -2141,7 +2183,7 @@
                         if (data.success) {
                             alert('RFI uploaded successfully!');
                             markAsUploaded('rfi-' + groupId);
-                            
+
                             // Auto-open files popup after successful upload
                             const button = document.getElementById('rfi-' + groupId);
                             if (button) {
@@ -2155,29 +2197,69 @@
                                 }
                             }
                         } else {
+                            hideRFILoading();
                             alert('Error uploading RFI: ' + data.error);
                         }
                     })
                     .catch(error => {
+                        hideRFILoading();
                         alert('Error uploading RFI: ' + error.message);
                     });
                 }
             };
-            
+
             // Trigger file selection
             document.body.appendChild(fileInput);
             fileInput.click();
             document.body.removeChild(fileInput);
         }
-        
+
         // Upload Invoice function
         function uploadInvoice(groupId) {
+            // Get button elements for loading state
+            const desktopBtn = document.getElementById('invoice-' + groupId);
+            const mobileBtn = document.getElementById('invoice-mobile-' + groupId);
+
+            // Store original button states
+            let desktopOriginalHTML = '';
+            let mobileOriginalHTML = '';
+
+            // Helper to show loading state
+            function showInvoiceLoading() {
+                if (desktopBtn) {
+                    desktopOriginalHTML = desktopBtn.innerHTML;
+                    desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    desktopBtn.disabled = true;
+                    desktopBtn.style.cursor = 'not-allowed';
+                }
+                if (mobileBtn) {
+                    mobileOriginalHTML = mobileBtn.innerHTML;
+                    mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                    mobileBtn.disabled = true;
+                    mobileBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            // Helper to hide loading state (only on error)
+            function hideInvoiceLoading() {
+                if (desktopBtn) {
+                    desktopBtn.disabled = false;
+                    desktopBtn.style.cursor = 'pointer';
+                    desktopBtn.innerHTML = desktopOriginalHTML || 'Invoice';
+                }
+                if (mobileBtn) {
+                    mobileBtn.disabled = false;
+                    mobileBtn.style.cursor = 'pointer';
+                    mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-invoice mr-1"></i> Invoice';
+                }
+            }
+
             // Create a file input element
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = '.pdf';
             fileInput.style.display = 'none';
-            
+
             fileInput.onchange = function(e) {
                 const file = e.target.files[0];
                 if (file) {
@@ -2186,17 +2268,21 @@
                         alert('Only PDF files are allowed. Please select a PDF document.');
                         return;
                     }
+
+                    // Show loading state
+                    showInvoiceLoading();
+
                     // Create form data
                     const formData = new FormData();
                     formData.append('file', file);
                     formData.append('group_id', groupId);
                     formData.append('document_type', 'invoice');
-                    
+
                     // Get CSRF token
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
                                      'V6UGNQxSJlybzoWeD5dtV5pDYIZ1plaXcjuv4YOLEN2LRzOy6zTdUdf7Wvj6d7Ow';
                     formData.append('csrfmiddlewaretoken', csrfToken);
-                    
+
                     // Upload file
                     fetch('/upload-document/', {
                         method: 'POST',
@@ -2207,7 +2293,7 @@
                         if (data.success) {
                             alert('Invoice uploaded successfully!');
                             markAsUploaded('invoice-' + groupId);
-                            
+
                             // Auto-open files popup after successful upload
                             const button = document.getElementById('invoice-' + groupId);
                             if (button) {
@@ -2221,21 +2307,23 @@
                                 }
                             }
                         } else {
+                            hideInvoiceLoading();
                             alert('Error uploading Invoice: ' + data.error);
                         }
                     })
                     .catch(error => {
+                        hideInvoiceLoading();
                         alert('Error uploading Invoice: ' + error.message);
                     });
                 }
             };
-            
+
             // Trigger file selection
             document.body.appendChild(fileInput);
             fileInput.click();
             document.body.removeChild(fileInput);
         }
-        
+
         // Upload Lab function
         function uploadLab(inspectionId) {
             // Create a file input element
@@ -2482,7 +2570,7 @@
             console.log('🔍 groupId === null:', groupId === null);
             console.log('🔍 groupId === undefined:', groupId === undefined);
             console.log('🔍 groupId === "":', groupId === "");
-            
+
             // Additional debugging - check if we can get the group_id from the button
             const button = event.target.closest('button');
             if (button) {
@@ -2490,7 +2578,7 @@
                 console.log('🔍 Debug group_id from button:', debugGroupId);
                 console.log('🔍 Button element:', button);
                 console.log('🔍 Button id:', button.id);
-                
+
                 // Try to get group_id from button id
                 const buttonId = button.id;
                 if (buttonId && buttonId.startsWith('rfi-')) {
@@ -2502,7 +2590,7 @@
                     }
                 }
             }
-            
+
             if (!groupId || groupId.trim() === '') {
                 console.error('❌ No valid group ID found!');
                 console.error('❌ Original groupId:', groupId);
@@ -2510,17 +2598,55 @@
                 alert('Error: No group ID provided. Please refresh the page and try again.');
                 return;
             }
-            
+
+            // Get button elements for loading state
+            const desktopBtn = document.getElementById('rfi-' + groupId);
+            const mobileBtn = document.getElementById('rfi-mobile-' + groupId);
+
+            // Store original button states
+            let desktopOriginalHTML = '';
+            let mobileOriginalHTML = '';
+
+            // Helper to show loading state
+            function showRFILoading() {
+                if (desktopBtn) {
+                    desktopOriginalHTML = desktopBtn.innerHTML;
+                    desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    desktopBtn.disabled = true;
+                    desktopBtn.style.cursor = 'not-allowed';
+                }
+                if (mobileBtn) {
+                    mobileOriginalHTML = mobileBtn.innerHTML;
+                    mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                    mobileBtn.disabled = true;
+                    mobileBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            // Helper to hide loading state (only on error)
+            function hideRFILoading() {
+                if (desktopBtn) {
+                    desktopBtn.disabled = false;
+                    desktopBtn.style.cursor = 'pointer';
+                    desktopBtn.innerHTML = desktopOriginalHTML || 'RFI';
+                }
+                if (mobileBtn) {
+                    mobileBtn.disabled = false;
+                    mobileBtn.style.cursor = 'pointer';
+                    mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-alt mr-1"></i> RFI';
+                }
+            }
+
             // Template now generates the correct format: ClientName_YYYYMMDD
             // Backend expects: ClientName_YYYYMMDD (underscores, no special chars)
             // No conversion needed
-            
+
             // Create a file input element
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = '.pdf';
             fileInput.style.display = 'none';
-            
+
             fileInput.onchange = function(e) {
                 const file = e.target.files[0];
                 if (file) {
@@ -2529,23 +2655,26 @@
                         alert('Please select a PDF file.');
                         return;
                     }
-                    
+
+                    // Show loading state
+                    showRFILoading();
+
                     // Create form data
                     const formData = new FormData();
                     formData.append('file', file);
                     formData.append('group_id', groupId);
                     formData.append('document_type', 'rfi');
-                    
+
                     // Debug logging
                     console.log('Form data being sent:');
                     console.log('- file:', file.name);
                     console.log('- group_id:', groupId);
                     console.log('- document_type: rfi');
-                    
+
                     // Get CSRF token
                     const csrfToken = getCSRFToken();
                     formData.append('csrfmiddlewaretoken', csrfToken);
-                    
+
                     // Upload file
                     fetch('/upload-document/', {
                         method: 'POST',
@@ -2555,7 +2684,7 @@
                     .then(data => {
                         if (data.success) {
                             alert('RFI document uploaded successfully for this inspection group!');
-                            
+
                             // Auto-open files popup after successful upload
                             const button = document.getElementById('rfi-' + groupId);
                             if (button) {
@@ -2569,15 +2698,17 @@
                                 }
                             }
                         } else {
+                            hideRFILoading();
                             alert('Error uploading RFI document: ' + data.error);
                         }
                     })
                     .catch(error => {
+                        hideRFILoading();
                         alert('Error uploading RFI document: ' + error.message);
                     });
                 }
             };
-            
+
             // Trigger file selection
             document.body.appendChild(fileInput);
             fileInput.click();

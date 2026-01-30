@@ -7815,7 +7815,7 @@
 
                 <!-- Shipment-specific functionality -->
                 {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
-                {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                 <li class="nav-item">
                     <a href="{% url 'export_sheet' %}" class="nav-link"
                         style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer; text-decoration: none;">
@@ -7895,7 +7895,7 @@
                     {% endif %}
 
                     <!-- Export Sheet Button -->
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                     <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
                         <i class="fas fa-file-export"></i> Export Sheet
                     </a>
@@ -13562,6 +13562,48 @@
                         return;
                     }
 
+                    // Get button elements for loading state
+                    const desktopBtn = document.getElementById('rfi-' + groupId);
+                    const mobileBtn = document.getElementById('rfi-mobile-' + groupId);
+
+                    // Store original button states
+                    let desktopOriginalHTML = '';
+                    let mobileOriginalHTML = '';
+
+                    // Helper to show loading state
+                    function showRFILoading() {
+                        if (desktopBtn) {
+                            desktopOriginalHTML = desktopBtn.innerHTML;
+                            desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                            desktopBtn.disabled = true;
+                            desktopBtn.style.cursor = 'not-allowed';
+                        }
+                        if (mobileBtn) {
+                            mobileOriginalHTML = mobileBtn.innerHTML;
+                            mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                            mobileBtn.disabled = true;
+                            mobileBtn.style.cursor = 'not-allowed';
+                        }
+                    }
+
+                    // Helper to hide loading state
+                    function hideRFILoading(success) {
+                        if (desktopBtn) {
+                            desktopBtn.disabled = false;
+                            desktopBtn.style.cursor = 'pointer';
+                            if (!success) {
+                                desktopBtn.innerHTML = desktopOriginalHTML || 'RFI';
+                            }
+                        }
+                        if (mobileBtn) {
+                            mobileBtn.disabled = false;
+                            mobileBtn.style.cursor = 'pointer';
+                            if (!success) {
+                                mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-alt mr-1"></i> RFI';
+                            }
+                        }
+                    }
+
                     try {
                         // Create a file input element
                         const fileInput = document.createElement('input');
@@ -13579,6 +13621,10 @@
                                     alert('Only PDF files are allowed. Please select a PDF document.');
                                     return;
                                 }
+
+                                // Show loading state
+                                showRFILoading();
+
                                 // Create form data
                                 const formData = new FormData();
                                 formData.append('file', file);
@@ -13599,6 +13645,7 @@
                                     .then(data => {
                                         if (data.success) {
                                             console.log('✅ RFI uploaded successfully!');
+                                            hideRFILoading(true);
                                             markAsUploaded('rfi-' + groupId);
 
                                             // INSTANT UPDATE: Update View Files button immediately without checking files
@@ -13612,10 +13659,10 @@
                                             }
 
                                             // Auto-open files popup after successful upload
-                                            const button = document.getElementById('rfi-' + groupId);
-                                            if (button) {
-                                                const clientName = button.getAttribute('data-client-name');
-                                                const inspectionDate = button.getAttribute('data-inspection-date');
+                                            const button2 = document.getElementById('rfi-' + groupId);
+                                            if (button2) {
+                                                const clientName = button2.getAttribute('data-client-name');
+                                                const inspectionDate = button2.getAttribute('data-inspection-date');
                                                 if (clientName && inspectionDate) {
                                                     // Longer delay to ensure the upload is processed and indexed
                                                     setTimeout(() => {
@@ -13624,10 +13671,12 @@
                                                 }
                                             }
                                         } else {
+                                            hideRFILoading(false);
                                             alert('Error uploading RFI: ' + data.error);
                                         }
                                     })
                                     .catch(error => {
+                                        hideRFILoading(false);
                                         alert('Error uploading RFI: ' + error.message);
                                     });
                             }
@@ -13663,6 +13712,44 @@
                         return;
                     }
 
+                    // Get button elements for loading state
+                    const desktopBtn = document.getElementById('occurrence-' + groupId);
+                    const mobileBtn = document.getElementById('occurrence-mobile-' + groupId);
+
+                    // Store original button states
+                    let desktopOriginalHTML = '';
+                    let mobileOriginalHTML = '';
+
+                    // Helper to show loading state
+                    function showOccurrenceLoading() {
+                        if (desktopBtn) {
+                            desktopOriginalHTML = desktopBtn.innerHTML;
+                            desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                            desktopBtn.disabled = true;
+                            desktopBtn.style.cursor = 'not-allowed';
+                        }
+                        if (mobileBtn) {
+                            mobileOriginalHTML = mobileBtn.innerHTML;
+                            mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                            mobileBtn.disabled = true;
+                            mobileBtn.style.cursor = 'not-allowed';
+                        }
+                    }
+
+                    // Helper to hide loading state (only on error)
+                    function hideOccurrenceLoading() {
+                        if (desktopBtn) {
+                            desktopBtn.disabled = false;
+                            desktopBtn.style.cursor = 'pointer';
+                            desktopBtn.innerHTML = desktopOriginalHTML || '<i class="fas fa-upload"></i>';
+                        }
+                        if (mobileBtn) {
+                            mobileBtn.disabled = false;
+                            mobileBtn.style.cursor = 'pointer';
+                            mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-upload mr-1"></i> Upload';
+                        }
+                    }
+
                     try {
                         // Create a file input element
                         const fileInput = document.createElement('input');
@@ -13680,6 +13767,10 @@
                                     alert('Only PDF files are allowed. Please select a PDF document.');
                                     return;
                                 }
+
+                                // Show loading state
+                                showOccurrenceLoading();
+
                                 // Create form data
                                 const formData = new FormData();
                                 formData.append('file', file);
@@ -13737,10 +13828,10 @@
                                             }
 
                                             // Auto-open files popup after successful upload
-                                            const buttonWithData = desktopButton || mobileButton;
-                                            if (buttonWithData) {
-                                                const clientName = buttonWithData.getAttribute('data-client-name');
-                                                const inspectionDate = buttonWithData.getAttribute('data-inspection-date');
+                                            const buttonWithData2 = desktopButton || mobileButton;
+                                            if (buttonWithData2) {
+                                                const clientName = buttonWithData2.getAttribute('data-client-name');
+                                                const inspectionDate = buttonWithData2.getAttribute('data-inspection-date');
                                                 if (clientName && inspectionDate) {
                                                     // Longer delay to ensure the upload is processed and indexed
                                                     setTimeout(() => {
@@ -13749,10 +13840,12 @@
                                                 }
                                             }
                                         } else {
+                                            hideOccurrenceLoading();
                                             alert('Error uploading Occurrence: ' + data.error);
                                         }
                                     })
                                     .catch(error => {
+                                        hideOccurrenceLoading();
                                         alert('Error uploading Occurrence: ' + error.message);
                                     });
                             }
@@ -13780,6 +13873,48 @@
 
                 // Upload Invoice function
                 function uploadInvoice(groupId) {
+                    // Get button elements for loading state
+                    const desktopBtn = document.getElementById('invoice-' + groupId);
+                    const mobileBtn = document.getElementById('invoice-mobile-' + groupId);
+
+                    // Store original button states
+                    let desktopOriginalHTML = '';
+                    let mobileOriginalHTML = '';
+
+                    // Helper to show loading state
+                    function showInvoiceLoading() {
+                        if (desktopBtn) {
+                            desktopOriginalHTML = desktopBtn.innerHTML;
+                            desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                            desktopBtn.disabled = true;
+                            desktopBtn.style.cursor = 'not-allowed';
+                        }
+                        if (mobileBtn) {
+                            mobileOriginalHTML = mobileBtn.innerHTML;
+                            mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+                            mobileBtn.disabled = true;
+                            mobileBtn.style.cursor = 'not-allowed';
+                        }
+                    }
+
+                    // Helper to hide loading state
+                    function hideInvoiceLoading(success) {
+                        if (desktopBtn) {
+                            desktopBtn.disabled = false;
+                            desktopBtn.style.cursor = 'pointer';
+                            if (!success) {
+                                desktopBtn.innerHTML = desktopOriginalHTML || 'Invoice';
+                            }
+                        }
+                        if (mobileBtn) {
+                            mobileBtn.disabled = false;
+                            mobileBtn.style.cursor = 'pointer';
+                            if (!success) {
+                                mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-invoice mr-1"></i> Invoice';
+                            }
+                        }
+                    }
+
                     // Create a file input element
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
@@ -13794,6 +13929,10 @@
                                 alert('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
+
+                            // Show loading state
+                            showInvoiceLoading();
+
                             // Create form data
                             const formData = new FormData();
                             formData.append('file', file);
@@ -13814,6 +13953,7 @@
                                 .then(data => {
                                     if (data.success) {
                                         console.log('✅ Invoice uploaded successfully!');
+                                        hideInvoiceLoading(true);
                                         console.log('[DEBUG] About to call markAsUploaded for invoice-' + groupId);
                                         markAsUploaded('invoice-' + groupId);
                                         console.log('[DEBUG] markAsUploaded called for invoice-' + groupId);
@@ -13829,10 +13969,10 @@
                                         }
 
                                         // Auto-open files popup after successful upload
-                                        const button = document.getElementById('invoice-' + groupId);
-                                        if (button) {
-                                            const clientName = button.getAttribute('data-client-name');
-                                            const inspectionDate = button.getAttribute('data-inspection-date');
+                                        const button2 = document.getElementById('invoice-' + groupId);
+                                        if (button2) {
+                                            const clientName = button2.getAttribute('data-client-name');
+                                            const inspectionDate = button2.getAttribute('data-inspection-date');
                                             if (clientName && inspectionDate) {
                                                 // Longer delay to ensure the upload is processed and indexed
                                                 setTimeout(() => {
@@ -13841,10 +13981,12 @@
                                             }
                                         }
                                     } else {
+                                        hideInvoiceLoading(false);
                                         alert('Error uploading Invoice: ' + data.error);
                                     }
                                 })
                                 .catch(error => {
+                                    hideInvoiceLoading(false);
                                     alert('Error uploading Invoice: ' + error.message);
                                 });
                         }

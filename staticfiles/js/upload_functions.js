@@ -20,21 +20,59 @@ function getCSRFToken() {
 // Upload RFI function - CLEAN VERSION
 function uploadRFI(groupId) {
     console.log('uploadRFI called with groupId:', groupId);
-    
+
     if (!groupId) {
         alert('Error: Group ID is missing');
         return;
     }
-    
+
+    // Get button elements for loading state
+    const desktopBtn = document.getElementById('rfi-' + groupId) || document.getElementById('rfi-btn-' + groupId);
+    const mobileBtn = document.getElementById('rfi-mobile-' + groupId);
+
+    // Store original button states
+    let desktopOriginalHTML = '';
+    let mobileOriginalHTML = '';
+
+    // Helper to show loading state
+    function showRFILoading() {
+        if (desktopBtn) {
+            desktopOriginalHTML = desktopBtn.innerHTML;
+            desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            desktopBtn.disabled = true;
+            desktopBtn.style.cursor = 'not-allowed';
+        }
+        if (mobileBtn) {
+            mobileOriginalHTML = mobileBtn.innerHTML;
+            mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+            mobileBtn.disabled = true;
+            mobileBtn.style.cursor = 'not-allowed';
+        }
+    }
+
+    // Helper to hide loading state (only on error)
+    function hideRFILoading() {
+        if (desktopBtn) {
+            desktopBtn.disabled = false;
+            desktopBtn.style.cursor = 'pointer';
+            desktopBtn.innerHTML = desktopOriginalHTML || 'RFI';
+        }
+        if (mobileBtn) {
+            mobileBtn.disabled = false;
+            mobileBtn.style.cursor = 'pointer';
+            mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-file-alt mr-1"></i> RFI';
+        }
+    }
+
     try {
         // Create a file input element
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.pdf';
         fileInput.style.display = 'none';
-        
+
         console.log('File input element created successfully');
-        
+
         fileInput.onchange = function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -43,17 +81,20 @@ function uploadRFI(groupId) {
                     alert('Only PDF files are allowed. Please select a PDF document.');
                     return;
                 }
-                
+
+                // Show loading state
+                showRFILoading();
+
                 // Create form data
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('group_id', groupId);
                 formData.append('document_type', 'rfi');
                 formData.append('csrfmiddlewaretoken', getCSRFToken());
-                
+
                 console.log('Uploading file:', file.name, 'for group:', groupId);
                 uploadInProgress = true; // Set upload flag to prevent status check override
-                
+
                 // Show loading message
                 const originalAlert = alert;
                 alert = function(msg) { console.log('Alert:', msg); };
@@ -180,6 +221,7 @@ function uploadRFI(groupId) {
                                     // Page refresh removed to prevent button color reset
                                 }
                     } else {
+                        hideRFILoading();
                         alert('Upload failed: ' + (data.error || 'Unknown error'));
                         console.error('Upload failed:', data);
                     }
@@ -187,16 +229,17 @@ function uploadRFI(groupId) {
                 .catch(error => {
                     alert = originalAlert; // Restore alert
                     uploadInProgress = false; // Clear upload flag
+                    hideRFILoading();
                     console.error('Upload error:', error);
                     alert('Upload error: ' + error.message);
                 });
             }
         };
-        
+
         // Add to DOM and trigger click
         document.body.appendChild(fileInput);
         fileInput.click();
-        
+
         // Clean up after a short delay
         setTimeout(() => {
             if (document.body.contains(fileInput)) {
@@ -204,7 +247,7 @@ function uploadRFI(groupId) {
                 console.log('File input removed from body');
             }
         }, 100);
-        
+
     } catch (error) {
         console.error('Error in uploadRFI function:', error);
         alert('Error in upload function: ' + error.message);
@@ -218,6 +261,44 @@ function uploadOccurrence(groupId) {
     if (!groupId) {
         alert('Error: Group ID is missing');
         return;
+    }
+
+    // Get button elements for loading state
+    const desktopBtn = document.getElementById('occurrence-' + groupId);
+    const mobileBtn = document.getElementById('occurrence-mobile-' + groupId);
+
+    // Store original button states
+    let desktopOriginalHTML = '';
+    let mobileOriginalHTML = '';
+
+    // Helper to show loading state
+    function showOccurrenceLoading() {
+        if (desktopBtn) {
+            desktopOriginalHTML = desktopBtn.innerHTML;
+            desktopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            desktopBtn.disabled = true;
+            desktopBtn.style.cursor = 'not-allowed';
+        }
+        if (mobileBtn) {
+            mobileOriginalHTML = mobileBtn.innerHTML;
+            mobileBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+            mobileBtn.disabled = true;
+            mobileBtn.style.cursor = 'not-allowed';
+        }
+    }
+
+    // Helper to hide loading state (only on error)
+    function hideOccurrenceLoading() {
+        if (desktopBtn) {
+            desktopBtn.disabled = false;
+            desktopBtn.style.cursor = 'pointer';
+            desktopBtn.innerHTML = desktopOriginalHTML || '<i class="fas fa-upload"></i>';
+        }
+        if (mobileBtn) {
+            mobileBtn.disabled = false;
+            mobileBtn.style.cursor = 'pointer';
+            mobileBtn.innerHTML = mobileOriginalHTML || '<i class="fas fa-upload mr-1"></i> Upload';
+        }
     }
 
     try {
@@ -237,6 +318,9 @@ function uploadOccurrence(groupId) {
                     alert('Only PDF files are allowed. Please select a PDF document.');
                     return;
                 }
+
+                // Show loading state
+                showOccurrenceLoading();
 
                 // Create form data
                 const formData = new FormData();
@@ -360,6 +444,7 @@ function uploadOccurrence(groupId) {
                                 console.log('⚠️ Occurrence button not found, but continuing without page refresh');
                             }
                         } else {
+                        hideOccurrenceLoading();
                         alert('Upload failed: ' + (data.error || 'Unknown error'));
                         console.error('Upload failed:', data);
                     }
@@ -367,6 +452,7 @@ function uploadOccurrence(groupId) {
                 .catch(error => {
                     alert = originalAlert; // Restore alert
                     uploadInProgress = false; // Clear upload flag
+                    hideOccurrenceLoading();
                     console.error('Upload error:', error);
                     alert('Upload error: ' + error.message);
                 });
