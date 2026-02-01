@@ -8002,7 +8002,7 @@
                                     <label class="form-label">Date From</label>
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
-                                            name="inspection_date_from_display" placeholder="DD/MM/YYYY"
+                                            name="inspection_date_from_display" placeholder="DD Month YYYY"
                                             value="" readonly>
                                         <input type="hidden" name="inspection_date_from"
                                             value="{{ request.GET.inspection_date_from }}">
@@ -8016,7 +8016,7 @@
                                     <label class="form-label">Date To</label>
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
-                                            name="inspection_date_to_display" placeholder="DD/MM/YYYY"
+                                            name="inspection_date_to_display" placeholder="DD Month YYYY"
                                             value="" readonly>
                                         <input type="hidden" name="inspection_date_to"
                                             value="{{ request.GET.inspection_date_to }}">
@@ -8109,7 +8109,7 @@
                                     <div class="flex items-center justify-between gap-3">
                                         <div class="flex-1 min-w-0">
                                             <h3 class="font-bold text-lg truncate">{{ shipment.client_name|default:"-" }}</h3>
-                                            <p class="text-sm opacity-90">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</p>
+                                            <p class="text-sm opacity-90">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</p>
                                             {% if shipment.is_occurrence_report %}
                                             <span style="font-size: 10px; padding: 2px 8px; background: #fef3c7; color: #92400e; border-radius: 4px; font-weight: 600; margin-top: 4px; display: inline-block;">
                                                 <i class="fas fa-exclamation-triangle" style="margin-right: 3px;"></i>OCCURRENCE REPORT
@@ -8822,7 +8822,7 @@
                                                 onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d" }}')" title="{% if shipment.is_occurrence_report %}Occurrence Report{% else %}View All Files{% endif %}"><i
                                                     class="fas fa-folder-open"></i></button>
                                         </td>
-                                        <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d/m/Y"|default:"-" }}</td>
+                                        <td class="px-2 py-2 text-xs text-center text-gray-600">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
                                             {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' or request.user.role == 'inspector' %}
                                             <!-- Approval editable for admin, super_admin, developer, inspector -->
@@ -16477,10 +16477,12 @@
                 }
 
                 function formatDateDDMMYYYY(date) {
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
                     const day = date.getDate().toString().padStart(2, '0');
-                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    const month = monthNames[date.getMonth()];
                     const year = date.getFullYear();
-                    return `${day}/${month}/${year}`;
+                    return `${day} ${month} ${year}`;
                 }
 
                 function formatDateYYYYMMDD(date) {
@@ -16498,12 +16500,15 @@
                     const dateToHidden = document.querySelector('input[name="inspection_date_to"]');
                     const dateToDisplay = document.querySelector('input[name="inspection_date_to_display"]');
 
-                    // Convert YYYY-MM-DD to DD/MM/YYYY for display
+                    // Convert YYYY-MM-DD to DD Month YYYY for display
                     function formatForDisplay(dateStr) {
+                        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December'];
                         if (dateStr && dateStr.includes('-')) {
                             const parts = dateStr.split('-');
                             if (parts.length === 3) {
-                                return parts[2] + '/' + parts[1] + '/' + parts[0];
+                                const monthIndex = parseInt(parts[1], 10) - 1;
+                                return parts[2] + ' ' + monthNames[monthIndex] + ' ' + parts[0];
                             }
                         }
                         return '';
@@ -16520,13 +16525,17 @@
                     if (filterForm) {
                         filterForm.addEventListener('submit', function (e) {
                             // Ensure hidden inputs are updated before submission
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'];
                             const dateInputs = this.querySelectorAll('.date-picker');
                             dateInputs.forEach(function (input) {
-                                if (input.value && input.value.includes('/')) {
-                                    const parts = input.value.split('/');
+                                if (input.value && input.value.includes(' ')) {
+                                    // Parse "DD Month YYYY" format
+                                    const parts = input.value.split(' ');
                                     if (parts.length === 3) {
                                         const day = parts[0].padStart(2, '0');
-                                        const month = parts[1].padStart(2, '0');
+                                        const monthIndex = monthNames.indexOf(parts[1]);
+                                        const month = (monthIndex + 1).toString().padStart(2, '0');
                                         const year = parts[2];
 
                                         const hiddenInput = input.parentNode.querySelector('input[type="hidden"]');
