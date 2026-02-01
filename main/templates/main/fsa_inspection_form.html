@@ -2527,7 +2527,6 @@
         function calculateTimeTraveled() {
             const startTime = document.getElementById('travel_start_time')?.value;
             const endTime = document.getElementById('travel_end_time')?.value;
-            const durationDisplay = document.getElementById('time_traveled_display');
             const hiddenInput = document.getElementById('shared_time_traveled');
 
             if (startTime && endTime) {
@@ -2543,25 +2542,12 @@
                 }
 
                 const durationMins = endTotalMins - startTotalMins;
-                const hours = Math.floor(durationMins / 60);
-                const mins = durationMins % 60;
 
                 sharedTripData.time_traveled = durationMins;
                 sharedTripData.travel_start_time = startTime;
                 sharedTripData.travel_end_time = endTime;
 
                 if (hiddenInput) hiddenInput.value = durationMins;
-                if (durationDisplay) {
-                    if (hours > 0) {
-                        durationDisplay.textContent = `= ${hours}h ${mins}m`;
-                    } else {
-                        durationDisplay.textContent = `= ${mins} mins`;
-                    }
-                }
-            } else {
-                if (durationDisplay) {
-                    durationDisplay.textContent = '';
-                }
             }
         }
 
@@ -2592,7 +2578,6 @@
                     <input type="time" class="form-control" id="travel_end_time"
                            value="${sharedTripData.travel_end_time || ''}"
                            onchange="calculateTimeTraveled()" required>
-                    <span id="time_traveled_display" style="font-size: 12px; color: #059669; margin-top: 4px; display: block;"></span>
                     <input type="hidden" id="shared_time_traveled" name="time_traveled" value="${sharedTripData.time_traveled || 0}">
                 </div>
             </div>
