@@ -16407,9 +16407,9 @@
 
                     let html = `
                 <div class="calendar-header">
-                    <button type="button" class="calendar-nav" onclick="changeMonth(-1)">‹</button>
+                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(-1)">‹</button>
                     <div class="calendar-month-year">${monthNames[displayedMonth]} ${displayedYear}</div>
-                    <button type="button" class="calendar-nav" onclick="changeMonth(1)">›</button>
+                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(1)">›</button>
                 </div>
                 <div class="calendar-grid">
             `;
