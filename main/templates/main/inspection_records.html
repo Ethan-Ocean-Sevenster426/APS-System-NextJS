@@ -8003,7 +8003,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_from_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_from %}{{ request.GET.inspection_date_from|date:"d/m/Y" }}{% endif %}" readonly>
+                                            value="" readonly>
                                         <input type="hidden" name="inspection_date_from"
                                             value="{{ request.GET.inspection_date_from }}">
                                         <button type="button" class="date-picker-btn"
@@ -8017,7 +8017,7 @@
                                     <div class="date-input-container">
                                         <input type="text" class="form-control date-picker"
                                             name="inspection_date_to_display" placeholder="DD/MM/YYYY"
-                                            value="{% if request.GET.inspection_date_to %}{{ request.GET.inspection_date_to|date:"d/m/Y" }}{% endif %}" readonly>
+                                            value="" readonly>
                                         <input type="hidden" name="inspection_date_to"
                                             value="{{ request.GET.inspection_date_to }}">
                                         <button type="button" class="date-picker-btn"
@@ -16490,8 +16490,32 @@
                     return `${year}-${month}-${day}`;
                 }
 
-                // Handle form submission
+                // Handle form submission and date display
                 document.addEventListener('DOMContentLoaded', function () {
+                    // Populate display inputs from hidden inputs on page load
+                    const dateFromHidden = document.querySelector('input[name="inspection_date_from"]');
+                    const dateFromDisplay = document.querySelector('input[name="inspection_date_from_display"]');
+                    const dateToHidden = document.querySelector('input[name="inspection_date_to"]');
+                    const dateToDisplay = document.querySelector('input[name="inspection_date_to_display"]');
+
+                    // Convert YYYY-MM-DD to DD/MM/YYYY for display
+                    function formatForDisplay(dateStr) {
+                        if (dateStr && dateStr.includes('-')) {
+                            const parts = dateStr.split('-');
+                            if (parts.length === 3) {
+                                return parts[2] + '/' + parts[1] + '/' + parts[0];
+                            }
+                        }
+                        return '';
+                    }
+
+                    if (dateFromHidden && dateFromHidden.value && dateFromDisplay) {
+                        dateFromDisplay.value = formatForDisplay(dateFromHidden.value);
+                    }
+                    if (dateToHidden && dateToHidden.value && dateToDisplay) {
+                        dateToDisplay.value = formatForDisplay(dateToHidden.value);
+                    }
+
                     const filterForm = document.querySelector('form[method="get"]');
                     if (filterForm) {
                         filterForm.addEventListener('submit', function (e) {
