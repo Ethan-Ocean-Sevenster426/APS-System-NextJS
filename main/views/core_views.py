@@ -2221,8 +2221,15 @@ def shipment_list(request):
     #         # Only show groups that have at least one inspection without Lab Form uploaded
     #         groups_queryset = groups_queryset.filter(has_no_lab_form_inspections__gt=0)
 
-    # Apply database-level pagination
-    paginator = Paginator(groups_queryset, 25)  # 25 groups per page
+    # Check for show_all parameter
+    show_all = request.GET.get('show_all', 'false').lower() == 'true'
+
+    # Apply database-level pagination (or show all if requested)
+    if show_all:
+        # Show all results without pagination
+        paginator = Paginator(groups_queryset, 10000)  # Large number to show all
+    else:
+        paginator = Paginator(groups_queryset, 25)  # 25 groups per page
     page_obj = paginator.get_page(page_number)
     
     # Get only the groups for the current page
@@ -2925,7 +2932,7 @@ def shipment_list(request):
         'user_message': None,  # Add this for template compatibility
         'paginator': paginator,
         'page_obj': page_obj,
-        'show_all': False,  # Force pagination to prevent broken pipe
+        'show_all': show_all,  # Pass actual show_all value to template
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }
