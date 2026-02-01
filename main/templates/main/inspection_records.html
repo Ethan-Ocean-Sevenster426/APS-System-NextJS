@@ -8007,7 +8007,7 @@
                                         <input type="hidden" name="inspection_date_from"
                                             value="{{ request.GET.inspection_date_from }}">
                                         <button type="button" class="date-picker-btn"
-                                            onclick="openDatePicker('inspection_date_from_display')">
+                                            onclick="event.stopPropagation(); openDatePicker('inspection_date_from_display')">
                                             <i class="fas fa-calendar-alt"></i>
                                         </button>
                                     </div>
@@ -8021,7 +8021,7 @@
                                         <input type="hidden" name="inspection_date_to"
                                             value="{{ request.GET.inspection_date_to }}">
                                         <button type="button" class="date-picker-btn"
-                                            onclick="openDatePicker('inspection_date_to_display')">
+                                            onclick="event.stopPropagation(); openDatePicker('inspection_date_to_display')">
                                             <i class="fas fa-calendar-alt"></i>
                                         </button>
                                     </div>
@@ -16407,9 +16407,9 @@
 
                     let html = `
                 <div class="calendar-header">
-                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(-1)">‹</button>
+                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
                     <div class="calendar-month-year">${monthNames[displayedMonth]} ${displayedYear}</div>
-                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(1)">›</button>
+                    <button type="button" class="calendar-nav" onclick="event.stopPropagation(); changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
                 </div>
                 <div class="calendar-grid">
             `;
