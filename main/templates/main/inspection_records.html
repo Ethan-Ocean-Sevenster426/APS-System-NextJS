@@ -137,6 +137,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
+            --primary: #007890;
             --primary-light: #e6f3f7;
             --secondary: #EC343C;
             --danger: #EC343C;
@@ -7884,13 +7885,6 @@
                     {% else %}
                     <a href="{% url 'home' %}" class="btn btn-primary">
                         <i class="fas fa-home"></i> Home
-                    </a>
-                    {% endif %}
-
-                    <!-- Analytics Button -->
-                    {% if request.user.role != 'inspector' %}
-                    <a href="{% url 'analytics_dashboard' %}" class="btn btn-secondary">
-                        <i class="fas fa-chart-line"></i> Analytics
                     </a>
                     {% endif %}
 
@@ -16340,8 +16334,13 @@
                 // Date picker functionality with DD/MM/YYYY format
                 let currentCalendar = null;
                 let currentInput = null;
+                let displayedMonth = new Date().getMonth();
+                let displayedYear = new Date().getFullYear();
 
                 function openDatePicker(inputName) {
+                    // Reset to current month when opening
+                    displayedMonth = new Date().getMonth();
+                    displayedYear = new Date().getFullYear();
                     // Close any existing calendar
                     if (currentCalendar) {
                         currentCalendar.remove();
@@ -16398,8 +16397,6 @@
 
                 function generateCalendarHTML() {
                     const today = new Date();
-                    const currentMonth = today.getMonth();
-                    const currentYear = today.getFullYear();
 
                     const monthNames = [
                         'January', 'February', 'March', 'April', 'May', 'June',
@@ -16410,9 +16407,9 @@
 
                     let html = `
                 <div class="calendar-header">
-                    <button class="calendar-nav" onclick="changeMonth(-1)">‹</button>
-                    <div class="calendar-month-year">${monthNames[currentMonth]} ${currentYear}</div>
-                    <button class="calendar-nav" onclick="changeMonth(1)">›</button>
+                    <button type="button" class="calendar-nav" onclick="changeMonth(-1)">‹</button>
+                    <div class="calendar-month-year">${monthNames[displayedMonth]} ${displayedYear}</div>
+                    <button type="button" class="calendar-nav" onclick="changeMonth(1)">›</button>
                 </div>
                 <div class="calendar-grid">
             `;
@@ -16423,8 +16420,8 @@
                     });
 
                     // Calendar days
-                    const firstDay = new Date(currentYear, currentMonth, 1);
-                    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                    const firstDay = new Date(displayedYear, displayedMonth, 1);
+                    const lastDay = new Date(displayedYear, displayedMonth + 1, 0);
                     const startDate = new Date(firstDay);
                     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
@@ -16432,9 +16429,9 @@
                         const date = new Date(startDate);
                         date.setDate(startDate.getDate() + i);
 
-                        const isCurrentMonth = date.getMonth() === currentMonth;
+                        const isCurrentMonth = date.getMonth() === displayedMonth;
                         const isToday = date.toDateString() === today.toDateString();
-                        const isSelected = currentInput.value === formatDateDDMMYYYY(date);
+                        const isSelected = currentInput && currentInput.value === formatDateDDMMYYYY(date);
 
                         let classes = 'calendar-day';
                         if (!isCurrentMonth) classes += ' other-month';
@@ -16451,8 +16448,14 @@
                 function setupCalendarEvents(calendar) {
                     // Month navigation
                     window.changeMonth = function (direction) {
-                        // This would need to be implemented to change months
-                        // For now, just regenerate the calendar
+                        displayedMonth += direction;
+                        if (displayedMonth > 11) {
+                            displayedMonth = 0;
+                            displayedYear++;
+                        } else if (displayedMonth < 0) {
+                            displayedMonth = 11;
+                            displayedYear--;
+                        }
                         calendar.innerHTML = generateCalendarHTML();
                         setupCalendarEvents(calendar);
                     };

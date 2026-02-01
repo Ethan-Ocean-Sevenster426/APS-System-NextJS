@@ -2855,10 +2855,11 @@ def shipment_list(request):
 
         grouped_inspections.append(representative_inspection)
     
-    # Cache filter options
-    filter_cache_key = "filter_options"
+    # Cache filter options - use role-specific cache key so each role sees appropriate options
+    user_role = getattr(request.user, 'role', 'unknown')
+    filter_cache_key = f"filter_options_{user_role}_{request.user.id}"
     filter_data = cache.get(filter_cache_key)
-    
+
     if not filter_data:
         # Get unique values for filters efficiently - LIMIT TO PREVENT LARGE RESPONSES
         inspectors = list(inspections.filter(inspector_name__isnull=False, inspector_name__gt='').values_list('inspector_name', flat=True).distinct().order_by('inspector_name')[:100])
