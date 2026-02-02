@@ -1054,23 +1054,35 @@
             }
         }
 
-        /* Mobile action-bar styles - show buttons in a scrollable row */
+        /* Mobile action-bar styles - stack buttons vertically */
         @media (max-width: 1024px) {
             .action-bar {
                 display: flex !important;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                flex-direction: column;
                 gap: 8px;
                 padding: 10px 5px;
                 margin-bottom: 10px;
             }
 
             .action-bar .btn {
-                flex-shrink: 0;
-                font-size: 12px;
-                padding: 8px 12px;
-                white-space: nowrap;
+                width: 100%;
+                font-size: 14px;
+                padding: 12px 16px;
+                justify-content: center;
+            }
+
+            /* Order buttons on mobile: Add Inspection first, then others */
+            .action-bar .btn-add-inspection {
+                order: 1;
+            }
+            .action-bar .btn-primary {
+                order: 2;
+            }
+            .action-bar .btn-secondary {
+                order: 3;
+            }
+            .action-bar .btn-allocation {
+                order: 4;
             }
         }
 
@@ -7920,7 +7932,7 @@
 
                     <!-- Add Inspection Button -->
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
-                    <a href="{% url 'add_fsa_inspection' %}" class="btn" style="background: #22c55e; color: white;"
+                    <a href="{% url 'add_fsa_inspection' %}" class="btn btn-add-inspection" style="background: #22c55e; color: white;"
                         onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
                         <i class="fas fa-plus"></i> Add Inspection
                     </a>
