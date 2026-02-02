@@ -1071,18 +1071,24 @@
                 justify-content: center;
             }
 
-            /* Order buttons on mobile: Add Inspection first, then others */
-            .action-bar .btn-add-inspection {
+            /* Order buttons on mobile: Home, Expand, Collapse, Add Inspection, then others */
+            .action-bar .btn-primary {
                 order: 1;
             }
-            .action-bar .btn-primary {
+            .action-bar .btn-expand {
                 order: 2;
             }
-            .action-bar .btn-secondary {
+            .action-bar .btn-collapse {
                 order: 3;
             }
-            .action-bar .btn-allocation {
+            .action-bar .btn-add-inspection {
                 order: 4;
+            }
+            .action-bar .btn-secondary {
+                order: 5;
+            }
+            .action-bar .btn-allocation {
+                order: 6;
             }
         }
 
@@ -7921,12 +7927,12 @@
                     {% endif %}
 
                     <!-- Expand All Button (SECOND) -->
-                    <button type="button" class="btn btn-secondary" onclick="expandAll()">
+                    <button type="button" class="btn btn-secondary btn-expand" onclick="expandAll()">
                         <i class="fas fa-expand-alt"></i> Expand All
                     </button>
 
                     <!-- Collapse All Button -->
-                    <button type="button" class="btn btn-secondary" onclick="collapseAll()">
+                    <button type="button" class="btn btn-secondary btn-collapse" onclick="collapseAll()">
                         <i class="fas fa-compress-alt"></i> Collapse All
                     </button>
 
