@@ -1054,41 +1054,30 @@
             }
         }
 
-        /* Mobile action-bar styles - stack buttons vertically */
+        /* Hide mobile action buttons on desktop */
+        .mobile-action-buttons {
+            display: none;
+        }
+
+        /* Mobile styles */
         @media (max-width: 1024px) {
+            /* Hide desktop action-bar on mobile */
             .action-bar {
-                display: flex !important;
+                display: none !important;
+            }
+
+            /* Show mobile action buttons in filter section */
+            .mobile-action-buttons {
+                display: flex;
                 flex-direction: column;
                 gap: 8px;
-                padding: 10px 5px;
-                margin-bottom: 10px;
-            }
-
-            .action-bar .btn {
                 width: 100%;
-                font-size: 14px;
-                padding: 12px 16px;
-                justify-content: center;
+                margin-top: 10px;
             }
 
-            /* Order buttons on mobile: Home, Expand, Collapse, Add Inspection, then others */
-            .action-bar .btn-primary {
-                order: 1;
-            }
-            .action-bar .btn-expand {
-                order: 2;
-            }
-            .action-bar .btn-collapse {
-                order: 3;
-            }
-            .action-bar .btn-add-inspection {
-                order: 4;
-            }
-            .action-bar .btn-secondary {
-                order: 5;
-            }
-            .action-bar .btn-allocation {
-                order: 6;
+            .mobile-action-buttons .btn {
+                width: 100%;
+                justify-content: center;
             }
         }
 
@@ -8089,6 +8078,30 @@
                                     <i class="fas fa-list"></i> Show Paginated
                                 </a>
                                 {% endif %}
+
+                                <!-- Mobile-only action buttons -->
+                                <div class="mobile-action-buttons">
+                                    {% if request.user.role == 'inspector' %}
+                                    <a href="{% url 'inspector_dashboard' %}" class="btn btn-primary" style="padding: 8px 16px; font-size: 14px;">
+                                        <i class="fas fa-home"></i> My Home
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'home' %}" class="btn btn-primary" style="padding: 8px 16px; font-size: 14px;">
+                                        <i class="fas fa-home"></i> Home
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="expandAll()">
+                                        <i class="fas fa-expand-alt"></i> Expand All
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="collapseAll()">
+                                        <i class="fas fa-compress-alt"></i> Collapse All
+                                    </button>
+                                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
+                                    <a href="{% url 'add_fsa_inspection' %}" class="btn" style="background: #22c55e; color: white; padding: 8px 16px; font-size: 14px;">
+                                        <i class="fas fa-plus"></i> Add Inspection
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </form>
                     </div>
