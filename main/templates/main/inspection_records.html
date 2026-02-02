@@ -7942,16 +7942,6 @@
                         <i class="fas fa-list-alt"></i> System Logs
                     </a>
                     {% endif %}
-
-
-                    <!-- Logout Button (Matching Other Buttons) -->
-                    <form action="{% url 'logout' %}" method="post" class="logout-form" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-logout"
-                            style="background-color: white; color: var(--danger); border: 1px solid #ddd;">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
-                    </form>
                 </div>
 
                 <!-- Filter Card -->
