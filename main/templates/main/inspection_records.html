@@ -1054,10 +1054,23 @@
             }
         }
 
-        /* Hide action-bar navigation on mobile devices since sidebar already has these options */
+        /* Mobile action-bar styles - show buttons in a scrollable row */
         @media (max-width: 1024px) {
             .action-bar {
-                display: none !important;
+                display: flex !important;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                gap: 8px;
+                padding: 10px 5px;
+                margin-bottom: 10px;
+            }
+
+            .action-bar .btn {
+                flex-shrink: 0;
+                font-size: 12px;
+                padding: 8px 12px;
+                white-space: nowrap;
             }
         }
 
