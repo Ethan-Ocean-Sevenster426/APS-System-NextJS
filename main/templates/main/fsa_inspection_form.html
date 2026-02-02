@@ -777,6 +777,26 @@
                 /* Prevent iOS zoom on focus */
             }
 
+            /* Email input row - fix button size on mobile */
+            .email-input-row {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: stretch;
+            }
+
+            .email-input-row .form-control {
+                flex: 1 1 auto !important;
+                min-width: 0;
+                width: auto !important;
+            }
+
+            .email-input-row .btn {
+                width: auto !important;
+                flex: 0 0 auto !important;
+                padding: 10px 14px !important;
+                min-width: 44px;
+            }
+
             .form-label {
                 font-size: 13px;
             }
