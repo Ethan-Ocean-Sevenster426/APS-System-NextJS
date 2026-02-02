@@ -1068,7 +1068,11 @@
 
             /* Show mobile action buttons in filter section */
             .mobile-action-buttons {
+                display: -webkit-flex;
+                display: -ms-flexbox;
                 display: flex;
+                -webkit-flex-direction: column;
+                -ms-flex-direction: column;
                 flex-direction: column;
                 gap: 8px;
                 width: 100%;
@@ -1077,7 +1081,27 @@
 
             .mobile-action-buttons .btn {
                 width: 100%;
+                display: -webkit-flex;
+                display: -ms-flexbox;
+                display: flex;
+                -webkit-justify-content: center;
+                -ms-flex-pack: center;
                 justify-content: center;
+                -webkit-align-items: center;
+                -ms-flex-align: center;
+                align-items: center;
+                min-height: 44px;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                cursor: pointer;
+                text-decoration: none;
+            }
+
+            /* Add Inspection button - make it stand out on mobile */
+            .mobile-action-buttons .btn[style*="22c55e"] {
+                font-weight: 600;
+                min-height: 48px;
+                font-size: 16px !important;
             }
         }
 
@@ -8097,8 +8121,10 @@
                                         <i class="fas fa-compress-alt"></i> Collapse All
                                     </button>
                                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
-                                    <a href="{% url 'add_fsa_inspection' %}" class="btn" style="background: #22c55e; color: white; padding: 8px 16px; font-size: 14px;">
-                                        <i class="fas fa-plus"></i> Add Inspection
+                                    <a href="{% url 'add_fsa_inspection' %}" class="btn btn-add-inspection-mobile"
+                                       style="background: #22c55e; color: white; padding: 12px 16px; font-size: 16px; font-weight: 600; border-radius: 8px;"
+                                       role="button">
+                                        <i class="fas fa-plus" style="margin-right: 8px;"></i> Add Inspection
                                     </a>
                                     {% endif %}
                                 </div>
