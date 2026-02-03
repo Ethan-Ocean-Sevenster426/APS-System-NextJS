@@ -2316,13 +2316,13 @@
                             <label class="form-label">Product Name <span style="color: #ef4444;">*</span></label>
                             <input type="text" class="form-control" value="${productNameValue}" placeholder="${isPoultryOrEggs ? 'e.g., Whole Chicken, Fresh Eggs' : 'e.g., Mince, Burger Patties'}"
                                    oninput="updateProductData(${idx}, 'product_name', this.value); validateStep2()"
-                                   data-product-idx="${idx}" data-field="product_name" required>
+                                   data-product-idx="${idx}" data-field="product_name">
                         </div>
                         ${!isPoultryOrEggs ? `
                         <div class="form-group">
                             <label class="form-label">Product Class <span style="color: #ef4444;">*</span></label>
                             <select class="form-control" onchange="updateProductData(${idx}, 'product_class', this.value); validateStep2()"
-                                    data-product-idx="${idx}" data-field="product_class" required>
+                                    data-product-idx="${idx}" data-field="product_class">
                                 <option value="">-- Select Product Class --</option>
                                 ${product.commodity === 'RAW' ? `
                                     <option value="Extra Lean Mince" ${productClassValue === 'Extra Lean Mince' ? 'selected' : ''}>Extra Lean Mince</option>
