@@ -8254,23 +8254,11 @@
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <span class="text-gray-500">Distance:</span>
-                                            <input type="number"
-                                                class="group-km-input text-xs border border-gray-300 rounded px-2 py-1 w-20"
-                                                data-group-id="{{ fallback_group_id }}"
-                                                value="{{ shipment.km_traveled|default:'' }}" placeholder="0.0"
-                                                step="0.1" min="0" onchange="updateGroupKmTraveled(this)"
-                                                onblur="updateGroupKmTraveled(this)" title="Total kilometers traveled">
-                                            <span class="text-xs text-gray-500 ml-1">km</span>
+                                            <span class="font-medium">{{ shipment.km_traveled|default:"0" }} km</span>
                                         </div>
                                         <div class="flex justify-between items-center">
                                             <span class="text-gray-500">Hours:</span>
-                                            <input type="number"
-                                                class="group-hours-input text-xs border border-gray-300 rounded px-2 py-1 w-20"
-                                                data-group-id="{{ fallback_group_id }}"
-                                                value="{{ shipment.hours|default:'' }}" placeholder="0.0" step="0.1"
-                                                min="0" onchange="updateGroupHours(this)"
-                                                onblur="updateGroupHours(this)" title="Total hours worked">
-                                            <span class="text-xs text-gray-500 ml-1">hrs</span>
+                                            <span class="font-medium">{{ shipment.hours|default:"0" }} hrs</span>
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-gray-500">Approved:</span>
@@ -8307,213 +8295,14 @@
                                             onclick="if(typeof openFilesPopup === 'function') { openFilesPopup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d"|escapejs }}'); } else { console.warn('openFilesPopup not loaded yet'); }">
                                             <i class="fas fa-eye mr-2"></i> View Files
                                         </button>
-                                        <div class="grid grid-cols-1 gap-2">
-                                            {% if request.user.role == 'lab_technician' %}
-                                            <!-- Lab technician: RFI disabled -->
-                                            <button id="rfi-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for lab technicians">
-                                                <i class="fas fa-ban mr-1"></i> RFI
-                                            </button>
-                                            {% elif shipment.is_occurrence_report %}
-                                            <button id="rfi-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Disabled for occurrence reports">
-                                                <i class="fas fa-ban mr-1"></i> RFI
-                                            </button>
-                                            {% elif shipment.rfi_uploaded %}
-                                            <button id="rfi-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="RFI file exists">
-                                                <i class="fas fa-check mr-1"></i> RFI
-                                            </button>
-                                            {% else %}
-                                            <button id="rfi-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadRfiForInspection('{{ shipment.products.0.id }}', '{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload RFI">
-                                                <i class="fas fa-file-alt mr-1"></i> RFI
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                        <div class="mt-2">
-                                            {% if request.user.role == 'lab_technician' %}
-                                            <!-- Lab technician: Invoice disabled -->
-                                            <button id="invoice-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for lab technicians">
-                                                <i class="fas fa-ban mr-1"></i> Invoice
-                                            </button>
-                                            {% elif request.user.role == 'inspector' %}
-                                            <!-- Inspector: Invoice disabled -->
-                                            <button id="invoice-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for inspectors">
-                                                <i class="fas fa-ban mr-1"></i> Invoice
-                                            </button>
-                                            {% elif shipment.is_occurrence_report %}
-                                            <button id="invoice-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Disabled for occurrence reports">
-                                                <i class="fas fa-ban mr-1"></i> Invoice
-                                            </button>
-                                            {% elif shipment.invoice_uploaded %}
-                                            <button id="invoice-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="Invoice file exists">
-                                                <i class="fas fa-check mr-1"></i> Invoice
-                                            </button>
-                                            {% else %}
-                                            <button id="invoice-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadInvoice('{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload Invoice">
-                                                <i class="fas fa-file-invoice mr-1"></i> Invoice
-                                            </button>
-                                            {% endif %}
-                                        </div>
 
-                                        <!-- Retest Button (mobile card) -->
-                                        <div class="mt-2">
-                                            {% if shipment.is_occurrence_report %}
-                                            <button id="retest-btn-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Disabled for occurrence reports">
-                                                <i class="fas fa-ban mr-1"></i> Retest
-                                            </button>
-                                            {% elif shipment.retest_uploaded %}
-                                            <button id="retest-btn-{{ fallback_group_id }}"
-                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="Retest file exists">
-                                                <i class="fas fa-check mr-1"></i> Retest
-                                            </button>
-                                            {% else %}
-                                            <button id="retest-btn-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadRetestForInspection(null, '{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload Retest">
-                                                <i class="fas fa-redo mr-1"></i> Retest
-                                            </button>
-                                            {% endif %}
-                                        </div>
-
-                                        <!-- Occurrence Button (mobile card) - Only show for occurrence reports -->
-                                        {% if shipment.is_occurrence_report %}
-                                        <div class="mt-2">
-                                            {% if request.user.role == 'lab_technician' %}
-                                            <!-- Lab technician: Occurrence disabled -->
-                                            <button id="occurrence-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for lab technicians">
-                                                <i class="fas fa-ban mr-1"></i> Occurrence
-                                            </button>
-                                            {% elif shipment.occurrence_uploaded %}
-                                            <button id="occurrence-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="Occurrence file exists">
-                                                <i class="fas fa-check mr-1"></i> Occurrence
-                                            </button>
-                                            {% else %}
-                                            <button id="occurrence-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadOccurrence('{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload Occurrence">
-                                                <i class="fas fa-exclamation-triangle mr-1"></i> Occurrence
-                                            </button>
-                                            {% endif %}
+                                        <!-- Comment (view only on mobile) -->
+                                        {% if shipment.comment %}
+                                        <div class="mt-3">
+                                            <span class="text-gray-500 text-xs">Comment:</span>
+                                            <p class="text-sm text-gray-700 mt-1">{{ shipment.comment }}</p>
                                         </div>
                                         {% endif %}
-
-                                        <!-- Composition Button (mobile card) -->
-                                        <div class="mt-2">
-                                            {% if request.user.role == 'lab_technician' %}
-                                            <!-- Lab technician: Composition disabled -->
-                                            <button id="composition-mobile-{{ fallback_group_id }}"
-                                                class="composition-btn w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for lab technicians">
-                                                <i class="fas fa-ban mr-1"></i> Composition
-                                            </button>
-                                            {% elif shipment.is_occurrence_report %}
-                                            <button id="composition-mobile-{{ fallback_group_id }}"
-                                                class="composition-btn w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Disabled for occurrence reports">
-                                                <i class="fas fa-ban mr-1"></i> Composition
-                                            </button>
-                                            {% elif shipment.composition_uploaded %}
-                                            <button id="composition-mobile-{{ fallback_group_id }}"
-                                                class="composition-btn w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="Composition file exists">
-                                                <i class="fas fa-check mr-1"></i> Composition
-                                            </button>
-                                            {% else %}
-                                            <button id="composition-mobile-{{ fallback_group_id }}"
-                                                class="composition-btn w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadComposition('{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload Composition">
-                                                <i class="fas fa-flask mr-1"></i> Composition
-                                            </button>
-                                            {% endif %}
-                                        </div>
-
-                                        <!-- Compliance Button (mobile card) -->
-                                        <div class="mt-2">
-                                            {% if request.user.role == 'lab_technician' %}
-                                            <!-- Lab technician: Compliance disabled -->
-                                            <button id="compliance-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Not available for lab technicians">
-                                                <i class="fas fa-ban mr-1"></i> Compliance
-                                            </button>
-                                            {% elif shipment.is_occurrence_report %}
-                                            <button id="compliance-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
-                                                disabled title="Disabled for occurrence reports">
-                                                <i class="fas fa-ban mr-1"></i> Compliance
-                                            </button>
-                                            {% elif shipment.has_compliance %}
-                                            <button id="compliance-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-green-500 text-white py-2 px-3 rounded-lg text-xs font-medium"
-                                                style="background-color: #28a745; border-color: #28a745; color: white;"
-                                                disabled title="Compliance file exists">
-                                                <i class="fas fa-check mr-1"></i> Compliance
-                                            </button>
-                                            {% else %}
-                                            <button id="compliance-mobile-{{ fallback_group_id }}"
-                                                class="w-full bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200"
-                                                onclick="uploadComplianceForInspection(null, '{{ fallback_group_id|escapejs }}')"
-                                                data-client-name="{{ shipment.client_name }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
-                                                title="Upload Compliance">
-                                                <i class="fas fa-shield-alt mr-1"></i> Compliance
-                                            </button>
-                                            {% endif %}
-                                        </div>
-
-                                        <!-- Comment Input (mobile card) -->
-                                        <div class="mt-3">
-                                            <label class="block text-gray-600 font-medium mb-1 text-xs">Comment</label>
-                                            <input type="text"
-                                                class="form-control form-control-sm group-comment-input w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                data-group-id="{{ fallback_group_id }}"
-                                                value="{{ shipment.comment|default:'' }}" placeholder="Add comment..."
-                                                onchange="updateGroupComment(this)" onblur="updateGroupComment(this)"
-                                                title="Comment for this inspection group">
-                                        </div>
                                     </div>
                                 </div>
 
