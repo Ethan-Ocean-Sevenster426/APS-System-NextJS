@@ -2539,8 +2539,8 @@
             km_traveled: parseFloat('{{ form.km_traveled.value|default:"1" }}') || 1,
             hours: parseFloat('{{ form.hours.value|default:"1" }}') || 1,
             time_traveled: 0,  // time_traveled is not stored in database, only used in UI
-            travel_start_time: '{{ form.travel_start_time.value|default:"" }}',
-            travel_end_time: '{{ form.travel_end_time.value|default:"" }}'
+            travel_start_time: '{% if form.instance.inspection_group.travel_start_time %}{{ form.instance.inspection_group.travel_start_time|time:"H:i" }}{% endif %}',
+            travel_end_time: '{% if form.instance.inspection_group.travel_end_time %}{{ form.instance.inspection_group.travel_end_time|time:"H:i" }}{% endif %}'
         };
 
         // Calculate time traveled from start and end times
