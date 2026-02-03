@@ -1448,7 +1448,8 @@
                             Next <i class="fas fa-arrow-right"></i>
                         </button>
                         <button type="submit" id="submitBtn" class="btn btn-primary"
-                            style="display: none; opacity: 0.5; cursor: not-allowed;" disabled>
+                            style="display: none; opacity: 0.5; cursor: not-allowed; -webkit-tap-highlight-color: transparent; touch-action: manipulation; min-height: 44px; min-width: 44px;"
+                            disabled>
                             <i class="fas fa-save"></i> Save Inspection
                         </button>
                     </div>
@@ -3872,18 +3873,24 @@
             if (missingFields.length > 0) {
                 // Disable submit button
                 submitBtn.disabled = true;
+                submitBtn.setAttribute('disabled', 'disabled');
                 submitBtn.style.opacity = '0.5';
                 submitBtn.style.cursor = 'not-allowed';
+                submitBtn.style.pointerEvents = 'none';
 
                 // Show warning with missing fields
                 validationWarning.style.display = 'block';
                 validationSuccess.style.display = 'none';
                 missingFieldsList.innerHTML = missingFields.map(field => `<li>${field}</li>`).join('');
             } else {
-                // Enable submit button
+                // Enable submit button - ensure it's fully clickable
                 submitBtn.disabled = false;
+                submitBtn.removeAttribute('disabled');
                 submitBtn.style.opacity = '1';
                 submitBtn.style.cursor = 'pointer';
+                submitBtn.style.pointerEvents = 'auto';
+
+                console.log('✅ Submit button enabled - ready to save');
 
                 // Show success message
                 validationWarning.style.display = 'none';
@@ -4868,8 +4875,35 @@
             // Validate Step 1 on page load (start with button disabled if fields empty)
             validateStep1();
 
+            // Add explicit click handler for submit button (mobile support)
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', function(e) {
+                    console.log('📱 Submit button clicked');
+                    console.log('📱 Button disabled state:', this.disabled);
+                    if (this.disabled) {
+                        console.log('📱 Button is disabled, preventing submission');
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+
+                // Also add touchend for mobile
+                submitBtn.addEventListener('touchend', function(e) {
+                    console.log('📱 Submit button touched');
+                    if (!this.disabled) {
+                        console.log('📱 Triggering form submit via touch');
+                        // Small delay to allow touch event to complete
+                        setTimeout(() => {
+                            document.getElementById('inspectionForm').submit();
+                        }, 100);
+                    }
+                });
+            }
+
             // Clear storage and set defaults on form submission
             form.addEventListener('submit', function (e) {
+                console.log('📋 Form submit event triggered');
                 // Validate required fields before submit
                 const missingFields = validateRequiredFields();
                 if (missingFields.length > 0) {
