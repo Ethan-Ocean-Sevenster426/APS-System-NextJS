@@ -17273,3 +17273,11 @@ def reset_password_confirm(request, uidb64, token):
         # Invalid or expired token
         messages.error(request, 'This password reset link is invalid or has expired. Please request a new one.')
         return redirect('forgot_password')
+
+
+def csrf_failure(request, reason=""):
+    """Custom CSRF failure page — replaces Django's verbose default."""
+    from django.http import HttpResponseForbidden
+    return HttpResponseForbidden(
+        render(request, 'main/csrf_failure.html').content
+    )

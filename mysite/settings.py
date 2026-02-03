@@ -42,7 +42,7 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Prevent session issues with CSRF
 
 # CSRF Settings for better security and to prevent CSRF failures
 CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=False)  # Set to True if using HTTPS
-CSRF_COOKIE_HTTPONLY = env.bool('CSRF_COOKIE_HTTPONLY', default=True)  # Prevent JavaScript access to CSRF token
+CSRF_COOKIE_HTTPONLY = env.bool('CSRF_COOKIE_HTTPONLY', default=False)  # Must be False so AJAX can read the token
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_AGE = 86400  # 24 hours
 CSRF_COOKIE_NAME = 'csrftoken'  # Default CSRF cookie name
@@ -61,6 +61,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://v4-project.moc-pty.com',
 ]
 
+CSRF_FAILURE_VIEW = 'main.views.core_views.csrf_failure'
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', '82.25.97.159', '167.88.43.168', 'v4-project.moc-pty.com'])
 
