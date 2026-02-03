@@ -378,6 +378,8 @@ class InspectionGroup(models.Model):
     comment = models.TextField(blank=True, null=True, help_text="Comment for this group")
     km_traveled = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Kilometers traveled")
     hours = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Hours worked")
+    travel_start_time = models.TimeField(blank=True, null=True, help_text="Travel start time")
+    travel_end_time = models.TimeField(blank=True, null=True, help_text="Travel end time")
 
     # Flags
     is_manual = models.BooleanField(default=True, help_text="Manually created (vs synced from server)")
