@@ -3838,9 +3838,24 @@
                 missingFields.push('RFI Document');
             }
 
-            // Time Traveled, Kilometers, and Hours are now OPTIONAL
-            // These fields are no longer required to submit the inspection
-            // Inspectors can add them later if needed
+            // Check Travel Times, Kilometers, and Hours - REQUIRED fields
+            const travelStartTime = document.getElementById('travel_start_time')?.value;
+            const travelEndTime = document.getElementById('travel_end_time')?.value;
+            const kmTraveled = document.querySelector('[name="km_traveled"]')?.value;
+            const hours = document.querySelector('[name="hours"]')?.value;
+
+            if (!travelStartTime) {
+                missingFields.push('Travel Start Time');
+            }
+            if (!travelEndTime) {
+                missingFields.push('Travel End Time');
+            }
+            if (!kmTraveled || parseFloat(kmTraveled) <= 0) {
+                missingFields.push('Kilometers Traveled');
+            }
+            if (!hours || parseFloat(hours) <= 0) {
+                missingFields.push('Hours Worked');
+            }
 
             return missingFields;
         }
