@@ -9641,30 +9641,32 @@
                     window.addEmailInput = window.addEmailInput || stub('addEmailInput');
                     window.removeEmailInput = window.removeEmailInput || stub('removeEmailInput');
 
-                    // Inspector multi-select dropdown functions
-                    function toggleInspectorDropdown() {
+                    // Inspector multi-select dropdown functions - exposed to window for onclick handlers
+                    window.toggleInspectorDropdown = function() {
                         const dropdown = document.getElementById('inspectorDropdown');
-                        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                    }
+                        if (dropdown) {
+                            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                        }
+                    };
 
-                    function toggleAllInspectors(selectAllCheckbox) {
+                    window.toggleAllInspectors = function(selectAllCheckbox) {
                         const checkboxes = document.querySelectorAll('.inspector-checkbox');
                         checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
-                        updateInspectorText();
-                    }
+                        window.updateInspectorText();
+                    };
 
-                    function updateInspectorText() {
+                    window.updateInspectorText = function() {
                         const checkboxes = document.querySelectorAll('.inspector-checkbox');
                         const checked = document.querySelectorAll('.inspector-checkbox:checked');
                         const textEl = document.getElementById('inspectorSelectText');
                         const selectAllCheckbox = document.getElementById('selectAllInspectors');
 
                         if (checked.length === 0) {
-                            textEl.textContent = 'All Inspectors';
+                            if (textEl) textEl.textContent = 'All Inspectors';
                         } else if (checked.length === 1) {
-                            textEl.textContent = checked[0].value;
+                            if (textEl) textEl.textContent = checked[0].value;
                         } else {
-                            textEl.textContent = checked.length + ' selected';
+                            if (textEl) textEl.textContent = checked.length + ' selected';
                         }
 
                         // Update "Select All" checkbox state
@@ -9672,7 +9674,7 @@
                             selectAllCheckbox.checked = checked.length === checkboxes.length;
                             selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
                         }
-                    }
+                    };
 
                     // Close dropdown when clicking outside
                     document.addEventListener('click', function(e) {
@@ -9684,7 +9686,7 @@
                     });
 
                     // Initialize inspector checkboxes from URL params on page load
-                    (function() {
+                    document.addEventListener('DOMContentLoaded', function() {
                         const params = new URLSearchParams(window.location.search);
                         const selectedInspectors = params.getAll('branch');
                         if (selectedInspectors.length > 0) {
@@ -9692,9 +9694,9 @@
                                 const checkbox = document.querySelector(`.inspector-checkbox[value="${inspector}"]`);
                                 if (checkbox) checkbox.checked = true;
                             });
-                            updateInspectorText();
+                            window.updateInspectorText();
                         }
-                    })();
+                    });
 
                     // Basic safe initializer for existing inputs so inline handlers don't fail
                     document.addEventListener('DOMContentLoaded', function () {
