@@ -858,6 +858,8 @@ def add_fsa_inspection(request):
                         comment=form.cleaned_data.get('comment', ''),
                         km_traveled=float(request.POST.get('km_traveled', 0) or 0),
                         hours=float(request.POST.get('hours', 0) or 0),
+                        travel_start_time=request.POST.get('travel_start_time') or None,
+                        travel_end_time=request.POST.get('travel_end_time') or None,
                         is_manual=True,
                     )
 
@@ -1220,6 +1222,25 @@ def edit_fsa_inspection(request, pk):
                     inspection.occurrence_uploaded_by = original_occurrence_by
                     inspection.save()
                     print(f"[EDIT FORM DEBUG] Preserved upload tracking fields during form save")
+
+                    # Update the parent InspectionGroup with shared fields
+                    if inspection.inspection_group:
+                        parent_group = inspection.inspection_group
+                        parent_group.client_name = form.cleaned_data.get('client_name')
+                        parent_group.date_of_inspection = form.cleaned_data.get('date_of_inspection')
+                        parent_group.inspector_name = form.cleaned_data.get('inspector_name', '')
+                        parent_group.town = form.cleaned_data.get('town', '')
+                        parent_group.facility_type = request.POST.get('facility_type', '')
+                        parent_group.group_type = request.POST.get('group_type', '')
+                        parent_group.corporate_group = request.POST.get('corporate_group', '')
+                        parent_group.additional_email = request.POST.get('additional_email', '')
+                        parent_group.comment = form.cleaned_data.get('comment', '')
+                        parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
+                        parent_group.hours = float(request.POST.get('hours', 0) or 0)
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.save()
+                        print(f"[EDIT FORM DEBUG] Updated parent InspectionGroup #{parent_group.id} with shared fields")
 
                     # Delete inspections that are no longer needed
                     for rel_insp in inspections_to_delete:
