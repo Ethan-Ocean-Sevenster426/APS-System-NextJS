@@ -7808,6 +7808,15 @@
                         Collapse All
                     </button>
                 </li>
+                <li class="nav-item">
+                    <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link" style="width: 100%; text-align: left; background: none; border: none; padding: 0.75rem 1rem; color: #f1f5f9; cursor: pointer;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Logout
+                        </button>
+                    </form>
+                </li>
                 {% else %}
                 <!-- Full menu for non-inspector users -->
                 <li class="nav-item">
@@ -9262,8 +9271,8 @@
                                                                     style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
                                                                     disabled title="Not available for lab technicians">Occurrence</button>{% endif %}
                                                                 <button data-upload-btn="other-{{ product.id }}"
-                                                                    style="padding: 6px 14px; background: #d1d5db; color: #9ca3af; border: none; border-radius: 4px; cursor: not-allowed; font-size: 9px;"
-                                                                    disabled title="Not available for lab technicians">Other</button>
+                                                                    style="padding: 6px 14px; background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 9px;"
+                                                                    onclick="event.stopPropagation(); uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">Other</button>
                                                                 {% elif request.user.role == 'inspector' or request.user.role == 'admin' %}
                                                                 <!-- Inspector/Admin: All enabled EXCEPT COA/Lab, Lab Form, Retest -->
                                                                 <button data-upload-btn="compliance-{{ product.id }}"
