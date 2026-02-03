@@ -8421,6 +8421,13 @@
                                                             <span class="text-gray-500">Commodity:</span>
                                                             <span class="font-medium">{{ product.commodity|default:"-" }}</span>
                                                         </div>
+                                                        <!-- Hide Class row for POULTRY/EGGS -->
+                                                        {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
+                                                        <div>
+                                                            <span class="text-gray-500">Class:</span>
+                                                            <span class="font-medium">{{ product.product_class|default:"-" }}</span>
+                                                        </div>
+                                                        {% endif %}
                                                         <!-- Hide Sample row for POULTRY/EGGS -->
                                                         {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div>
@@ -8949,9 +8956,13 @@
                                                                     <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"N/A"|truncatechars:12 }}</span>
                                                                 </div>
                                                                 <div
-                                                                    style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                                    style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
                                                                     Product: <span
                                                                         style="font-weight: 600; color: #374151;">{{ product.product_name|default:"N/A"|truncatechars:16 }}</span></div>
+                                                                {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
+                                                                <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
+                                                                    Class: <span style="font-weight: 600; color: #374151;">{{ product.product_class|default:"N/A"|truncatechars:18 }}</span></div>
+                                                                {% endif %}
                                                                 <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
                                                                     <!-- Sample Compliance Badge - Hide for POULTRY/EGGS -->
                                                                     {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
