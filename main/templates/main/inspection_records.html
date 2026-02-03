@@ -8041,27 +8041,52 @@
                                 <div class="filter-field">
                                     <label class="form-label">Inspector</label>
                                     <div class="multi-select-dropdown" style="position: relative;">
-                                        <button type="button" class="form-control" id="inspectorDropdownBtn" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+                                        <button type="button" class="form-control" id="inspectorDropdownBtn" onclick="var d=document.getElementById('inspectorDropdown'); d.style.display=d.style.display==='none'?'block':'none'; event.stopPropagation();" style="text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                                             <span id="inspectorSelectText">All Inspectors</span>
                                             <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
                                         </button>
                                         <div id="inspectorDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
                                             <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" id="selectAllInspectors">
+                                                    <input type="checkbox" id="selectAllInspectors" onclick="var cbs=document.querySelectorAll('.inspector-checkbox'); cbs.forEach(function(cb){cb.checked=this.checked;}.bind(this)); updateInspectorSelectText();">
                                                     <span style="font-weight: 600;">Select All</span>
                                                 </label>
                                             </div>
                                             {% for inspector in inspectors %}
                                             <div style="padding: 6px 8px;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox">
+                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox" onclick="updateInspectorSelectText();">
                                                     <span>{{ inspector }}</span>
                                                 </label>
                                             </div>
                                             {% endfor %}
                                         </div>
                                     </div>
+                                    <script>
+                                        function updateInspectorSelectText() {
+                                            var checked = document.querySelectorAll('.inspector-checkbox:checked');
+                                            var textEl = document.getElementById('inspectorSelectText');
+                                            var allCbs = document.querySelectorAll('.inspector-checkbox');
+                                            var selectAllCb = document.getElementById('selectAllInspectors');
+                                            if (checked.length === 0) {
+                                                textEl.textContent = 'All Inspectors';
+                                            } else if (checked.length === 1) {
+                                                textEl.textContent = checked[0].value;
+                                            } else {
+                                                textEl.textContent = checked.length + ' selected';
+                                            }
+                                            if (selectAllCb) {
+                                                selectAllCb.checked = checked.length === allCbs.length;
+                                            }
+                                        }
+                                        document.addEventListener('click', function(e) {
+                                            var dropdown = document.getElementById('inspectorDropdown');
+                                            var btn = document.getElementById('inspectorDropdownBtn');
+                                            if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                                                dropdown.style.display = 'none';
+                                            }
+                                        });
+                                    </script>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Corporate Group</label>
@@ -17162,6 +17187,7 @@
                     };
                 }
             </script>
+
 </body>
 
 </html>
