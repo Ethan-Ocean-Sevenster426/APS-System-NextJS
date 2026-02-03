@@ -4945,12 +4945,9 @@
             if (clientInput) clientInput.addEventListener('input', validateStep1);
             if (townInput) townInput.addEventListener('input', validateStep1);
 
-            const corporateGroupSelect = document.getElementById('corporate_group');
-            const groupTypeSelect = document.getElementById('group_type');
-            const facilityTypeSelect = document.getElementById('facility_type');
-            if (corporateGroupSelect) corporateGroupSelect.addEventListener('change', validateStep1);
-            if (groupTypeSelect) groupTypeSelect.addEventListener('change', validateStep1);
-            if (facilityTypeSelect) facilityTypeSelect.addEventListener('change', validateStep1);
+            document.getElementById('corporate_group')?.addEventListener('change', validateStep1);
+            document.getElementById('group_type')?.addEventListener('change', validateStep1);
+            document.getElementById('facility_type')?.addEventListener('change', validateStep1);
 
             // Validate Step 1 on page load (start with button disabled if fields empty)
             validateStep1();
