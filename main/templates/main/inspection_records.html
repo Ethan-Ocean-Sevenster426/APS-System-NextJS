@@ -8041,21 +8041,21 @@
                                 <div class="filter-field">
                                     <label class="form-label">Inspector</label>
                                     <div class="multi-select-dropdown" style="position: relative;">
-                                        <button type="button" class="form-control multi-select-btn" onclick="toggleInspectorDropdown()" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+                                        <button type="button" class="form-control" id="inspectorDropdownBtn" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
                                             <span id="inspectorSelectText">All Inspectors</span>
                                             <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
                                         </button>
                                         <div id="inspectorDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
                                             <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" id="selectAllInspectors" onchange="toggleAllInspectors(this)">
+                                                    <input type="checkbox" id="selectAllInspectors">
                                                     <span style="font-weight: 600;">Select All</span>
                                                 </label>
                                             </div>
                                             {% for inspector in inspectors %}
                                             <div style="padding: 6px 8px;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox" onchange="updateInspectorText()">
+                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox">
                                                     <span>{{ inspector }}</span>
                                                 </label>
                                             </div>
@@ -9641,52 +9641,62 @@
                     window.addEmailInput = window.addEmailInput || stub('addEmailInput');
                     window.removeEmailInput = window.removeEmailInput || stub('removeEmailInput');
 
-                    // Inspector multi-select dropdown functions - exposed to window for onclick handlers
-                    window.toggleInspectorDropdown = function() {
-                        const dropdown = document.getElementById('inspectorDropdown');
-                        if (dropdown) {
-                            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                        }
-                    };
-
-                    window.toggleAllInspectors = function(selectAllCheckbox) {
-                        const checkboxes = document.querySelectorAll('.inspector-checkbox');
-                        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
-                        window.updateInspectorText();
-                    };
-
-                    window.updateInspectorText = function() {
-                        const checkboxes = document.querySelectorAll('.inspector-checkbox');
-                        const checked = document.querySelectorAll('.inspector-checkbox:checked');
-                        const textEl = document.getElementById('inspectorSelectText');
-                        const selectAllCheckbox = document.getElementById('selectAllInspectors');
-
-                        if (checked.length === 0) {
-                            if (textEl) textEl.textContent = 'All Inspectors';
-                        } else if (checked.length === 1) {
-                            if (textEl) textEl.textContent = checked[0].value;
-                        } else {
-                            if (textEl) textEl.textContent = checked.length + ' selected';
-                        }
-
-                        // Update "Select All" checkbox state
-                        if (selectAllCheckbox) {
-                            selectAllCheckbox.checked = checked.length === checkboxes.length;
-                            selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
-                        }
-                    };
-
-                    // Close dropdown when clicking outside
-                    document.addEventListener('click', function(e) {
-                        const dropdown = document.getElementById('inspectorDropdown');
-                        const btn = document.querySelector('.multi-select-btn');
-                        if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-                            dropdown.style.display = 'none';
-                        }
-                    });
-
-                    // Initialize inspector checkboxes from URL params on page load
+                    // Inspector multi-select dropdown - all event listeners attached via JS
                     document.addEventListener('DOMContentLoaded', function() {
+                        const dropdownBtn = document.getElementById('inspectorDropdownBtn');
+                        const dropdown = document.getElementById('inspectorDropdown');
+                        const selectAllCheckbox = document.getElementById('selectAllInspectors');
+                        const textEl = document.getElementById('inspectorSelectText');
+
+                        function updateInspectorText() {
+                            const checkboxes = document.querySelectorAll('.inspector-checkbox');
+                            const checked = document.querySelectorAll('.inspector-checkbox:checked');
+
+                            if (checked.length === 0) {
+                                if (textEl) textEl.textContent = 'All Inspectors';
+                            } else if (checked.length === 1) {
+                                if (textEl) textEl.textContent = checked[0].value;
+                            } else {
+                                if (textEl) textEl.textContent = checked.length + ' selected';
+                            }
+
+                            // Update "Select All" checkbox state
+                            if (selectAllCheckbox) {
+                                selectAllCheckbox.checked = checked.length === checkboxes.length;
+                                selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+                            }
+                        }
+
+                        // Toggle dropdown on button click
+                        if (dropdownBtn && dropdown) {
+                            dropdownBtn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                            });
+                        }
+
+                        // Select All checkbox
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.addEventListener('change', function() {
+                                const checkboxes = document.querySelectorAll('.inspector-checkbox');
+                                checkboxes.forEach(cb => cb.checked = this.checked);
+                                updateInspectorText();
+                            });
+                        }
+
+                        // Individual inspector checkboxes
+                        document.querySelectorAll('.inspector-checkbox').forEach(cb => {
+                            cb.addEventListener('change', updateInspectorText);
+                        });
+
+                        // Close dropdown when clicking outside
+                        document.addEventListener('click', function(e) {
+                            if (dropdown && dropdownBtn && !dropdown.contains(e.target) && !dropdownBtn.contains(e.target)) {
+                                dropdown.style.display = 'none';
+                            }
+                        });
+
+                        // Initialize from URL params
                         const params = new URLSearchParams(window.location.search);
                         const selectedInspectors = params.getAll('branch');
                         if (selectedInspectors.length > 0) {
@@ -9694,8 +9704,10 @@
                                 const checkbox = document.querySelector(`.inspector-checkbox[value="${inspector}"]`);
                                 if (checkbox) checkbox.checked = true;
                             });
-                            window.updateInspectorText();
+                            updateInspectorText();
                         }
+
+                        console.log('[INSPECTOR FILTER] Multi-select dropdown initialized');
                     });
 
                     // Basic safe initializer for existing inputs so inline handlers don't fail
