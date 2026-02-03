@@ -8421,9 +8421,9 @@
                                                             <span class="text-gray-500">Commodity:</span>
                                                             <span class="font-medium">{{ product.commodity|default:"-" }}</span>
                                                         </div>
-                                                        <!-- Hide Class row for POULTRY/EGGS -->
+                                                        <!-- Hide Class row for POULTRY/EGGS - spans full width for long class names -->
                                                         {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
-                                                        <div>
+                                                        <div class="col-span-2">
                                                             <span class="text-gray-500">Class:</span>
                                                             <span class="font-medium">{{ product.product_class|default:"-" }}</span>
                                                         </div>
@@ -8960,8 +8960,8 @@
                                                                     Product: <span
                                                                         style="font-weight: 600; color: #374151;">{{ product.product_name|default:"N/A"|truncatechars:16 }}</span></div>
                                                                 {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
-                                                                <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px;">
-                                                                    Class: <span style="font-weight: 600; color: #374151;">{{ product.product_class|default:"N/A"|truncatechars:18 }}</span></div>
+                                                                <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px; word-break: break-word;">
+                                                                    Class: <span style="font-weight: 600; color: #374151;">{{ product.product_class|default:"N/A" }}</span></div>
                                                                 {% endif %}
                                                                 <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
                                                                     <!-- Sample Compliance Badge - Hide for POULTRY/EGGS -->
