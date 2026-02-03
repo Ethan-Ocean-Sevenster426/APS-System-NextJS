@@ -1349,6 +1349,13 @@
                         <!-- Invoice forms will be generated here based on commodity selections -->
                     </div>
 
+                    <!-- Step 3 Validation Warning -->
+                    <div id="step3ValidationWarning" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 14px; margin-top: 16px;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                        <strong>Missing Required Fields:</strong>
+                        <ul id="step3MissingFieldsList" style="margin: 8px 0 0 24px; padding: 0; list-style-type: disc;"></ul>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4 mt-6">
                         <label class="checkbox-card testing-card">
                             {{ form.follow_up }}
@@ -2646,24 +2653,24 @@
                 <div class="form-group">
                     <label class="form-label">Kilometers Traveled <span style="color: #ef4444;">*</span></label>
                     <input type="number" step="0.1" class="form-control" id="shared_km" name="km_traveled" placeholder="1" value="${sharedTripData.km_traveled}"
-                           onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1" required>
+                           onchange="sharedTripData.km_traveled = parseFloat(this.value) || 1; validateStep3();" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Hours Worked <span style="color: #ef4444;">*</span></label>
                     <input type="number" step="0.5" class="form-control" id="shared_hours" name="hours" placeholder="1" value="${sharedTripData.hours}"
-                           onchange="sharedTripData.hours = parseFloat(this.value) || 1" required>
+                           onchange="sharedTripData.hours = parseFloat(this.value) || 1; validateStep3();" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Travel Start <span style="color: #ef4444;">*</span></label>
                     <input type="time" class="form-control" id="travel_start_time" name="travel_start_time"
                            value="${sharedTripData.travel_start_time || ''}"
-                           onchange="calculateTimeTraveled()" required>
+                           onchange="calculateTimeTraveled(); validateStep3();" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Travel End <span style="color: #ef4444;">*</span></label>
                     <input type="time" class="form-control" id="travel_end_time" name="travel_end_time"
                            value="${sharedTripData.travel_end_time || ''}"
-                           onchange="calculateTimeTraveled()" required>
+                           onchange="calculateTimeTraveled(); validateStep3();" required>
                     <input type="hidden" id="shared_time_traveled" name="time_traveled" value="${sharedTripData.time_traveled || 0}">
                 </div>
             </div>
@@ -2737,6 +2744,51 @@
             // Update Next button
             const nextBtn = document.getElementById('nextBtn');
             if (currentStep === 1) {
+                if (missing.length === 0) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = '0.5';
+                    nextBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            return missing.length === 0;
+        }
+
+        // Validate Step 3 fields (trip info) and update Next button state
+        function validateStep3() {
+            const missing = [];
+
+            const km = document.getElementById('shared_km')?.value;
+            if (!km || parseFloat(km) <= 0) missing.push('Kilometers Traveled');
+
+            const hours = document.getElementById('shared_hours')?.value;
+            if (!hours || parseFloat(hours) <= 0) missing.push('Hours Worked');
+
+            if (!document.getElementById('travel_start_time')?.value)
+                missing.push('Travel Start Time');
+
+            if (!document.getElementById('travel_end_time')?.value)
+                missing.push('Travel End Time');
+
+            // Update warning box
+            const warning = document.getElementById('step3ValidationWarning');
+            const list = document.getElementById('step3MissingFieldsList');
+            if (warning && list) {
+                if (missing.length > 0) {
+                    list.innerHTML = missing.map(f => `<li>${f}</li>`).join('');
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            // Update Next button
+            const nextBtn = document.getElementById('nextBtn');
+            if (currentStep === 3) {
                 if (missing.length === 0) {
                     nextBtn.disabled = false;
                     nextBtn.style.opacity = '1';
@@ -3621,6 +3673,15 @@
                     }
                     // Generate invoice forms when moving to step 3
                     generateInvoiceForms();
+                    // Run step 3 validation after forms are in the DOM
+                    setTimeout(() => validateStep3(), 0);
+                }
+
+                // Validation for step 3
+                if (direction === 1 && currentStep === 3) {
+                    if (!validateStep3()) {
+                        return;
+                    }
                 }
 
                 // Update current step
