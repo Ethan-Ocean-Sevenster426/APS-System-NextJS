@@ -1329,6 +1329,13 @@
                         <!-- Product forms will be generated here based on commodity selections -->
                     </div>
 
+                    <!-- Step 2 Validation Warning -->
+                    <div id="step2ValidationWarning" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 14px; margin-top: 16px;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                        <strong>Missing Required Fields:</strong>
+                        <ul id="step2MissingFieldsList" style="margin: 8px 0 0 24px; padding: 0; list-style-type: disc;"></ul>
+                    </div>
+
                     <!-- Hidden input to store all product data as JSON -->
                     <input type="hidden" name="products_data" id="productsData" value="[]">
                 </div>
@@ -1411,6 +1418,13 @@
                     <p class="text-xs text-gray-500 mt-3" id="rfi-info-text">
                         <i class="fas fa-info-circle mr-1"></i>RFI is required for Raw Meat and PMP commodities.
                     </p>
+
+                    <!-- Step 4 Validation Warning -->
+                    <div id="step4ValidationWarning" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; color: #991b1b; font-size: 14px; margin-top: 16px;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                        <strong>Missing Required Fields:</strong>
+                        <ul id="step4MissingFieldsList" style="margin: 8px 0 0 24px; padding: 0; list-style-type: disc;"></ul>
+                    </div>
                 </div>
                 {% endif %}
                 {% endif %}
@@ -2803,6 +2817,44 @@
             return missing.length === 0;
         }
 
+        // Validate Step 4 fields (Documents) and update Next button state
+        function validateStep4() {
+            const missing = [];
+
+            const hasRawOrPmp = commoditySelections.RAW > 0 || commoditySelections.PMP > 0;
+            if (hasRawOrPmp && !isOccurrenceReport && !uploadedFiles.rfi) {
+                missing.push('RFI Document');
+            }
+
+            // Update warning box
+            const warning = document.getElementById('step4ValidationWarning');
+            const list = document.getElementById('step4MissingFieldsList');
+            if (warning && list) {
+                if (missing.length > 0) {
+                    list.innerHTML = missing.map(f => `<li>${f}</li>`).join('');
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            // Update Next button
+            const nextBtn = document.getElementById('nextBtn');
+            if (currentStep === 4) {
+                if (missing.length === 0) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = '0.5';
+                    nextBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            return missing.length === 0;
+        }
+
         // Toggle Laboratory field visibility based on Sampled checkbox
         function toggleLabField(idx) {
             const sampledCheckbox = document.querySelector(`input[data-product-idx="${idx}"][data-field="is_sample_taken"]`);
@@ -2826,8 +2878,7 @@
 
         // Validate Step 2 fields and update Next button state
         function validateStep2() {
-            const nextBtn = document.getElementById('nextBtn');
-            let isValid = true;
+            const missing = [];
 
             // Check each product form
             for (let i = 0; i < productsData.length; i++) {
@@ -2836,32 +2887,46 @@
                 const sampledCheckbox = document.querySelector(`input[data-product-idx="${i}"][data-field="is_sample_taken"]`);
                 const labSelect = document.querySelector(`select[data-product-idx="${i}"][data-field="lab"]`);
 
-                // Check if this is a Poultry or Eggs commodity (no class/sampling required)
                 const commodity = productsData[i]?.commodity;
                 const isPoultryOrEggs = commodity === 'POULTRY' || commodity === 'EGGS';
+                const label = productsData.length > 1 ? `Product ${i + 1}: ` : '';
 
                 // Product Name is required for all
                 if (!productName || !productName.value.trim()) {
-                    isValid = false;
+                    missing.push(label + 'Product Name');
                 }
 
                 // Product Class is required only for Raw Meat and PMP (not Poultry/Eggs)
                 if (!isPoultryOrEggs) {
                     if (!productClass || !productClass.value) {
-                        isValid = false;
+                        missing.push(label + 'Product Class');
                     }
 
                     // If Sampled is checked, Lab is required (only for Raw/PMP)
                     if (sampledCheckbox && sampledCheckbox.checked) {
                         if (!labSelect || !labSelect.value) {
-                            isValid = false;
+                            missing.push(label + 'Lab');
                         }
                     }
                 }
             }
 
+            // Update warning box
+            const warning = document.getElementById('step2ValidationWarning');
+            const list = document.getElementById('step2MissingFieldsList');
+            if (warning && list) {
+                if (missing.length > 0) {
+                    list.innerHTML = missing.map(f => `<li>${f}</li>`).join('');
+                    warning.style.display = 'block';
+                } else {
+                    warning.style.display = 'none';
+                }
+            }
+
+            // Update Next button
+            const nextBtn = document.getElementById('nextBtn');
             if (currentStep === 2) {
-                if (isValid) {
+                if (missing.length === 0) {
                     nextBtn.disabled = false;
                     nextBtn.style.opacity = '1';
                     nextBtn.style.cursor = 'pointer';
@@ -2872,7 +2937,7 @@
                 }
             }
 
-            return isValid;
+            return missing.length === 0;
         }
 
         // Handle previous button - goes back to list on step 1, previous step otherwise
@@ -3682,6 +3747,15 @@
                     if (!validateStep3()) {
                         return;
                     }
+                    // Run step 4 validation when arriving at Documents step
+                    setTimeout(() => validateStep4(), 0);
+                }
+
+                // Validation for step 4 (Documents)
+                if (direction === 1 && currentStep === 4) {
+                    if (!validateStep4()) {
+                        return;
+                    }
                 }
 
                 // Update current step
@@ -3809,6 +3883,7 @@
             updateDocumentReview();
 
             console.log(`✅ File selected for ${type}:`, file.name);
+            validateStep4();
         }
 
         function removeFile(type) {
@@ -3834,6 +3909,7 @@
             updateDocumentReview();
 
             console.log(`🗑️ File removed for ${type}`);
+            validateStep4();
         }
 
         function updateDocumentReview() {
