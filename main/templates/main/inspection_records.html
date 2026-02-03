@@ -8040,12 +8040,28 @@
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Inspector</label>
-                                    <select class="form-control" name="branch">
-                                        <option value="">All Inspectors</option>
-                                        {% for inspector in inspectors %}
-                                        <option value="{{ inspector }}" {% if request.GET.branch == inspector %}selected{% endif %}>{{ inspector }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position: relative;">
+                                        <button type="button" class="form-control multi-select-btn" onclick="toggleInspectorDropdown()" style="text-align: left; display: flex; justify-content: space-between; align-items: center;">
+                                            <span id="inspectorSelectText">All Inspectors</span>
+                                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                                        </button>
+                                        <div id="inspectorDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
+                                            <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" id="selectAllInspectors" onchange="toggleAllInspectors(this)">
+                                                    <span style="font-weight: 600;">Select All</span>
+                                                </label>
+                                            </div>
+                                            {% for inspector in inspectors %}
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox" onchange="updateInspectorText()">
+                                                    <span>{{ inspector }}</span>
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Corporate Group</label>
@@ -9624,6 +9640,61 @@
                     window.updateGroupAdditionalEmails = window.updateGroupAdditionalEmails || stub('updateGroupAdditionalEmails');
                     window.addEmailInput = window.addEmailInput || stub('addEmailInput');
                     window.removeEmailInput = window.removeEmailInput || stub('removeEmailInput');
+
+                    // Inspector multi-select dropdown functions
+                    function toggleInspectorDropdown() {
+                        const dropdown = document.getElementById('inspectorDropdown');
+                        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                    }
+
+                    function toggleAllInspectors(selectAllCheckbox) {
+                        const checkboxes = document.querySelectorAll('.inspector-checkbox');
+                        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+                        updateInspectorText();
+                    }
+
+                    function updateInspectorText() {
+                        const checkboxes = document.querySelectorAll('.inspector-checkbox');
+                        const checked = document.querySelectorAll('.inspector-checkbox:checked');
+                        const textEl = document.getElementById('inspectorSelectText');
+                        const selectAllCheckbox = document.getElementById('selectAllInspectors');
+
+                        if (checked.length === 0) {
+                            textEl.textContent = 'All Inspectors';
+                        } else if (checked.length === 1) {
+                            textEl.textContent = checked[0].value;
+                        } else {
+                            textEl.textContent = checked.length + ' selected';
+                        }
+
+                        // Update "Select All" checkbox state
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = checked.length === checkboxes.length;
+                            selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+                        }
+                    }
+
+                    // Close dropdown when clicking outside
+                    document.addEventListener('click', function(e) {
+                        const dropdown = document.getElementById('inspectorDropdown');
+                        const btn = document.querySelector('.multi-select-btn');
+                        if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+
+                    // Initialize inspector checkboxes from URL params on page load
+                    (function() {
+                        const params = new URLSearchParams(window.location.search);
+                        const selectedInspectors = params.getAll('branch');
+                        if (selectedInspectors.length > 0) {
+                            selectedInspectors.forEach(inspector => {
+                                const checkbox = document.querySelector(`.inspector-checkbox[value="${inspector}"]`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                            updateInspectorText();
+                        }
+                    })();
 
                     // Basic safe initializer for existing inputs so inline handlers don't fail
                     document.addEventListener('DOMContentLoaded', function () {

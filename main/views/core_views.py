@@ -4769,10 +4769,14 @@ def apply_inspection_filters(request, inspections):
     if client_name:
         inspections = inspections.filter(facility_client_name__icontains=client_name)
     
-    # Filter by inspector
-    inspector = request.GET.get('branch')  # Keep same parameter name for template compatibility
-    if inspector:
-        inspections = inspections.filter(inspector__icontains=inspector)
+    # Filter by inspector(s) - supports multiple selection
+    inspectors = request.GET.getlist('branch')  # Keep same parameter name for template compatibility
+    if inspectors:
+        from django.db.models import Q
+        inspector_filter = Q()
+        for inspector in inspectors:
+            inspector_filter |= Q(inspector__icontains=inspector)
+        inspections = inspections.filter(inspector_filter)
     
     # Filter by inspection date range
     inspection_date_from = request.GET.get('inspection_date_from')
@@ -4799,10 +4803,14 @@ def apply_fsa_inspection_filters(request, inspections):
     if client_name:
         inspections = inspections.filter(client_name__icontains=client_name)
     
-    # Filter by inspector
-    inspector = request.GET.get('branch')  # Keep same parameter name for template compatibility
-    if inspector:
-        inspections = inspections.filter(inspector_name__icontains=inspector)
+    # Filter by inspector(s) - supports multiple selection
+    inspectors = request.GET.getlist('branch')  # Keep same parameter name for template compatibility
+    if inspectors:
+        from django.db.models import Q
+        inspector_filter = Q()
+        for inspector in inspectors:
+            inspector_filter |= Q(inspector_name__icontains=inspector)
+        inspections = inspections.filter(inspector_filter)
     
     # Filter by inspection date range
     inspection_date_from = request.GET.get('inspection_date_from')
