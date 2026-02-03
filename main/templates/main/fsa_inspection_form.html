@@ -3205,11 +3205,8 @@
             const fileInput = document.getElementById('occurrenceFile');
             const file = fileInput.files[0];
 
-            // Validate that occurrence document is uploaded (required)
-            if (!file) {
-                alert('Please upload an occurrence document. This field is required.');
-                return;
-            }
+            // Occurrence document is now OPTIONAL - no validation required
+            // Users can submit occurrence reports with or without documents
 
             // Create FormData for upload
             const formData = new FormData();
@@ -3841,27 +3838,9 @@
                 missingFields.push('RFI Document');
             }
 
-            // Check Time Traveled fields (only on Step 3 - Invoice Info)
-            const travelStartTime = document.getElementById('travel_start_time')?.value;
-            const travelEndTime = document.getElementById('travel_end_time')?.value;
-            if (!travelStartTime) {
-                missingFields.push('Travel Start Time');
-            }
-            if (!travelEndTime) {
-                missingFields.push('Travel End Time');
-            }
-
-            // Check Kilometers Traveled
-            const kmTraveled = document.getElementById('shared_km')?.value;
-            if (!kmTraveled || parseFloat(kmTraveled) <= 0) {
-                missingFields.push('Kilometers Traveled');
-            }
-
-            // Check Hours Worked
-            const hoursWorked = document.getElementById('shared_hours')?.value;
-            if (!hoursWorked || parseFloat(hoursWorked) <= 0) {
-                missingFields.push('Hours Worked');
-            }
+            // Time Traveled, Kilometers, and Hours are now OPTIONAL
+            // These fields are no longer required to submit the inspection
+            // Inspectors can add them later if needed
 
             return missingFields;
         }

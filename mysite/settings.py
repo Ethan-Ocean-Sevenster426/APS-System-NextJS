@@ -172,9 +172,9 @@ CACHES = {
 }
 
 # Server settings to handle large responses
-DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
-MAX_UPLOAD_SIZE = 52428800  # 50MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB (increased from 50MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB (increased from 50MB)
+MAX_UPLOAD_SIZE = 104857600  # 100MB (increased from 50MB)
 
 # Increase timeout for large responses
 REQUEST_TIMEOUT = 300  # 5 minutes
@@ -283,4 +283,4 @@ ALLOWED_UPLOAD_EXTENSIONS = [
     '.zip', '.rar', '.7z',
     '.txt', '.csv'
 ]
-MAX_FILE_SIZE_MB = 50  # Maximum file size in megabytes
+MAX_FILE_SIZE_MB = 100  # Maximum file size in megabytes (increased from 50MB)

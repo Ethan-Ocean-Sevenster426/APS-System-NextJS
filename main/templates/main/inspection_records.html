@@ -8657,38 +8657,41 @@
                                                         </div>
                                                     </div>
 
-                                                    <!-- Product Name Input -->
+                                                    <!-- Product Name - Desktop: Editable, Mobile: Read-only -->
                                                     <div class="mb-3">
-                                                        <label
-                                                            class="block text-gray-600 font-medium mb-1 text-xs">Product
-                                                            Name</label>
+                                                        <label class="block text-gray-600 font-medium mb-1 text-xs">Product Name</label>
+                                                        <!-- Desktop editable input -->
                                                         <input type="text"
-                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 desktop-only-edit"
                                                             data-inspection-id="{{ product.remote_id }}"
                                                             value="{{ product.product_name|default:'' }}"
                                                             placeholder="Enter product name"
                                                             onchange="updateProductName(this)"
                                                             onblur="updateProductName(this)">
+                                                        <!-- Mobile read-only display -->
+                                                        <span class="mobile-only-display text-xs font-medium">{{ product.product_name|default:'N/A' }}</span>
                                                     </div>
 
-                                                    <!-- Product Class Dropdown -->
+                                                    <!-- Product Class - Desktop: Editable, Mobile: Read-only -->
                                                     <div class="mb-3">
-                                                        <label
-                                                            class="block text-gray-600 font-medium mb-1 text-xs">Product
-                                                            Class</label>
+                                                        <label class="block text-gray-600 font-medium mb-1 text-xs">Product Class</label>
+                                                        <!-- Desktop editable select -->
                                                         <select
-                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 product-class-select"
+                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 product-class-select desktop-only-edit"
                                                             data-inspection-id="{{ product.remote_id }}"
                                                             data-commodity="{{ product.commodity|default:''|lower }}"
                                                             data-current-class="{{ product.product_class }}"
                                                             onchange="updateProductClass(this)">
                                                             <option value="">Select Class</option>
                                                         </select>
+                                                        <!-- Mobile read-only display -->
+                                                        <span class="mobile-only-display text-xs font-medium">{{ product.product_class|default:'N/A' }}</span>
                                                     </div>
 
-                                                    <!-- Test Checkboxes -->
+                                                    <!-- Test Results - Desktop: Editable checkboxes, Mobile: Read-only text -->
                                                     <div class="mb-3">
-                                                        <div class="grid grid-cols-2 gap-2">
+                                                        <!-- Desktop editable checkboxes -->
+                                                        <div class="grid grid-cols-2 gap-2 desktop-only-edit">
                                                             <label class="flex items-center text-xs cursor-pointer">
                                                                 <input type="checkbox"
                                                                     class="test-checkbox mr-2 w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
@@ -8721,6 +8724,15 @@
                                                                     onchange="updateTestResult(this)">
                                                                 DNA
                                                             </label>
+                                                        </div>
+                                                        <!-- Mobile read-only display for tests -->
+                                                        <div class="mobile-only-display text-xs">
+                                                            <span class="font-medium">Tests: </span>
+                                                            {% if product.fat %}<span class="bg-green-100 text-green-800 px-1 rounded mr-1">Fat</span>{% endif %}
+                                                            {% if product.protein %}<span class="bg-green-100 text-green-800 px-1 rounded mr-1">Protein</span>{% endif %}
+                                                            {% if product.calcium %}<span class="bg-green-100 text-green-800 px-1 rounded mr-1">Calcium</span>{% endif %}
+                                                            {% if product.dna %}<span class="bg-green-100 text-green-800 px-1 rounded mr-1">DNA</span>{% endif %}
+                                                            {% if not product.fat and not product.protein and not product.calcium and not product.dna %}<span class="text-gray-500">None</span>{% endif %}
                                                         </div>
                                                     </div>
 
