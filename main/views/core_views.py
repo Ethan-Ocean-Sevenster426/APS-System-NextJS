@@ -3381,14 +3381,23 @@ def upload_document(request):
             else:
                 print("No file found in request.FILES")
             
+            # For occurrence reports, file is optional - allow submission without file
             if not uploaded_file:
-                return JsonResponse({'success': False, 'error': 'No file provided'})
-            
+                if is_occurrence_report and document_type == 'occurrence':
+                    # Occurrence report without file - this is allowed, just return success
+                    print(f"[OCCURRENCE] Occurrence report created without document upload")
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Occurrence report created successfully without document'
+                    })
+                else:
+                    return JsonResponse({'success': False, 'error': 'No file provided'})
+
             # RESTRICT TO PDF FILES ONLY
             file_extension = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else ''
             if file_extension != 'pdf':
                 return JsonResponse({
-                    'success': False, 
+                    'success': False,
                     'error': f'Only PDF files are allowed. You uploaded a {file_extension.upper() if file_extension else "file without extension"}. Please convert your document to PDF and try again.'
                 })
             
