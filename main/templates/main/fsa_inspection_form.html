@@ -1843,7 +1843,7 @@
                     <h3
                         style="margin: 0 0 16px; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-paperclip" style="color: #f59e0b;"></i>
-                        Occurrence Document *
+                        Occurrence Document (Optional)
                     </h3>
                     <!-- Loading overlay -->
                     <div id="occurrenceUploadLoading" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); border-radius: 12px; z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column;">
@@ -3366,7 +3366,7 @@
             if (file) {
                 document.getElementById('reviewOccurrenceDocument').innerHTML = '<i class="fas fa-file-pdf" style="color: #22c55e;"></i> <span>' + file.name + '</span>';
             } else {
-                document.getElementById('reviewOccurrenceDocument').innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> <span style="color: #ef4444;">No document uploaded (Required)</span>';
+                document.getElementById('reviewOccurrenceDocument').innerHTML = '<i class="fas fa-info-circle" style="color: #9ca3af;"></i> <span style="color: #6b7280;">No document uploaded (Optional)</span>';
             }
         }
 
