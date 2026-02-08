@@ -7998,7 +7998,7 @@
 
                     <!-- Manage Clients Button -->
                     {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
-                    <a href="{% url 'client_allocation' %}" class="btn btn-allocation">
+                    <a href="{% url 'client_allocation_sheet' %}" class="btn btn-allocation">
                         <i class="fas fa-users"></i> Manage Clients
                     </a>
                     {% endif %}
