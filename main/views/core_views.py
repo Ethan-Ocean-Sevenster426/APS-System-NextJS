@@ -5041,8 +5041,15 @@ def client_allocation_sheet(request):
     from django.db.models import Q
 
     # Get filter parameters
+    client_id = request.GET.get('client_id', '').strip()
     client_name = request.GET.get('client_name', '').strip()
     corporate_group = request.GET.get('corporate_group', '').strip()
+    commodity = request.GET.get('commodity', '').strip()
+    facility_type = request.GET.get('facility_type', '').strip()
+    facility_code = request.GET.get('facility_code', '').strip()
+    province = request.GET.get('province', '').strip()
+    account_code = request.GET.get('account_code', '').strip()
+    group_type = request.GET.get('group_type', '').strip()
     has_email = request.GET.get('has_email', '').strip()
 
     # Get sorting and pagination parameters
@@ -5052,7 +5059,7 @@ def client_allocation_sheet(request):
     page_number = request.GET.get('page', 1)
 
     # Validate sorting parameters
-    valid_sort_fields = ['name', 'client_id', 'facility_type', 'corporate_group', 'town', 'email']
+    valid_sort_fields = ['name', 'client_id', 'facility_type', 'corporate_group', 'town', 'email', 'group_type']
     if sort_by not in valid_sort_fields:
         sort_by = 'name'
 
@@ -5060,7 +5067,7 @@ def client_allocation_sheet(request):
     order_by_field = f'-{sort_by}' if sort_order == 'desc' else sort_by
 
     # Cache key based on all parameters
-    cache_key = f'client_data_{page_number}_{client_name}_{corporate_group}_{has_email}_{sort_by}_{sort_order}_{per_page}'
+    cache_key = f'client_data_{page_number}_{client_id}_{client_name}_{corporate_group}_{commodity}_{facility_type}_{facility_code}_{province}_{account_code}_{group_type}_{has_email}_{sort_by}_{sort_order}_{per_page}'
     cache_timeout = 300  # 5 minutes cache
 
     # Try to get cached data first
@@ -5073,10 +5080,26 @@ def client_allocation_sheet(request):
     clients_query = Client.objects.all()
 
     # Apply filters
+    if client_id:
+        clients_query = clients_query.filter(client_id__icontains=client_id)
     if client_name:
         clients_query = clients_query.filter(name__icontains=client_name)
     if corporate_group:
         clients_query = clients_query.filter(corporate_group=corporate_group)
+    if facility_type:
+        clients_query = clients_query.filter(facility_type=facility_type)
+    if group_type:
+        clients_query = clients_query.filter(group_type=group_type)
+    if province:
+        clients_query = clients_query.filter(town__icontains=province)
+    if account_code:
+        clients_query = clients_query.filter(internal_account_code__icontains=account_code)
+    if facility_code:
+        # Facility code is the first part of internal_account_code (e.g., "RE-", "BU-", "AB-")
+        clients_query = clients_query.filter(internal_account_code__istartswith=facility_code)
+    if commodity:
+        # Commodity is typically the third segment in account code (e.g., RAW, EGG, PMP, PLT)
+        clients_query = clients_query.filter(internal_account_code__icontains=f'-{commodity}-')
     if has_email == 'yes':
         clients_query = clients_query.exclude(Q(email__isnull=True) | Q(email=''))
     elif has_email == 'no':
@@ -5105,6 +5128,17 @@ def client_allocation_sheet(request):
         'sort_by': sort_by,
         'sort_order': sort_order,
         'per_page': per_page,
+        # Filter values to preserve form state
+        'filter_client_id': client_id,
+        'filter_client_name': client_name,
+        'filter_corporate_group': corporate_group,
+        'filter_commodity': commodity,
+        'filter_facility_type': facility_type,
+        'filter_facility_code': facility_code,
+        'filter_province': province,
+        'filter_account_code': account_code,
+        'filter_group_type': group_type,
+        'filter_has_email': has_email,
     }
 
     # Cache the context for faster subsequent requests

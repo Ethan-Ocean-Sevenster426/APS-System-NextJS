@@ -1597,48 +1597,88 @@
                 <form method="GET" action="{% url 'client_allocation_sheet' %}" id="filterForm">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                         <div>
-                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Client Name</label>
-                            <input type="text" name="client_name" value="{{ request.GET.client_name }}" placeholder="Search by name..." style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Client ID</label>
+                            <input type="text" name="client_id" value="{{ filter_client_id }}" placeholder="Search client ID" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Commodity</label>
-                            <select name="commodity" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All</option>
-                                <option value="EGG" {% if request.GET.commodity == 'EGG' %}selected{% endif %}>EGG</option>
-                                <option value="PMP" {% if request.GET.commodity == 'PMP' %}selected{% endif %}>PMP</option>
-                                <option value="RAW" {% if request.GET.commodity == 'RAW' %}selected{% endif %}>RAW</option>
-                                <option value="PLT" {% if request.GET.commodity == 'PLT' %}selected{% endif %}>PLT</option>
-                            </select>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Client Name</label>
+                            <input type="text" name="client_name" value="{{ filter_client_name }}" placeholder="Search client name" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Corporate Group</label>
                             <select name="corporate_group" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All</option>
-                                <option value="Pick n Pay - Franchise" {% if request.GET.corporate_group == 'Pick n Pay - Franchise' %}selected{% endif %}>Pick n Pay - Franchise</option>
-                                <option value="Pick n Pay - Corporate" {% if request.GET.corporate_group == 'Pick n Pay - Corporate' %}selected{% endif %}>Pick n Pay - Corporate</option>
-                                <option value="Spar" {% if request.GET.corporate_group == 'Spar' %}selected{% endif %}>Spar</option>
-                                <option value="SuperSpar" {% if request.GET.corporate_group == 'SuperSpar' %}selected{% endif %}>SuperSpar</option>
-                                <option value="Shoprite" {% if request.GET.corporate_group == 'Shoprite' %}selected{% endif %}>Shoprite</option>
-                                <option value="Checkers" {% if request.GET.corporate_group == 'Checkers' %}selected{% endif %}>Checkers</option>
-                                <option value="Boxer" {% if request.GET.corporate_group == 'Boxer' %}selected{% endif %}>Boxer</option>
-                                <option value="Woolworths" {% if request.GET.corporate_group == 'Woolworths' %}selected{% endif %}>Woolworths</option>
-                                <option value="Food Lovers Market" {% if request.GET.corporate_group == 'Food Lovers Market' %}selected{% endif %}>Food Lovers Market</option>
+                                <option value="">All Corporate Groups</option>
+                                <option value="Pick n Pay - Franchise" {% if filter_corporate_group == 'Pick n Pay - Franchise' %}selected{% endif %}>Pick n Pay - Franchise</option>
+                                <option value="Pick n Pay - Corporate" {% if filter_corporate_group == 'Pick n Pay - Corporate' %}selected{% endif %}>Pick n Pay - Corporate</option>
+                                <option value="Spar" {% if filter_corporate_group == 'Spar' %}selected{% endif %}>Spar</option>
+                                <option value="SuperSpar" {% if filter_corporate_group == 'SuperSpar' %}selected{% endif %}>SuperSpar</option>
+                                <option value="Shoprite" {% if filter_corporate_group == 'Shoprite' %}selected{% endif %}>Shoprite</option>
+                                <option value="Checkers" {% if filter_corporate_group == 'Checkers' %}selected{% endif %}>Checkers</option>
+                                <option value="Boxer" {% if filter_corporate_group == 'Boxer' %}selected{% endif %}>Boxer</option>
+                                <option value="Woolworths" {% if filter_corporate_group == 'Woolworths' %}selected{% endif %}>Woolworths</option>
+                                <option value="Food Lovers Market" {% if filter_corporate_group == 'Food Lovers Market' %}selected{% endif %}>Food Lovers Market</option>
+                                <option value="Other (Unlisted Group)" {% if filter_corporate_group == 'Other (Unlisted Group)' %}selected{% endif %}>Other (Unlisted Group)</option>
                             </select>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Has Email</label>
-                            <select name="has_email" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All</option>
-                                <option value="yes" {% if request.GET.has_email == 'yes' %}selected{% endif %}>With Email</option>
-                                <option value="no" {% if request.GET.has_email == 'no' %}selected{% endif %}>Without Email</option>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Commodity</label>
+                            <select name="commodity" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All Commodities</option>
+                                <option value="EGG" {% if filter_commodity == 'EGG' %}selected{% endif %}>EGG</option>
+                                <option value="PMP" {% if filter_commodity == 'PMP' %}selected{% endif %}>PMP</option>
+                                <option value="RAW" {% if filter_commodity == 'RAW' %}selected{% endif %}>RAW</option>
+                                <option value="PLT" {% if filter_commodity == 'PLT' %}selected{% endif %}>PLT</option>
                             </select>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Has Phone</label>
-                            <select name="has_phone" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All</option>
-                                <option value="yes" {% if request.GET.has_phone == 'yes' %}selected{% endif %}>With Phone</option>
-                                <option value="no" {% if request.GET.has_phone == 'no' %}selected{% endif %}>Without Phone</option>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Facility Type</label>
+                            <select name="facility_type" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All Facility Types</option>
+                                <option value="Retailer" {% if filter_facility_type == 'Retailer' %}selected{% endif %}>Retailer</option>
+                                <option value="Butchery" {% if filter_facility_type == 'Butchery' %}selected{% endif %}>Butchery</option>
+                                <option value="Farm" {% if filter_facility_type == 'Farm' %}selected{% endif %}>Farm</option>
+                                <option value="Production Plant" {% if filter_facility_type == 'Production Plant' %}selected{% endif %}>Production Plant</option>
+                                <option value="Abattoir" {% if filter_facility_type == 'Abattoir' %}selected{% endif %}>Abattoir</option>
+                                <option value="Re-Packer" {% if filter_facility_type == 'Re-Packer' %}selected{% endif %}>Re-Packer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Facility Code</label>
+                            <select name="facility_code" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All Facility Codes</option>
+                                <option value="AB" {% if filter_facility_code == 'AB' %}selected{% endif %}>AB - Abattoir</option>
+                                <option value="BU" {% if filter_facility_code == 'BU' %}selected{% endif %}>BU - Butchery</option>
+                                <option value="FA" {% if filter_facility_code == 'FA' %}selected{% endif %}>FA - Farm</option>
+                                <option value="PR" {% if filter_facility_code == 'PR' %}selected{% endif %}>PR - Production Plant</option>
+                                <option value="RE" {% if filter_facility_code == 'RE' %}selected{% endif %}>RE - Retailer/Re-Packer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Province</label>
+                            <select name="province" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All Provinces</option>
+                                <option value="Eastern Cape" {% if filter_province == 'Eastern Cape' %}selected{% endif %}>Eastern Cape</option>
+                                <option value="Free State" {% if filter_province == 'Free State' %}selected{% endif %}>Free State</option>
+                                <option value="Gauteng" {% if filter_province == 'Gauteng' %}selected{% endif %}>Gauteng</option>
+                                <option value="KwaZulu-Natal" {% if filter_province == 'KwaZulu-Natal' %}selected{% endif %}>KwaZulu-Natal</option>
+                                <option value="Limpopo" {% if filter_province == 'Limpopo' %}selected{% endif %}>Limpopo</option>
+                                <option value="Mpumalanga" {% if filter_province == 'Mpumalanga' %}selected{% endif %}>Mpumalanga</option>
+                                <option value="North West" {% if filter_province == 'North West' %}selected{% endif %}>North West</option>
+                                <option value="Northern Cape" {% if filter_province == 'Northern Cape' %}selected{% endif %}>Northern Cape</option>
+                                <option value="Western Cape" {% if filter_province == 'Western Cape' %}selected{% endif %}>Western Cape</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Account Code</label>
+                            <input type="text" name="account_code" value="{{ filter_account_code }}" placeholder="Search account code" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Group Type</label>
+                            <select name="group_type" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="">All Group Types</option>
+                                <option value="Corporate Store" {% if filter_group_type == 'Corporate Store' %}selected{% endif %}>Corporate Store</option>
+                                <option value="Franchise Store" {% if filter_group_type == 'Franchise Store' %}selected{% endif %}>Franchise Store</option>
+                                <option value="Independent" {% if filter_group_type == 'Independent' %}selected{% endif %}>Independent</option>
                             </select>
                         </div>
                         <div>
@@ -1650,6 +1690,7 @@
                                 <option value="corporate_group" {% if sort_by == 'corporate_group' %}selected{% endif %}>Corporate Group</option>
                                 <option value="town" {% if sort_by == 'town' %}selected{% endif %}>Town</option>
                                 <option value="email" {% if sort_by == 'email' %}selected{% endif %}>Email</option>
+                                <option value="group_type" {% if sort_by == 'group_type' %}selected{% endif %}>Group Type</option>
                             </select>
                         </div>
                         <div>
@@ -1675,7 +1716,7 @@
                             <i class="fas fa-filter"></i> Apply Filters
                         </button>
                         <a href="{% url 'client_allocation_sheet' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem; text-decoration: none;">
-                            <i class="fas fa-times"></i> Clear Filters
+                            <i class="fas fa-times"></i> Clear All Filters
                         </a>
                     </div>
                 </form>
