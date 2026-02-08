@@ -5031,28 +5031,26 @@ def client_allocation(request):
 
 @login_required(login_url='login')
 def client_allocation_sheet(request):
-    """Client Allocation Sheet view - Google Sheets-like interface.
+    """Client Allocation Sheet view - shows clients from Client model.
 
     Optimized for maximum performance with caching and efficient queries.
     """
-    from ..models import ClientAllocation
+    from ..models import Client
     from django.core.paginator import Paginator
     from django.core.cache import cache
-    from django.db.models import Prefetch
+    from django.db.models import Q
 
     # Get filter parameters
     client_name = request.GET.get('client_name', '').strip()
-    commodity = request.GET.get('commodity', '').strip()
     corporate_group = request.GET.get('corporate_group', '').strip()
     has_email = request.GET.get('has_email', '').strip()
-    has_phone = request.GET.get('has_phone', '').strip()
 
     # Check if user wants all data (default) or paginated view
     show_all = request.GET.get('show_all', 'true').lower() == 'true'
     page_number = request.GET.get('page', 1)
 
     # Cache key based on pagination settings and filters
-    cache_key = f'client_allocation_data_{show_all}_{page_number}_{client_name}_{commodity}_{corporate_group}_{has_email}_{has_phone}'
+    cache_key = f'client_data_{show_all}_{page_number}_{client_name}_{corporate_group}_{has_email}'
     cache_timeout = 300  # 5 minutes cache
 
     # Try to get cached data first
@@ -5061,48 +5059,33 @@ def client_allocation_sheet(request):
         return render(request, 'main/client_allocation_sheet.html', cached_data)
 
     # Cache miss - query database with optimizations
-    # Use select_related/prefetch_related if there were FK relationships
-    # Use only() to fetch only needed fields
     # Start with base query
-    allocations_query = ClientAllocation.objects.only(
-        'client_id', 'facility_type', 'group_type', 'commodity', 'province',
-        'corporate_group', 'other', 'internal_account_code', 'allocated',
-        'eclick_name', 'representative_email', 'phone_number', 'duplicates',
-        'active_status'
-    )
+    clients_query = Client.objects.all()
 
     # Apply filters
     if client_name:
-        allocations_query = allocations_query.filter(eclick_name__icontains=client_name)
-    if commodity:
-        allocations_query = allocations_query.filter(commodity=commodity)
+        clients_query = clients_query.filter(name__icontains=client_name)
     if corporate_group:
-        allocations_query = allocations_query.filter(corporate_group=corporate_group)
+        clients_query = clients_query.filter(corporate_group=corporate_group)
     if has_email == 'yes':
-        allocations_query = allocations_query.exclude(representative_email__isnull=True).exclude(representative_email='')
+        clients_query = clients_query.exclude(Q(email__isnull=True) | Q(email=''))
     elif has_email == 'no':
-        from django.db.models import Q
-        allocations_query = allocations_query.filter(Q(representative_email__isnull=True) | Q(representative_email=''))
-    if has_phone == 'yes':
-        allocations_query = allocations_query.exclude(phone_number__isnull=True).exclude(phone_number='')
-    elif has_phone == 'no':
-        from django.db.models import Q
-        allocations_query = allocations_query.filter(Q(phone_number__isnull=True) | Q(phone_number=''))
+        clients_query = clients_query.filter(Q(email__isnull=True) | Q(email=''))
 
     # Order and limit to latest 100 records
-    allocations_query = allocations_query.order_by('-last_synced')[:100]
+    clients_query = clients_query.order_by('name')[:100]
 
     # Get total count (all records in database)
-    total_count = cache.get('client_allocation_count')
+    total_count = cache.get('client_count')
     if total_count is None:
-        total_count = ClientAllocation.objects.count()
-        cache.set('client_allocation_count', total_count, 600)  # 10 minute cache
+        total_count = Client.objects.count()
+        cache.set('client_count', total_count, 600)  # 10 minute cache
 
     has_data = total_count > 0
 
     # Always show latest 100 records (simplified - no pagination)
     # Convert to list for caching (querysets can't be pickled)
-    allocations = list(allocations_query)
+    allocations = list(clients_query)
     page_obj = None
 
     context = {
