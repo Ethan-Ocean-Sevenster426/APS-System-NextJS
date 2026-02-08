@@ -116,7 +116,6 @@ urlpatterns = [
     # =============================================================================
     # GOOGLE SHEETS INTEGRATION URLS
     # =============================================================================
-    # path('client-allocation/', views.client_allocation, name='client_allocation'),  # OLD BROKEN PAGE - DISABLED
     path('client-allocation-sheet/', views.client_allocation_sheet, name='client_allocation_sheet'),
     path('client-allocation-sheet/sync/', views.sync_client_allocations, name='sync_client_allocations'),
     path('client-allocation-sheet/export/', export_client_allocations, name='export_client_allocations'),
