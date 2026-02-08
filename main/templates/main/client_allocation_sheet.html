@@ -1550,7 +1550,7 @@
 
             <!-- Filter Section -->
             <div class="filter-section">
-                <form method="GET" action="{% url 'client_allocation_sheet' %}">
+                <form method="GET" action="{% url 'client_allocation_sheet' %}" id="filterForm">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Client Name</label>
@@ -1597,6 +1597,34 @@
                                 <option value="no" {% if request.GET.has_phone == 'no' %}selected{% endif %}>Without Phone</option>
                             </select>
                         </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Sort By</label>
+                            <select name="sort_by" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Business Name</option>
+                                <option value="client_id" {% if sort_by == 'client_id' %}selected{% endif %}>Client ID</option>
+                                <option value="facility_type" {% if sort_by == 'facility_type' %}selected{% endif %}>Facility Type</option>
+                                <option value="corporate_group" {% if sort_by == 'corporate_group' %}selected{% endif %}>Corporate Group</option>
+                                <option value="town" {% if sort_by == 'town' %}selected{% endif %}>Town</option>
+                                <option value="email" {% if sort_by == 'email' %}selected{% endif %}>Email</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Order</label>
+                            <select name="sort_order" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending (A-Z)</option>
+                                <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending (Z-A)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Per Page</label>
+                            <select name="per_page" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
+                                <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                                <option value="250" {% if per_page == 250 %}selected{% endif %}>250</option>
+                                <option value="500" {% if per_page == 500 %}selected{% endif %}>500</option>
+                            </select>
+                        </div>
                     </div>
                     <div style="display: flex; gap: 0.75rem;">
                         <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
@@ -1641,7 +1669,7 @@
                             data-email="{{ allocation.email }}"
                             data-phone="{{ allocation.phone_number }}"
                             data-active-status="{{ allocation.active_status }}">
-                            <td class="row-number">{{ forloop.counter }}</td>
+                            <td class="row-number">{% if page_obj %}{{ page_obj.start_index|add:forloop.counter0 }}{% else %}{{ forloop.counter }}{% endif %}</td>
                             <td style="text-align: center; padding: 0.5rem; font-weight: 500;">{{ allocation.client_id }}</td>
                             <td class="business-name-cell" style="padding: 0.5rem;">{{ allocation.name|default:'-' }}</td>
                             <td style="padding: 0.5rem;">{{ allocation.facility_type|default:'-' }}</td>
@@ -1739,6 +1767,56 @@
                 </div>
                 {% endfor %}
             </div>
+
+            <!-- Pagination Controls -->
+            {% if page_obj and page_obj.paginator.num_pages > 1 %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding: 1rem; background: white; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.875rem; color: #6b7280;">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} clients
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.corporate_group %}&corporate_group={{ request.GET.corporate_group }}{% endif %}{% if request.GET.has_email %}&has_email={{ request.GET.has_email }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if sort_order %}&sort_order={{ sort_order }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                           style="padding: 0.5rem 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; text-decoration: none; color: #1f2937; font-size: 0.875rem;">
+                            <i class="fas fa-angle-double-left"></i> First
+                        </a>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.corporate_group %}&corporate_group={{ request.GET.corporate_group }}{% endif %}{% if request.GET.has_email %}&has_email={{ request.GET.has_email }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if sort_order %}&sort_order={{ sort_order }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                           style="padding: 0.5rem 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; text-decoration: none; color: #1f2937; font-size: 0.875rem;">
+                            <i class="fas fa-angle-left"></i> Previous
+                        </a>
+                    {% else %}
+                        <span style="padding: 0.5rem 0.75rem; background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 0.375rem; color: #9ca3af; font-size: 0.875rem; cursor: not-allowed;">
+                            <i class="fas fa-angle-double-left"></i> First
+                        </span>
+                        <span style="padding: 0.5rem 0.75rem; background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 0.375rem; color: #9ca3af; font-size: 0.875rem; cursor: not-allowed;">
+                            <i class="fas fa-angle-left"></i> Previous
+                        </span>
+                    {% endif %}
+
+                    <span style="padding: 0.5rem 0.75rem; background: #007890; color: white; border: 1px solid #007890; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600;">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.corporate_group %}&corporate_group={{ request.GET.corporate_group }}{% endif %}{% if request.GET.has_email %}&has_email={{ request.GET.has_email }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if sort_order %}&sort_order={{ sort_order }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                           style="padding: 0.5rem 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; text-decoration: none; color: #1f2937; font-size: 0.875rem;">
+                            Next <i class="fas fa-angle-right"></i>
+                        </a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.client_name %}&client_name={{ request.GET.client_name }}{% endif %}{% if request.GET.corporate_group %}&corporate_group={{ request.GET.corporate_group }}{% endif %}{% if request.GET.has_email %}&has_email={{ request.GET.has_email }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}{% if sort_order %}&sort_order={{ sort_order }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                           style="padding: 0.5rem 0.75rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.375rem; text-decoration: none; color: #1f2937; font-size: 0.875rem;">
+                            Last <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    {% else %}
+                        <span style="padding: 0.5rem 0.75rem; background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 0.375rem; color: #9ca3af; font-size: 0.875rem; cursor: not-allowed;">
+                            Next <i class="fas fa-angle-right"></i>
+                        </span>
+                        <span style="padding: 0.5rem 0.75rem; background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 0.375rem; color: #9ca3af; font-size: 0.875rem; cursor: not-allowed;">
+                            Last <i class="fas fa-angle-double-right"></i>
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 

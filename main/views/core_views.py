@@ -5045,12 +5045,22 @@ def client_allocation_sheet(request):
     corporate_group = request.GET.get('corporate_group', '').strip()
     has_email = request.GET.get('has_email', '').strip()
 
-    # Check if user wants all data (default) or paginated view
-    show_all = request.GET.get('show_all', 'true').lower() == 'true'
+    # Get sorting and pagination parameters
+    sort_by = request.GET.get('sort_by', 'name')  # Default sort by name
+    sort_order = request.GET.get('sort_order', 'asc')  # Default ascending
+    per_page = int(request.GET.get('per_page', '100'))  # Default 100 per page
     page_number = request.GET.get('page', 1)
 
-    # Cache key based on pagination settings and filters
-    cache_key = f'client_data_{show_all}_{page_number}_{client_name}_{corporate_group}_{has_email}'
+    # Validate sorting parameters
+    valid_sort_fields = ['name', 'client_id', 'facility_type', 'corporate_group', 'town', 'email']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'name'
+
+    # Build order_by string
+    order_by_field = f'-{sort_by}' if sort_order == 'desc' else sort_by
+
+    # Cache key based on all parameters
+    cache_key = f'client_data_{page_number}_{client_name}_{corporate_group}_{has_email}_{sort_by}_{sort_order}_{per_page}'
     cache_timeout = 300  # 5 minutes cache
 
     # Try to get cached data first
@@ -5072,29 +5082,27 @@ def client_allocation_sheet(request):
     elif has_email == 'no':
         clients_query = clients_query.filter(Q(email__isnull=True) | Q(email=''))
 
-    # Order and limit to latest 100 records
-    clients_query = clients_query.order_by('name')[:100]
+    # Apply sorting
+    clients_query = clients_query.order_by(order_by_field)
 
-    # Get total count (all records in database)
-    total_count = cache.get('client_count')
-    if total_count is None:
-        total_count = Client.objects.count()
-        cache.set('client_count', total_count, 600)  # 10 minute cache
-
+    # Get total count
+    total_count = clients_query.count()
     has_data = total_count > 0
 
-    # Always show latest 100 records (simplified - no pagination)
-    # Convert to list for caching (querysets can't be pickled)
-    allocations = list(clients_query)
-    page_obj = None
+    # Apply pagination
+    paginator = Paginator(clients_query, per_page)
+    page_obj = paginator.get_page(page_number)
+    allocations = list(page_obj.object_list)
 
     context = {
         'allocations': allocations,
         'has_data': has_data,
         'page_obj': page_obj,
-        'show_all': show_all,
         'total_count': total_count,
-        'displayed_count': len(allocations)
+        'displayed_count': len(allocations),
+        'sort_by': sort_by,
+        'sort_order': sort_order,
+        'per_page': per_page,
     }
 
     # Cache the context for faster subsequent requests
