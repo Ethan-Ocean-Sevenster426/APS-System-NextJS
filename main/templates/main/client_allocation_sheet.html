@@ -1617,7 +1617,7 @@
                             <th>Client ID</th>
                             <th class="business-name-header">Business Name</th>
                             <th>Facility Type</th>
-                            <th>Province</th>
+                            <th>Town</th>
                             <th>Corporate Group</th>
                             <th class="account-code-header">Account Code</th>
                             <th>Allocated</th>
@@ -1631,21 +1631,21 @@
                         {% for allocation in allocations %}
                         <tr onclick="selectRow(this)" oncontextmenu="showContextMenu(event, this)"
                             data-client-id="{{ allocation.client_id }}"
-                            data-business-name="{{ allocation.eclick_name }}"
+                            data-business-name="{{ allocation.name }}"
                             data-facility-type="{{ allocation.facility_type }}"
                             data-group-type="{{ allocation.group_type }}"
                             data-commodity="{{ allocation.commodity }}"
-                            data-province="{{ allocation.province }}"
+                            data-province="{{ allocation.town }}"
                             data-corporate-group="{{ allocation.corporate_group }}"
                             data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
-                            data-email="{{ allocation.representative_email }}"
+                            data-email="{{ allocation.email }}"
                             data-phone="{{ allocation.phone_number }}"
                             data-active-status="{{ allocation.active_status }}">
                             <td class="row-number">{{ forloop.counter }}</td>
                             <td style="text-align: center; padding: 0.5rem; font-weight: 500;">{{ allocation.client_id }}</td>
-                            <td class="business-name-cell" style="padding: 0.5rem;">{{ allocation.eclick_name|default:'-' }}</td>
+                            <td class="business-name-cell" style="padding: 0.5rem;">{{ allocation.name|default:'-' }}</td>
                             <td style="padding: 0.5rem;">{{ allocation.facility_type|default:'-' }}</td>
-                            <td style="padding: 0.5rem;">{{ allocation.province|default:'-' }}</td>
+                            <td style="padding: 0.5rem;">{{ allocation.town|default:'-' }}</td>
                             <td style="padding: 0.5rem;">{{ allocation.corporate_group|default:'-' }}</td>
                             <td class="account-code-cell">{{ allocation.internal_account_code|default:'-' }}</td>
                             <td style="text-align: center; padding: 0.5rem;">
@@ -1655,7 +1655,7 @@
                                     <span style="color: #6b7280;">-</span>
                                 {% endif %}
                             </td>
-                            <td class="email-cell" style="padding: 0.5rem; font-size: 0.75rem;">{{ allocation.representative_email|default:'-' }}</td>
+                            <td class="email-cell" style="padding: 0.5rem; font-size: 0.75rem;">{{ allocation.email|default:'-' }}</td>
                             <td style="padding: 0.5rem;">{{ allocation.phone_number|default:'-' }}</td>
                         </tr>
                         {% endfor %}
@@ -1668,19 +1668,19 @@
                 {% for allocation in allocations %}
                 <div class="client-card" onclick="selectCard(this)" oncontextmenu="showContextMenuCard(event, this)"
                     data-client-id="{{ allocation.client_id }}"
-                    data-business-name="{{ allocation.eclick_name }}"
+                    data-business-name="{{ allocation.name }}"
                     data-facility-type="{{ allocation.facility_type }}"
                     data-group-type="{{ allocation.group_type }}"
                     data-commodity="{{ allocation.commodity }}"
-                    data-province="{{ allocation.province }}"
+                    data-province="{{ allocation.town }}"
                     data-corporate-group="{{ allocation.corporate_group }}"
                     data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
-                    data-email="{{ allocation.representative_email }}"
+                    data-email="{{ allocation.email }}"
                     data-phone="{{ allocation.phone_number }}"
                     data-active-status="{{ allocation.active_status }}">
 
                     <div class="card-header-row">
-                        <div class="card-title-text">{{ allocation.eclick_name|default:'Unnamed Client' }}</div>
+                        <div class="card-title-text">{{ allocation.name|default:'Unnamed Client' }}</div>
                         <div class="card-id-badge">ID: {{ allocation.client_id }}</div>
                     </div>
 
@@ -1692,10 +1692,10 @@
                         </div>
                         {% endif %}
 
-                        {% if allocation.province %}
+                        {% if allocation.town %}
                         <div class="card-field-row">
-                            <span class="card-label-text">Province:</span>
-                            <span class="card-value-text">{{ allocation.province }}</span>
+                            <span class="card-label-text">Town:</span>
+                            <span class="card-value-text">{{ allocation.town }}</span>
                         </div>
                         {% endif %}
 
@@ -1722,10 +1722,10 @@
                             {% endif %}
                         </div>
 
-                        {% if allocation.representative_email %}
+                        {% if allocation.email %}
                         <div class="card-field-row">
                             <span class="card-label-text">Email:</span>
-                            <span class="card-value-text">{{ allocation.representative_email }}</span>
+                            <span class="card-value-text">{{ allocation.email }}</span>
                         </div>
                         {% endif %}
 
