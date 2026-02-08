@@ -5117,6 +5117,27 @@ def client_allocation_sheet(request):
     page_obj = paginator.get_page(page_number)
     allocations = list(page_obj.object_list)
 
+    # Get unique values for dropdown filters (cached for 10 minutes)
+    corporate_groups = cache.get('client_corporate_groups')
+    if not corporate_groups:
+        corporate_groups = list(Client.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='').values_list('corporate_group', flat=True).distinct().order_by('corporate_group'))
+        cache.set('client_corporate_groups', corporate_groups, 600)
+
+    facility_types = cache.get('client_facility_types')
+    if not facility_types:
+        facility_types = list(Client.objects.exclude(facility_type__isnull=True).exclude(facility_type='').values_list('facility_type', flat=True).distinct().order_by('facility_type'))
+        cache.set('client_facility_types', facility_types, 600)
+
+    group_types = cache.get('client_group_types')
+    if not group_types:
+        group_types = list(Client.objects.exclude(group_type__isnull=True).exclude(group_type='').values_list('group_type', flat=True).distinct().order_by('group_type'))
+        cache.set('client_group_types', group_types, 600)
+
+    provinces = cache.get('client_provinces')
+    if not provinces:
+        provinces = list(Client.objects.exclude(town__isnull=True).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
+        cache.set('client_provinces', provinces, 600)
+
     context = {
         'allocations': allocations,
         'has_data': has_data,
@@ -5139,6 +5160,11 @@ def client_allocation_sheet(request):
         'filter_account_code': account_code,
         'filter_group_type': group_type,
         'filter_has_email': has_email,
+        # Dropdown options from database
+        'corporate_groups': corporate_groups,
+        'facility_types': facility_types,
+        'group_types': group_types,
+        'provinces': provinces,
     }
 
     # Cache the context for faster subsequent requests
