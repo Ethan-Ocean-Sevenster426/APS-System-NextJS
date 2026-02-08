@@ -5098,6 +5098,8 @@ def client_allocation_sheet(request):
         'allocations': allocations,
         'has_data': has_data,
         'page_obj': page_obj,
+        'paginator': paginator,
+        'show_all': False,  # Always use pagination
         'total_count': total_count,
         'displayed_count': len(allocations),
         'sort_by': sort_by,
