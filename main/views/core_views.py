@@ -5039,6 +5039,14 @@ def client_allocation_sheet(request):
     from django.core.paginator import Paginator
     from django.core.cache import cache
     from django.db.models import Q
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("=" * 80)
+    logger.info("CLIENT ALLOCATION SHEET VIEW - START")
+    logger.info("=" * 80)
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Full request.GET: {dict(request.GET)}")
 
     # Get filter parameters
     client_id = request.GET.get('client_id', '').strip()
@@ -5051,6 +5059,19 @@ def client_allocation_sheet(request):
     account_code = request.GET.get('account_code', '').strip()
     group_type = request.GET.get('group_type', '').strip()
     has_email = request.GET.get('has_email', '').strip()
+
+    # Log all received filters
+    logger.info("RECEIVED FILTER PARAMETERS:")
+    logger.info(f"  client_id: '{client_id}' (length={len(client_id)})")
+    logger.info(f"  client_name: '{client_name}' (length={len(client_name)})")
+    logger.info(f"  corporate_group: '{corporate_group}' (length={len(corporate_group)})")
+    logger.info(f"  commodity: '{commodity}' (length={len(commodity)})")
+    logger.info(f"  facility_type: '{facility_type}' (length={len(facility_type)})")
+    logger.info(f"  facility_code: '{facility_code}' (length={len(facility_code)})")
+    logger.info(f"  province: '{province}' (length={len(province)})")
+    logger.info(f"  account_code: '{account_code}' (length={len(account_code)})")
+    logger.info(f"  group_type: '{group_type}' (length={len(group_type)})")
+    logger.info(f"  has_email: '{has_email}' (length={len(has_email)})")
 
     # Get sorting and pagination parameters
     sort_by = request.GET.get('sort_by', 'name')  # Default sort by name
@@ -5070,73 +5091,108 @@ def client_allocation_sheet(request):
     cache_key = f'client_data_{page_number}_{client_id}_{client_name}_{corporate_group}_{commodity}_{facility_type}_{facility_code}_{province}_{account_code}_{group_type}_{has_email}_{sort_by}_{sort_order}_{per_page}'
     cache_timeout = 300  # 5 minutes cache
 
-    # Try to get cached data first
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return render(request, 'main/client_allocation_sheet.html', cached_data)
+    logger.info(f"Cache key: {cache_key[:100]}...")
+
+    # DISABLE CACHE FOR DEBUGGING
+    # cached_data = cache.get(cache_key)
+    # if cached_data:
+    #     logger.info("RETURNING CACHED DATA")
+    #     return render(request, 'main/client_allocation_sheet.html', cached_data)
+
+    logger.info("CACHE DISABLED FOR DEBUGGING - Building fresh query")
 
     # Cache miss - query database with optimizations
     # Start with base query
     clients_query = Client.objects.all()
+    initial_count = clients_query.count()
+    logger.info(f"Initial client count (no filters): {initial_count}")
 
     # Apply filters
+    logger.info("APPLYING FILTERS:")
     if client_id:
         clients_query = clients_query.filter(client_id__icontains=client_id)
+        count_after = clients_query.count()
+        logger.info(f"  After client_id filter: {count_after} clients")
     if client_name:
         clients_query = clients_query.filter(name__icontains=client_name)
+        count_after = clients_query.count()
+        logger.info(f"  After client_name filter: {count_after} clients")
     if corporate_group:
         clients_query = clients_query.filter(corporate_group=corporate_group)
+        count_after = clients_query.count()
+        logger.info(f"  After corporate_group filter: {count_after} clients")
     if facility_type:
         clients_query = clients_query.filter(facility_type=facility_type)
+        count_after = clients_query.count()
+        logger.info(f"  After facility_type filter: {count_after} clients")
     if group_type:
         clients_query = clients_query.filter(group_type=group_type)
+        count_after = clients_query.count()
+        logger.info(f"  After group_type filter: {count_after} clients")
     if province:
         clients_query = clients_query.filter(town__icontains=province)
+        count_after = clients_query.count()
+        logger.info(f"  After province filter: {count_after} clients")
     if account_code:
         clients_query = clients_query.filter(internal_account_code__icontains=account_code)
+        count_after = clients_query.count()
+        logger.info(f"  After account_code filter: {count_after} clients")
     if facility_code:
         # Facility code is the first part of internal_account_code (e.g., "RE-", "BU-", "AB-")
         clients_query = clients_query.filter(internal_account_code__istartswith=facility_code)
+        count_after = clients_query.count()
+        logger.info(f"  After facility_code filter: {count_after} clients")
     if commodity:
         # Commodity is typically the third segment in account code (e.g., RAW, EGG, PMP, PLT)
         clients_query = clients_query.filter(internal_account_code__icontains=f'-{commodity}-')
+        count_after = clients_query.count()
+        logger.info(f"  After commodity filter: {count_after} clients")
     if has_email == 'yes':
         clients_query = clients_query.exclude(Q(email__isnull=True) | Q(email=''))
+        count_after = clients_query.count()
+        logger.info(f"  After has_email=yes filter: {count_after} clients")
     elif has_email == 'no':
         clients_query = clients_query.filter(Q(email__isnull=True) | Q(email=''))
+        count_after = clients_query.count()
+        logger.info(f"  After has_email=no filter: {count_after} clients")
 
     # Apply sorting
     clients_query = clients_query.order_by(order_by_field)
+    logger.info(f"Sorting by: {order_by_field}")
 
     # Get total count
     total_count = clients_query.count()
     has_data = total_count > 0
+    logger.info(f"FINAL FILTERED COUNT: {total_count} clients")
 
     # Apply pagination
     paginator = Paginator(clients_query, per_page)
     page_obj = paginator.get_page(page_number)
     allocations = list(page_obj.object_list)
+    logger.info(f"Pagination: Page {page_number}, showing {len(allocations)} clients per page")
+    logger.info(f"Total pages: {paginator.num_pages}")
 
-    # Get unique values for dropdown filters (cached for 10 minutes)
-    corporate_groups = cache.get('client_corporate_groups')
-    if not corporate_groups:
-        corporate_groups = list(Client.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='').values_list('corporate_group', flat=True).distinct().order_by('corporate_group'))
-        cache.set('client_corporate_groups', corporate_groups, 600)
+    # Log first 3 clients for verification
+    if allocations:
+        logger.info("SAMPLE OF RETURNED CLIENTS:")
+        for i, client in enumerate(allocations[:3]):
+            logger.info(f"  {i+1}. {client.client_id} - {client.name} - {client.corporate_group} - {client.facility_type}")
+    else:
+        logger.warning("NO CLIENTS RETURNED AFTER FILTERING!")
 
-    facility_types = cache.get('client_facility_types')
-    if not facility_types:
-        facility_types = list(Client.objects.exclude(facility_type__isnull=True).exclude(facility_type='').values_list('facility_type', flat=True).distinct().order_by('facility_type'))
-        cache.set('client_facility_types', facility_types, 600)
+    # Get unique values for dropdown filters (CACHE DISABLED FOR DEBUGGING)
+    logger.info("BUILDING DROPDOWN OPTIONS:")
+    corporate_groups = list(Client.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='').values_list('corporate_group', flat=True).distinct().order_by('corporate_group'))
+    logger.info(f"  Corporate groups: {len(corporate_groups)} options - First 5: {corporate_groups[:5]}")
 
-    group_types = cache.get('client_group_types')
-    if not group_types:
-        group_types = list(Client.objects.exclude(group_type__isnull=True).exclude(group_type='').values_list('group_type', flat=True).distinct().order_by('group_type'))
-        cache.set('client_group_types', group_types, 600)
+    facility_types = list(Client.objects.exclude(facility_type__isnull=True).exclude(facility_type='').values_list('facility_type', flat=True).distinct().order_by('facility_type'))
+    logger.info(f"  Facility types: {len(facility_types)} options - {facility_types}")
 
-    provinces = cache.get('client_provinces')
-    if not provinces:
-        provinces = list(Client.objects.exclude(town__isnull=True).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
-        cache.set('client_provinces', provinces, 600)
+    group_types = list(Client.objects.exclude(group_type__isnull=True).exclude(group_type='').values_list('group_type', flat=True).distinct().order_by('group_type'))
+    logger.info(f"  Group types: {len(group_types)} options - {group_types}")
+
+    provinces = list(Client.objects.exclude(town__isnull=True).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
+    logger.info(f"  Provinces: {len(provinces)} options - First 5: {provinces[:5]}")
 
     context = {
         'allocations': allocations,
@@ -5167,8 +5223,21 @@ def client_allocation_sheet(request):
         'provinces': provinces,
     }
 
-    # Cache the context for faster subsequent requests
-    cache.set(cache_key, context, cache_timeout)
+    # CACHE DISABLED FOR DEBUGGING
+    # cache.set(cache_key, context, cache_timeout)
+
+    logger.info("FINAL CONTEXT:")
+    logger.info(f"  total_count: {context['total_count']}")
+    logger.info(f"  displayed_count: {context['displayed_count']}")
+    logger.info(f"  has_data: {context['has_data']}")
+    logger.info(f"  page: {page_obj.number if page_obj else 'None'}")
+    logger.info(f"  Filter values being sent to template:")
+    logger.info(f"    filter_corporate_group: '{context['filter_corporate_group']}'")
+    logger.info(f"    filter_facility_type: '{context['filter_facility_type']}'")
+    logger.info(f"    filter_group_type: '{context['filter_group_type']}'")
+    logger.info("=" * 80)
+    logger.info("CLIENT ALLOCATION SHEET VIEW - END")
+    logger.info("=" * 80)
 
     return render(request, 'main/client_allocation_sheet.html', context)
 
