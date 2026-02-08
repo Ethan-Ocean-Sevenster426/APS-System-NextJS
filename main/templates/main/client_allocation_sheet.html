@@ -1744,16 +1744,13 @@
                         {% for allocation in allocations %}
                         <tr onclick="selectRow(this)" oncontextmenu="showContextMenu(event, this)"
                             data-client-id="{{ allocation.client_id }}"
-                            data-business-name="{{ allocation.name }}"
-                            data-facility-type="{{ allocation.facility_type }}"
-                            data-group-type="{{ allocation.group_type }}"
-                            data-commodity="{{ allocation.commodity }}"
-                            data-province="{{ allocation.town }}"
-                            data-corporate-group="{{ allocation.corporate_group }}"
-                            data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
-                            data-email="{{ allocation.email }}"
-                            data-phone="{{ allocation.phone_number }}"
-                            data-active-status="{{ allocation.active_status }}">
+                            data-business-name="{{ allocation.name|default:'' }}"
+                            data-facility-type="{{ allocation.facility_type|default:'' }}"
+                            data-group-type="{{ allocation.group_type|default:'' }}"
+                            data-province="{{ allocation.town|default:'' }}"
+                            data-corporate-group="{{ allocation.corporate_group|default:'' }}"
+                            data-email="{{ allocation.email|default:'' }}"
+                            data-account-code="{{ allocation.internal_account_code|default:'' }}">
                             <td class="row-number">{% if page_obj %}{{ page_obj.start_index|add:forloop.counter0 }}{% else %}{{ forloop.counter }}{% endif %}</td>
                             <td style="text-align: center; padding: 0.5rem; font-weight: 500;">{{ allocation.client_id }}</td>
                             <td class="business-name-cell" style="padding: 0.5rem;">{{ allocation.name|default:'-' }}</td>
@@ -1762,11 +1759,7 @@
                             <td style="padding: 0.5rem;">{{ allocation.corporate_group|default:'-' }}</td>
                             <td class="account-code-cell">{{ allocation.internal_account_code|default:'-' }}</td>
                             <td style="text-align: center; padding: 0.5rem;">
-                                {% if allocation.allocated %}
-                                    <span style="color: #10b981; font-weight: 600;">✓ Yes</span>
-                                {% else %}
-                                    <span style="color: #6b7280;">-</span>
-                                {% endif %}
+                                <span style="color: #6b7280;">-</span>
                             </td>
                             <td class="email-cell" style="padding: 0.5rem; font-size: 0.75rem;">{{ allocation.email|default:'-' }}</td>
                             <td style="padding: 0.5rem;">{{ allocation.phone_number|default:'-' }}</td>
@@ -1781,16 +1774,13 @@
                 {% for allocation in allocations %}
                 <div class="client-card" onclick="selectCard(this)" oncontextmenu="showContextMenuCard(event, this)"
                     data-client-id="{{ allocation.client_id }}"
-                    data-business-name="{{ allocation.name }}"
-                    data-facility-type="{{ allocation.facility_type }}"
-                    data-group-type="{{ allocation.group_type }}"
-                    data-commodity="{{ allocation.commodity }}"
-                    data-province="{{ allocation.town }}"
-                    data-corporate-group="{{ allocation.corporate_group }}"
-                    data-allocated="{{ allocation.allocated|yesno:'yes,no' }}"
-                    data-email="{{ allocation.email }}"
-                    data-phone="{{ allocation.phone_number }}"
-                    data-active-status="{{ allocation.active_status }}">
+                    data-business-name="{{ allocation.name|default:'' }}"
+                    data-facility-type="{{ allocation.facility_type|default:'' }}"
+                    data-group-type="{{ allocation.group_type|default:'' }}"
+                    data-province="{{ allocation.town|default:'' }}"
+                    data-corporate-group="{{ allocation.corporate_group|default:'' }}"
+                    data-email="{{ allocation.email|default:'' }}"
+                    data-account-code="{{ allocation.internal_account_code|default:'' }}">
 
                     <div class="card-header-row">
                         <div class="card-title-text">{{ allocation.name|default:'Unnamed Client' }}</div>
@@ -1825,27 +1815,10 @@
                             <span class="card-value-text account-code">{{ allocation.internal_account_code }}</span>
                         </div>
                         {% endif %}
-
-                        <div class="card-field-row">
-                            <span class="card-label-text">Allocated:</span>
-                            {% if allocation.allocated %}
-                                <span class="card-value-text allocated-yes">✓ Yes</span>
-                            {% else %}
-                                <span class="card-value-text allocated-no">No</span>
-                            {% endif %}
-                        </div>
-
                         {% if allocation.email %}
                         <div class="card-field-row">
                             <span class="card-label-text">Email:</span>
                             <span class="card-value-text">{{ allocation.email }}</span>
-                        </div>
-                        {% endif %}
-
-                        {% if allocation.phone_number %}
-                        <div class="card-field-row">
-                            <span class="card-label-text">Phone:</span>
-                            <span class="card-value-text">{{ allocation.phone_number }}</span>
                         </div>
                         {% endif %}
                     </div>
