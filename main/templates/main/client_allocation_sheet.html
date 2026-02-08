@@ -2692,6 +2692,37 @@
                 closeEditClientModal();
             }
         }
+
+        // FORCE FORM TO SUBMIT NORMALLY - Override any interfering handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterForm = document.getElementById('filterForm');
+            if (filterForm) {
+                // Remove any onclick handlers from submit button
+                const submitBtn = filterForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.onclick = null;
+                    submitBtn.addEventListener('click', function(e) {
+                        console.log('Submit button clicked - form will submit naturally');
+                    });
+                }
+
+                // Ensure form submits normally
+                filterForm.addEventListener('submit', function(e) {
+                    console.log('Form submitting with method:', this.method, 'to:', this.action);
+                    // Don't prevent default - let it submit naturally
+                });
+
+                console.log('Filter form configured for normal submission');
+            }
+        });
+
+        // Disable any applyClientFilters function if it exists
+        if (typeof applyClientFilters !== 'undefined') {
+            console.warn('Disabling applyClientFilters function');
+            window.applyClientFilters = function() {
+                console.log('applyClientFilters called but disabled - use form submission instead');
+            };
+        }
     </script>
 </body>
 </html>
