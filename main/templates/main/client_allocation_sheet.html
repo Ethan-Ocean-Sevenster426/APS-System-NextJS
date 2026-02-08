@@ -1583,6 +1583,28 @@
                 </button>
             </div>
 
+            <!-- DEBUG PANEL -->
+            <div style="background: #e3f2fd; border: 2px solid #2196f3; padding: 1rem; margin: 1rem 0; border-radius: 0.5rem; font-family: monospace; font-size: 0.875rem;">
+                <strong style="color: #1976d2;">🐛 DEBUG INFO:</strong><br>
+                <strong>Total Clients:</strong> {{ total_count }}<br>
+                <strong>Displayed:</strong> {{ displayed_count }}<br>
+                <strong>Page:</strong> {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}<br>
+                <hr style="margin: 0.5rem 0; border-color: #2196f3;">
+                <strong>Active Filters:</strong><br>
+                {% if filter_client_id %}&nbsp;&nbsp;• Client ID: "{{ filter_client_id }}"<br>{% endif %}
+                {% if filter_client_name %}&nbsp;&nbsp;• Client Name: "{{ filter_client_name }}"<br>{% endif %}
+                {% if filter_corporate_group %}&nbsp;&nbsp;• Corporate Group: "{{ filter_corporate_group }}"<br>{% endif %}
+                {% if filter_commodity %}&nbsp;&nbsp;• Commodity: "{{ filter_commodity }}"<br>{% endif %}
+                {% if filter_facility_type %}&nbsp;&nbsp;• Facility Type: "{{ filter_facility_type }}"<br>{% endif %}
+                {% if filter_facility_code %}&nbsp;&nbsp;• Facility Code: "{{ filter_facility_code }}"<br>{% endif %}
+                {% if filter_province %}&nbsp;&nbsp;• Province: "{{ filter_province }}"<br>{% endif %}
+                {% if filter_account_code %}&nbsp;&nbsp;• Account Code: "{{ filter_account_code }}"<br>{% endif %}
+                {% if filter_group_type %}&nbsp;&nbsp;• Group Type: "{{ filter_group_type }}"<br>{% endif %}
+                {% if not filter_client_id and not filter_client_name and not filter_corporate_group and not filter_commodity and not filter_facility_type and not filter_facility_code and not filter_province and not filter_account_code and not filter_group_type %}
+                &nbsp;&nbsp;• No filters applied
+                {% endif %}
+            </div>
+
             {% if not has_data %}
             <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 1rem; margin: 1rem 0; border-radius: 0.5rem;">
                 <p style="margin: 0; color: #856404;">
