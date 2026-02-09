@@ -32,6 +32,24 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: var(--bg-main);
             color: var(--text-primary);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        body.bg-loaded::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: url("{% static 'img/food_safety_background.jpg' %}?v=2") no-repeat center center fixed;
+            background-size: cover;
+            opacity: 1.0;
+            z-index: -1;
+            pointer-events: none;
         }
 
         /* Sidebar */
@@ -520,6 +538,11 @@
             sidebar.classList.toggle('show');
             overlay.classList.toggle('show');
         }
+
+        // Load background image after page loads
+        window.addEventListener('load', function() {
+            document.body.classList.add('bg-loaded');
+        });
     </script>
 </body>
 </html>
