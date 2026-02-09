@@ -17351,3 +17351,10 @@ def csrf_failure(request, reason=""):
     return HttpResponseForbidden(
         render(request, 'main/csrf_failure.html').content
     )
+
+
+@login_required(login_url='login')
+@role_required(['super_admin'])
+def training_page(request):
+    """Training videos page — super_admin only."""
+    return render(request, 'main/training.html')

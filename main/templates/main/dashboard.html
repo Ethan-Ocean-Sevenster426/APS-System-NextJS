@@ -462,6 +462,11 @@
                 <i class="fas fa-file-export"></i> Export Sheet
             </a>
             {% endif %}
+            {% if request.user.role == 'super_admin' %}
+            <a href="{% url 'training_page' %}" class="btn btn-info">
+                <i class="fas fa-video"></i> Training
+            </a>
+            {% endif %}
             <a href="{% url 'submit_ticket' %}" class="btn btn-danger">
                 <i class="fas fa-ticket-alt"></i> Submit Ticket
             </a>

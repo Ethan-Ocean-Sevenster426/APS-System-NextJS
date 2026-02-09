@@ -25,7 +25,7 @@ from .views.core_views import (
     reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, export_client_allocations, add_client_allocation, edit_client_allocation,
     get_dropdown_options, delete_dropdown_option, delete_client_allocation, send_password_reset_email,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
-    mark_all_notifications_read, delete_notification
+    mark_all_notifications_read, delete_notification, training_page
 )
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
@@ -238,4 +238,9 @@ urlpatterns = [
     path('onedrive-service/test-connection/', test_onedrive_connection, name='test_onedrive_connection'),
     path('onedrive-service/reauthenticate/', reauthenticate_onedrive, name='reauthenticate_onedrive'),
     path('onedrive-service/auth-url/', get_onedrive_auth_url, name='get_onedrive_auth_url'),
+
+    # =============================================================================
+    # TRAINING PAGE
+    # =============================================================================
+    path('training/', training_page, name='training_page'),
 ]

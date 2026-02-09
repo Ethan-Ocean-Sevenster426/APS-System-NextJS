@@ -7873,6 +7873,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if request.user.role == 'super_admin' %}
+                <li class="nav-item">
+                    <a href="{% url 'training_page' %}" class="nav-link">
+                        <i class="fas fa-video"></i>
+                        Training
+                    </a>
+                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a href="{% url 'submit_ticket' %}" class="nav-link">
                         <i class="fas fa-ticket-alt" style="color: #f87171;"></i>
