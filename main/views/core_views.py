@@ -13309,10 +13309,8 @@ def download_all_inspection_files(request):
         # Find the actual client folder using the same logic as file listing
         # Check multiple possible client folder variations
         inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
-        
-        if not os.path.exists(inspection_base):
-            return JsonResponse({'success': False, 'error': 'No inspection folder found'})
-        
+
+        # Don't return early if inspection/ folder doesn't exist - docs/ structure may still have files
         # Use exact client name for matching (folders now use original names)
         client_folder_pattern = client_name
         
@@ -13320,9 +13318,11 @@ def download_all_inspection_files(request):
         
         # Find all matching client folders across all months (like file listing does)
         matching_folders = []
-        
-        # Search through all year/month folders
-        for year_folder_search in os.listdir(inspection_base):
+
+        # Search through all year/month folders (only if legacy inspection/ folder exists)
+        if not os.path.exists(inspection_base):
+            safe_print(f"Legacy inspection folder not found: {inspection_base}, skipping legacy scan")
+        for year_folder_search in (os.listdir(inspection_base) if os.path.exists(inspection_base) else []):
             year_path = os.path.join(inspection_base, year_folder_search)
             if not os.path.isdir(year_path):
                 continue
@@ -13369,38 +13369,43 @@ def download_all_inspection_files(request):
                         safe_print(f"Found matching client folder: {folder_name} in {year_folder_search}/{month_folder_search}")
         
         # === NEW STRUCTURE: Also check docs/{client_id}/{inspection_id}/ ===
+        # Loop through ALL inspections for this client+date (not just first)
+        # to match the behavior of get_inspection_files_local
         docs_files = []  # List of (file_path, category) tuples from docs structure
 
         # Strip btn- prefix if present
         clean_client_name = client_name[4:] if client_name.startswith('btn-') else client_name
 
-        # Look up inspection and client in database
-        inspection = FoodSafetyAgencyInspection.objects.filter(
+        # Look up ALL inspections for this client and date
+        all_inspections = FoodSafetyAgencyInspection.objects.filter(
             client_name__iexact=clean_client_name,
             date_of_inspection=date_obj.date() if hasattr(date_obj, 'date') else date_obj
-        ).first()
+        ).select_related('client')
 
-        client_obj = None
-        if inspection:
+        safe_print(f"Found {all_inspections.count()} inspection(s) for docs lookup")
+
+        doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'lab_form', 'occurrence', 'retest', 'other']
+
+        for inspection in all_inspections:
+            client_obj = None
             if inspection.client:
                 client_obj = inspection.client
             else:
                 from main.models import Client
                 client_obj = Client.objects.filter(name__iexact=clean_client_name).first()
 
-        if inspection and client_obj:
-            docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
-            if os.path.exists(docs_path):
-                safe_print(f"Checking docs path: {docs_path}")
-                doc_categories = ['rfi', 'invoice', 'compliance', 'composition', 'coa', 'lab', 'occurrence', 'retest', 'other']
-                for cat in doc_categories:
-                    cat_path = os.path.join(docs_path, cat)
-                    if os.path.exists(cat_path):
-                        for filename in os.listdir(cat_path):
-                            file_path = os.path.join(cat_path, filename)
-                            if os.path.isfile(file_path):
-                                docs_files.append((file_path, cat, filename))
-                                safe_print(f"Found docs file: {filename} in {cat}")
+            if client_obj:
+                docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
+                if os.path.exists(docs_path):
+                    safe_print(f"Checking docs path for inspection {inspection.id}: {docs_path}")
+                    for cat in doc_categories:
+                        cat_path = os.path.join(docs_path, cat)
+                        if os.path.exists(cat_path):
+                            for filename in os.listdir(cat_path):
+                                file_path = os.path.join(cat_path, filename)
+                                if os.path.isfile(file_path):
+                                    docs_files.append((file_path, cat, filename))
+                                    safe_print(f"Found docs file: {filename} in {cat} (inspection {inspection.id})")
 
         if not matching_folders and not docs_files:
             return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'})
