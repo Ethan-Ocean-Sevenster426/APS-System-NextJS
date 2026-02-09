@@ -837,7 +837,7 @@
                     {% endif %}
 
                     <!-- 9. Training -->
-                    {% if request.user.role == 'super_admin' %}
+                    {% if request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'developer' %}
                     <li>
                         <a href="{% url 'training_page' %}"
                             class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">

@@ -17354,7 +17354,7 @@ def csrf_failure(request, reason=""):
 
 
 @login_required(login_url='login')
-@role_required(['super_admin'])
+@role_required(['super_admin', 'admin', 'developer'])
 def training_page(request):
-    """Training videos page — super_admin only."""
+    """Training videos page — super_admin, admin, and developer only."""
     return render(request, 'main/training.html')
