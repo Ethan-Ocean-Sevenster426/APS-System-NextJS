@@ -451,12 +451,12 @@ class FoodSafetyAgencyInspection(models.Model):
     comment = models.TextField(blank=True, null=True, help_text="Comment for this inspection group")
     lab = models.CharField(max_length=20, blank=True, null=True, help_text="Laboratory used for testing",
                           choices=[
-                              ('lab_a', 'Lab A'),
-                              ('lab_b', 'Lab B'),
-                              ('lab_c', 'Lab C'),
-                              ('lab_d', 'Lab D'),
-                              ('lab_e', 'Lab E'),
-                              ('lab_f', 'Lab F')
+                              ('lab_a', 'Food Safety Laboratory'),
+                              ('lab_b', 'Merieux NutriSciences'),
+                              ('lab_c', 'AGRI Food Laboratory (SGS)'),
+                              ('lab_d', 'SANBI'),
+                              ('lab_e', 'SMT'),
+                              ('lab_f', 'ARC')
                           ])
     
     # Reference information

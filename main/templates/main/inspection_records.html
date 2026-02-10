@@ -3285,34 +3285,7 @@
             font-size: 0.7rem;
         }
 
-        /* Removed fixed 300px constraints - let column widths be controlled by specific rules below */
-
-        @media (min-width: 1024px) {
-
-            #shipmentsTable th,
-            #shipmentsTable td {
-                white-space: nowrap !important;
-                padding: 8px 12px !important;
-                text-align: center !important;
-            }
-
-            #shipmentsTable th:nth-child(1),
-            #shipmentsTable td:nth-child(1) {
-                width: auto;
-                text-align: center !important;
-            }
-
-            #shipmentsTable th:nth-child(6),
-            #shipmentsTable td:nth-child(6) {
-                text-align: left !important;
-            }
-
-            #shipmentsTable th:nth-child(7),
-            #shipmentsTable td:nth-child(7) {
-                text-align: left !important;
-                font-size: 0.85rem !important;
-            }
-        }
+        /* Column widths controlled by the desktop-only rules further below */
 
         /* Ensure table maintains its structure when expanded */
         #shipmentsTable tbody {
@@ -6850,235 +6823,89 @@
             }
         }
 
-        /* Ensure desktop table takes full width */
-        #shipmentsTable {
-            width: auto !important;
-            table-layout: auto !important;
-        }
-
         /* Ensure table container takes full width */
         .hidden.lg\\:block {
             width: 100% !important;
         }
 
-        /* Desktop-only table cell styling */
+        /* Desktop-only table cell styling - matched to current 7-column layout:
+           1=Facility, 2=Files, 3=Date, 4=Approved, 5=Email, 6=Sent, 7=Actions */
         @media (min-width: 1024px) {
 
-            #shipmentsTable th,
-            #shipmentsTable td {
-                white-space: nowrap !important;
-                padding: 8px 12px !important;
-                text-align: left !important;
-                vertical-align: middle !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
+            #shipmentsTable {
+                width: 100% !important;
+                table-layout: fixed !important;
             }
-        }
 
-        /* Add more spacing between columns for desktop view */
-
-        /* Desktop-only column width and alignment rules */
-        @media (min-width: 1024px) {
             #shipmentsTable th {
                 white-space: normal !important;
                 text-align: center !important;
-                position: relative !important;
                 vertical-align: middle !important;
                 box-sizing: border-box !important;
                 font-size: 0.75rem !important;
-                font-weight: normal !important;
-                overflow: visible !important;
-                word-wrap: break-word !important;
+                font-weight: 600 !important;
+                padding: 8px 6px !important;
                 line-height: 1.4 !important;
             }
 
             #shipmentsTable td {
-                white-space: nowrap !important;
-                text-align: center !important;
-                position: relative !important;
                 vertical-align: middle !important;
                 box-sizing: border-box !important;
                 font-size: 0.85rem !important;
+                padding: 8px 6px !important;
             }
 
+            /* Col 1: Facility - client name, town, inspector - allow wrapping */
             #shipmentsTable th:nth-child(1),
             #shipmentsTable td:nth-child(1) {
+                width: 40% !important;
                 text-align: left !important;
-                /* min-width: 180px !important; */
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
             }
 
-            /* Client Name */
+            /* Col 2: Files button */
             #shipmentsTable th:nth-child(2),
             #shipmentsTable td:nth-child(2) {
-                text-align: left !important;
-                min-width: 220px !important;
+                width: 50px !important;
+                text-align: center !important;
             }
 
-            /* Account Code */
+            /* Col 3: Date */
             #shipmentsTable th:nth-child(3),
             #shipmentsTable td:nth-child(3) {
-                text-align: left !important;
-                min-width: 180px !important;
-                padding-left: 5px !important;
-                padding-right: 5px !important;
+                width: 130px !important;
+                text-align: center !important;
+                white-space: normal !important;
             }
 
-            /* Inspection Date */
+            /* Col 4: Approved */
             #shipmentsTable th:nth-child(4),
             #shipmentsTable td:nth-child(4) {
-                min-width: 190px !important;
-            }
-
-            /* Compliant/Non-Compliant */
-            #shipmentsTable td:nth-child(4) span {
-                min-width: 120px !important;
-                display: inline-block !important;
+                width: 90px !important;
                 text-align: center !important;
-                padding: 6px 12px !important;
             }
 
-            /* Make compliance badge wider */
-            #shipmentsTable th:nth-child(5) {
-                text-align: center !important;
-                min-width: 200px !important;
-            }
-
-            /* Email header */
+            /* Col 5: Email */
+            #shipmentsTable th:nth-child(5),
             #shipmentsTable td:nth-child(5) {
-                text-align: left !important;
-                min-width: 200px !important;
+                width: 180px !important;
+                text-align: center !important;
             }
 
-            /* Email data */
+            /* Col 6: Sent */
             #shipmentsTable th:nth-child(6),
             #shipmentsTable td:nth-child(6) {
-                text-align: left !important;
-                min-width: 200px !important;
+                width: 80px !important;
+                text-align: center !important;
             }
 
-            /* Additional Email */
+            /* Col 7: Actions */
             #shipmentsTable th:nth-child(7),
             #shipmentsTable td:nth-child(7) {
-                text-align: left !important;
-                min-width: 160px !important;
-                font-size: 0.85rem !important;
-            }
-
-            /* Inspector */
-            #shipmentsTable th:nth-child(8),
-            #shipmentsTable td:nth-child(8) {
-                min-width: 150px !important;
-            }
-
-            /* View Files */
-            #shipmentsTable th:nth-child(9),
-            #shipmentsTable td:nth-child(9) {
-                min-width: 100px !important;
-            }
-
-            /* RFI */
-            #shipmentsTable th:nth-child(10),
-            #shipmentsTable td:nth-child(10) {
-                min-width: 100px !important;
-            }
-
-            /* Invoice */
-            #shipmentsTable th:nth-child(11),
-            #shipmentsTable td:nth-child(11) {
-                min-width: 130px !important;
-            }
-
-            /* Occurrence */
-            #shipmentsTable th:nth-child(12),
-            #shipmentsTable td:nth-child(12) {
-                min-width: 120px !important;
-            }
-
-            /* Composition */
-            #shipmentsTable th:nth-child(13),
-            #shipmentsTable td:nth-child(13) {
-                min-width: 280px !important;
-            }
-
-            /* Comment */
-            #shipmentsTable th:nth-child(14),
-            #shipmentsTable td:nth-child(14) {
-                min-width: 130px !important;
-            }
-
-            /* Distance (Km) */
-            #shipmentsTable th:nth-child(15),
-            #shipmentsTable td:nth-child(15) {
-                min-width: 150px !important;
-            }
-
-            /* Hours Worked */
-            #shipmentsTable th:nth-child(16),
-            #shipmentsTable td:nth-child(16) {
-                min-width: 110px !important;
-            }
-
-            /* Approved */
-            #shipmentsTable th:nth-child(17),
-            #shipmentsTable td:nth-child(17) {
-                min-width: 160px !important;
-            }
-
-            /* Sent Status */
-        }
-
-        @media (min-width: 1024px) {
-            #shipmentsTable td:nth-child(5) {
-                text-align: left !important;
-                min-width: 340px !important;
-            }
-
-            #shipmentsTable th:nth-child(6),
-            #shipmentsTable td:nth-child(6) {
+                width: 90px !important;
                 text-align: center !important;
-                min-width: 190px !important;
-            }
-
-            #shipmentsTable th:nth-child(8),
-            #shipmentsTable td:nth-child(8) {
-                min-width: 250px !important;
-            }
-
-            #shipmentsTable th:nth-child(9),
-            #shipmentsTable td:nth-child(9) {
-                min-width: 120px !important;
-            }
-
-            #shipmentsTable th:nth-child(10),
-            #shipmentsTable td:nth-child(10) {
-                min-width: 200px !important;
-            }
-
-            #shipmentsTable th:nth-child(11),
-            #shipmentsTable td:nth-child(11) {
-                min-width: 120px !important;
-            }
-
-            #shipmentsTable th:nth-child(12),
-            #shipmentsTable td:nth-child(12) {
-                min-width: 274px !important;
-            }
-
-            #shipmentsTable th:nth-child(13),
-            #shipmentsTable td:nth-child(13) {
-                min-width: 274px !important;
-            }
-
-            #shipmentsTable th:nth-child(14),
-            #shipmentsTable td:nth-child(14) {
-                width: 200px !important;
-                text-align: center !important;
-                /* padding-right: 50px !important; */
-            }
-
-            #shipmentsTable th:nth-child(15),
-            #shipmentsTable td:nth-child(15) {
-                min-width: 290px !important;
             }
         }
 
@@ -7102,8 +6929,8 @@
             }
 
             #shipmentsTable {
-                width: auto !important;
-                table-layout: auto !important;
+                width: 100% !important;
+                table-layout: fixed !important;
             }
         }
 
@@ -8027,7 +7854,7 @@
                             <i class="fas fa-filter"></i> Filter Inspections
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body" style="overflow: visible;">
                         <form method="get" action="" class="filter-form">
                             <!-- First Row: Search and Selection Fields -->
                             <div class="filter-row">
@@ -8167,7 +7994,174 @@
                                     </select>
                                 </div>
                                 <!-- Lab Form Status filter removed - show all inspections regardless of lab forms -->
+                                <div class="filter-field">
+                                    <label class="form-label">File Status</label>
+                                    <select class="form-control" name="file_status_filter">
+                                        <option value="">All Inspections</option>
+                                        <option value="ALL_FILES" {% if request.GET.file_status_filter == 'ALL_FILES' %}selected{% endif %}>All Files</option>
+                                        <option value="PARTIAL" {% if request.GET.file_status_filter == 'PARTIAL' %}selected{% endif %}>Partial Files</option>
+                                        <option value="NO_FILES" {% if request.GET.file_status_filter == 'NO_FILES' %}selected{% endif %}>No Files</option>
+                                    </select>
+                                </div>
                             </div>
+
+                            <!-- Third Row: Lab Filters (visible to lab technicians, admins, super_admins, developers) -->
+                            {% if request.user.role == 'lab_technician' or request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                            <div class="filter-row">
+                                <div class="filter-field">
+                                    <label class="form-label">Lab</label>
+                                    <div class="multi-select-dropdown" style="position: relative;">
+                                        <button type="button" class="form-control" id="labDropdownBtn" onclick="var d=document.getElementById('labDropdown'); d.style.display=d.style.display==='none'?'block':'none'; event.stopPropagation();" style="text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                                            <span id="labSelectText">All Labs</span>
+                                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                                        </button>
+                                        <div id="labDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
+                                            <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" id="selectAllLabs" onclick="var cbs=document.querySelectorAll('.lab-checkbox'); cbs.forEach(function(cb){cb.checked=this.checked;}.bind(this)); updateLabSelectText();">
+                                                    <span style="font-weight: 600;">Select All</span>
+                                                </label>
+                                            </div>
+                                            {% for lab_value in labs %}
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="lab" value="{{ lab_value }}" class="lab-checkbox" onclick="updateLabSelectText();">
+                                                    <span>{% for k, v in lab_choices.items %}{% if k == lab_value %}{{ v }}{% endif %}{% endfor %}</span>
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <script>
+                                        function updateLabSelectText() {
+                                            var checked = document.querySelectorAll('.lab-checkbox:checked');
+                                            var textEl = document.getElementById('labSelectText');
+                                            var allCbs = document.querySelectorAll('.lab-checkbox');
+                                            var selectAllCb = document.getElementById('selectAllLabs');
+                                            if (checked.length === 0) {
+                                                textEl.textContent = 'All Labs';
+                                            } else if (checked.length === 1) {
+                                                textEl.textContent = checked[0].parentElement.querySelector('span').textContent;
+                                            } else {
+                                                textEl.textContent = checked.length + ' selected';
+                                            }
+                                            if (selectAllCb) {
+                                                selectAllCb.checked = checked.length === allCbs.length;
+                                            }
+                                        }
+                                        document.addEventListener('click', function(e) {
+                                            var dropdown = document.getElementById('labDropdown');
+                                            var btn = document.getElementById('labDropdownBtn');
+                                            if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                                                dropdown.style.display = 'none';
+                                            }
+                                        });
+                                        // Restore selected labs from URL params
+                                        (function() {
+                                            var params = new URLSearchParams(window.location.search);
+                                            var selectedLabs = params.getAll('lab');
+                                            selectedLabs.forEach(function(val) {
+                                                var cb = document.querySelector('.lab-checkbox[value="' + val + '"]');
+                                                if (cb) cb.checked = true;
+                                            });
+                                            updateLabSelectText();
+                                        })();
+                                    </script>
+                                </div>
+                                <div class="filter-field">
+                                    <label class="form-label">Test Type</label>
+                                    <div class="multi-select-dropdown" style="position: relative;">
+                                        <button type="button" class="form-control" id="testTypeDropdownBtn" onclick="var d=document.getElementById('testTypeDropdown'); d.style.display=d.style.display==='none'?'block':'none'; event.stopPropagation();" style="text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                                            <span id="testTypeSelectText">All Tests</span>
+                                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                                        </button>
+                                        <div id="testTypeDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
+                                            <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" id="selectAllTests" onclick="var cbs=document.querySelectorAll('.test-type-checkbox'); cbs.forEach(function(cb){cb.checked=this.checked;}.bind(this)); updateTestTypeSelectText();">
+                                                    <span style="font-weight: 600;">Select All</span>
+                                                </label>
+                                            </div>
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="test_type" value="FAT" class="test-type-checkbox" onclick="updateTestTypeSelectText();">
+                                                    <span>Fat</span>
+                                                </label>
+                                            </div>
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="test_type" value="PROTEIN" class="test-type-checkbox" onclick="updateTestTypeSelectText();">
+                                                    <span>Protein</span>
+                                                </label>
+                                            </div>
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="test_type" value="CALCIUM" class="test-type-checkbox" onclick="updateTestTypeSelectText();">
+                                                    <span>Calcium</span>
+                                                </label>
+                                            </div>
+                                            <div style="padding: 6px 8px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                                                    <input type="checkbox" name="test_type" value="DNA" class="test-type-checkbox" onclick="updateTestTypeSelectText();">
+                                                    <span>DNA</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <script>
+                                        function updateTestTypeSelectText() {
+                                            var checked = document.querySelectorAll('.test-type-checkbox:checked');
+                                            var textEl = document.getElementById('testTypeSelectText');
+                                            var allCbs = document.querySelectorAll('.test-type-checkbox');
+                                            var selectAllCb = document.getElementById('selectAllTests');
+                                            if (checked.length === 0) {
+                                                textEl.textContent = 'All Tests';
+                                            } else if (checked.length === 1) {
+                                                textEl.textContent = checked[0].parentElement.querySelector('span').textContent;
+                                            } else {
+                                                textEl.textContent = checked.length + ' selected';
+                                            }
+                                            if (selectAllCb) {
+                                                selectAllCb.checked = checked.length === allCbs.length;
+                                            }
+                                        }
+                                        document.addEventListener('click', function(e) {
+                                            var dropdown = document.getElementById('testTypeDropdown');
+                                            var btn = document.getElementById('testTypeDropdownBtn');
+                                            if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                                                dropdown.style.display = 'none';
+                                            }
+                                        });
+                                        // Restore selected test types from URL params
+                                        (function() {
+                                            var params = new URLSearchParams(window.location.search);
+                                            var selectedTypes = params.getAll('test_type');
+                                            selectedTypes.forEach(function(val) {
+                                                var cb = document.querySelector('.test-type-checkbox[value="' + val + '"]');
+                                                if (cb) cb.checked = true;
+                                            });
+                                            updateTestTypeSelectText();
+                                        })();
+                                    </script>
+                                </div>
+                                <div class="filter-field">
+                                    <label class="form-label">Needs Retest</label>
+                                    <select class="form-control" name="needs_retest">
+                                        <option value="">All</option>
+                                        <option value="YES" {% if request.GET.needs_retest == 'YES' %}selected{% endif %}>Yes</option>
+                                        <option value="NO" {% if request.GET.needs_retest == 'NO' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+                                <div class="filter-field">
+                                    <label class="form-label">COA Uploaded</label>
+                                    <select class="form-control" name="coa_uploaded">
+                                        <option value="">All</option>
+                                        <option value="YES" {% if request.GET.coa_uploaded == 'YES' %}selected{% endif %}>Yes</option>
+                                        <option value="NO" {% if request.GET.coa_uploaded == 'NO' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {% endif %}
 
                             <!-- Action Buttons Row -->
                             <div class="filter-actions">
@@ -8407,6 +8401,14 @@
 
                                         <!-- Other Details -->
                                         <div class="grid grid-cols-2 gap-3">
+                                            {% if shipment.internal_account_code %}
+                                            <div class="col-span-2">
+                                                <label class="block text-gray-600 font-medium mb-1">Account Code</label>
+                                                <span class="text-xs bg-gray-100 px-2 py-1 rounded">
+                                                    {{ shipment.internal_account_code }}
+                                                </span>
+                                            </div>
+                                            {% endif %}
                                             <div>
                                                 <label class="block text-gray-600 font-medium mb-1">Approved</label>
                                                 <span class="text-xs bg-gray-100 px-2 py-1 rounded">
@@ -8874,6 +8876,12 @@
                                                         {% if shipment.facility_type %}
                                                         <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">
                                                             <span style="padding: 1px 4px; background: #dbeafe; color: #1e40af; border-radius: 2px;">{{ shipment.facility_type }}</span>
+                                                        </div>
+                                                        {% endif %}
+                                                        {% if shipment.internal_account_code %}
+                                                        <div style="font-size: 8px; color: #6b7280; margin-bottom: 2px;">
+                                                            <i class="fas fa-id-badge" style="width: 10px; color: #007890;"></i>
+                                                            <span style="font-weight: 500;">{{ shipment.internal_account_code }}</span>
                                                         </div>
                                                         {% endif %}
                                                         {% if shipment.is_occurrence_report %}

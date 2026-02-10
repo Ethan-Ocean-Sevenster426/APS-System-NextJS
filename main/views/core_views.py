@@ -93,7 +93,7 @@ from ..models import Client, Inspection, Shipment, Settings, FoodSafetyAgencyIns
 from django.views.decorators.csrf import csrf_exempt
 from ..decorators import role_required, inspector_restricted, financial_only, scientist_only, inspector_only_inspections, no_inspector_scientist
 @login_required
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def save_manual_client_email(request):
     """Persist a manual email override for a client (by business name)."""
     if request.method != 'POST':
@@ -144,7 +144,7 @@ def save_manual_client_email(request):
 
 
 @login_required
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def delete_client_email(request):
     """Delete a removable client email (manual or additional)."""
     if request.method != 'POST':
@@ -372,7 +372,6 @@ def user_logout(request):
 # =============================================================================
 
 @login_required(login_url='login')
-@inspector_only_inspections
 def client_list(request):
     """Display list of clients with inspection counts."""
     from ..models import Client, Inspection
@@ -405,7 +404,6 @@ def client_list(request):
 
 
 @login_required(login_url='login')
-@inspector_only_inspections
 def add_client(request):
     """Add a new client."""
     clear_messages(request)
@@ -435,7 +433,6 @@ def add_client(request):
 
 
 @login_required(login_url='login')
-@inspector_only_inspections
 def edit_client(request, pk):
     """Edit an existing client."""
     clear_messages(request)
@@ -468,7 +465,6 @@ def edit_client(request, pk):
 
 
 @login_required(login_url='login')
-@inspector_only_inspections
 def delete_client(request, pk):
     """Delete a client."""
     clear_messages(request)
@@ -2209,8 +2205,8 @@ def shipment_list(request):
         has_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=False)),  # Count inspections with Lab Form uploaded
         has_no_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=True)),  # Count inspections without Lab Form uploaded
         comment=Max('comment')  # Get the comment from the group (all should have the same comment)
-    ).order_by('-max_created_at', '-date_of_inspection', 'client_name')  # Sort by newest created first, so most recently added inspections always appear at top
-    
+    ).order_by('-date_of_inspection', 'client_name')  # Default: newest first
+
     # FILTER GROUPS BY SENT STATUS: Apply sent status filter to groups, not individual inspections
     sent_status = request.GET.get('sent_status')
     if sent_status:
@@ -2218,8 +2214,9 @@ def shipment_list(request):
             # Only show groups that have at least one sent inspection
             groups_queryset = groups_queryset.filter(has_sent_inspections__gt=0)
         elif sent_status == 'NO':
-            # Only show groups that have at least one unsent inspection
+            # Only show groups that have at least one unsent inspection - sort oldest first
             groups_queryset = groups_queryset.filter(has_unsent_inspections__gt=0)
+            groups_queryset = groups_queryset.order_by('date_of_inspection', 'client_name')
     
     # FILTER GROUPS BY RFI STATUS: DISABLED - Show all inspections regardless of RFI status
     # User requested to remove filtering so all inspections show up, even without files
@@ -2895,12 +2892,14 @@ def shipment_list(request):
         commodities = list(inspections.values_list('commodity', flat=True).distinct()[:50])
         corporate_groups = list(inspections.filter(corporate_group__isnull=False, corporate_group__gt='').values_list('corporate_group', flat=True).distinct().order_by('corporate_group')[:100])
         group_types = list(inspections.filter(group_type__isnull=False, group_type__gt='').values_list('group_type', flat=True).distinct().order_by('group_type')[:50])
+        labs = list(inspections.filter(lab__isnull=False, lab__gt='').values_list('lab', flat=True).distinct().order_by('lab')[:50])
 
         filter_data = {
             'inspectors': inspectors,
             'commodities': commodities,
             'corporate_groups': corporate_groups,
-            'group_types': group_types
+            'group_types': group_types,
+            'labs': labs
         }
         # Cache for 5 minutes
         cache.set(filter_cache_key, filter_data, 300)
@@ -2938,6 +2937,15 @@ def shipment_list(request):
         settings = {'dark_mode': False}
         print(f" THEME ERROR: {e}")
 
+    # Filter by file status (all files, partial, none) - applied after grouping since file_status is computed per group
+    file_status_filter = request.GET.get('file_status_filter')
+    if file_status_filter == 'ALL_FILES':
+        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') == 'all_files']
+    elif file_status_filter == 'PARTIAL':
+        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') in ('partial_files', 'compliance_only')]
+    elif file_status_filter == 'NO_FILES':
+        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') == 'no_files']
+
     # FIX: Use the enhanced grouped_inspections instead of the raw page_obj
     # The page_obj contains raw database results without products, but grouped_inspections has the enhanced data
     context = {
@@ -2946,6 +2954,8 @@ def shipment_list(request):
         'commodities': filter_data['commodities'],
         'corporate_groups': filter_data.get('corporate_groups', []),
         'group_types': filter_data.get('group_types', []),
+        'labs': filter_data.get('labs', []),
+        'lab_choices': dict([('lab_a', 'Food Safety Laboratory'), ('lab_b', 'Merieux NutriSciences'), ('lab_c', 'AGRI Food Laboratory (SGS)'), ('lab_d', 'SANBI'), ('lab_e', 'SMT'), ('lab_f', 'ARC')]),
         'total_inspections': len(grouped_inspections),
         'total_shipments': len(grouped_inspections),  # Add this for template compatibility
         'user_role': request.user.role,
@@ -3708,7 +3718,7 @@ def upload_document(request):
             file_extension = os.path.splitext(uploaded_file.name)[1]
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # Special naming for COA/Lab documents: FSL-RAW-CN-250703
+            # Special naming for COA/Lab documents: FSL-RAW-250719
             if document_type in ['lab', 'lab_form'] and inspection_id and str(inspection_id).isdigit():
                 # Get inspection data
                 inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
@@ -3728,42 +3738,21 @@ def upload_document(request):
                     # Get commodity (e.g., RAW, POULTRY, PMP, EGGS)
                     commodity = inspection.commodity.upper() if inspection.commodity else 'UNKNOWN'
 
-                    # Get uploader's first and last name initials (uppercase)
-                    # e.g., Mpho Sevenster → MS, Chrisna Nel → CN
-                    if request.user.first_name and request.user.last_name:
-                        uploader_initials = (request.user.first_name[0] + request.user.last_name[0]).upper()
-                    elif request.user.first_name:
-                        uploader_initials = request.user.first_name[:2].upper()
-                    else:
-                        uploader_initials = request.user.username[:2].upper()
-
-                    # Get year-month from inspection date (format: YYMM)
+                    # Get date from inspection (format: YYMMDD)
                     if inspection.date_of_inspection:
-                        year_month = inspection.date_of_inspection.strftime('%y%m')
+                        formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
                     else:
-                        year_month = datetime.now().strftime('%y%m')
+                        formatted_date = datetime.now().strftime('%y%m%d')
 
-                    # Get inspection ID (pad with zeros if needed, max 2 digits)
-                    inspection_suffix = str(inspection_id).zfill(2) if len(str(inspection_id)) <= 2 else str(inspection_id)[-2:]
-
-                    # Format: FSL-RAW-CN-250703
-                    filename = f"{lab_name}-{commodity}-{uploader_initials}-{year_month}{inspection_suffix}{file_extension}"
+                    # Format: FSL-RAW-250719
+                    filename = f"{lab_name}-{commodity}-{formatted_date}{file_extension}"
                     print(f"[COA NAMING] Generated COA filename: {filename}")
-                    print(f"[COA NAMING] Lab: {lab_name}, Commodity: {commodity}, Uploader: {uploader_initials}, Date: {year_month}, InspectionID: {inspection_suffix}")
+                    print(f"[COA NAMING] Lab: {lab_name}, Commodity: {commodity}, Date: {formatted_date}")
                 else:
                     # Fallback to default naming if inspection not found
                     filename = f"lab-{inspection_id}-{timestamp}{file_extension}"
-            # Special naming for RFI and Invoice: FSA-INV-CN-250707
+            # Special naming for RFI and Invoice: FSA-INV-250711, FSA-RFI-250711
             elif document_type in ['rfi', 'invoice']:
-                # Get uploader's first and last name initials (uppercase)
-                # e.g., Mpho Sevenster → MS, Chrisna Nel → CN
-                if request.user.first_name and request.user.last_name:
-                    uploader_initials = (request.user.first_name[0] + request.user.last_name[0]).upper()
-                elif request.user.first_name:
-                    uploader_initials = request.user.first_name[:2].upper()
-                else:
-                    uploader_initials = request.user.username[:2].upper()
-
                 # Get date from group_id or inspection (format: YYMMDD)
                 if group_id:
                     parts = group_id.split('_')
@@ -3797,10 +3786,10 @@ def upload_document(request):
                 }
 
                 type_suffix = type_mapping.get(document_type, document_type.upper())
-                # Format: FSA-INV-CN-250707
-                filename = f"FSA-{type_suffix}-{uploader_initials}-{formatted_date}{file_extension}"
+                # Format: FSA-INV-250711, FSA-RFI-250711
+                filename = f"FSA-{type_suffix}-{formatted_date}{file_extension}"
                 print(f"[{type_suffix} NAMING] Generated filename: {filename}")
-                print(f"[{type_suffix} NAMING] Uploader: {uploader_initials}, Date: {formatted_date}")
+                print(f"[{type_suffix} NAMING] Date: {formatted_date}")
 
             # Special naming for retest: keep old format with client name
             elif document_type == 'retest':
@@ -4863,6 +4852,41 @@ def apply_fsa_inspection_filters(request, inspections):
     group_type = request.GET.get('group_type')
     if group_type:
         inspections = inspections.filter(group_type__iexact=group_type)
+
+    # Filter by lab(s) - supports multiple selection
+    labs = request.GET.getlist('lab')
+    if labs:
+        inspections = inspections.filter(lab__in=labs)
+
+    # Filter by test type(s) - supports multiple selection
+    test_types = request.GET.getlist('test_type')
+    if test_types:
+        from django.db.models import Q
+        test_filter = Q()
+        for tt in test_types:
+            if tt == 'FAT':
+                test_filter |= Q(fat=True)
+            elif tt == 'PROTEIN':
+                test_filter |= Q(protein=True)
+            elif tt == 'CALCIUM':
+                test_filter |= Q(calcium=True)
+            elif tt == 'DNA':
+                test_filter |= Q(dna=True)
+        inspections = inspections.filter(test_filter)
+
+    # Filter by needs retest
+    needs_retest = request.GET.get('needs_retest')
+    if needs_retest == 'YES':
+        inspections = inspections.filter(needs_retest='YES')
+    elif needs_retest == 'NO':
+        inspections = inspections.filter(needs_retest='NO')
+
+    # Filter by COA uploaded
+    coa_uploaded = request.GET.get('coa_uploaded')
+    if coa_uploaded == 'YES':
+        inspections = inspections.filter(coa_uploaded_date__isnull=False)
+    elif coa_uploaded == 'NO':
+        inspections = inspections.filter(coa_uploaded_date__isnull=True)
 
     return inspections
 
