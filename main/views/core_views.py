@@ -1252,8 +1252,10 @@ def edit_fsa_inspection(request, pk):
                             rel_insp.group_type = inspection.group_type
                             rel_insp.facility_type = inspection.facility_type
                             rel_insp.town = inspection.town
-                        rel_insp.save()
-                        print(f"[EDIT FORM DEBUG] Saved inspection {rel_insp.id} ({rel_insp.commodity}): {rel_insp.product_name}")
+                            rel_insp.save()
+                            print(f"[EDIT FORM DEBUG] Saved inspection {rel_insp.id} ({rel_insp.commodity}): {rel_insp.product_name}")
+                        # Skip saving main inspection here — form.save() already saved it
+                        # Saving the stale rel_insp object would overwrite the form's changes
 
                     # Create new inspections for products that don't have matching existing inspections
                     if products_to_create:
@@ -1328,6 +1330,10 @@ def edit_fsa_inspection(request, pk):
                     # Users should manage files (upload/delete) through the "View Files" button in shipment list
                     # This prevents confusion and ensures files are managed in one centralized location
 
+                    # Clear page cache so updated data shows immediately
+                    from django.core.cache import cache
+                    cache.clear()
+
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
                 except Exception as e:
@@ -1345,6 +1351,10 @@ def edit_fsa_inspection(request, pk):
 
                     # File uploads are disabled in edit mode
                     # Users should manage files (upload/delete) through the "View Files" button in shipment list
+
+                    # Clear page cache so updated data shows immediately
+                    from django.core.cache import cache
+                    cache.clear()
 
                     messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
