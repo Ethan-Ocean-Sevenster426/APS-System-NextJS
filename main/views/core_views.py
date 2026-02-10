@@ -10067,6 +10067,17 @@ def update_group_additional_email(request):
             email_value = additional_email if additional_email else None
             updated_count = inspections.update(additional_email=email_value)
 
+            # Also update the InspectionGroup parent so the value persists across reloads
+            from ..models import InspectionGroup
+            group_ids = inspections.values_list('inspection_group_id', flat=True).distinct()
+            InspectionGroup.objects.filter(id__in=[g for g in group_ids if g]).update(
+                additional_email=email_value
+            )
+
+            # Clear page cache so the updated email shows immediately on reload
+            from django.core.cache import cache
+            cache.clear()
+
             return JsonResponse({
                 'success': True,
                 'message': f'Additional email updated successfully for {updated_count} inspections in group',
