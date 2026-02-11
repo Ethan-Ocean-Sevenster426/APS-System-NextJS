@@ -8373,11 +8373,11 @@
                                     <div class="space-y-3 text-sm">
                                         <!-- Email Section -->
                                         <div>
-                                            <label class="block text-gray-600 font-medium mb-1">Email(s)</label>
+                                            <label class="block text-gray-600 font-medium mb-1">Client Email(s)</label>
                                             <div class="space-y-1">
-                                                {% with unique_emails=shipment|get_unique_emails %}
-                                                {% if unique_emails %}
-                                                    {% for email in unique_emails %}
+                                                {% with client_emails=shipment|get_client_emails %}
+                                                {% if client_emails %}
+                                                    {% for email in client_emails %}
                                                     <div class="bg-blue-50 p-2 rounded border border-blue-200">
                                                         <span class="text-xs text-blue-700 additional-emails-display"
                                                             style="display: block; word-break: break-word; max-width: 100%;"
@@ -8392,29 +8392,23 @@
                                             </div>
                                         </div>
 
-                                        <!-- Additional Email Section (Mobile Input) -->
+                                        <!-- Additional Email Section -->
                                         <div class="mt-4">
                                             <label class="block text-gray-600 font-medium mb-2">Additional Email</label>
-                                            <div class="additional-emails-container"
-                                                data-group-id="{{ fallback_group_id }}"
-                                                data-initial-emails="{{ shipment.additional_email|default:'' }}">
-                                                <div class="email-inputs space-y-2" style="width: 100%;">
-                                                    <div class="email-input-row" style="width: 100%;">
-                                                        <input type="email"
-                                                            class="group-additional-email-input border border-gray-300 rounded px-3 py-2"
-                                                            value="" placeholder="email@example.com"
-                                                            onchange="updateGroupAdditionalEmails(this)"
-                                                            onblur="updateGroupAdditionalEmails(this)"
-                                                            style="width: 100%; min-height: 44px; font-size: 16px; box-sizing: border-box;"
-                                                            title="Enter additional email address">
-                                                    </div>
+                                            {% with extra_emails=shipment|get_extra_emails %}
+                                            {% if extra_emails %}
+                                            <div class="space-y-1">
+                                                {% for email in extra_emails|split_emails %}
+                                                <div class="bg-yellow-50 p-2 rounded border border-yellow-200">
+                                                    <span class="text-xs text-yellow-700"
+                                                        style="display: block; word-break: break-word;">{{ email }}</span>
                                                 </div>
-                                                <button type="button" onclick="addEmailInput(this)"
-                                                    class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
-                                                    style="padding: 8px 0; text-decoration: underline; background: none; border: none; cursor: pointer; min-height: 44px;">
-                                                    + Add Email
-                                                </button>
+                                                {% endfor %}
                                             </div>
+                                            {% else %}
+                                            <span class="text-gray-400 text-xs">None</span>
+                                            {% endif %}
+                                            {% endwith %}
                                         </div>
 
                                         <!-- Other Details -->

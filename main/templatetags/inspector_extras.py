@@ -56,6 +56,67 @@ def get_unique_emails(shipment):
     return sorted(list(emails_set))
 
 
+@register.filter(name='get_client_emails')
+def get_client_emails(shipment):
+    """Get only client emails (not inspection additional_email).
+
+    Usage: {% for email in shipment|get_client_emails %}
+    """
+    if isinstance(shipment, dict):
+        client_emails = shipment.get('client_emails', [])
+    else:
+        client_emails = getattr(shipment, 'client_emails', [])
+
+    emails = []
+    seen = set()
+    if client_emails:
+        for client_email in client_emails:
+            if isinstance(client_email, dict):
+                email = client_email.get('email', '')
+            else:
+                email = getattr(client_email, 'email', '')
+            if email and email.strip().lower() not in seen:
+                seen.add(email.strip().lower())
+                emails.append(email.strip())
+
+    return emails
+
+
+@register.filter(name='get_extra_emails')
+def get_extra_emails(shipment):
+    """Get emails from additional_email that are NOT already in client_emails.
+
+    Usage: {{ shipment|get_extra_emails }}
+    """
+    # Collect client emails
+    client_email_set = set()
+    if isinstance(shipment, dict):
+        client_emails = shipment.get('client_emails', [])
+        additional_email = shipment.get('additional_email', '')
+    else:
+        client_emails = getattr(shipment, 'client_emails', [])
+        additional_email = getattr(shipment, 'additional_email', '')
+
+    if client_emails:
+        for client_email in client_emails:
+            if isinstance(client_email, dict):
+                email = client_email.get('email', '')
+            else:
+                email = getattr(client_email, 'email', '')
+            if email:
+                client_email_set.add(email.strip().lower())
+
+    # Filter additional_email to only those NOT in client emails
+    extra = []
+    if additional_email:
+        for email in additional_email.split(','):
+            email = email.strip()
+            if email and email.lower() not in client_email_set:
+                extra.append(email)
+
+    return ', '.join(extra)
+
+
 @lru_cache(maxsize=1)
 def _id_to_name_map():
     return {m.inspector_id: m.inspector_name for m in InspectorMapping.objects.all()}
