@@ -16804,59 +16804,12 @@
                 window.uploadLabFile = function (inspectionId, groupId) {
                     console.log('[MOBILE] Uploading lab file for inspection:', inspectionId, 'Group:', groupId);
 
-                    // Create a file input element
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.accept = '.pdf';
-                    fileInput.style.display = 'none';
-
-                    fileInput.onchange = function (e) {
-                        const file = e.target.files[0];
-                        if (file) {
-                            // Validate PDF file
-                            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
-                                return;
-                            }
-
-                            // Create form data
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('group_id', groupId);
-                            formData.append('document_type', 'lab');
-                            formData.append('inspection_id', inspectionId);
-
-                            // Get CSRF token
-                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                                '{{ csrf_token|escapejs }}';
-                            formData.append('csrfmiddlewaretoken', csrfToken);
-
-                            // Upload file
-                            fetch('/upload-document/', {
-                                method: 'POST',
-                                body: formData
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        alert('Lab file uploaded successfully!');
-                                        console.log('[MOBILE] Lab upload successful:', data);
-                                        // Refresh the page to show updated status
-                                        location.reload();
-                                    } else {
-                                        alert('Error uploading lab file: ' + data.error);
-                                    }
-                                })
-                                .catch(error => {
-                                    alert('Error uploading lab file: ' + error.message);
-                                });
-                        }
-                    };
-
-                    // Trigger file selection
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    document.body.removeChild(fileInput);
+                    // Store pending upload info and show compliance modal (same as desktop)
+                    window._pendingLabUpload = { productId: inspectionId, groupId: groupId };
+                    const modal = document.getElementById('coaComplianceModal');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                    }
                 };
 
                 window.uploadRetestFile = function (inspectionId, groupId) {

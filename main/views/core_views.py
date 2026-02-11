@@ -10,12 +10,14 @@ def update_product_name(request):
     if request.method == 'POST':
         try:
             inspection_id = request.POST.get('inspection_id')
-            value = request.POST.get('product_name', '')
+            value = request.POST.get('product_name', '').strip()
+            if not value:
+                return JsonResponse({'success': False, 'error': 'Product name is required'})
             inspections = FoodSafetyAgencyInspection.objects.filter(remote_id=inspection_id)
             inspection = inspections.first()
             if not inspection:
                 return JsonResponse({'success': False, 'error': f'Inspection {inspection_id} not found'})
-            inspection.product_name = value.strip() or None
+            inspection.product_name = value
             inspection.save()
             return JsonResponse({'success': True})
         except Exception as e:
@@ -768,6 +770,24 @@ def add_fsa_inspection(request):
         form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES)
         if form.is_valid():
             try:
+                # Validate required fields
+                missing = []
+                if not form.cleaned_data.get('client_name', '').strip():
+                    missing.append('Client Name')
+                if not form.cleaned_data.get('town', '').strip():
+                    missing.append('Town')
+                if not request.POST.get('corporate_group', '').strip():
+                    missing.append('Corporate Group')
+                if not request.POST.get('group_type', '').strip():
+                    missing.append('Group Type')
+                if not request.POST.get('facility_type', '').strip():
+                    missing.append('Facility Type')
+                if not form.cleaned_data.get('commodity', '').strip():
+                    missing.append('Commodity Type')
+                if missing:
+                    messages.error(request, f"Required fields missing: {', '.join(missing)}")
+                    return redirect('add_fsa_inspection')
+
                 # Parse products data (JSON array with product info for each inspection)
                 import json
                 products_data_json = request.POST.get('products_data', '[]')
@@ -809,6 +829,12 @@ def add_fsa_inspection(request):
                 if not products_data:
                     messages.error(request, "Please select at least one commodity type")
                     return redirect('add_fsa_inspection')
+
+                # Validate that every product has a product_name
+                for i, p in enumerate(products_data):
+                    if not p.get('product_name', '').strip():
+                        messages.error(request, f"Product name is required for product {i + 1}")
+                        return redirect('add_fsa_inspection')
 
                 # Create inspections for each product
                 created_inspections = []
@@ -1093,6 +1119,22 @@ def edit_fsa_inspection(request, pk):
         print(f"[EDIT FORM DEBUG] Received POST data for inspection {pk}")
         print(f"[EDIT FORM DEBUG] additional_email from POST: '{request.POST.get('additional_email')}'")
 
+        # Validate required fields
+        missing = []
+        if not request.POST.get('client_name', '').strip():
+            missing.append('Client Name')
+        if not request.POST.get('town', '').strip():
+            missing.append('Town')
+        if not request.POST.get('corporate_group', '').strip():
+            missing.append('Corporate Group')
+        if not request.POST.get('group_type', '').strip():
+            missing.append('Group Type')
+        if not request.POST.get('facility_type', '').strip():
+            missing.append('Facility Type')
+        if missing:
+            messages.error(request, f"Required fields missing: {', '.join(missing)}")
+            return redirect('edit_fsa_inspection', pk=pk)
+
         # Get products_data to update all related inspections
         import json
         products_data_json = request.POST.get('products_data', '[]')
@@ -1101,6 +1143,12 @@ def edit_fsa_inspection(request, pk):
             print(f"[EDIT FORM DEBUG] Products data: {products_data}")
         except:
             products_data = []
+
+        # Validate that every product has a product_name
+        for i, p in enumerate(products_data):
+            if not p.get('product_name', '').strip():
+                messages.error(request, f"Product name is required for product {i + 1}")
+                return redirect('edit_fsa_inspection', pk=pk)
 
         # Update ALL related inspections in the group
         if products_data:
