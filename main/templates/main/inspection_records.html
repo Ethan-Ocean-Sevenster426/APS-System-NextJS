@@ -8795,7 +8795,7 @@
                                             {% with unique_emails=shipment|get_unique_emails %}
                                             {% if unique_emails %}
                                                 {% for email in unique_emails %}
-                                                <div style="white-space: nowrap;" title="{{ email }}">{{ email }}</div>
+                                                <div style="white-space: nowrap; font-size: 0.65rem;" title="{{ email }}">{{ email }}</div>
                                                 {% endfor %}
                                             {% else %}
                                                 <div>-</div>
