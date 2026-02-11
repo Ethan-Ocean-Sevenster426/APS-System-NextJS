@@ -3307,9 +3307,9 @@
         }
 
         .col-client-name {
-            width: auto !important;
-            min-width: 250px !important;
-            max-width: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
             flex: none !important;
             white-space: normal !important;
             word-wrap: break-word !important;
@@ -3330,24 +3330,22 @@
             min-width: 100px !important;
             max-width: 100px !important;
             flex: none !important;
+            white-space: nowrap !important;
         }
 
         .col-email {
-            width: 200px !important;
-            min-width: 200px !important;
-            max-width: 200px !important;
+            width: auto !important;
+            min-width: 280px !important;
+            max-width: none !important;
             flex: none !important;
             white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
+            overflow: visible !important;
             position: relative;
         }
 
-        /* Email line styling to prevent overflow */
+        /* Email line styling - show full email */
         .email-line {
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             max-width: 100%;
             display: block;
         }
@@ -6330,14 +6328,12 @@
         #shipmentsTable td {
             word-wrap: break-word !important;
             overflow-wrap: break-word !important;
-            max-width: 0 !important;
             white-space: normal !important;
         }
 
         #shipmentsTable th {
             word-wrap: break-word !important;
             overflow-wrap: break-word !important;
-            max-width: 0 !important;
             white-space: normal !important;
         }
 
@@ -8745,8 +8741,8 @@
                                             style="width: 100px;">Date</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Approved</th>
-                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 150px;">Email</th>
+                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-700 uppercase"
+                                            style="width: 280px;">Email</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Sent</th>
                                         {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
@@ -8794,13 +8790,12 @@
                                             </span>
                                             {% endif %}
                                         </td>
-                                        <td class="px-2 py-2 text-center text-xs text-gray-600"
-                                            style="max-width: 150px;">
-                                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                        <td class="px-2 py-2 text-left text-xs text-gray-600">
+                                            <div style="display: flex; flex-direction: column; gap: 2px;">
                                             {% with unique_emails=shipment|get_unique_emails %}
                                             {% if unique_emails %}
                                                 {% for email in unique_emails %}
-                                                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;" title="{{ email }}">{{ email }}</div>
+                                                <div style="white-space: nowrap;" title="{{ email }}">{{ email }}</div>
                                                 {% endfor %}
                                             {% else %}
                                                 <div>-</div>
