@@ -8761,10 +8761,10 @@
                                         data-client-name="{{ shipment.client_name }}"
                                         data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif %} onclick="toggleGroup(event, '{{ fallback_group_id|escapejs }}')">
                                         <td class="px-3 py-2">
-                                            <span class="font-semibold text-primary hover:text-primary-dark" style="font-size: 0.65rem;">{{ shipment.client_name|default:"-" }}</span>
+                                            <span class="font-semibold text-primary hover:text-primary-dark" style="font-size: 0.75rem;">{{ shipment.client_name|default:"-" }}</span>
                                             {% if shipment.town %}<span
-                                                style="font-size: 0.6rem; color: #9ca3af; margin-left: 4px;">({{ shipment.town }})</span>{% endif %}
-                                            <span style="font-size: 0.6rem; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
+                                                style="font-size: 0.65rem; color: #9ca3af; margin-left: 4px;">({{ shipment.town }})</span>{% endif %}
+                                            <span style="font-size: 0.65rem; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <button
