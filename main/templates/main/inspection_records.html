@@ -8653,7 +8653,21 @@
                                                     <!-- Upload Buttons -->
                                                     <div class="space-y-2">
                                                         {% if request.user.role == 'inspector' or request.user.role == 'admin' %}
-                                                        <!-- Inspector/Admin: COA/Lab, Lab Form, Retest disabled -->
+                                                        <!-- Inspector/Admin: Compliance, Composition, Other enabled; COA/Lab, Lab Form, Retest disabled -->
+                                                        <div class="grid grid-cols-2 gap-2">
+                                                            <button
+                                                                style="background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-shield-alt mr-1"></i> Compliance
+                                                            </button>
+                                                            <button
+                                                                style="background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-vial mr-1"></i> Composition
+                                                            </button>
+                                                        </div>
                                                         {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
@@ -8667,16 +8681,55 @@
                                                                 <i class="fas fa-redo mr-1"></i> Retest
                                                             </button>
                                                         </div>
-                                                        <div class="grid grid-cols-1 gap-2">
+                                                        <div class="grid grid-cols-2 gap-2">
                                                             <button
                                                                 class="bg-gray-300 text-gray-500 py-2 px-3 rounded-lg text-xs font-medium cursor-not-allowed"
                                                                 disabled title="Not available for {% if request.user.role == 'admin' %}admins{% else %}inspectors{% endif %}">
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
                                                             </button>
+                                                            <button
+                                                                style="background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-file mr-1"></i> Other
+                                                            </button>
+                                                        </div>
+                                                        {% else %}
+                                                        <div class="grid grid-cols-1 gap-2">
+                                                            <button
+                                                                style="background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-file mr-1"></i> Other
+                                                            </button>
+                                                        </div>
+                                                        {% endif %}
+                                                        {% if shipment.is_occurrence_report %}
+                                                        <div class="grid grid-cols-1 gap-2">
+                                                            <button
+                                                                style="background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-exclamation-triangle mr-1"></i> Occurrence
+                                                            </button>
                                                         </div>
                                                         {% endif %}
                                                         {% else %}
-                                                        <!-- Non-Inspector: Show Lab, Retest, and Lab Form buttons -->
+                                                        <!-- Non-Inspector: All buttons shown with appropriate enable/disable -->
+                                                        <div class="grid grid-cols-2 gap-2">
+                                                            <button
+                                                                style="background: {% if shipment.has_compliance %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadComplianceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-shield-alt mr-1"></i> Compliance
+                                                            </button>
+                                                            <button
+                                                                style="background: {% if product.composition_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadCompositionForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-vial mr-1"></i> Composition
+                                                            </button>
+                                                        </div>
                                                         {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
@@ -8697,7 +8750,7 @@
                                                                 <i class="fas fa-redo mr-1"></i> Retest
                                                             </button>
                                                         </div>
-                                                        <div class="grid grid-cols-1 gap-2">
+                                                        <div class="grid grid-cols-2 gap-2">
                                                             <button data-upload-btn="lab_form-{{ product.id }}"
                                                                 data-client-name="{{ shipment.client_name }}"
                                                                 data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
@@ -8709,6 +8762,31 @@
                                                                 title="No sample taken - lab form upload disabled" {% endif %}
                                                                 onclick="{% if product.is_sample_taken %}uploadLabFormForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}'){% else %}alert('No sample taken - lab form upload disabled'){% endif %}">
                                                                 <i class="fas fa-file-alt mr-1"></i> Lab Form
+                                                            </button>
+                                                            <button
+                                                                style="background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-file mr-1"></i> Other
+                                                            </button>
+                                                        </div>
+                                                        {% else %}
+                                                        <div class="grid grid-cols-1 gap-2">
+                                                            <button
+                                                                style="background: {% if product.other_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOtherForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-file mr-1"></i> Other
+                                                            </button>
+                                                        </div>
+                                                        {% endif %}
+                                                        {% if shipment.is_occurrence_report %}
+                                                        <div class="grid grid-cols-1 gap-2">
+                                                            <button
+                                                                style="background: {% if product.occurrence_uploaded %}#22c55e{% else %}#6c757d{% endif %};"
+                                                                class="text-white py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200"
+                                                                onclick="uploadOccurrenceForInspection('{{ product.id }}', '{{ fallback_group_id|escapejs }}')">
+                                                                <i class="fas fa-exclamation-triangle mr-1"></i> Occurrence
                                                             </button>
                                                         </div>
                                                         {% endif %}
