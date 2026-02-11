@@ -8454,7 +8454,7 @@
                                         <!-- Bought Sample Input -->
                                         <div class="mt-4">
                                             <label class="block text-gray-600 font-medium mb-2">Bought Sample</label>
-                                            <div class="flex items-center space-x-2">
+                                            <div class="flex items-center space-x-2 desktop-only-edit">
                                                 <input type="number"
                                                     class="bought-sample-input flex-1 text-xs border border-gray-300 rounded px-2 py-1"
                                                     data-group-id="{{ fallback_group_id }}"
@@ -8464,6 +8464,7 @@
                                                     title="Enter bought sample amount in Rands">
                                                 <span class="text-xs text-gray-500">R</span>
                                             </div>
+                                            <span class="mobile-only-display text-xs text-gray-800">R{{ shipment.bought_sample|default:"0" }}</span>
                                         </div>
 
                                         <!-- Individual Inspection Details -->
