@@ -1059,18 +1059,12 @@
             display: none;
         }
 
-        /* Desktop: hide mobile-only elements, show desktop-only elements */
+        /* Desktop: hide mobile-only elements */
         .mobile-only-display {
             display: none !important;
         }
         .mobile-only-lab {
             display: none !important;
-        }
-        .desktop-only-edit {
-            display: block !important;
-        }
-        select.desktop-only-edit {
-            display: block !important;
         }
 
         /* Mobile styles */
@@ -8489,10 +8483,6 @@
                                                     <!-- Basic Info -->
                                                     <div class="grid grid-cols-2 gap-2 text-xs mb-3">
                                                         <div>
-                                                            <span class="text-gray-500">ID:</span>
-                                                            <span class="font-medium">{{ product.remote_id|default:"-" }}</span>
-                                                        </div>
-                                                        <div>
                                                             <span class="text-gray-500">Commodity:</span>
                                                             <span class="font-medium">{{ product.commodity|default:"-" }}</span>
                                                         </div>
@@ -8628,7 +8618,7 @@
                                                         <label
                                                             class="block text-gray-600 font-medium mb-1 text-xs">Bought
                                                             Sample</label>
-                                                        <div class="flex items-center space-x-2">
+                                                        <div class="flex items-center space-x-2 desktop-only-edit">
                                                             <input type="number"
                                                                 class="bought-sample-input flex-1 text-xs border border-gray-300 rounded px-2 py-1"
                                                                 data-inspection-id="{{ product.remote_id }}"
@@ -8640,6 +8630,7 @@
                                                                 title="No sample taken - cannot enter bought sample" {% endif %}>
                                                             <span class="text-xs text-gray-500">R</span>
                                                         </div>
+                                                        <span class="mobile-only-display text-xs font-medium">{% if product.bought_sample %}R{{ product.bought_sample }}{% else %}N/A{% endif %}</span>
                                                     </div>
 
                                                     <!-- Lab Dropdown -->
@@ -8670,7 +8661,7 @@
                                                         <label
                                                             class="block text-gray-600 font-medium mb-1 text-xs">Retest</label>
                                                         <select
-                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 needs-retest-dropdown"
+                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 needs-retest-dropdown desktop-only-edit"
                                                             data-inspection-id="{{ product.remote_id }}" {% if not product.is_sample_taken %}disabled
                                                             style="opacity: 0.5; cursor: not-allowed;"
                                                             title="No sample taken - retest options disabled" {% endif %} onchange="updateNeedsRetest(this)">
@@ -8678,6 +8669,7 @@
                                                             <option value="yes" {% if product.needs_retest|upper == 'YES' %}selected{% endif %}>Yes</option>
                                                             <option value="no" {% if product.needs_retest|upper == 'NO' %}selected{% endif %}>No</option>
                                                         </select>
+                                                        <span class="mobile-only-display text-xs font-medium">{% if product.needs_retest|upper == 'YES' %}Yes{% elif product.needs_retest|upper == 'NO' %}No{% else %}N/A{% endif %}</span>
                                                     </div>
 
                                                     <!-- Upload Buttons -->
