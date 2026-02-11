@@ -2032,10 +2032,9 @@
             }
 
             .col-email {
+                width: 90px;
                 min-width: 90px;
-                max-width: none;
-                white-space: normal;
-                word-break: break-all;
+                max-width: 90px;
             }
 
             .col-inspector {
@@ -2309,10 +2308,9 @@
             }
 
             .col-email {
+                width: 80px;
                 min-width: 80px;
-                max-width: none;
-                white-space: normal;
-                word-break: break-all;
+                max-width: 80px;
             }
 
             .col-inspector {
@@ -2569,10 +2567,12 @@
             }
 
             .col-email {
+                width: 160px;
                 min-width: 160px;
-                max-width: none;
-                white-space: normal;
-                word-break: break-all;
+                max-width: 160px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .col-inspector {
@@ -3019,10 +3019,12 @@
             }
 
             .col-email {
+                width: 200px;
                 min-width: 200px;
-                max-width: none;
-                white-space: normal;
-                word-break: break-all;
+                max-width: 200px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .col-inspector {
@@ -3331,22 +3333,23 @@
         }
 
         .col-email {
-            min-width: 180px !important;
-            max-width: none !important;
-            flex: 1 !important;
-            white-space: normal !important;
-            overflow: visible !important;
-            word-break: break-all !important;
+            width: 200px !important;
+            min-width: 200px !important;
+            max-width: 200px !important;
+            flex: none !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
             position: relative;
         }
 
-        /* Email line styling - show full email */
+        /* Email line styling to prevent overflow */
         .email-line {
-            white-space: normal;
-            word-break: break-all;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             max-width: 100%;
             display: block;
-            line-height: 1.3;
         }
 
         .col-compliance {
@@ -8742,8 +8745,8 @@
                                             style="width: 100px;">Date</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Approved</th>
-                                        <th class="px-2 py-2 text-left text-xs font-medium text-gray-700 uppercase"
-                                            style="min-width: 180px;">Email</th>
+                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
+                                            style="width: 150px;">Email</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Sent</th>
                                         {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}
@@ -8791,12 +8794,13 @@
                                             </span>
                                             {% endif %}
                                         </td>
-                                        <td class="px-2 py-2 text-left text-xs text-gray-600">
-                                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                        <td class="px-2 py-2 text-center text-xs text-gray-600"
+                                            style="max-width: 150px;">
+                                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
                                             {% with unique_emails=shipment|get_unique_emails %}
                                             {% if unique_emails %}
                                                 {% for email in unique_emails %}
-                                                <div style="word-break: break-all; line-height: 1.3;">{{ email }}</div>
+                                                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;" title="{{ email }}">{{ email }}</div>
                                                 {% endfor %}
                                             {% else %}
                                                 <div>-</div>
@@ -8918,15 +8922,10 @@
                                                             {% with unique_emails=shipment|get_unique_emails %}
                                                             {% if unique_emails %}
                                                                 {% for email in unique_emails %}
-                                                                <div style="font-size: 10px; color: #3b82f6; word-break: break-all; line-height: 1.4;">
-                                                                    <i class="fas fa-envelope" style="width: 12px; color: #3b82f6; font-size: 8px;"></i>
-                                                                    {{ email }}
-                                                                </div>
+                                                                <div style="font-size: 8px; color: #3b82f6; word-break: break-all;">{{ email }}</div>
                                                                 {% endfor %}
                                                             {% else %}
-                                                                <div style="font-size: 10px; color: #6b7280;">
-                                                                    <i class="fas fa-envelope" style="width: 12px; color: #9ca3af; font-size: 8px;"></i> -
-                                                                </div>
+                                                                <div style="font-size: 8px; color: #6b7280;">-</div>
                                                             {% endif %}
                                                             {% endwith %}
                                                         </div>
