@@ -1349,8 +1349,23 @@ def edit_fsa_inspection(request, pk):
                 try:
                     inspection = form.save()
 
-                    # File uploads are disabled in edit mode
-                    # Users should manage files (upload/delete) through the "View Files" button in shipment list
+                    # Update the parent InspectionGroup with shared fields
+                    if inspection.inspection_group:
+                        parent_group = inspection.inspection_group
+                        parent_group.client_name = form.cleaned_data.get('client_name')
+                        parent_group.date_of_inspection = form.cleaned_data.get('date_of_inspection')
+                        parent_group.inspector_name = form.cleaned_data.get('inspector_name', '')
+                        parent_group.town = form.cleaned_data.get('town', '')
+                        parent_group.facility_type = request.POST.get('facility_type', '')
+                        parent_group.group_type = request.POST.get('group_type', '')
+                        parent_group.corporate_group = request.POST.get('corporate_group', '')
+                        parent_group.additional_email = request.POST.get('additional_email', '')
+                        parent_group.comment = form.cleaned_data.get('comment', '')
+                        parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
+                        parent_group.hours = float(request.POST.get('hours', 0) or 0)
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.save()
 
                     # Clear page cache so updated data shows immediately
                     from django.core.cache import cache
@@ -3286,6 +3301,23 @@ def upload_document(request):
                         except ValueError:
                             pass
 
+                    # Parse travel times
+                    travel_start_str = request.POST.get('travel_start_time', '')
+                    travel_start_time = None
+                    if travel_start_str:
+                        try:
+                            travel_start_time = datetime.strptime(travel_start_str, '%H:%M').time()
+                        except ValueError:
+                            pass
+
+                    travel_end_str = request.POST.get('travel_end_time', '')
+                    travel_end_time = None
+                    if travel_end_str:
+                        try:
+                            travel_end_time = datetime.strptime(travel_end_str, '%H:%M').time()
+                        except ValueError:
+                            pass
+
                     # Parse findings JSON
                     import json
                     findings_json = request.POST.get('findings', '[]')
@@ -3322,6 +3354,10 @@ def upload_document(request):
                         group_type=request.POST.get('group_type', ''),
                         corporate_group=request.POST.get('corporate_group', ''),
                         additional_email=request.POST.get('email', ''),
+                        km_traveled=float(request.POST.get('km_traveled', 0) or 0),
+                        hours=float(request.POST.get('hours', 0) or 0),
+                        travel_start_time=travel_start_time,
+                        travel_end_time=travel_end_time,
                         is_manual=True,
                     )
 
@@ -3344,8 +3380,8 @@ def upload_document(request):
                         commodity='',  # Occurrence reports don't have commodity
                         product_name='',
                         product_class='',
-                        km_traveled=0,
-                        hours=0,
+                        km_traveled=float(request.POST.get('km_traveled', 0) or 0),
+                        hours=float(request.POST.get('hours', 0) or 0),
                         is_sample_taken=False,
                         is_manual=True,
                         # New occurrence report specific fields
