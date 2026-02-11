@@ -8630,7 +8630,7 @@
                                                                 title="No sample taken - cannot enter bought sample" {% endif %}>
                                                             <span class="text-xs text-gray-500">R</span>
                                                         </div>
-                                                        <span class="mobile-only-display text-xs font-medium">{% if product.bought_sample %}R{{ product.bought_sample }}{% else %}N/A{% endif %}</span>
+                                                        <span class="mobile-only-display text-xs font-medium">R{{ product.bought_sample|default:"0" }}</span>
                                                     </div>
 
                                                     <!-- Lab Dropdown -->
