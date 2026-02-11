@@ -1059,8 +1059,36 @@
             display: none;
         }
 
+        /* Desktop: hide mobile-only elements, show desktop-only elements */
+        .mobile-only-display {
+            display: none !important;
+        }
+        .mobile-only-lab {
+            display: none !important;
+        }
+        .desktop-only-edit {
+            display: block !important;
+        }
+        select.desktop-only-edit {
+            display: block !important;
+        }
+
         /* Mobile styles */
         @media (max-width: 1024px) {
+            /* Show mobile-only elements, hide desktop-only elements */
+            .mobile-only-display {
+                display: inline !important;
+            }
+            .mobile-only-lab {
+                display: inline !important;
+            }
+            .desktop-only-edit {
+                display: none !important;
+            }
+            select.desktop-only-edit {
+                display: none !important;
+            }
+
             /* Hide desktop action-bar on mobile */
             .action-bar {
                 display: none !important;
@@ -8619,7 +8647,7 @@
                                                         <label
                                                             class="block text-gray-600 font-medium mb-1 text-xs">Lab</label>
                                                         <select
-                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 lab-dropdown"
+                                                            class="w-full text-xs border border-gray-300 rounded px-2 py-1 lab-dropdown desktop-only-edit"
                                                             data-inspection-id="{{ product.remote_id }}" {% if not product.is_sample_taken %}disabled
                                                             style="opacity: 0.5; cursor: not-allowed;"
                                                             title="No sample taken - lab selection disabled" {% endif %}
@@ -8633,6 +8661,8 @@
                                                             <option value="lab_f" {% if product.lab == 'lab_f' %}selected{% endif %}>ARC</option>
                                                             <option value="lab_a" {% if product.lab == 'lab_a' %}selected{% endif %}>Food Safety Laboratory</option>
                                                         </select>
+                                                        <!-- Mobile read-only lab display -->
+                                                        <span class="mobile-only-lab text-xs font-medium">{% if product.lab == 'lab_b' %}Merieux NutriSciences{% elif product.lab == 'lab_c' %}AGRI Food Laboratory (SGS){% elif product.lab == 'lab_d' %}SANBI{% elif product.lab == 'lab_e' %}SMT{% elif product.lab == 'lab_f' %}ARC{% elif product.lab == 'lab_a' %}Food Safety Laboratory{% else %}N/A{% endif %}</span>
                                                     </div>
 
                                                     <!-- Needs Retest Dropdown -->
