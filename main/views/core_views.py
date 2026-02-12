@@ -2367,8 +2367,12 @@ def shipment_list(request):
 
             # PERFORMANCE FIX: Only load clients that appear on THIS PAGE (not all 4,916 clients!)
             # This reduces loading from 4,916 clients to ~25 clients maximum
+            # Use case-insensitive matching to handle name variations
+            client_q = Q()
+            for _cn in client_names_on_page:
+                client_q |= Q(client_id__iexact=_cn) | Q(name__iexact=_cn)
             clients_queryset = _Client.objects.filter(
-                Q(client_id__in=client_names_on_page) | Q(name__in=client_names_on_page)
+                client_q
             ).select_related().prefetch_related('additional_emails')
 
             print(f"[PERFORMANCE] Loading only {clients_queryset.count()} clients for {len(client_names_on_page)} groups (not all 4916!)")
