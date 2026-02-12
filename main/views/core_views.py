@@ -2390,9 +2390,16 @@ def shipment_list(request):
                     # Collect all emails for this client
                     emails = []
                     if _c.email:
-                        emails.append({'email': _c.email, 'type': 'primary', 'removable': True})
+                        # Split comma-separated emails in the primary field
+                        for _e in _c.email.split(','):
+                            _e = _e.strip()
+                            if _e:
+                                emails.append({'email': _e, 'type': 'primary', 'removable': True})
                     if _c.manual_email:
-                        emails.append({'email': _c.manual_email, 'type': 'manual', 'removable': True})
+                        for _e in _c.manual_email.split(','):
+                            _e = _e.strip()
+                            if _e:
+                                emails.append({'email': _e, 'type': 'manual', 'removable': True})
                     
                     # Add additional emails
                     for additional_email in _c.additional_emails.all():

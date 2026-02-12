@@ -43,7 +43,11 @@ def get_unique_emails(shipment):
             else:
                 email = getattr(client_email, 'email', '')
             if email:
-                emails_set.add(email.strip())
+                # Split comma-separated emails in a single field
+                for e in email.split(','):
+                    e = e.strip()
+                    if e:
+                        emails_set.add(e)
 
     # Add inspection additional_email
     if additional_email:
@@ -72,12 +76,16 @@ def get_client_emails(shipment):
     if client_emails:
         for client_email in client_emails:
             if isinstance(client_email, dict):
-                email = client_email.get('email', '')
+                raw = client_email.get('email', '')
             else:
-                email = getattr(client_email, 'email', '')
-            if email and email.strip().lower() not in seen:
-                seen.add(email.strip().lower())
-                emails.append(email.strip())
+                raw = getattr(client_email, 'email', '')
+            if raw:
+                # Split comma-separated emails in a single field
+                for email in raw.split(','):
+                    email = email.strip()
+                    if email and email.lower() not in seen:
+                        seen.add(email.lower())
+                        emails.append(email)
 
     return emails
 
@@ -100,11 +108,14 @@ def get_extra_emails(shipment):
     if client_emails:
         for client_email in client_emails:
             if isinstance(client_email, dict):
-                email = client_email.get('email', '')
+                raw = client_email.get('email', '')
             else:
-                email = getattr(client_email, 'email', '')
-            if email:
-                client_email_set.add(email.strip().lower())
+                raw = getattr(client_email, 'email', '')
+            if raw:
+                for email in raw.split(','):
+                    email = email.strip()
+                    if email:
+                        client_email_set.add(email.lower())
 
     # Filter additional_email to only those NOT in client emails
     extra = []
