@@ -1302,8 +1302,23 @@ def edit_fsa_inspection(request, pk):
                             rel_insp.town = inspection.town
                             rel_insp.save()
                             print(f"[EDIT FORM DEBUG] Saved inspection {rel_insp.id} ({rel_insp.commodity}): {rel_insp.product_name}")
-                        # Skip saving main inspection here — form.save() already saved it
-                        # Saving the stale rel_insp object would overwrite the form's changes
+                        else:
+                            # For the main inspection, form.save() handled common fields
+                            # but NOT product-specific fields from products_data — apply them now
+                            inspection.product_name = rel_insp.product_name
+                            inspection.product_class = rel_insp.product_class
+                            inspection.lab = rel_insp.lab
+                            inspection.is_sample_taken = rel_insp.is_sample_taken
+                            inspection.fat = rel_insp.fat
+                            inspection.protein = rel_insp.protein
+                            inspection.calcium = rel_insp.calcium
+                            inspection.dna = rel_insp.dna
+                            inspection.bought_sample = rel_insp.bought_sample
+                            inspection.km_traveled = rel_insp.km_traveled
+                            inspection.hours = rel_insp.hours
+                            inspection.needs_retest = rel_insp.needs_retest
+                            inspection.save()
+                            print(f"[EDIT FORM DEBUG] Updated main inspection {inspection.id} product fields: {inspection.product_name}")
 
                     # Create new inspections for products that don't have matching existing inspections
                     if products_to_create:
