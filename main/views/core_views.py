@@ -1457,25 +1457,24 @@ def edit_fsa_inspection(request, pk):
                     if not inspection.facility_type and client.facility_type:
                         inspection.facility_type = client.facility_type
 
-                    # Combine client email with inspection additional_email for display in form
-                    # This ensures all emails are shown when editing
-                    emails_list = []
-                    if client.email:
-                        emails_list.append(client.email)
-                    # Add ClientEmail entries
-                    for client_email in client.additional_emails.all():
-                        if client_email.email and client_email.email not in emails_list:
-                            emails_list.append(client_email.email)
-                    # Add inspection additional_email if exists
-                    if inspection.additional_email:
-                        for email in inspection.additional_email.split(','):
-                            email = email.strip()
-                            if email and email not in emails_list:
-                                emails_list.append(email)
-
-                    # Update form instance to show all emails
-                    if emails_list:
-                        form.initial['additional_email'] = ', '.join(emails_list)
+                    # Show emails in the edit form
+                    # If the inspection already has saved emails, use those only
+                    # (avoids re-merging client emails which causes duplicates when user edits an email)
+                    # Only pull from client record if the inspection has no emails saved yet
+                    if inspection.additional_email and inspection.additional_email.strip():
+                        form.initial['additional_email'] = inspection.additional_email
+                    else:
+                        emails_list = []
+                        if client.email:
+                            for email in client.email.split(','):
+                                email = email.strip()
+                                if email and email not in emails_list:
+                                    emails_list.append(email)
+                        for client_email in client.additional_emails.all():
+                            if client_email.email and client_email.email not in emails_list:
+                                emails_list.append(client_email.email)
+                        if emails_list:
+                            form.initial['additional_email'] = ', '.join(emails_list)
 
             except Exception as e:
                 print(f"DEBUG: Could not auto-populate classification fields from client: {e}")

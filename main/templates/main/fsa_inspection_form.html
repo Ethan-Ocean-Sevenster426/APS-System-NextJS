@@ -2425,11 +2425,18 @@
                 const commodity = p.commodity;
                 const commodityIndex = products.slice(0, idx).filter(prod => prod.commodity === commodity).length;
 
-                // FIRST: Check if we're in edit mode and have data from backend
-                if (editModeData.isEditMode && editModeData.commodityData[commodity]) {
+                // FIRST: Try existing data from previous productsData (user's current form data)
+                const existing = existingDataMap[commodity] && existingDataMap[commodity][commodityIndex];
+
+                if (existing) {
+                    console.log(`[generateProductForms] Preserving data for ${commodity} #${commodityIndex + 1}`);
+                    return existing;
+                }
+
+                // SECOND: Fall back to backend data for initial edit load (only for first product of each commodity)
+                if (editModeData.isEditMode && editModeData.commodityData[commodity] && commodityIndex === 0) {
                     const backendData = editModeData.commodityData[commodity];
-                    console.log(`[generateProductForms] Using backend data for ${commodity}:`, backendData);
-                    console.log(`[generateProductForms] product_name from backend: "${backendData.product_name}"`);
+                    console.log(`[generateProductForms] Using backend data for ${commodity}`);
                     return {
                         commodity: p.commodity,
                         product_name: backendData.product_name || '',
@@ -2446,31 +2453,22 @@
                     };
                 }
 
-                // SECOND: Try to find existing data from previous productsData
-                const existing = existingDataMap[commodity] && existingDataMap[commodity][commodityIndex];
-
-                if (existing) {
-                    // Preserve existing data
-                    console.log(`[generateProductForms] Preserving data for ${commodity} #${commodityIndex + 1}`);
-                    return existing;
-                } else {
-                    // Create new empty data
-                    console.log(`[generateProductForms] Creating new data for ${commodity} #${commodityIndex + 1}`);
-                    return {
-                        commodity: p.commodity,
-                        product_name: '',
-                        product_class: '',
-                        lab: '',
-                        is_sample_taken: false,
-                        fat: false,
-                        protein: false,
-                        calcium: false,
-                        dna: false,
-                        bought_sample: 0,
-                        km_traveled: 0,
-                        hours: 0
-                    };
-                }
+                // THIRD: Create new empty data
+                console.log(`[generateProductForms] Creating new data for ${commodity} #${commodityIndex + 1}`);
+                return {
+                    commodity: p.commodity,
+                    product_name: '',
+                    product_class: '',
+                    lab: '',
+                    is_sample_taken: false,
+                    fat: false,
+                    protein: false,
+                    calcium: false,
+                    dna: false,
+                    bought_sample: 0,
+                    km_traveled: 0,
+                    hours: 0
+                };
             });
 
             // Generate HTML for each product form
@@ -3847,11 +3845,13 @@
                     }
 
                     // Generate product forms when moving to step 2
-                    // Skip if edit mode and forms already populated (to preserve checkbox states)
-                    if (!isEditMode || productsData.length === 0) {
+                    // In edit mode, check if commodity counts changed before regenerating
+                    const expectedTotal = getTotalCommodityCount();
+                    const countsChanged = productsData.length !== expectedTotal;
+                    if (!isEditMode || productsData.length === 0 || countsChanged) {
                         generateProductForms();
                     } else {
-                        console.log('[STEP NAV] Skipping generateProductForms in edit mode - forms already populated');
+                        console.log('[STEP NAV] Skipping generateProductForms in edit mode - counts unchanged');
                     }
                     // Set initial button state for step 2 (will be disabled until fields filled)
                     setTimeout(() => validateStep2(), 0);
