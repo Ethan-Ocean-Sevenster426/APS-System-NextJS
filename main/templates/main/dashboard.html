@@ -440,8 +440,8 @@
                 <i class="fas fa-cog"></i> Settings
             </a>
             {% else %}
-            <a href="{% url 'client_list' %}" class="btn btn-secondary">
-                <i class="fas fa-users"></i> Manage Clients
+            <a href="{% url 'client_allocation_sheet' %}" class="btn btn-secondary">
+                <i class="fas fa-th-list"></i> Client Allocation Sheet
             </a>
             <a href="{% url 'inspection_list' %}" class="btn btn-warning">
                 <i class="fas fa-clipboard-check"></i> Manage Inspections
@@ -454,9 +454,6 @@
                 <i class="fas fa-chart-bar"></i> Analytics Dashboard
             </a>
             {% endif %}
-            <a href="{% url 'client_allocation_sheet' %}" class="btn btn-primary">
-                <i class="fas fa-database"></i> Google Sheets Data
-            </a>
             {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
             <a href="{% url 'export_sheet' %}" class="btn btn-secondary">
                 <i class="fas fa-file-export"></i> Export Sheet

@@ -3,10 +3,11 @@ console.log('Sent status JS loaded (simplified)');
 
 function updateSentStatus(dropdown) {
     const groupId = dropdown.getAttribute('data-group-id');
+    const inspectionGroupId = dropdown.getAttribute('data-inspection-group-id');
     const sentStatus = dropdown.value;
     const row = dropdown.closest('tr');
 
-    console.log('Updating sent status:', groupId, '=', sentStatus);
+    console.log('Updating sent status:', groupId, '=', sentStatus, 'inspection_group_id:', inspectionGroupId);
 
     if (!groupId) {
         console.error('No group ID');
@@ -23,12 +24,12 @@ function updateSentStatus(dropdown) {
             row.querySelectorAll('td').forEach(td => td.style.backgroundColor = '#d1fae5');
         }
     } else {
-        dropdown.style.backgroundColor = '';
-        dropdown.style.color = '';
-        // White/default row background
+        dropdown.style.backgroundColor = '#ffffff';
+        dropdown.style.color = '#000000';
+        // White row background
         if (row) {
-            row.style.backgroundColor = '';
-            row.querySelectorAll('td').forEach(td => td.style.backgroundColor = '');
+            row.style.backgroundColor = '#ffffff';
+            row.querySelectorAll('td').forEach(td => td.style.backgroundColor = '#ffffff');
         }
     }
 
@@ -40,6 +41,9 @@ function updateSentStatus(dropdown) {
     formData.append('group_id', groupId);
     formData.append('sent_status', sentStatus);
     formData.append('csrfmiddlewaretoken', csrfToken);
+    if (inspectionGroupId) {
+        formData.append('inspection_group_id', inspectionGroupId);
+    }
 
     fetch('/inspections/update-sent-status/', {
         method: 'POST',

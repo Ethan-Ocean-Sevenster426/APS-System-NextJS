@@ -183,7 +183,6 @@ def delete_client_email(request):
         return JsonResponse({'success': False, 'error': str(e)})
 from .data_views import remote_sqlserver_data_view
 from .utils import apply_filters, clear_messages
-from ..services.google_drive_service import GoogleDriveService
 
 
 # Global flag to track OneDrive operations during batch processing
@@ -7976,103 +7975,7 @@ def home(request):
             print(f"SQL Server status check failed: {e}")
             return False
     
-    def check_google_sheets_status():
-        """Check Google Sheets API connectivity with automatic token refresh"""
-        try:
-            from ..services.google_sheets_service import GoogleSheetsService
-
-            service = GoogleSheetsService()
-            is_connected, message = service.check_connection_status()
-
-            if is_connected:
-                print(f"[OK] Google Sheets: {message}")
-                return True
-            else:
-                print(f"[ERROR] Google Sheets: {message}")
-                return False
-
-        except Exception as e:
-            print(f"[ERROR] Google Sheets status check failed: {e}")
-            return False
     
-    
-    def get_last_sync_status():
-        """Get last sync status from scheduled sync service"""
-        try:
-            # First, try to get the actual sync service status
-            from ..services.scheduled_sync_service import scheduled_sync_service
-            if scheduled_sync_service and scheduled_sync_service.is_running:
-                # Get the most recent sync time from all sync types
-                last_sync_times = scheduled_sync_service.last_sync_times
-                most_recent = None
-
-                for sync_type, last_sync in last_sync_times.items():
-                    if last_sync:
-                        if most_recent is None or last_sync > most_recent:
-                            most_recent = last_sync
-
-                if most_recent:
-                    now = datetime.now()
-                    time_diff = now - most_recent
-
-                    if time_diff.total_seconds() < 60:  # Less than 1 minute
-                        return "Just now"
-                    elif time_diff.total_seconds() < 3600:  # Less than 1 hour
-                        minutes = int(time_diff.total_seconds() / 60)
-                        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
-                    elif time_diff.total_seconds() < 86400:  # Less than 1 day
-                        hours = int(time_diff.total_seconds() / 3600)
-                        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                    else:
-                        days = int(time_diff.total_seconds() / 86400)
-                        return f"{days} day{'s' if days > 1 else ''} ago"
-
-            # Fallback: Check when last inspection was created
-            latest_inspection = FoodSafetyAgencyInspection.objects.order_by('-created_at').first()
-            if latest_inspection:
-                now = timezone.now()
-                created_at = latest_inspection.created_at
-
-                # Handle timezone-aware datetime comparison
-                if timezone.is_aware(created_at) and not timezone.is_aware(now):
-                    now = timezone.make_aware(now)
-                elif not timezone.is_aware(created_at) and timezone.is_aware(now):
-                    created_at = timezone.make_aware(created_at)
-
-                time_diff = now - created_at
-                if time_diff.total_seconds() < 3600:  # Less than 1 hour
-                    return "Just now"
-                elif time_diff.total_seconds() < 86400:  # Less than 1 day
-                    hours = int(time_diff.total_seconds() / 3600)
-                    return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                else:
-                    days = int(time_diff.total_seconds() / 86400)
-                    return f"{days} day{'s' if days > 1 else ''} ago"
-            else:
-                return "Service not running"
-        except Exception as e:
-            # Fallback to inspection created_at if service check fails
-            try:
-                latest_inspection = FoodSafetyAgencyInspection.objects.order_by('-created_at').first()
-                if latest_inspection:
-                    now = timezone.now()
-                    created_at = latest_inspection.created_at
-
-                    if timezone.is_aware(created_at) and not timezone.is_aware(now):
-                        now = timezone.make_aware(now)
-                    elif not timezone.is_aware(created_at) and timezone.is_aware(now):
-                        created_at = timezone.make_aware(created_at)
-
-                    time_diff = now - created_at
-                    if time_diff.total_seconds() < 86400:
-                        hours = int(time_diff.total_seconds() / 3600)
-                        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                    else:
-                        days = int(time_diff.total_seconds() / 86400)
-                        return f"{days} day{'s' if days > 1 else ''} ago"
-            except Exception:
-                pass
-            return "Unknown"
     
     # Check system status with caching to avoid performance issues
     from django.core.cache import cache
@@ -8088,30 +7991,6 @@ def home(request):
         sql_server_online = check_sql_server_status()
         cache.set('status_sql_server', sql_server_online, 30)
     
-    # Check if we should force refresh the Google Sheets status
-    force_refresh = request.GET.get('refresh_status') == 'true'
-    
-    google_sheets_online = cache.get('status_google_sheets')
-    if google_sheets_online is None or force_refresh:
-        if force_refresh:
-            cache.delete('status_google_sheets')
-        google_sheets_online = check_google_sheets_status()
-        cache.set('status_google_sheets', google_sheets_online, 30)
-    
-    last_sync = get_last_sync_status()
-
-    # Check if scheduled sync service is running
-    def check_sync_service_status():
-        """Check if the scheduled sync service is running"""
-        try:
-            from ..services.scheduled_sync_service import scheduled_sync_service
-            if scheduled_sync_service and scheduled_sync_service.is_running:
-                return True
-            return False
-        except Exception:
-            return False
-
-    sync_service_running = check_sync_service_status()
 
     # Get recent activities from SystemLog
     def get_recent_activities():
@@ -8133,9 +8012,6 @@ def home(request):
         'system_status': {
             'postgresql_online': postgresql_online,
             'sql_server_online': sql_server_online,
-            'google_sheets_online': google_sheets_online,
-            'sync_service_running': sync_service_running,
-            'last_sync': last_sync
         },
         'recent_activities': recent_activities
     }

@@ -43,10 +43,15 @@ from .core_views import (
     analytics_dashboard,
     export_analytics,
     
-    # Google Sheets integration views
-    client_allocation,
+    # Client allocation views
     client_allocation_sheet,
+    add_client_allocation,
+    edit_client_allocation,
+    delete_client_allocation,
+    export_client_allocations,
     sync_client_allocations,
+    get_dropdown_options,
+    delete_dropdown_option,
     refresh_clients,
     refresh_inspections,
     google_oauth_callback,
@@ -124,10 +129,15 @@ __all__ = [
     'analytics_dashboard',
     'export_analytics',
     
-    # Google Sheets integration views
-    'client_allocation',
+    # Client allocation views
     'client_allocation_sheet',
+    'add_client_allocation',
+    'edit_client_allocation',
+    'delete_client_allocation',
+    'export_client_allocations',
     'sync_client_allocations',
+    'get_dropdown_options',
+    'delete_dropdown_option',
     'refresh_clients',
     'refresh_inspections',
     'google_oauth_callback',
