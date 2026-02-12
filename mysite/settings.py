@@ -59,11 +59,13 @@ CSRF_TRUSTED_ORIGINS = [
     'http://portal.fsa-pty.co.za',
     'https://v4-project.moc-pty.com',
     'http://v4-project.moc-pty.com',
+    'https://portal-test.fsa-pty.co.za',
+    'http://portal-test.fsa-pty.co.za',
 ]
 
 CSRF_FAILURE_VIEW = 'main.views.core_views.csrf_failure'
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', '82.25.97.159', '167.88.43.168', 'v4-project.moc-pty.com'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', 'portal-test.fsa-pty.co.za', '82.25.97.159', '167.88.43.168', 'v4-project.moc-pty.com'])
 
 # Application definition
 INSTALLED_APPS = [
