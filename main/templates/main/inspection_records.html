@@ -16569,8 +16569,14 @@
                 }
 
                 function selectDate(dateStr) {
-                    const date = new Date(dateStr);
-                    const formattedDate = formatDateDDMMYYYY(date);
+                    // Parse manually to avoid timezone issues with new Date('YYYY-MM-DD')
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+                    const parts = dateStr.split('-');
+                    const year = parts[0];
+                    const month = monthNames[parseInt(parts[1], 10) - 1];
+                    const day = parts[2];
+                    const formattedDate = `${day} ${month} ${year}`;
 
                     currentInput.value = formattedDate;
 

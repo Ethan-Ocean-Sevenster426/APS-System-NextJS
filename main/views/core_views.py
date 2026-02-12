@@ -1131,6 +1131,10 @@ def edit_fsa_inspection(request, pk):
             missing.append('Group Type')
         if not request.POST.get('facility_type', '').strip():
             missing.append('Facility Type')
+        if not request.POST.get('travel_start_time', '').strip():
+            missing.append('Travel Start Time')
+        if not request.POST.get('travel_end_time', '').strip():
+            missing.append('Travel End Time')
         if missing:
             messages.error(request, f"Required fields missing: {', '.join(missing)}")
             return redirect('edit_fsa_inspection', pk=pk)
@@ -1281,8 +1285,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
-                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
-                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or parent_group.travel_start_time
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
                         print(f"[EDIT FORM DEBUG] Updated parent InspectionGroup #{parent_group.id} with shared fields")
 
@@ -1426,8 +1430,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
-                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
-                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or parent_group.travel_start_time
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
 
                     # Clear page cache so updated data shows immediately
