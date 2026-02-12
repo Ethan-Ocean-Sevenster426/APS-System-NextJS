@@ -8373,11 +8373,11 @@
                                     <div class="space-y-3 text-sm">
                                         <!-- Email Section -->
                                         <div>
-                                            <label class="block text-gray-600 font-medium mb-1">Client Email(s)</label>
+                                            <label class="block text-gray-600 font-medium mb-1">Email(s)</label>
                                             <div class="space-y-1">
-                                                {% with client_emails=shipment|get_client_emails %}
-                                                {% if client_emails %}
-                                                    {% for email in client_emails %}
+                                                {% with all_emails=shipment|get_unique_emails %}
+                                                {% if all_emails %}
+                                                    {% for email in all_emails %}
                                                     <div class="bg-blue-50 p-2 rounded border border-blue-200">
                                                         <span class="text-xs text-blue-700 additional-emails-display"
                                                             style="display: block; word-break: break-word; max-width: 100%;"
@@ -8390,25 +8390,6 @@
                                                 {% endif %}
                                                 {% endwith %}
                                             </div>
-                                        </div>
-
-                                        <!-- Additional Email Section -->
-                                        <div class="mt-4">
-                                            <label class="block text-gray-600 font-medium mb-2">Additional Email</label>
-                                            {% with extra_emails=shipment|get_extra_emails %}
-                                            {% if extra_emails %}
-                                            <div class="space-y-1">
-                                                {% for email in extra_emails|split_emails %}
-                                                <div class="bg-yellow-50 p-2 rounded border border-yellow-200">
-                                                    <span class="text-xs text-yellow-700"
-                                                        style="display: block; word-break: break-word;">{{ email }}</span>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                            {% else %}
-                                            <span class="text-gray-400 text-xs">None</span>
-                                            {% endif %}
-                                            {% endwith %}
                                         </div>
 
                                         <!-- Other Details -->
