@@ -134,14 +134,29 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Production MySQL database
+# Production MySQL database (master branch)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'v4_worksheet',
+#         'USER': 'v4_user',
+#         'PASSWORD': 'V4_Secure@2024!',
+#         'HOST': '167.88.43.168',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#         },
+#     },
+# }
+
+# Test server MySQL database (dev branch)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'v4_worksheet',
-        'USER': 'v4_user',
-        'PASSWORD': 'V4_Secure@2024!',
-        'HOST': '167.88.43.168',
+        'NAME': 'inspection_system',
+        'USER': 'inspection_user',
+        'PASSWORD': 'InspectionTest2026',
+        'HOST': '82.25.97.159',
         'PORT': '3306',
         'OPTIONS': {
             'charset': 'utf8mb4',
