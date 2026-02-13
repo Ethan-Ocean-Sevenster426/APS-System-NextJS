@@ -12,6 +12,7 @@ User.add_to_class('role', models.CharField(
     max_length=20,
     choices=[
         ('inspector', 'Inspector'),
+        ('inspector_manager', 'Inspector Manager'),
         ('admin', 'Admin'),
         ('super_admin', 'Super Admin'),
         ('lab_technician', 'Lab Technician'),
@@ -46,14 +47,37 @@ def is_lab_technician(self):
 def is_developer(self):
     return getattr(self, 'role', 'inspector') == 'developer'
 
+@property
+def is_inspector_manager(self):
+    return getattr(self, 'role', 'inspector') == 'inspector_manager'
+
+def get_managed_inspector_ids(self):
+    """Return list of inspector_ids that this inspector_manager manages."""
+    if getattr(self, 'role', None) != 'inspector_manager':
+        return []
+    return list(
+        InspectorManagerAllocation.objects.filter(manager=self)
+        .values_list('inspector_mapping__inspector_id', flat=True)
+    )
+
+def get_managed_inspector_names(self):
+    """Return list of inspector names that this inspector_manager manages."""
+    if getattr(self, 'role', None) != 'inspector_manager':
+        return []
+    return list(
+        InspectorManagerAllocation.objects.filter(manager=self)
+        .values_list('inspector_mapping__inspector_name', flat=True)
+    )
+
 def has_role_permission(self, required_role):
     """Check if user has the required role or higher"""
     role_hierarchy = {
         'inspector': 1,
-        'admin': 2,
-        'lab_technician': 3,
-        'super_admin': 4,
-        'developer': 5,
+        'inspector_manager': 2,
+        'admin': 3,
+        'lab_technician': 4,
+        'super_admin': 5,
+        'developer': 6,
     }
 
     user_level = role_hierarchy.get(getattr(self, 'role', 'inspector'), 0)
@@ -66,6 +90,9 @@ User.add_to_class('is_admin', is_admin)
 User.add_to_class('is_super_admin', is_super_admin)
 User.add_to_class('is_lab_technician', is_lab_technician)
 User.add_to_class('is_developer', is_developer)
+User.add_to_class('is_inspector_manager', is_inspector_manager)
+User.add_to_class('get_managed_inspector_ids', get_managed_inspector_ids)
+User.add_to_class('get_managed_inspector_names', get_managed_inspector_names)
 User.add_to_class('has_role_permission', has_role_permission)
 
 class ClientManager(models.Manager):
@@ -107,6 +134,28 @@ class InspectorMapping(models.Model):
     
     def __str__(self):
         return f"{self.inspector_name} (ID: {self.inspector_id})"
+
+
+class InspectorManagerAllocation(models.Model):
+    """Maps inspector managers to the inspectors they manage."""
+    manager = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='managed_inspectors',
+    )
+    inspector_mapping = models.ForeignKey(
+        'InspectorMapping',
+        on_delete=models.CASCADE,
+        related_name='manager_allocations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'inspector_manager_allocations'
+        unique_together = [['manager', 'inspector_mapping']]
+
+    def __str__(self):
+        return f"{self.manager.get_full_name()} manages {self.inspector_mapping.inspector_name}"
 
 
 class SystemSettings(models.Model):

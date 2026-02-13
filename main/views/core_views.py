@@ -277,7 +277,7 @@ def user_login(request):
                     if user_role == 'admin':
                         # Redirect administrators to inspection page
                         return redirect('shipment_list')
-                    elif user_role == 'inspector':
+                    elif user_role in ('inspector', 'inspector_manager'):
                         # Redirect inspectors to inspector dashboard
                         return redirect('inspector_dashboard')
                     else:
@@ -328,7 +328,7 @@ def register(request):
                     if user_role == 'admin':
                         # Redirect administrators to inspection page
                         return redirect('shipment_list')
-                    elif user_role == 'inspector':
+                    elif user_role in ('inspector', 'inspector_manager'):
                         # Redirect inspectors to inspector dashboard
                         return redirect('inspector_dashboard')
                     else:
@@ -1054,15 +1054,15 @@ def add_fsa_inspection(request):
 
 
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer', 'inspector'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector', 'inspector_manager'])
 def edit_fsa_inspection(request, pk):
     """Edit an existing Food Safety Agency inspection."""
     clear_messages(request)
 
     inspection = get_object_or_404(FoodSafetyAgencyInspection, pk=pk)
 
-    # Inspectors may only edit their own inspections
-    if getattr(request.user, 'role', None) == 'inspector':
+    # Inspectors and inspector managers may only edit their own / allocated inspections
+    if getattr(request.user, 'role', None) in ('inspector', 'inspector_manager'):
         try:
             from ..models import InspectorMapping
             inspector_id = None
@@ -1086,6 +1086,15 @@ def edit_fsa_inspection(request, pk):
                     inspector_id = None
                     inspector_name = None
 
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_inspector_ids = set()
+            allowed_inspector_names = set()
+            if inspector_id is not None:
+                allowed_inspector_ids.add(int(inspector_id))
+            if request.user.role == 'inspector_manager':
+                allowed_inspector_ids.update(request.user.get_managed_inspector_ids())
+                allowed_inspector_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
             # Match either by inspector_id (preferred) OR inspector_name (for records with no IDs)
             inspection_inspector_id = getattr(inspection, 'inspector_id', None)
             inspection_inspector_name = (getattr(inspection, 'inspector_name', None) or '').strip()
@@ -1094,18 +1103,18 @@ def edit_fsa_inspection(request, pk):
             user_username = (request.user.username or '').strip()
 
             id_match = (
-                inspector_id is not None and
                 inspection_inspector_id is not None and
-                int(inspection_inspector_id) == int(inspector_id)
+                int(inspection_inspector_id) in allowed_inspector_ids
             )
             name_match = False
             if inspection_inspector_name:
-                # Prefer mapping name if we have it, otherwise fall back to user names
                 if inspector_name and inspection_inspector_name.lower() == str(inspector_name).strip().lower():
                     name_match = True
                 elif user_full_name and inspection_inspector_name.lower() == user_full_name.lower():
                     name_match = True
                 elif user_username and inspection_inspector_name.lower() == user_username.lower():
+                    name_match = True
+                elif inspection_inspector_name.lower() in allowed_inspector_names:
                     name_match = True
 
             if not (id_match or name_match):
@@ -2209,7 +2218,7 @@ def shipment_list(request):
             return 'no_compliance'
     
     # Filter inspections based on user role and inspector ID
-    if request.user.role == 'inspector':
+    if request.user.role in ('inspector', 'inspector_manager'):
         # Get the inspector ID and name for the current user
         inspector_id = None
         inspector_name = None
@@ -2228,19 +2237,26 @@ def shipment_list(request):
                 inspector_id = inspector_mapping.inspector_id
                 inspector_name = inspector_mapping.inspector_name
             except InspectorMapping.DoesNotExist:
-                # If still no mapping, show no inspections
                 inspector_id = None
                 inspector_name = None
 
+        # Build filter for own inspections
+        q_filter = Q()
         if inspector_id and inspector_name:
-            # Filter inspections to show those done by this inspector
-            # Include BOTH inspector_id matches (for data with IDs) AND inspector_name matches (for data without IDs)
-            # Use case-insensitive match for inspector_name to handle 'Neo Noe' vs 'NEO NOE'
-            inspections = inspections.filter(
-                Q(inspector_id=inspector_id) | Q(inspector_name__iexact=inspector_name)
-            )
+            q_filter = Q(inspector_id=inspector_id) | Q(inspector_name__iexact=inspector_name)
+
+        # Inspector managers also see their allocated inspectors' inspections
+        if request.user.role == 'inspector_manager':
+            managed_ids = request.user.get_managed_inspector_ids()
+            managed_names = request.user.get_managed_inspector_names()
+            if managed_ids:
+                q_filter = q_filter | Q(inspector_id__in=managed_ids)
+            for name in managed_names:
+                q_filter = q_filter | Q(inspector_name__iexact=name)
+
+        if q_filter:
+            inspections = inspections.filter(q_filter)
         else:
-            # If no inspector ID found, show no inspections
             inspections = inspections.none()
     elif request.user.role == 'lab_technician':
         # Lab technicians can only see inspections where samples were taken
@@ -3169,7 +3185,7 @@ def edit_inspection(request, inspection_id):
         print(f"DEBUG: Found inspection: {inspection.remote_id} for {inspection.client_name}")
         
         # Check if user has permission to edit this inspection
-        if request.user.role == 'inspector':
+        if request.user.role in ('inspector', 'inspector_manager'):
             # Get the inspector ID for the current user
             inspector_id = None
             try:
@@ -3185,15 +3201,26 @@ def edit_inspection(request, inspection_id):
                     inspector_id = inspector_mapping.inspector_id
                 except InspectorMapping.DoesNotExist:
                     inspector_id = None
-            
-            # Check if this inspection belongs to the current inspector
-            if not inspector_id or inspection.inspector_id != inspector_id:
+
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_ids = set()
+            allowed_names = set()
+            if inspector_id:
+                allowed_ids.add(inspector_id)
+            if request.user.role == 'inspector_manager':
+                allowed_ids.update(request.user.get_managed_inspector_ids())
+                allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
+            # Check by ID or name
+            id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
+            name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
+            if not (id_match or name_match):
                 messages.error(request, 'You can only edit your own inspections.')
                 return redirect('shipment_list')
-        
+
         # For admin, super_admin, financial, and scientist roles, allow editing any inspection
         # (no additional permission check needed)
-        
+
         if request.method == 'POST':
             print(f"DEBUG: Processing POST request")
             # Handle form submission for editing inspection
@@ -3245,7 +3272,7 @@ def delete_inspection(request, inspection_id):
             return redirect('shipment_list')
         
         # Check if user has permission to delete this inspection
-        if request.user.role == 'inspector':
+        if request.user.role in ('inspector', 'inspector_manager'):
             # Get the inspector ID for the current user
             inspector_id = None
             try:
@@ -3261,9 +3288,20 @@ def delete_inspection(request, inspection_id):
                     inspector_id = inspector_mapping.inspector_id
                 except InspectorMapping.DoesNotExist:
                     inspector_id = None
-            
-            # Check if this inspection belongs to the current inspector
-            if not inspector_id or inspection.inspector_id != inspector_id:
+
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_ids = set()
+            allowed_names = set()
+            if inspector_id:
+                allowed_ids.add(inspector_id)
+            if request.user.role == 'inspector_manager':
+                allowed_ids.update(request.user.get_managed_inspector_ids())
+                allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
+            # Check by ID or name
+            id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
+            name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
+            if not (id_match or name_match):
                 messages.error(request, 'You can only delete your own inspections.')
                 return redirect('shipment_list')
         
@@ -8149,14 +8187,14 @@ def home(request):
 @login_required
 def inspector_dashboard(request):
     """Display inspector-specific analytics dashboard with only their data."""
-    # Only allow inspectors to access this dashboard
-    if request.user.role != 'inspector':
+    # Only allow inspectors and inspector managers to access this dashboard
+    if request.user.role not in ('inspector', 'inspector_manager'):
         return redirect('analytics_dashboard')
-    
+
     from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectorMapping
     from django.db.models import Count, Q
     from datetime import datetime, timedelta, date
-    
+
     # Resolve inspector_id via mapping (handles cases where source has 'Unknown' names)
     inspector_name = request.user.get_full_name() or request.user.username
     inspector_id = None
@@ -8178,19 +8216,27 @@ def inspector_dashboard(request):
         )
     if mapping:
         inspector_id = mapping.inspector_id
-    
-    # Get inspector-specific statistics using inspector_id when available
+
+    # Build list of all inspector IDs and names to show (own + managed for inspector_manager)
+    all_inspector_ids = []
+    all_inspector_names = [inspector_name]
     if inspector_id is not None:
-        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
-            inspector_id=inspector_id
-        )
-        # If the selected mapping yields no data (e.g., stale/dummy ID), fall back to name match
-        if not inspector_inspections.exists():
-            inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
-                inspector_name__icontains=inspector_name
-            )
+        all_inspector_ids.append(inspector_id)
+    if request.user.role == 'inspector_manager':
+        all_inspector_ids.extend(request.user.get_managed_inspector_ids())
+        all_inspector_names.extend(request.user.get_managed_inspector_names())
+
+    # Get inspector-specific statistics (match by ID or name)
+    q_filter = Q()
+    if all_inspector_ids:
+        q_filter = q_filter | Q(inspector_id__in=all_inspector_ids)
+    for name in all_inspector_names:
+        if name:
+            q_filter = q_filter | Q(inspector_name__iexact=name)
+
+    if q_filter:
+        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(q_filter)
     else:
-        # As a last resort (unlikely), try name match so page still loads
         inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
             inspector_name__icontains=inspector_name
         )
@@ -8342,7 +8388,7 @@ def analytics_dashboard(request):
         return redirect('home')
     
     # Redirect inspectors to their specific dashboard
-    if request.user.role == 'inspector':
+    if request.user.role in ('inspector', 'inspector_manager'):
         return redirect('inspector_dashboard')
     
     from ..models import Client, Inspection, FoodSafetyAgencyInspection
@@ -15233,7 +15279,7 @@ def user_management(request):
                 messages.error(request, "Username already exists.")
             elif User.objects.filter(email=email).exists():
                 messages.error(request, "Email already exists.")
-            elif role == 'inspector' and inspector_id:
+            elif role in ('inspector', 'inspector_manager') and inspector_id:
                 # Check if inspector ID already exists
                 if InspectorMapping.objects.filter(inspector_id=inspector_id).exists():
                     messages.error(request, f"Inspector ID {inspector_id} is already assigned to another inspector.")
@@ -15396,8 +15442,8 @@ def user_management(request):
                         
                         user_to_edit.save()
                         
-                        # Handle inspector ID if role is inspector
-                        if role == 'inspector' and inspector_id:
+                        # Handle inspector ID if role is inspector or inspector_manager
+                        if role in ('inspector', 'inspector_manager') and inspector_id:
                             # Update or create inspector mapping
                             full_name = f"{first_name} {last_name}".strip() or user_to_edit.username
                             mapping, created = InspectorMapping.objects.get_or_create(
@@ -15407,7 +15453,26 @@ def user_management(request):
                             if not created:
                                 mapping.inspector_id = int(inspector_id)
                                 mapping.save()
-                        
+
+                        # Handle inspector manager allocations
+                        from main.models import InspectorManagerAllocation
+                        if role == 'inspector_manager':
+                            allocated_inspector_ids = request.POST.getlist('allocated_inspectors')
+                            # Clear existing and set new allocations
+                            InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
+                            for mapping_id in allocated_inspector_ids:
+                                try:
+                                    insp_mapping = InspectorMapping.objects.get(pk=int(mapping_id))
+                                    InspectorManagerAllocation.objects.create(
+                                        manager=user_to_edit,
+                                        inspector_mapping=insp_mapping
+                                    )
+                                except (InspectorMapping.DoesNotExist, ValueError):
+                                    pass
+                        else:
+                            # Clean up allocations if role changed away from inspector_manager
+                            InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
+
                         messages.success(request, f"User '{user_to_edit.username}' information updated successfully.")
                         
             except User.DoesNotExist:
@@ -15433,7 +15498,7 @@ def user_management(request):
     
     # Add inspector_id to each user object for easy template access
     for user in users:
-        if user.role == 'inspector':
+        if user.role in ('inspector', 'inspector_manager'):
             user.inspector_id = inspector_id_map.get(user.get_full_name() or user.username)
         else:
             user.inspector_id = None
@@ -15445,6 +15510,7 @@ def user_management(request):
         ('financial', 'Financial Administrator'),
         ('lab_technician', 'Lab Technician'),
         ('inspector', 'Inspector'),
+        ('inspector_manager', 'Inspector Manager'),
         ('developer', 'Developer'),  # Hidden role
     ]
     
@@ -15458,11 +15524,21 @@ def user_management(request):
     except Exception:
         settings = type('Settings', (), {'dark_mode': False})()
     
+    # Build manager allocation data for the template
+    from main.models import InspectorManagerAllocation
+    import json
+    manager_allocations = {}
+    for user in users:
+        if user.role == 'inspector_manager':
+            allocated = InspectorManagerAllocation.objects.filter(manager=user).select_related('inspector_mapping')
+            manager_allocations[user.id] = [a.inspector_mapping.id for a in allocated]
+
     context = {
         'users': users,
         'inspector_mappings': inspector_mappings,
         'role_choices': role_choices,
         'settings': settings,
+        'manager_allocations': json.dumps(manager_allocations),
     }
     
     # Ensure CSRF token is properly generated and available
@@ -16093,7 +16169,7 @@ def update_bought_sample(request):
                 return JsonResponse({'success': False, 'error': 'Inspection not found'})
 
             # Check if user has permission to edit this inspection
-            if request.user.role == 'inspector':
+            if request.user.role in ('inspector', 'inspector_manager'):
                 # Get the inspector ID for the current user
                 inspector_id = None
                 try:
@@ -16110,8 +16186,19 @@ def update_bought_sample(request):
                     except InspectorMapping.DoesNotExist:
                         inspector_id = None
 
-                # Check if this inspection belongs to the current inspector
-                if not inspector_id or inspection.inspector_id != inspector_id:
+                # Build set of allowed inspector IDs and names (own + managed)
+                allowed_ids = set()
+                allowed_names = set()
+                if inspector_id:
+                    allowed_ids.add(inspector_id)
+                if request.user.role == 'inspector_manager':
+                    allowed_ids.update(request.user.get_managed_inspector_ids())
+                    allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
+                # Check by ID or name
+                id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
+                name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
+                if not (id_match or name_match):
                     return JsonResponse({'success': False, 'error': 'You can only edit your own inspections'})
 
             # Update the bought sample value
