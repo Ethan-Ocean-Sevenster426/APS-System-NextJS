@@ -8217,13 +8217,22 @@ def analytics_dashboard(request):
     if request.user.role == 'inspector':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings
     from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, date
     import json
     from django.core.serializers.json import DjangoJSONEncoder
-    
+
+    # Get system settings for theme
+    try:
+        system_settings = Settings.objects.first()
+        if not system_settings:
+            system_settings = Settings.objects.create()
+        settings = type('Settings', (), {'dark_mode': system_settings.dark_mode})()
+    except Exception:
+        settings = type('Settings', (), {'dark_mode': False})()
+
     # Date ranges for analysis
     now = datetime.now()
     thirty_days_ago = now - timedelta(days=30)
@@ -8460,6 +8469,144 @@ def analytics_dashboard(request):
         if client['compliance_rate'] < 70 and client['total_inspections'] >= 3
     ]
     
+    # === COMPLIANCE BY COMMODITY ===
+    compliance_by_commodity = list(FoodSafetyAgencyInspection.objects.values('commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+    ).order_by('commodity'))
+    for item in compliance_by_commodity:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # === SAMPLES BY COMMODITY ===
+    samples_by_commodity = list(FoodSafetyAgencyInspection.objects.filter(
+        is_sample_taken=True
+    ).values('commodity').annotate(count=Count('id')).order_by('commodity'))
+
+    # === FACILITY TYPE DISTRIBUTION ===
+    facility_type_distribution = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(facility_type__isnull=True) | Q(facility_type='')
+    ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
+
+    # === MONTHLY COMMODITY TRENDS ===
+    monthly_commodity_trends = list(FoodSafetyAgencyInspection.objects.filter(
+        date_of_inspection__gte=now - timedelta(days=365)
+    ).annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        count=Count('id')
+    ).order_by('month', 'commodity'))
+
+    # === MONTHLY COMPLIANCE TREND PER COMMODITY ===
+    monthly_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).exclude(
+        date_of_inspection__isnull=True
+    ).annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('month', 'commodity'))
+
+    for item in monthly_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
+    # === TIME ALLOCATION (hours per inspector) ===
+    time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(hours__isnull=True) | Q(hours=0)
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours')
+    ).order_by('-total_hours')[:15])
+
+    # === INSPECTIONS LIST (for table) ===
+    inspections_list_qs = FoodSafetyAgencyInspection.objects.order_by('-date_of_inspection').values(
+        'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
+        'facility_type', 'is_sample_taken', 'approved_status', 'town'
+    )[:200]
+    inspections_list = list(inspections_list_qs)
+
+    # === DAYS WORKED ===
+    days_worked = FoodSafetyAgencyInspection.objects.exclude(
+        date_of_inspection__isnull=True
+    ).values('date_of_inspection').distinct().count()
+
+    # === INSPECTOR METRICS ===
+    # Occurrence reports count per inspector
+    occurrence_reports = list(FoodSafetyAgencyInspection.objects.filter(
+        is_occurrence_report=True
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        count=Count('id')
+    ).order_by('-count'))
+
+    total_occurrence_reports = FoodSafetyAgencyInspection.objects.filter(is_occurrence_report=True).count()
+
+    # Directions (non-compliance findings) per inspector
+    directions_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total=Count('id'),
+        directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
+        non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
+    ).order_by('-total'))
+
+    for item in directions_per_inspector:
+        item['direction_rate'] = round((item['directions'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # Travel & distance per inspector
+    travel_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        inspection_count=Count('id'),
+        avg_km=Avg('km_traveled'),
+    ).order_by('-total_km'))
+
+    # Inspections per commodity per inspector (efficiency matrix)
+    inspector_commodity_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).values('inspector_name', 'commodity').annotate(
+        count=Count('id')
+    ).order_by('inspector_name', 'commodity'))
+
+    # Approval status breakdown per inspector
+    approval_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total=Count('id'),
+        approved=Count('id', filter=Q(approved_status='APPROVED')),
+        pending=Count('id', filter=Q(approved_status='PENDING')),
+    ).order_by('-total'))
+
+    for item in approval_per_inspector:
+        item['approval_rate'] = round((item['approved'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # === FILTER OPTIONS ===
+    all_years = sorted(set(
+        d.year for d in FoodSafetyAgencyInspection.objects.exclude(
+            date_of_inspection__isnull=True
+        ).values_list('date_of_inspection', flat=True).distinct()
+    ))
+    all_inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
+    all_commodities = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).values_list('commodity', flat=True).distinct().order_by('commodity'))
+
+    filter_options = {
+        'years': all_years,
+        'inspectors': all_inspectors,
+        'commodities': all_commodities
+    }
+
     # === EXPORT DATA PREPARATION ===
     export_data = {
         'summary': {
@@ -8567,9 +8714,204 @@ def analytics_dashboard(request):
         
         # Export data
         'export_data': safe_json_dumps(export_data, {}),
+
+        # New Power BI dashboard data
+        'compliance_by_commodity': safe_json_dumps(compliance_by_commodity, []),
+        'samples_by_commodity': safe_json_dumps(samples_by_commodity, []),
+        'facility_type_distribution': safe_json_dumps(facility_type_distribution, []),
+        'monthly_commodity_trends': safe_json_dumps(monthly_commodity_trends, []),
+        'monthly_compliance_trend': safe_json_dumps(monthly_compliance_trend, []),
+        'time_allocation': safe_json_dumps(time_allocation, []),
+        'inspections_list': safe_json_dumps(inspections_list, []),
+        'days_worked': days_worked or 0,
+        'filter_options': safe_json_dumps(filter_options, {'years': [], 'inspectors': [], 'commodities': []}),
+
+        # Inspector metrics
+        'occurrence_reports': safe_json_dumps(occurrence_reports, []),
+        'total_occurrence_reports': total_occurrence_reports or 0,
+        'directions_per_inspector': safe_json_dumps(directions_per_inspector, []),
+        'travel_per_inspector': safe_json_dumps(travel_per_inspector, []),
+        'inspector_commodity_matrix': safe_json_dumps(inspector_commodity_matrix, []),
+        'approval_per_inspector': safe_json_dumps(approval_per_inspector, []),
+
+        # Theme settings
+        'settings': settings,
     }
-    
+
     return render(request, 'main/analytics_dashboard.html', context)
+
+
+@login_required(login_url='login')
+def analytics_dashboard_api(request):
+    """API endpoint for filtered analytics dashboard data."""
+    from ..models import FoodSafetyAgencyInspection
+    from django.db.models import Count, Q, Avg, Sum
+    from django.db.models.functions import TruncMonth
+    from datetime import datetime, timedelta
+    from django.core.serializers.json import DjangoJSONEncoder
+
+    # Block non-authorized roles
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Get filter params
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    inspector = request.GET.get('inspector')
+    commodity = request.GET.get('commodity')
+
+    # Base queryset
+    qs = FoodSafetyAgencyInspection.objects.all()
+
+    # Apply filters
+    if year and year != 'all':
+        qs = qs.filter(date_of_inspection__year=int(year))
+    if month and month != 'all':
+        qs = qs.filter(date_of_inspection__month=int(month))
+    if inspector and inspector != 'all':
+        qs = qs.filter(inspector_name=inspector)
+    if commodity and commodity != 'all':
+        qs = qs.filter(commodity=commodity)
+
+    # Total inspections
+    total_inspections = qs.count()
+
+    # Compliance
+    compliance_stats = qs.aggregate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+    )
+    compliance_rate = round((compliance_stats['compliant'] / compliance_stats['total']) * 100, 1) if compliance_stats['total'] > 0 else 0
+
+    # Active inspectors
+    active_inspectors = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').distinct().count()
+
+    # Days worked
+    days_worked = qs.exclude(date_of_inspection__isnull=True).values('date_of_inspection').distinct().count()
+
+    # Hours
+    hours_data = qs.exclude(Q(hours__isnull=True) | Q(hours=0)).aggregate(
+        total_hours=Sum('hours'),
+        avg_hours=Avg('hours')
+    )
+
+    # Compliance by commodity
+    compliance_by_commodity = list(qs.values('commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+    ).order_by('commodity'))
+    for item in compliance_by_commodity:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # Commodity analysis
+    commodity_analysis = list(qs.values('commodity').annotate(
+        total_inspections=Count('id')
+    ).order_by('-total_inspections'))
+
+    # Samples by commodity
+    samples_by_commodity = list(qs.filter(is_sample_taken=True).values('commodity').annotate(
+        count=Count('id')
+    ).order_by('commodity'))
+
+    # Facility type distribution
+    facility_type_distribution = list(qs.exclude(
+        Q(facility_type__isnull=True) | Q(facility_type='')
+    ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
+
+    # Monthly commodity trends
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    trends_qs = qs.filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(trends_qs.annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
+
+    # Monthly compliance trend per commodity
+    monthly_compliance_trend = list(qs.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('month', 'commodity'))
+    for item in monthly_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
+    # Time allocation
+    time_allocation = list(qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
+        total_hours=Sum('hours')
+    ).order_by('-total_hours')[:15])
+
+    # Inspections list
+    inspections_list = list(qs.order_by('-date_of_inspection').values(
+        'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
+        'facility_type', 'is_sample_taken', 'approved_status', 'town'
+    )[:200])
+
+    # Inspector performance
+    inspector_performance = list(qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING')),
+    ).order_by('-total_inspections')[:15])
+
+    data = {
+        'totalInspections': total_inspections,
+        'complianceRate': compliance_rate,
+        'activeInspectors': active_inspectors,
+        'daysWorked': days_worked,
+        'totalHours': float(hours_data['total_hours'] or 0),
+        'avgHours': float(hours_data['avg_hours'] or 0),
+        'complianceByCommodity': compliance_by_commodity,
+        'commodityAnalysis': commodity_analysis,
+        'samplesByCommodity': samples_by_commodity,
+        'facilityTypeDistribution': facility_type_distribution,
+        'monthlyCommodityTrends': monthly_commodity_trends,
+        'monthlyComplianceTrend': monthly_compliance_trend,
+        'timeAllocation': time_allocation,
+        'inspectionsList': inspections_list,
+        'inspectorPerformance': inspector_performance,
+        # Inspector metrics
+        'occurrenceReports': list(qs.filter(is_occurrence_report=True).exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(count=Count('id')).order_by('-count')),
+        'totalOccurrenceReports': qs.filter(is_occurrence_report=True).count(),
+        'directionsPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total=Count('id'),
+            directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
+            non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
+        ).order_by('-total')),
+        'travelPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+            inspection_count=Count('id'), avg_km=Avg('km_traveled'),
+        ).order_by('-total_km')),
+        'inspectorCommodityMatrix': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
+            'inspector_name', 'commodity'
+        ).annotate(count=Count('id')).order_by('inspector_name', 'commodity')),
+        'approvalPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total=Count('id'),
+            approved=Count('id', filter=Q(approved_status='APPROVED')),
+            pending=Count('id', filter=Q(approved_status='PENDING')),
+        ).order_by('-total')),
+    }
+
+    return JsonResponse(data, encoder=DjangoJSONEncoder)
+
 
 @login_required
 def export_analytics(request, format_type):

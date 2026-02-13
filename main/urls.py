@@ -22,6 +22,7 @@ from .views.core_views import (
     master_service_control_status, start_all_services, stop_all_services,
     onedrive_service_status, start_onedrive_service, stop_onedrive_service, test_onedrive_connection,
     reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, send_password_reset_email,
+    analytics_dashboard_api,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
     mark_all_notifications_read, delete_notification, training_page
 )
@@ -46,7 +47,8 @@ urlpatterns = [
 
     path('dashboard/', views.dashboard, name='dashboard'),
     path('inspector-dashboard/', views.inspector_dashboard, name='inspector_dashboard'),
-    path('analytics-dashboard/', views.analytics_dashboard, name='analytics_dashboard'),    
+    path('analytics-dashboard/', views.analytics_dashboard, name='analytics_dashboard'),
+    path('api/analytics-dashboard/', analytics_dashboard_api, name='analytics_dashboard_api'),
     # =============================================================================
     # CLIENT MANAGEMENT URLS
     # =============================================================================
@@ -106,8 +108,6 @@ urlpatterns = [
     path('update-lab/', views.update_lab, name='update_lab'),
     path('update-product-name/', views.update_product_name, name='update_product_name'),
     path('update-product-class/', views.update_product_class, name='update_product_class'),
-    path('analytics-dashboard/', analytics_dashboard, name='analytics_dashboard'),
-    path('inspector-dashboard/', inspector_dashboard, name='inspector_dashboard'),
     path('export-analytics/<str:format_type>/', views.export_analytics, name='export_analytics'),
     path('export-shipments/', export_shipments, name='export_shipments'),
 
