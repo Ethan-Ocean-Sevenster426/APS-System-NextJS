@@ -772,11 +772,13 @@ function renderCommodityTrendChart() {
 // RENDER: SAMPLES TAKEN CHART
 // ================================================================
 function renderSamplesTakenChart() {
+    console.log('[DEBUG] renderSamplesTakenChart called');
     destroyChart('samplesTakenChart');
     var canvas = document.getElementById('samplesTakenChart');
-    if (!canvas) return;
+    if (!canvas) { console.error('[DEBUG] samplesTakenChart canvas not found'); return; }
     var items = dashboardData.samplesByCommodity || [];
-    if (items.length === 0) return;
+    console.log('[DEBUG] samplesByCommodity data:', items);
+    if (items.length === 0) { console.warn('[DEBUG] No samples data to display'); return; }
 
     var labels = items.map(function(i) { return i.commodity || 'Unknown'; });
     var data = items.map(function(i) { return i.count || 0; });
@@ -795,17 +797,20 @@ function renderSamplesTakenChart() {
             cutout: '60%'
         }
     });
+    console.log('[DEBUG] samplesTakenChart created successfully');
 }
 
 // ================================================================
 // RENDER: FACILITY TYPES CHART
 // ================================================================
 function renderFacilityTypesChart() {
+    console.log('[DEBUG] renderFacilityTypesChart called');
     destroyChart('facilityTypesChart');
     var canvas = document.getElementById('facilityTypesChart');
-    if (!canvas) return;
+    if (!canvas) { console.error('[DEBUG] facilityTypesChart canvas not found'); return; }
     var items = dashboardData.facilityTypeDistribution || [];
-    if (items.length === 0) return;
+    console.log('[DEBUG] facilityTypeDistribution data:', items);
+    if (items.length === 0) { console.warn('[DEBUG] No facility type data to display'); return; }
 
     var labels = items.map(function(i) { return i.facility_type || 'Unknown'; });
     var data = items.map(function(i) { return i.count || 0; });
@@ -833,6 +838,7 @@ function renderFacilityTypesChart() {
             }
         }
     });
+    console.log('[DEBUG] facilityTypesChart created successfully');
 }
 
 // ================================================================
