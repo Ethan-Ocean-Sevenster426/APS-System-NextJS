@@ -283,13 +283,6 @@ function renderKPIs() {
     var fin = d.financialSummary || {};
     var kpiRevEl = document.getElementById('kpiTotalRevenue');
     if (kpiRevEl) kpiRevEl.textContent = formatRand(fin.total_revenue);
-
-    // Efficiency
-    var avgPerDay = d.daysWorked > 0 ? (d.totalInspections / d.daysWorked).toFixed(1) : '-';
-    document.getElementById('effAvgPerDay').textContent = avgPerDay;
-    document.getElementById('effTotalHours').textContent = d.totalHours ? d.totalHours.toFixed(0) : '-';
-    var avgHrsDay = d.daysWorked > 0 && d.totalHours ? (d.totalHours / d.daysWorked).toFixed(1) : '-';
-    document.getElementById('effAvgHours').textContent = avgHrsDay;
 }
 
 // ================================================================
