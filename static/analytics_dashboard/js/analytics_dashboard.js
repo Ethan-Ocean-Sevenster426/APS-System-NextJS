@@ -292,13 +292,15 @@ function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
 
     var html = '';
-    var totals = { inspections: 0, hours: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0 };
 
     items.forEach(function(item) {
         var hrs = parseFloat(item.total_hours || 0);
+        var km = parseFloat(item.total_km || 0);
+        var inspTime = parseFloat(item.inspection_time || 0);
         var revH = item.revenue_hours || 0;
         var revK = item.revenue_km || 0;
         var revS = item.revenue_samples || 0;
@@ -306,6 +308,8 @@ function renderFinancialTable() {
 
         totals.inspections += item.total_inspections || 0;
         totals.hours += hrs;
+        totals.km += km;
+        totals.inspTime += inspTime;
         totals.revHours += revH;
         totals.revKm += revK;
         totals.revSamples += revS;
@@ -315,6 +319,8 @@ function renderFinancialTable() {
             '<td>' + (item.inspector_name || '-') + '</td>' +
             '<td class="num">' + (item.total_inspections || 0) + '</td>' +
             '<td class="num">' + hrs.toFixed(1) + '</td>' +
+            '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>' +
+            '<td class="num">' + (inspTime ? inspTime.toFixed(1) : '-') + '</td>' +
             '<td class="num">' + formatRand(revH) + '</td>' +
             '<td class="num">' + formatRand(revK) + '</td>' +
             '<td class="num">' + formatRand(revS) + '</td>' +
@@ -327,6 +333,8 @@ function renderFinancialTable() {
         '<td>Total</td>' +
         '<td class="num">' + totals.inspections + '</td>' +
         '<td class="num">' + totals.hours.toFixed(1) + '</td>' +
+        '<td class="num">' + totals.km.toLocaleString(undefined, {maximumFractionDigits: 1}) + '</td>' +
+        '<td class="num">' + totals.inspTime.toFixed(1) + '</td>' +
         '<td class="num">' + formatRand(totals.revHours) + '</td>' +
         '<td class="num">' + formatRand(totals.revKm) + '</td>' +
         '<td class="num">' + formatRand(totals.revSamples) + '</td>' +
@@ -343,7 +351,7 @@ function renderRevenueCostChart() {
     destroyChart('revenueCostChart');
     var canvas = document.getElementById('revenueCostChart');
     if (!canvas) return;
-    var items = (dashboardData.inspectorFinancials || []).slice(0, 12);
+    var items = dashboardData.inspectorFinancials || [];
     if (items.length === 0) return;
 
     var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
@@ -412,29 +420,41 @@ function renderComplianceTrendChart() {
 
     var brandColors = { 'POULTRY': '#107c10', 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'RAW': '#d13438' };
     var commodityData = {};
-    var monthsSet = new Set();
+    var weeksSet = new Set();
 
     items.forEach(function(item) {
         var comm = item.commodity;
-        var ms = typeof item.month === 'string' ? item.month.substring(0, 7) : '';
-        if (!ms && item.month && item.month.getFullYear) { var m = item.month.getMonth() + 1; ms = item.month.getFullYear() + '-' + (m < 10 ? '0' + m : m); }
-        monthsSet.add(ms);
+        // Handle week format (YYYY-MM-DD for week start)
+        var weekStr = typeof item.month === 'string' ? item.month.substring(0, 10) : '';
+        if (!weekStr && item.month && item.month.getFullYear) {
+            var d = new Date(item.month);
+            weekStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        weeksSet.add(weekStr);
         if (!commodityData[comm]) commodityData[comm] = {};
-        commodityData[comm][ms] = item.compliance_rate;
+        commodityData[comm][weekStr] = item.compliance_rate;
     });
 
-    var months = Array.from(monthsSet).sort();
+    var weeks = Array.from(weeksSet).sort();
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var labels = months.map(function(m) { var p = m.split('-'); return mNames[parseInt(p[1]) - 1] + ' ' + p[0]; });
+    var labels = weeks.map(function(w) {
+        var p = w.split('-');
+        return mNames[parseInt(p[1]) - 1] + ' ' + p[2];
+    });
 
     var datasets = [];
     Object.keys(commodityData).sort().forEach(function(comm) {
         datasets.push({
             label: comm,
-            data: months.map(function(m) { return commodityData[comm][m] || null; }),
+            data: weeks.map(function(w) { return commodityData[comm][w] || null; }),
             borderColor: brandColors[comm] || '#616161',
             backgroundColor: 'transparent',
-            borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, spanGaps: true
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.2,
+            fill: false,
+            spanGaps: false
         });
     });
 
@@ -444,10 +464,18 @@ function renderComplianceTrendChart() {
         options: {
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            plugins: { legend: { labels: { color: txtColor(), padding: 12 } }, tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A'); } } } },
+            plugins: {
+                legend: { labels: { color: txtColor(), padding: 12, usePointStyle: true } },
+                tooltip: {
+                    callbacks: {
+                        title: function(ctx) { return 'Week of ' + weeks[ctx[0].dataIndex]; },
+                        label: function(ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + '%' : 'No data'); }
+                    }
+                }
+            },
             scales: {
-                x: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 9 }, maxRotation: 45, autoSkip: true } },
-                y: { min: 0, max: 100, grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return v + '%'; } } }
+                x: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 } },
+                y: { min: 0, max: 100, grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return v + '%'; }, stepSize: 10 } }
             }
         }
     });
@@ -623,7 +651,7 @@ function renderOccurrenceReportsChart() {
     chartInstances['occurrenceReportsChart'] = new Chart(canvas, {
         type: 'bar',
         data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'Reports', data: items.map(function(i) { return i.count || 0; }), backgroundColor: '#8764b8', borderRadius: 3, barThickness: 14 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), stepSize: 1, precision: 0 } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
     });
 }
 
@@ -654,6 +682,12 @@ function renderEfficiencyMatrix() {
     var items = dashboardData.inspectorCommodityMatrix || [];
     if (items.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
 
+    // Build km lookup from travelPerInspector data
+    var kmLookup = {};
+    (dashboardData.travelPerInspector || []).forEach(function(item) {
+        kmLookup[item.inspector_name] = item.total_km || 0;
+    });
+
     var inspectors = {};
     var commodities = new Set();
     items.forEach(function(item) {
@@ -666,6 +700,7 @@ function renderEfficiencyMatrix() {
     var hHtml = '<th>Inspector</th>';
     commList.forEach(function(c) { hHtml += '<th class="num">' + c + '</th>'; });
     hHtml += '<th class="num">Total</th>';
+    hHtml += '<th class="num">KM</th>';
     headerRow.innerHTML = hHtml;
 
     var bHtml = '';
@@ -677,7 +712,9 @@ function renderEfficiencyMatrix() {
             total += count;
             bHtml += '<td class="num">' + (count || '-') + '</td>';
         });
-        bHtml += '<td class="num" style="font-weight:700">' + total + '</td></tr>';
+        var km = kmLookup[name] || 0;
+        bHtml += '<td class="num" style="font-weight:700">' + total + '</td>';
+        bHtml += '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td></tr>';
     });
     tbody.innerHTML = bHtml;
 }
@@ -723,27 +760,31 @@ function renderCommodityTrendChart() {
     if (trends.length === 0) return;
 
     var commodityMap = {};
-    var monthSet = new Set();
+    var weekSet = new Set();
     trends.forEach(function(item) {
-        var month = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 7) : '') : 'Unknown';
+        // Handle weekly data format (YYYY-MM-DD)
+        var week = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 10) : '') : 'Unknown';
         var commodity = item.commodity || 'Unknown';
-        monthSet.add(month);
+        weekSet.add(week);
         if (!commodityMap[commodity]) commodityMap[commodity] = {};
-        commodityMap[commodity][month] = item.count || 0;
+        commodityMap[commodity][week] = item.count || 0;
     });
 
-    var months = Array.from(monthSet).sort();
+    var weeks = Array.from(weekSet).sort();
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var labels = months.map(function(m) { var p = m.split('-'); return mNames[parseInt(p[1]) - 1] + ' ' + p[0].substring(2); });
+    var labels = weeks.map(function(w) {
+        var p = w.split('-');
+        return mNames[parseInt(p[1]) - 1] + ' ' + p[2];
+    });
 
     var datasets = [];
     Object.keys(commodityMap).forEach(function(commodity, idx) {
         datasets.push({
             label: commodity,
-            data: months.map(function(m) { return commodityMap[commodity][m] || 0; }),
+            data: weeks.map(function(w) { return commodityMap[commodity][w] || 0; }),
             borderColor: getCommodityColor(commodity) || CHART_PALETTE[idx % CHART_PALETTE.length],
             backgroundColor: 'transparent',
-            tension: 0.3, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, fill: false
+            tension: 0.3, borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, fill: false
         });
     });
 

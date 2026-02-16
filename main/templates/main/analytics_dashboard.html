@@ -311,6 +311,10 @@
                 <div class="kpi-value kpi-amber" id="kpiActiveInspectors">{{ active_inspectors_count }}</div>
                 <div class="kpi-label">Active Inspectors</div>
             </div>
+            <div class="kpi-card">
+                <div class="kpi-value kpi-green" id="kpiTotalRevenue">R0.00</div>
+                <div class="kpi-label">Total Revenue Generated</div>
+            </div>
         </div>
 
         <!-- Compliance Per Commodity -->
@@ -326,16 +330,16 @@
             </div>
         </div>
 
-        <!-- Compliance Trend Per Commodity -->
+        <!-- Commodity Trend -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-chart-line"></i>
-                    <span>Compliance Trend Per Commodity</span>
+                    <span>Commodity Trend</span>
                 </div>
             </div>
-            <div class="card-body" style="height: 380px;">
-                <canvas id="complianceTrendChart"></canvas>
+            <div class="card-body" style="height: 200px;">
+                <canvas id="commodityTrendChart"></canvas>
             </div>
         </div>
 
@@ -348,7 +352,7 @@
                         <span>Commodity Count</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 320px;">
+                <div class="card-body" style="height: 240px;">
                     <canvas id="commodityCountChart"></canvas>
                 </div>
             </div>
@@ -356,10 +360,10 @@
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-clock"></i>
-                        <span>Time Allocation</span>
+                        <span>Time Allocation (Billable Hours)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 320px;">
+                <div class="card-body" style="height: 240px;">
                     <canvas id="timeAllocationChart"></canvas>
                 </div>
             </div>
@@ -371,11 +375,11 @@
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
-                        <span>Commodity Trend</span>
+                        <span>Compliance Trend Per Commodity</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 350px;">
-                    <canvas id="commodityTrendChart"></canvas>
+                <div class="card-body" style="height: 280px;">
+                    <canvas id="complianceTrendChart"></canvas>
                 </div>
             </div>
             <div class="dashboard-stacked">
@@ -386,7 +390,7 @@
                             <span>Samples Taken</span>
                         </div>
                     </div>
-                    <div class="card-body" style="height: 300px; min-height: 300px;">
+                    <div class="card-body" style="height: 220px; min-height: 220px;">
                         <canvas id="samplesTakenChart"></canvas>
                     </div>
                 </div>
@@ -397,7 +401,7 @@
                             <span>Facility Types</span>
                         </div>
                     </div>
-                    <div class="card-body" style="height: 300px; min-height: 300px;">
+                    <div class="card-body" style="height: 220px; min-height: 220px;">
                         <canvas id="facilityTypesChart"></canvas>
                     </div>
                 </div>
@@ -415,7 +419,7 @@
                     Directions issued = good inspector work identifying client issues
                 </div>
             </div>
-            <div class="card-body" style="height: 380px;">
+            <div class="card-body" style="height: 280px;">
                 <canvas id="directionsChart"></canvas>
             </div>
         </div>
@@ -429,7 +433,7 @@
                         <span>Occurrence Reports ({{ total_occurrence_reports }})</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 300px;">
+                <div class="card-body" style="height: 220px;">
                     <canvas id="occurrenceReportsChart"></canvas>
                 </div>
             </div>
@@ -440,7 +444,7 @@
                         <span>Travel Distance Per Inspector</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 300px;">
+                <div class="card-body" style="height: 220px;">
                     <canvas id="travelChart"></canvas>
                 </div>
             </div>
@@ -470,16 +474,8 @@
                     <span>Approval Rate Per Inspector</span>
                 </div>
             </div>
-            <div class="card-body" style="height: 380px;">
+            <div class="card-body" style="height: 280px;">
                 <canvas id="approvalRateChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Financial / Revenue Section -->
-        <div class="kpi-grid" style="grid-template-columns: repeat(1, 1fr); max-width: 300px;">
-            <div class="kpi-card">
-                <div class="kpi-value kpi-green" id="kpiTotalRevenue">R0.00</div>
-                <div class="kpi-label">Total Revenue Generated</div>
             </div>
         </div>
 
@@ -492,16 +488,18 @@
                 </div>
             </div>
             <div class="card-body" style="padding: 0; overflow-x: auto;">
-                <table class="inspections-table" id="financialTable">
+                <table class="inspections-table" id="financialTable" style="font-size: 10.5px;">
                     <thead>
                         <tr>
-                            <th>Inspector</th>
-                            <th class="num">Inspections</th>
-                            <th class="num">Hours</th>
-                            <th class="num">Rev (Hours)</th>
-                            <th class="num">Rev (KM)</th>
-                            <th class="num">Rev (Samples)</th>
-                            <th class="num">Total Revenue</th>
+                            <th style="min-width: 110px;">Inspector</th>
+                            <th class="num" style="min-width: 70px;">Inspections</th>
+                            <th class="num" style="min-width: 65px;">Billable Hrs</th>
+                            <th class="num" style="min-width: 60px;">KM</th>
+                            <th class="num" style="min-width: 65px;">On-Site Hrs</th>
+                            <th class="num" style="min-width: 75px;">Rev (Hours)</th>
+                            <th class="num" style="min-width: 70px;">Rev (KM)</th>
+                            <th class="num" style="min-width: 80px;">Rev (Samples)</th>
+                            <th class="num" style="min-width: 85px;">Total Revenue</th>
                         </tr>
                     </thead>
                     <tbody id="financialTableBody">
@@ -519,7 +517,7 @@
                     <span>Revenue Breakdown Per Inspector</span>
                 </div>
             </div>
-            <div class="card-body" style="height: 380px;">
+            <div class="card-body" style="height: 280px;">
                 <canvas id="revenueCostChart"></canvas>
             </div>
         </div>

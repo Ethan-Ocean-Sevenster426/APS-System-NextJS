@@ -8345,7 +8345,10 @@ def analytics_dashboard(request):
             client['risk_score'] = 100
     
     # === COMMODITY ANALYSIS ===
-    commodity_analysis = FoodSafetyAgencyInspection.objects.values('commodity').annotate(
+    # Exclude occurrence reports from commodity-based analysis
+    commodity_analysis = FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
         total_inspections=Count('id'),
         compliant_inspections=Count('id', filter=Q(approved_status='APPROVED')),
         avg_hours=Avg('hours'),
@@ -8470,7 +8473,10 @@ def analytics_dashboard(request):
     ]
     
     # === COMPLIANCE BY COMMODITY ===
-    compliance_by_commodity = list(FoodSafetyAgencyInspection.objects.values('commodity').annotate(
+    # Exclude occurrence reports (they don't have commodities)
+    compliance_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
         non_compliant=Count('id', filter=Q(approved_status='PENDING'))
@@ -8479,7 +8485,10 @@ def analytics_dashboard(request):
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # === SAMPLES BY COMMODITY ===
-    samples_by_commodity = list(FoodSafetyAgencyInspection.objects.filter(
+    # Exclude occurrence reports from commodity-based analysis
+    samples_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
         is_sample_taken=True
     ).values('commodity').annotate(count=Count('id')).order_by('commodity'))
 
@@ -8488,29 +8497,33 @@ def analytics_dashboard(request):
         Q(facility_type__isnull=True) | Q(facility_type='')
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
-    # === MONTHLY COMMODITY TRENDS ===
-    monthly_commodity_trends = list(FoodSafetyAgencyInspection.objects.filter(
-        date_of_inspection__gte=now - timedelta(days=365)
+    # === COMMODITY TRENDS (WEEKLY) ===
+    from django.db.models.functions import TruncWeek
+    monthly_commodity_trends = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=now - timedelta(days=90)  # Last 90 days
     ).annotate(
-        month=TruncMonth('date_of_inspection')
+        month=TruncWeek('date_of_inspection')
     ).values('month', 'commodity').annotate(
         count=Count('id')
     ).order_by('month', 'commodity'))
 
     # === MONTHLY COMPLIANCE TREND PER COMMODITY ===
+    # Use weekly trends for more granular data points
     monthly_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).exclude(
         date_of_inspection__isnull=True
     ).annotate(
-        month=TruncMonth('date_of_inspection')
+        month=TruncWeek('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED'))
     ).order_by('month', 'commodity'))
 
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # === DAILY COMPLIANCE TREND PER COMMODITY ===
     daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -8686,6 +8699,39 @@ def analytics_dashboard(request):
     km_rate = fee_rates.get('inspection_km_rate', 0)
     sample_rate = fee_rates.get('sample_collection', 0)
 
+    # Calculate inspection time (travel start to travel end time) per inspector
+    # Note: Using travel_start_time and travel_end_time from InspectionGroup
+    from datetime import datetime, timedelta
+    inspection_times = {}
+    inspections_with_times = FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+
+    for insp in inspections_with_times:
+        inspector = insp['inspector_name']
+        start = insp['inspection_group__travel_start_time']
+        end = insp['inspection_group__travel_end_time']
+
+        # Calculate duration in hours
+        if start and end:
+            # Convert time to datetime for calculation
+            start_dt = datetime.combine(datetime.today(), start)
+            end_dt = datetime.combine(datetime.today(), end)
+
+            # Handle cases where end time is before start time (crosses midnight)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+
+            duration = (end_dt - start_dt).total_seconds() / 3600  # Convert to hours
+
+            if inspector not in inspection_times:
+                inspection_times[inspector] = 0
+            inspection_times[inspector] += duration
+
     # Calculate revenue per inspector
     inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
@@ -8703,6 +8749,8 @@ def analytics_dashboard(request):
         hrs = float(item['total_hours'] or 0)
         km = float(item['total_km'] or 0)
         samples = item['total_samples'] or 0
+        inspection_time = inspection_times.get(item['inspector_name'], 0)
+
         rev_hours = round(hrs * hourly_rate, 2)
         rev_km = round(km * km_rate, 2)
         rev_samples = round(samples * sample_rate, 2)
@@ -8712,6 +8760,8 @@ def analytics_dashboard(request):
             'inspector_name': item['inspector_name'],
             'total_inspections': item['total_inspections'],
             'total_hours': hrs,
+            'total_km': km,
+            'inspection_time': round(inspection_time, 1),
             'revenue_hours': rev_hours,
             'revenue_km': rev_km,
             'revenue_samples': rev_samples,
@@ -8876,8 +8926,10 @@ def analytics_dashboard_api(request):
         avg_hours=Avg('hours')
     )
 
-    # Compliance by commodity
-    compliance_by_commodity = list(qs.values('commodity').annotate(
+    # Compliance by commodity (exclude occurrence reports)
+    compliance_by_commodity = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
         non_compliant=Count('id', filter=Q(approved_status='PENDING'))
@@ -8885,13 +8937,17 @@ def analytics_dashboard_api(request):
     for item in compliance_by_commodity:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
-    # Commodity analysis
-    commodity_analysis = list(qs.values('commodity').annotate(
+    # Commodity analysis (exclude occurrence reports)
+    commodity_analysis = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
         total_inspections=Count('id')
     ).order_by('-total_inspections'))
 
-    # Samples by commodity
-    samples_by_commodity = list(qs.filter(is_sample_taken=True).values('commodity').annotate(
+    # Samples by commodity (exclude occurrence reports)
+    samples_by_commodity = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(is_sample_taken=True).values('commodity').annotate(
         count=Count('id')
     ).order_by('commodity'))
 
@@ -8902,7 +8958,9 @@ def analytics_dashboard_api(request):
 
     # Monthly commodity trends
     twelve_months_ago = datetime.now() - timedelta(days=365)
-    trends_qs = qs.filter(date_of_inspection__gte=twelve_months_ago)
+    trends_qs = qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(date_of_inspection__gte=twelve_months_ago)
     monthly_commodity_trends = list(trends_qs.annotate(
         month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
