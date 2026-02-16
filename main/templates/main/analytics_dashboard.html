@@ -236,6 +236,14 @@
         <div class="filter-bar card">
             <div class="filter-bar-inner">
                 <div class="filter-group">
+                    <label>Date From</label>
+                    <input type="date" id="filterDateFrom" class="form-control" placeholder="Start Date">
+                </div>
+                <div class="filter-group">
+                    <label>Date To</label>
+                    <input type="date" id="filterDateTo" class="form-control" placeholder="End Date">
+                </div>
+                <div class="filter-group">
                     <label>Year</label>
                     <select id="filterYear" class="form-control">
                         <option value="all">All Years</option>
@@ -272,6 +280,9 @@
                     </select>
                 </div>
                 <div class="filter-actions">
+                    <button id="applyFilters" class="btn btn-primary btn-sm">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
                     <button id="resetFilters" class="btn btn-secondary btn-sm">
                         <i class="fas fa-undo"></i> Reset
                     </button>
@@ -492,6 +503,55 @@
             </div>
         </div>
 
+        <!-- Financial / Revenue Section -->
+        <div class="kpi-grid" style="grid-template-columns: repeat(1, 1fr); max-width: 300px;">
+            <div class="kpi-card">
+                <div class="kpi-value kpi-green" id="kpiTotalRevenue">R0.00</div>
+                <div class="kpi-label">Total Revenue Generated</div>
+            </div>
+        </div>
+
+        <!-- Inspector Revenue Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Revenue Per Inspector</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto;">
+                <table class="inspections-table" id="financialTable">
+                    <thead>
+                        <tr>
+                            <th>Inspector</th>
+                            <th class="num">Inspections</th>
+                            <th class="num">Hours</th>
+                            <th class="num">Rev (Hours)</th>
+                            <th class="num">Rev (KM)</th>
+                            <th class="num">Rev (Samples)</th>
+                            <th class="num">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="financialTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Revenue Breakdown Chart -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Revenue Breakdown Per Inspector</span>
+                </div>
+            </div>
+            <div class="card-body" style="height: 380px;">
+                <canvas id="revenueCostChart"></canvas>
+            </div>
+        </div>
+
         </div>
         </div>
     </div>
@@ -523,6 +583,7 @@
             facilityTypeDistribution: {{ facility_type_distribution|safe }},
             monthlyCommodityTrends: {{ monthly_commodity_trends|safe }},
             monthlyComplianceTrend: {{ monthly_compliance_trend|safe }},
+            dailyComplianceTrend: {{ daily_compliance_trend|safe }},
             timeAllocation: {{ time_allocation|safe }},
             inspectionsList: {{ inspections_list|safe }},
             filterOptions: {{ filter_options|safe }},
@@ -534,10 +595,14 @@
             directionsPerInspector: {{ directions_per_inspector|safe }},
             travelPerInspector: {{ travel_per_inspector|safe }},
             inspectorCommodityMatrix: {{ inspector_commodity_matrix|safe }},
-            approvalPerInspector: {{ approval_per_inspector|safe }}
+            approvalPerInspector: {{ approval_per_inspector|safe }},
+
+            // Financial / Revenue data
+            inspectorFinancials: {{ inspector_financials|safe }},
+            financialSummary: {{ financial_summary|safe }}
         };
     </script>
     <!-- Analytics Dashboard JS -->
-    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260213c"></script>
+    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260216a"></script>
 </body>
 </html>

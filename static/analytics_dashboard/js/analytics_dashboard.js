@@ -1,81 +1,64 @@
-// Theme management - compatible with settings page
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-}
-
-initTheme();
-
-window.addEventListener('storage', function(e) {
-    if (e.key === 'theme') {
-        document.documentElement.setAttribute('data-theme', e.newValue || 'light');
-    }
-});
-
-// Load background image after page loads
+// ================================================================
+// THEME & BACKGROUND
+// ================================================================
+// Load background image for better performance
 window.addEventListener('load', function() {
     document.body.classList.add('bg-loaded');
 });
 
-// ================================================================
-// COMMODITY COLOR MAP
-// ================================================================
-const COMMODITY_COLORS = {
-    'EGG': '#f59e0b',
-    'EGGS': '#f59e0b',
-    'PMP': '#3b82f6',
-    'POULTRY': '#10b981',
-    'RAW': '#ef4444',
-};
-const DEFAULT_COLOR = '#6b7280';
-const CHART_PALETTE = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-
-function getCommodityColor(commodity) {
-    if (!commodity) return DEFAULT_COLOR;
-    return COMMODITY_COLORS[commodity.toUpperCase()] || DEFAULT_COLOR;
+function initTheme() {
+    var saved = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
 }
+initTheme();
+window.addEventListener('storage', function(e) {
+    if (e.key === 'theme') document.documentElement.setAttribute('data-theme', e.newValue || 'light');
+});
 
-function getCommodityCSSClass(commodity) {
-    if (!commodity) return 'commodity-default';
-    const key = commodity.toUpperCase();
-    if (key === 'EGG' || key === 'EGGS') return 'commodity-egg';
-    if (key === 'PMP') return 'commodity-pmp';
-    if (key === 'POULTRY') return 'commodity-poultry';
-    if (key === 'RAW') return 'commodity-raw';
+// ================================================================
+// COMMODITY COLORS
+// ================================================================
+var COMMODITY_COLORS = { 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'POULTRY': '#107c10', 'RAW': '#d13438' };
+var DEFAULT_COLOR = '#616161';
+var CHART_PALETTE = ['#0078d4', '#107c10', '#f59e0b', '#d13438', '#8764b8', '#e3008c', '#00b7c3', '#7fba00'];
+
+function getCommodityColor(c) { return c ? (COMMODITY_COLORS[c.toUpperCase()] || DEFAULT_COLOR) : DEFAULT_COLOR; }
+function getCommodityCSSClass(c) {
+    if (!c) return 'commodity-default';
+    var k = c.toUpperCase();
+    if (k === 'EGG' || k === 'EGGS') return 'commodity-egg';
+    if (k === 'PMP') return 'commodity-pmp';
+    if (k === 'POULTRY') return 'commodity-poultry';
+    if (k === 'RAW') return 'commodity-raw';
     return 'commodity-default';
 }
 
 // ================================================================
-// CHART INSTANCES (for cleanup on re-render)
+// CHART MANAGEMENT
 // ================================================================
-let chartInstances = {};
+var chartInstances = {};
+function destroyChart(id) { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }
+function txtColor() { return document.documentElement.getAttribute('data-theme') === 'dark' ? '#d1d1d1' : '#616161'; }
+function gridColor() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
 
-function destroyChart(id) {
-    if (chartInstances[id]) {
-        chartInstances[id].destroy();
-        delete chartInstances[id];
-    }
-}
-
-function getChartTextColor() {
-    const theme = document.documentElement.getAttribute('data-theme');
-    return theme === 'dark' ? '#b0b0b0' : '#6b7280';
-}
-
-function getChartGridColor() {
-    const theme = document.documentElement.getAttribute('data-theme');
-    return theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
-}
+// Common chart defaults
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
 
 // ================================================================
-// DASHBOARD DATA & STATE
+// DATA & STATE
 // ================================================================
-let dashboardData = {};
-let currentPage = 1;
-const ROWS_PER_PAGE = 25;
+var dashboardData = {};
+
+function formatRand(v) {
+    if (!v && v !== 0) return '-';
+    return 'R' + Number(v).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 
 function loadInitialData() {
-    const cfg = window.DJANGO_CONFIG;
+    var cfg = window.DJANGO_CONFIG;
     dashboardData = {
         totalInspections: cfg.totalInspections,
         complianceRate: cfg.complianceRate,
@@ -89,90 +72,137 @@ function loadInitialData() {
         facilityTypeDistribution: cfg.facilityTypeDistribution || [],
         monthlyCommodityTrends: cfg.monthlyCommodityTrends || [],
         monthlyComplianceTrend: cfg.monthlyComplianceTrend || [],
+        dailyComplianceTrend: cfg.dailyComplianceTrend || [],
         timeAllocation: cfg.timeAllocation || [],
         inspectionsList: cfg.inspectionsList || [],
         inspectorPerformance: cfg.inspectorPerformance || [],
-        // Inspector metrics
         occurrenceReports: cfg.occurrenceReports || [],
         totalOccurrenceReports: cfg.totalOccurrenceReports || 0,
         directionsPerInspector: cfg.directionsPerInspector || [],
         travelPerInspector: cfg.travelPerInspector || [],
         inspectorCommodityMatrix: cfg.inspectorCommodityMatrix || [],
         approvalPerInspector: cfg.approvalPerInspector || [],
+        inspectorFinancials: cfg.inspectorFinancials || [],
+        financialSummary: cfg.financialSummary || {},
     };
 }
 
 // ================================================================
-// FILTER SYSTEM
+// FILTERS
 // ================================================================
 function populateFilterOptions() {
-    const opts = window.DJANGO_CONFIG.filterOptions || {};
+    var opts = window.DJANGO_CONFIG.filterOptions || {};
+    var yearSel = document.getElementById('filterYear');
+    if (yearSel && opts.years) opts.years.forEach(function(y) { var o = document.createElement('option'); o.value = y; o.textContent = y; yearSel.appendChild(o); });
+    var inspSel = document.getElementById('filterInspector');
+    if (inspSel && opts.inspectors) opts.inspectors.forEach(function(n) { var o = document.createElement('option'); o.value = n; o.textContent = n; inspSel.appendChild(o); });
+    var commSel = document.getElementById('filterCommodity');
+    if (commSel && opts.commodities) opts.commodities.forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; commSel.appendChild(o); });
+}
 
-    const yearSelect = document.getElementById('filterYear');
-    if (yearSelect && opts.years) {
-        opts.years.forEach(function(y) {
-            const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
-            yearSelect.appendChild(opt);
-        });
+// Period filter - show/hide custom date fields
+function setupPeriodFilter() {
+    var periodSel = document.getElementById('filterPeriod');
+    if (!periodSel) return;
+    periodSel.addEventListener('change', function() {
+        var isCustom = this.value === 'custom';
+        document.getElementById('customDateFrom').style.display = isCustom ? '' : 'none';
+        document.getElementById('customDateTo').style.display = isCustom ? '' : 'none';
+    });
+}
+
+function getPeriodDates() {
+    var period = document.getElementById('filterPeriod');
+    if (!period) return {};
+    var val = period.value;
+    if (val === 'all') return {};
+
+    var now = new Date();
+    var from, to;
+
+    if (val === 'this_week') {
+        from = new Date(now); from.setDate(now.getDate() - now.getDay()); // Sunday
+        to = now;
+    } else if (val === 'last_week') {
+        from = new Date(now); from.setDate(now.getDate() - now.getDay() - 7);
+        to = new Date(now); to.setDate(now.getDate() - now.getDay() - 1);
+    } else if (val === 'this_month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = now;
+    } else if (val === 'last_month') {
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (val === 'last_3_months') {
+        from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+        to = now;
+    } else if (val === 'last_6_months') {
+        from = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        to = now;
+    } else if (val === 'this_year') {
+        from = new Date(now.getFullYear(), 0, 1);
+        to = now;
+    } else if (val === 'custom') {
+        var f = document.getElementById('filterDateFrom').value;
+        var t = document.getElementById('filterDateTo').value;
+        if (f) from = new Date(f);
+        if (t) to = new Date(t);
     }
 
-    const inspectorSelect = document.getElementById('filterInspector');
-    if (inspectorSelect && opts.inspectors) {
-        opts.inspectors.forEach(function(name) {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            inspectorSelect.appendChild(opt);
-        });
-    }
-
-    const commoditySelect = document.getElementById('filterCommodity');
-    if (commoditySelect && opts.commodities) {
-        opts.commodities.forEach(function(c) {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            commoditySelect.appendChild(opt);
-        });
-    }
+    var result = {};
+    if (from) result.date_from = from.toISOString().slice(0, 10);
+    if (to) result.date_to = to.toISOString().slice(0, 10);
+    return result;
 }
 
 function getFilterValues() {
+    var dateFrom = document.getElementById('filterDateFrom');
+    var dateTo = document.getElementById('filterDateTo');
     return {
         year: document.getElementById('filterYear').value,
         month: document.getElementById('filterMonth').value,
         inspector: document.getElementById('filterInspector').value,
         commodity: document.getElementById('filterCommodity').value,
+        date_from: dateFrom ? dateFrom.value : '',
+        date_to: dateTo ? dateTo.value : '',
     };
 }
 
 function isFiltered() {
-    const f = getFilterValues();
-    return f.year !== 'all' || f.month !== 'all' || f.inspector !== 'all' || f.commodity !== 'all';
+    var f = getFilterValues();
+    return f.year !== 'all' || f.month !== 'all' || f.inspector !== 'all' || f.commodity !== 'all' || f.date_from || f.date_to;
 }
 
 async function applyFilters() {
+    console.log('Apply filters clicked');
     if (!isFiltered()) {
+        console.log('No filters set, loading initial data');
         loadInitialData();
-        currentPage = 1;
         renderAll();
         return;
     }
-
-    const f = getFilterValues();
-    const params = new URLSearchParams();
+    var f = getFilterValues();
+    console.log('Filter values:', f);
+    var params = new URLSearchParams();
     if (f.year !== 'all') params.set('year', f.year);
     if (f.month !== 'all') params.set('month', f.month);
     if (f.inspector !== 'all') params.set('inspector', f.inspector);
     if (f.commodity !== 'all') params.set('commodity', f.commodity);
+    if (f.date_from) params.set('date_from', f.date_from);
+    if (f.date_to) params.set('date_to', f.date_to);
+    console.log('API params:', params.toString());
+
+    // Show loading state
+    var applyBtn = document.getElementById('applyFilters');
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    }
 
     try {
-        const resp = await fetch(window.DJANGO_CONFIG.apiUrl + '?' + params.toString());
+        var resp = await fetch(window.DJANGO_CONFIG.apiUrl + '?' + params.toString());
         if (!resp.ok) throw new Error('API error');
-        const data = await resp.json();
-
+        var data = await resp.json();
+        console.log('Filtered data received:', data);
         dashboardData = {
             totalInspections: data.totalInspections,
             complianceRate: data.complianceRate,
@@ -186,466 +216,232 @@ async function applyFilters() {
             facilityTypeDistribution: data.facilityTypeDistribution || [],
             monthlyCommodityTrends: data.monthlyCommodityTrends || [],
             monthlyComplianceTrend: data.monthlyComplianceTrend || [],
+            dailyComplianceTrend: data.dailyComplianceTrend || [],
             timeAllocation: data.timeAllocation || [],
             inspectionsList: data.inspectionsList || [],
             inspectorPerformance: data.inspectorPerformance || [],
-            // Inspector metrics
             occurrenceReports: data.occurrenceReports || [],
             totalOccurrenceReports: data.totalOccurrenceReports || 0,
             directionsPerInspector: data.directionsPerInspector || [],
             travelPerInspector: data.travelPerInspector || [],
             inspectorCommodityMatrix: data.inspectorCommodityMatrix || [],
             approvalPerInspector: data.approvalPerInspector || [],
+            inspectorFinancials: data.inspectorFinancials || [],
+            financialSummary: data.financialSummary || {},
         };
-        currentPage = 1;
         renderAll();
+        console.log('Dashboard updated with filtered data');
     } catch (err) {
-        console.error('Filter API error:', err);
+        console.error('Filter error:', err);
+        alert('Error loading filtered data. Please try again.');
+    } finally {
+        // Reset button state
+        var applyBtn = document.getElementById('applyFilters');
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = '<i class="fas fa-filter"></i> Apply';
+        }
     }
 }
 
 function resetFilters() {
-    document.getElementById('filterYear').value = 'all';
-    document.getElementById('filterMonth').value = 'all';
-    document.getElementById('filterInspector').value = 'all';
-    document.getElementById('filterCommodity').value = 'all';
+    var els = {
+        period: document.getElementById('filterPeriod'),
+        year: document.getElementById('filterYear'),
+        month: document.getElementById('filterMonth'),
+        inspector: document.getElementById('filterInspector'),
+        commodity: document.getElementById('filterCommodity'),
+        customFrom: document.getElementById('customDateFrom'),
+        customTo: document.getElementById('customDateTo'),
+        dateFrom: document.getElementById('filterDateFrom'),
+        dateTo: document.getElementById('filterDateTo'),
+    };
+    if (els.period) els.period.value = 'all';
+    if (els.year) els.year.value = 'all';
+    if (els.month) els.month.value = 'all';
+    if (els.inspector) els.inspector.value = 'all';
+    if (els.commodity) els.commodity.value = 'all';
+    if (els.customFrom) els.customFrom.style.display = 'none';
+    if (els.customTo) els.customTo.style.display = 'none';
+    if (els.dateFrom) els.dateFrom.value = '';
+    if (els.dateTo) els.dateTo.value = '';
     loadInitialData();
-    currentPage = 1;
     renderAll();
 }
 
 // ================================================================
-// RENDER: KPI CARDS
+// RENDER: KPIs
 // ================================================================
 function renderKPIs() {
-    const d = dashboardData;
+    var d = dashboardData;
     document.getElementById('kpiTotalInspections').textContent = (d.totalInspections || 0).toLocaleString();
     document.getElementById('kpiComplianceRate').textContent = (d.complianceRate || 0).toFixed(1) + '%';
-    document.getElementById('kpiDaysWorked').textContent = (d.daysWorked || 0).toLocaleString();
     document.getElementById('kpiActiveInspectors').textContent = d.activeInspectors || 0;
+    document.getElementById('kpiDaysWorked').textContent = (d.daysWorked || 0).toLocaleString();
 
-    // Efficiency tiles
-    document.getElementById('effDaysWorked').textContent = (d.daysWorked || 0).toLocaleString();
-    const avgPerDay = d.daysWorked > 0 ? (d.totalInspections / d.daysWorked).toFixed(1) : '-';
+    // Financial KPIs
+    var fin = d.financialSummary || {};
+    var kpiRevEl = document.getElementById('kpiTotalRevenue');
+    if (kpiRevEl) kpiRevEl.textContent = formatRand(fin.total_revenue);
+
+    // Efficiency
+    var avgPerDay = d.daysWorked > 0 ? (d.totalInspections / d.daysWorked).toFixed(1) : '-';
     document.getElementById('effAvgPerDay').textContent = avgPerDay;
     document.getElementById('effTotalHours').textContent = d.totalHours ? d.totalHours.toFixed(0) : '-';
-    const avgHoursPerDay = d.daysWorked > 0 && d.totalHours ? (d.totalHours / d.daysWorked).toFixed(1) : '-';
-    document.getElementById('effAvgHours').textContent = avgHoursPerDay;
+    var avgHrsDay = d.daysWorked > 0 && d.totalHours ? (d.totalHours / d.daysWorked).toFixed(1) : '-';
+    document.getElementById('effAvgHours').textContent = avgHrsDay;
+}
+
+// ================================================================
+// RENDER: FINANCIAL TABLE
+// ================================================================
+function renderFinancialTable() {
+    var tbody = document.getElementById('financialTableBody');
+    if (!tbody) return;
+    var items = dashboardData.inspectorFinancials || [];
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+
+    var html = '';
+    var totals = { inspections: 0, hours: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0 };
+
+    items.forEach(function(item) {
+        var hrs = parseFloat(item.total_hours || 0);
+        var revH = item.revenue_hours || 0;
+        var revK = item.revenue_km || 0;
+        var revS = item.revenue_samples || 0;
+        var tot = item.total_revenue || 0;
+
+        totals.inspections += item.total_inspections || 0;
+        totals.hours += hrs;
+        totals.revHours += revH;
+        totals.revKm += revK;
+        totals.revSamples += revS;
+        totals.total += tot;
+
+        html += '<tr>' +
+            '<td>' + (item.inspector_name || '-') + '</td>' +
+            '<td class="num">' + (item.total_inspections || 0) + '</td>' +
+            '<td class="num">' + hrs.toFixed(1) + '</td>' +
+            '<td class="num">' + formatRand(revH) + '</td>' +
+            '<td class="num">' + formatRand(revK) + '</td>' +
+            '<td class="num">' + formatRand(revS) + '</td>' +
+            '<td class="num">' + formatRand(tot) + '</td>' +
+        '</tr>';
+    });
+
+    // Total row
+    html += '<tr class="total-row">' +
+        '<td>Total</td>' +
+        '<td class="num">' + totals.inspections + '</td>' +
+        '<td class="num">' + totals.hours.toFixed(1) + '</td>' +
+        '<td class="num">' + formatRand(totals.revHours) + '</td>' +
+        '<td class="num">' + formatRand(totals.revKm) + '</td>' +
+        '<td class="num">' + formatRand(totals.revSamples) + '</td>' +
+        '<td class="num">' + formatRand(totals.total) + '</td>' +
+    '</tr>';
+
+    tbody.innerHTML = html;
+}
+
+// ================================================================
+// RENDER: REVENUE VS COST CHART
+// ================================================================
+function renderRevenueCostChart() {
+    destroyChart('revenueCostChart');
+    var canvas = document.getElementById('revenueCostChart');
+    if (!canvas) return;
+    var items = (dashboardData.inspectorFinancials || []).slice(0, 12);
+    if (items.length === 0) return;
+
+    var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
+    var hoursData = items.map(function(i) { return i.revenue_hours || 0; });
+    var kmData = items.map(function(i) { return i.revenue_km || 0; });
+    var samplesData = items.map(function(i) { return i.revenue_samples || 0; });
+
+    chartInstances['revenueCostChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Hours', data: hoursData, backgroundColor: '#107c10', borderRadius: 3, barPercentage: 0.7 },
+                { label: 'KM', data: kmData, backgroundColor: '#0078d4', borderRadius: 3, barPercentage: 0.7 },
+                { label: 'Samples', data: samplesData, backgroundColor: '#ffb900', borderRadius: 3, barPercentage: 0.7 },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: txtColor(), padding: 12 } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 } } },
+                y: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } }, beginAtZero: true }
+            }
+        }
+    });
 }
 
 // ================================================================
 // RENDER: COMPLIANCE BARS
 // ================================================================
 function renderComplianceBars() {
-    const container = document.getElementById('complianceBarsContainer');
+    var container = document.getElementById('complianceBarsContainer');
     if (!container) return;
+    var items = dashboardData.complianceByCommodity || [];
+    if (items.length === 0) { container.innerHTML = '<div class="no-data"><p>No compliance data</p></div>'; return; }
 
-    const items = dashboardData.complianceByCommodity || [];
-    if (items.length === 0) {
-        container.innerHTML = '<div class="no-data"><p>No compliance data available</p></div>';
-        return;
-    }
-
-    let html = '';
+    var html = '';
     items.forEach(function(item) {
-        const commodity = item.commodity || 'Unknown';
-        const rate = item.compliance_rate || 0;
-        const total = item.total || 0;
-        const cssClass = getCommodityCSSClass(commodity);
-
+        var commodity = item.commodity || 'Unknown';
+        var rate = item.compliance_rate || 0;
+        var total = item.total || 0;
         html += '<div class="compliance-bar-row">' +
             '<div class="compliance-bar-label">' + commodity + '</div>' +
             '<div class="compliance-bar-track">' +
-                '<div class="compliance-bar-fill ' + cssClass + '" style="width: ' + Math.max(rate, 3) + '%;">' +
+                '<div class="compliance-bar-fill ' + getCommodityCSSClass(commodity) + '" style="width:' + Math.max(rate, 3) + '%">' +
                     '<span class="compliance-bar-pct">' + rate.toFixed(1) + '%</span>' +
                 '</div>' +
             '</div>' +
             '<div class="compliance-bar-count">' + total + '</div>' +
         '</div>';
     });
-
     container.innerHTML = html;
 }
 
 // ================================================================
-// RENDER: COMMODITY COUNT DOUGHNUT
-// ================================================================
-function renderCommodityCountChart() {
-    destroyChart('commodityCountChart');
-    const canvas = document.getElementById('commodityCountChart');
-    if (!canvas) return;
-
-    const items = dashboardData.commodityAnalysis || [];
-    if (items.length === 0) return;
-
-    const labels = items.map(function(i) { return i.commodity || 'Unknown'; });
-    const data = items.map(function(i) { return i.total_inspections || 0; });
-    const colors = labels.map(function(l) { return getCommodityColor(l); });
-
-    chartInstances['commodityCountChart'] = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 2,
-                borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: { color: getChartTextColor(), padding: 12, font: { size: 11 } }
-                }
-            },
-            cutout: '55%'
-        }
-    });
-}
-
-// ================================================================
-// RENDER: TIME ALLOCATION (horizontal bar)
-// ================================================================
-function renderTimeAllocationChart() {
-    destroyChart('timeAllocationChart');
-    const canvas = document.getElementById('timeAllocationChart');
-    if (!canvas) return;
-
-    const items = dashboardData.timeAllocation || [];
-    if (items.length === 0) return;
-
-    const labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
-    const data = items.map(function(i) { return parseFloat(i.total_hours || 0); });
-
-    chartInstances['timeAllocationChart'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Hours',
-                data: data,
-                backgroundColor: '#007890',
-                borderRadius: 3,
-                barThickness: 16,
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                x: {
-                    grid: { color: getChartGridColor() },
-                    ticks: { color: getChartTextColor(), font: { size: 10 } }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: getChartTextColor(), font: { size: 10 } }
-                }
-            }
-        }
-    });
-}
-
-// ================================================================
-// RENDER: INSPECTIONS TABLE WITH PAGINATION
-// ================================================================
-function renderInspectionsTable() {
-    const tbody = document.getElementById('inspectionsTableBody');
-    const pagination = document.getElementById('tablePagination');
-    const pageInfo = document.getElementById('tablePageInfo');
-    if (!tbody) return;
-
-    const items = dashboardData.inspectionsList || [];
-    const totalItems = items.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / ROWS_PER_PAGE));
-
-    if (currentPage > totalPages) currentPage = totalPages;
-
-    const start = (currentPage - 1) * ROWS_PER_PAGE;
-    const end = Math.min(start + ROWS_PER_PAGE, totalItems);
-    const pageItems = items.slice(start, end);
-
-    // Render rows
-    let html = '';
-    if (pageItems.length === 0) {
-        html = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-light);">No inspections found</td></tr>';
-    } else {
-        pageItems.forEach(function(row) {
-            const date = row.date_of_inspection || '-';
-            const inspector = row.inspector_name || '-';
-            const client = row.client_name || '-';
-            const commodity = row.commodity || '-';
-            const facility = row.facility_type || '-';
-            const sample = row.is_sample_taken;
-            const status = row.approved_status || 'PENDING';
-
-            const commodityBadgeClass = getCommodityCSSClass(commodity);
-            const statusClass = status === 'APPROVED' ? 'status-approved' : 'status-pending';
-            const statusLabel = status === 'APPROVED' ? 'Approved' : 'Pending';
-            const sampleClass = sample ? 'sample-yes' : 'sample-no';
-            const sampleText = sample ? 'Yes' : 'No';
-
-            html += '<tr>' +
-                '<td>' + date + '</td>' +
-                '<td>' + inspector + '</td>' +
-                '<td>' + client + '</td>' +
-                '<td><span class="commodity-badge ' + commodityBadgeClass + '">' + commodity + '</span></td>' +
-                '<td>' + facility + '</td>' +
-                '<td><span class="' + sampleClass + '">' + sampleText + '</span></td>' +
-                '<td><span class="status-badge ' + statusClass + '">' + statusLabel + '</span></td>' +
-            '</tr>';
-        });
-    }
-    tbody.innerHTML = html;
-
-    // Page info
-    if (pageInfo) {
-        pageInfo.textContent = totalItems > 0
-            ? 'Showing ' + (start + 1) + '-' + end + ' of ' + totalItems
-            : '';
-    }
-
-    // Pagination controls
-    if (pagination) {
-        let pHtml = '';
-        if (totalPages > 1) {
-            pHtml += '<button ' + (currentPage === 1 ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage - 1) + ')">Prev</button>';
-
-            const maxButtons = 7;
-            let startPage = Math.max(1, currentPage - 3);
-            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-            if (endPage - startPage < maxButtons - 1) {
-                startPage = Math.max(1, endPage - maxButtons + 1);
-            }
-
-            for (let p = startPage; p <= endPage; p++) {
-                pHtml += '<button class="' + (p === currentPage ? 'active' : '') + '" onclick="goToPage(' + p + ')">' + p + '</button>';
-            }
-
-            pHtml += '<button ' + (currentPage === totalPages ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage + 1) + ')">Next</button>';
-        }
-        pagination.innerHTML = pHtml;
-    }
-}
-
-window.goToPage = function(page) {
-    currentPage = page;
-    renderInspectionsTable();
-};
-
-// ================================================================
-// RENDER: COMMODITY TREND (multi-line chart)
-// ================================================================
-function renderCommodityTrendChart() {
-    destroyChart('commodityTrendChart');
-    const canvas = document.getElementById('commodityTrendChart');
-    if (!canvas) return;
-
-    const trends = dashboardData.monthlyCommodityTrends || [];
-    if (trends.length === 0) return;
-
-    // Group by commodity
-    const commodityMap = {};
-    const monthSet = new Set();
-
-    trends.forEach(function(item) {
-        const month = item.month ? item.month.substring(0, 7) : 'Unknown';
-        const commodity = item.commodity || 'Unknown';
-        monthSet.add(month);
-        if (!commodityMap[commodity]) commodityMap[commodity] = {};
-        commodityMap[commodity][month] = item.count || 0;
-    });
-
-    const months = Array.from(monthSet).sort();
-    const datasets = [];
-
-    Object.keys(commodityMap).forEach(function(commodity, idx) {
-        datasets.push({
-            label: commodity,
-            data: months.map(function(m) { return commodityMap[commodity][m] || 0; }),
-            borderColor: getCommodityColor(commodity) || CHART_PALETTE[idx % CHART_PALETTE.length],
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 5,
-        });
-    });
-
-    const monthLabels = months.map(function(m) {
-        const parts = m.split('-');
-        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return monthNames[parseInt(parts[1]) - 1] + ' ' + parts[0].substring(2);
-    });
-
-    chartInstances['commodityTrendChart'] = new Chart(canvas, {
-        type: 'line',
-        data: { labels: monthLabels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: { color: getChartTextColor(), padding: 10, font: { size: 11 } }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: getChartGridColor() },
-                    ticks: { color: getChartTextColor(), font: { size: 10 } }
-                },
-                y: {
-                    grid: { color: getChartGridColor() },
-                    ticks: { color: getChartTextColor(), font: { size: 10 } },
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-}
-
-// ================================================================
-// RENDER: SAMPLES TAKEN PIE
-// ================================================================
-function renderSamplesTakenChart() {
-    destroyChart('samplesTakenChart');
-    const canvas = document.getElementById('samplesTakenChart');
-    if (!canvas) return;
-
-    const items = dashboardData.samplesByCommodity || [];
-    if (items.length === 0) return;
-
-    const labels = items.map(function(i) { return i.commodity || 'Unknown'; });
-    const data = items.map(function(i) { return i.count || 0; });
-    const colors = labels.map(function(l) { return getCommodityColor(l); });
-
-    chartInstances['samplesTakenChart'] = new Chart(canvas, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 2,
-                borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: { color: getChartTextColor(), padding: 8, font: { size: 10 } }
-                }
-            }
-        }
-    });
-}
-
-// ================================================================
-// RENDER: FACILITY TYPES PIE
-// ================================================================
-function renderFacilityTypesChart() {
-    destroyChart('facilityTypesChart');
-    const canvas = document.getElementById('facilityTypesChart');
-    if (!canvas) return;
-
-    const items = dashboardData.facilityTypeDistribution || [];
-    if (items.length === 0) return;
-
-    const labels = items.map(function(i) { return i.facility_type || 'Unknown'; });
-    const data = items.map(function(i) { return i.count || 0; });
-
-    chartInstances['facilityTypesChart'] = new Chart(canvas, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: CHART_PALETTE.slice(0, labels.length),
-                borderWidth: 2,
-                borderColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: { color: getChartTextColor(), padding: 8, font: { size: 10 } }
-                }
-            }
-        }
-    });
-}
-
-// ================================================================
-// RENDER: COMPLIANCE TREND PER COMMODITY (multi-line chart)
+// RENDER: COMPLIANCE TREND
 // ================================================================
 function renderComplianceTrendChart() {
     destroyChart('complianceTrendChart');
     var canvas = document.getElementById('complianceTrendChart');
     if (!canvas) return;
-
     var items = dashboardData.monthlyComplianceTrend || [];
     if (items.length === 0) return;
 
-    var commodityColors = {
-        'POULTRY': { border: '#f87171', bg: 'rgba(248,113,113,0.1)' },
-        'EGG': { border: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
-        'EGGS': { border: '#9ca3af', bg: 'rgba(156,163,175,0.1)' },
-        'PMP': { border: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
-        'RAW': { border: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
-    };
-
-    // Build: { commodity: { month: compliance_rate } }
+    var brandColors = { 'POULTRY': '#107c10', 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'RAW': '#d13438' };
     var commodityData = {};
     var monthsSet = new Set();
+
     items.forEach(function(item) {
         var comm = item.commodity;
-        var monthStr = item.month;
-        if (typeof monthStr === 'string') {
-            monthStr = monthStr.substring(0, 7);
-        } else if (monthStr && monthStr.getFullYear) {
-            var m = monthStr.getMonth() + 1;
-            monthStr = monthStr.getFullYear() + '-' + (m < 10 ? '0' + m : m);
-        }
-        monthsSet.add(monthStr);
+        var ms = typeof item.month === 'string' ? item.month.substring(0, 7) : '';
+        if (!ms && item.month && item.month.getFullYear) { var m = item.month.getMonth() + 1; ms = item.month.getFullYear() + '-' + (m < 10 ? '0' + m : m); }
+        monthsSet.add(ms);
         if (!commodityData[comm]) commodityData[comm] = {};
-        commodityData[comm][monthStr] = item.compliance_rate;
+        commodityData[comm][ms] = item.compliance_rate;
     });
 
     var months = Array.from(monthsSet).sort();
-    var labels = months.map(function(m) {
-        var parts = m.split('-');
-        var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return monthNames[parseInt(parts[1]) - 1] + ' ' + parts[0];
-    });
+    var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var labels = months.map(function(m) { var p = m.split('-'); return mNames[parseInt(p[1]) - 1] + ' ' + p[0]; });
 
     var datasets = [];
     Object.keys(commodityData).sort().forEach(function(comm) {
-        var colors = commodityColors[comm] || { border: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
         datasets.push({
             label: comm,
             data: months.map(function(m) { return commodityData[comm][m] || null; }),
-            borderColor: colors.border,
-            backgroundColor: colors.bg,
-            borderWidth: 2,
-            pointRadius: 2,
-            pointHoverRadius: 5,
-            tension: 0.3,
-            fill: false,
-            spanGaps: true
+            borderColor: brandColors[comm] || '#616161',
+            backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 2, tension: 0.3, fill: false, spanGaps: true
         });
     });
 
@@ -653,18 +449,79 @@ function renderComplianceTrendChart() {
         type: 'line',
         data: { labels: labels, datasets: datasets },
         options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: txtColor(), padding: 12 } }, tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A'); } } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 9 }, maxRotation: 45, autoSkip: true } },
+                y: { min: 0, max: 100, grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return v + '%'; } } }
+            }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: DAILY COMPLIANCE TREND
+// ================================================================
+function renderDailyComplianceChart() {
+    destroyChart('dailyComplianceChart');
+    var canvas = document.getElementById('dailyComplianceChart');
+    if (!canvas) return;
+    var items = dashboardData.dailyComplianceTrend || [];
+    if (items.length === 0) return;
+
+    var brandColors = { 'POULTRY': '#107c10', 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'RAW': '#d13438' };
+    var commodityData = {};
+    var daysSet = new Set();
+
+    items.forEach(function(item) {
+        var comm = item.commodity;
+        var dayStr = typeof item.day === 'string' ? item.day.substring(0, 10) : '';
+        if (!dayStr && item.day && item.day.getFullYear) {
+            var d = item.day.getDate();
+            var m = item.day.getMonth() + 1;
+            dayStr = item.day.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
+        }
+        daysSet.add(dayStr);
+        if (!commodityData[comm]) commodityData[comm] = {};
+        commodityData[comm][dayStr] = item.compliance_rate;
+    });
+
+    var days = Array.from(daysSet).sort();
+    var labels = days.map(function(d) {
+        var parts = d.split('-');
+        return parts[2] + '/' + parts[1];  // DD/MM format
+    });
+
+    var datasets = [];
+    Object.keys(commodityData).sort().forEach(function(comm) {
+        datasets.push({
+            label: comm,
+            data: days.map(function(d) { return commodityData[comm][d] || null; }),
+            borderColor: brandColors[comm] || '#616161',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: false,
+            spanGaps: true
+        });
+    });
+
+    chartInstances['dailyComplianceChart'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: {
-                    position: 'top',
-                    labels: { color: getChartTextColor(), usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 11 } }
-                },
+                legend: { labels: { color: txtColor(), padding: 12 } },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
-                            return ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) + '%' : 'N/A');
+                            return ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + '%' : 'N/A');
                         }
                     }
                 }
@@ -672,16 +529,13 @@ function renderComplianceTrendChart() {
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { color: getChartTextColor(), font: { size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 20 }
+                    ticks: { color: txtColor(), font: { size: 9 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 15 }
                 },
                 y: {
-                    min: 0, max: 100,
-                    grid: { color: getChartGridColor() },
-                    ticks: {
-                        color: getChartTextColor(),
-                        font: { size: 10 },
-                        callback: function(v) { return v + '%'; }
-                    }
+                    min: 0,
+                    max: 100,
+                    grid: { color: gridColor() },
+                    ticks: { color: txtColor(), callback: function(v) { return v + '%'; } }
                 }
             }
         }
@@ -689,214 +543,226 @@ function renderComplianceTrendChart() {
 }
 
 // ================================================================
-// RENDER: DIRECTIONS & NON-COMPLIANCE PER INSPECTOR (stacked bar)
+// RENDER: COMMODITY COUNT DOUGHNUT
+// ================================================================
+function renderCommodityCountChart() {
+    destroyChart('commodityCountChart');
+    var canvas = document.getElementById('commodityCountChart');
+    if (!canvas) return;
+    var items = dashboardData.commodityAnalysis || [];
+    if (items.length === 0) return;
+    var labels = items.map(function(i) { return i.commodity || 'Unknown'; });
+    var data = items.map(function(i) { return i.total_inspections || 0; });
+    var colors = labels.map(function(l) { return getCommodityColor(l); });
+    var bg = document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff';
+
+    chartInstances['commodityCountChart'] = new Chart(canvas, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: bg }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: txtColor(), padding: 10 } } }, cutout: '60%' }
+    });
+}
+
+// ================================================================
+// RENDER: TIME ALLOCATION
+// ================================================================
+function renderTimeAllocationChart() {
+    destroyChart('timeAllocationChart');
+    var canvas = document.getElementById('timeAllocationChart');
+    if (!canvas) return;
+    var items = dashboardData.timeAllocation || [];
+    if (items.length === 0) return;
+    var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
+    var data = items.map(function(i) { return parseFloat(i.total_hours || 0); });
+
+    chartInstances['timeAllocationChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Hours', data: data, backgroundColor: '#0078d4', borderRadius: 3, barThickness: 14 }] },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: DIRECTIONS CHART
 // ================================================================
 function renderDirectionsChart() {
     destroyChart('directionsChart');
-    const canvas = document.getElementById('directionsChart');
+    var canvas = document.getElementById('directionsChart');
     if (!canvas) return;
-
-    var items = dashboardData.directionsPerInspector || [];
+    var items = (dashboardData.directionsPerInspector || []).sort(function(a, b) { return b.total - a.total; }).slice(0, 15);
     if (items.length === 0) return;
-
-    // Add direction_rate
-    items.forEach(function(item) {
-        item.direction_rate = item.total > 0 ? ((item.directions / item.total) * 100).toFixed(1) : 0;
-    });
-
-    // Sort by total descending and take top 15
-    items = items.sort(function(a, b) { return b.total - a.total; }).slice(0, 15);
-
-    var labels = items.map(function(i) { return i.inspector_name; });
-    var directionsData = items.map(function(i) { return i.directions || 0; });
-    var nonCompliantData = items.map(function(i) { return i.non_compliant_products || 0; });
-    var cleanData = items.map(function(i) { return i.total - (i.directions || 0); });
 
     chartInstances['directionsChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: items.map(function(i) { return i.inspector_name; }),
             datasets: [
-                { label: 'Directions Issued', data: directionsData, backgroundColor: '#ef4444', borderRadius: 2 },
-                { label: 'Non-Compliant Products', data: nonCompliantData, backgroundColor: '#f59e0b', borderRadius: 2 },
-                { label: 'Clean Inspections', data: cleanData, backgroundColor: '#10b981', borderRadius: 2 },
+                { label: 'Directions', data: items.map(function(i) { return i.directions || 0; }), backgroundColor: '#d13438', borderRadius: 2 },
+                { label: 'Non-Compliant', data: items.map(function(i) { return i.non_compliant_products || 0; }), backgroundColor: '#ffb900', borderRadius: 2 },
+                { label: 'Clean', data: items.map(function(i) { return i.total - (i.directions || 0); }), backgroundColor: '#107c10', borderRadius: 2 },
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: getChartTextColor(), font: { size: 10 } } }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: txtColor() } } },
             scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { color: getChartTextColor(), font: { size: 9 }, maxRotation: 45 } },
-                y: { stacked: true, grid: { color: getChartGridColor() }, ticks: { color: getChartTextColor(), font: { size: 10 } }, beginAtZero: true }
+                x: { stacked: true, grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 } } },
+                y: { stacked: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true }
             }
         }
     });
 }
 
 // ================================================================
-// RENDER: OCCURRENCE REPORTS (horizontal bar)
+// RENDER: OCCURRENCE REPORTS
 // ================================================================
 function renderOccurrenceReportsChart() {
     destroyChart('occurrenceReportsChart');
     var canvas = document.getElementById('occurrenceReportsChart');
     if (!canvas) return;
-
     var items = dashboardData.occurrenceReports || [];
     if (items.length === 0) return;
 
-    var labels = items.map(function(i) { return i.inspector_name; });
-    var data = items.map(function(i) { return i.count || 0; });
-
     chartInstances['occurrenceReportsChart'] = new Chart(canvas, {
         type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{ label: 'Occurrence Reports', data: data, backgroundColor: '#8b5cf6', borderRadius: 3, barThickness: 16 }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { color: getChartGridColor() }, ticks: { color: getChartTextColor(), font: { size: 10 } } },
-                y: { grid: { display: false }, ticks: { color: getChartTextColor(), font: { size: 10 } } }
-            }
-        }
+        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'Reports', data: items.map(function(i) { return i.count || 0; }), backgroundColor: '#8764b8', borderRadius: 3, barThickness: 14 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
     });
 }
 
 // ================================================================
-// RENDER: TRAVEL DISTANCE PER INSPECTOR (horizontal bar)
+// RENDER: TRAVEL CHART
 // ================================================================
 function renderTravelChart() {
     destroyChart('travelChart');
     var canvas = document.getElementById('travelChart');
     if (!canvas) return;
-
-    var items = (dashboardData.travelPerInspector || []).filter(function(i) {
-        return i.total_km && parseFloat(i.total_km) > 0;
-    }).slice(0, 15);
+    var items = (dashboardData.travelPerInspector || []).filter(function(i) { return i.total_km && parseFloat(i.total_km) > 0; }).slice(0, 15);
     if (items.length === 0) return;
-
-    var labels = items.map(function(i) { return i.inspector_name; });
-    var data = items.map(function(i) { return parseFloat(i.total_km || 0); });
 
     chartInstances['travelChart'] = new Chart(canvas, {
         type: 'bar',
+        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'KM', data: items.map(function(i) { return parseFloat(i.total_km || 0); }), backgroundColor: '#00b7c3', borderRadius: 3, barThickness: 14 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
+    });
+}
+
+// ================================================================
+// RENDER: EFFICIENCY MATRIX
+// ================================================================
+function renderEfficiencyMatrix() {
+    var headerRow = document.getElementById('matrixHeader');
+    var tbody = document.getElementById('matrixBody');
+    if (!headerRow || !tbody) return;
+    var items = dashboardData.inspectorCommodityMatrix || [];
+    if (items.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
+
+    var inspectors = {};
+    var commodities = new Set();
+    items.forEach(function(item) {
+        commodities.add(item.commodity);
+        if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = {};
+        inspectors[item.inspector_name][item.commodity] = item.count || 0;
+    });
+    var commList = Array.from(commodities).sort();
+
+    var hHtml = '<th>Inspector</th>';
+    commList.forEach(function(c) { hHtml += '<th class="num">' + c + '</th>'; });
+    hHtml += '<th class="num">Total</th>';
+    headerRow.innerHTML = hHtml;
+
+    var bHtml = '';
+    Object.keys(inspectors).sort().forEach(function(name) {
+        var total = 0;
+        bHtml += '<tr><td style="font-weight:600;white-space:nowrap">' + name + '</td>';
+        commList.forEach(function(c) {
+            var count = inspectors[name][c] || 0;
+            total += count;
+            bHtml += '<td class="num">' + (count || '-') + '</td>';
+        });
+        bHtml += '<td class="num" style="font-weight:700">' + total + '</td></tr>';
+    });
+    tbody.innerHTML = bHtml;
+}
+
+// ================================================================
+// RENDER: APPROVAL RATE
+// ================================================================
+function renderApprovalRateChart() {
+    destroyChart('approvalRateChart');
+    var canvas = document.getElementById('approvalRateChart');
+    if (!canvas) return;
+    var items = (dashboardData.approvalPerInspector || []).sort(function(a, b) { return b.total - a.total; }).slice(0, 15);
+    if (items.length === 0) return;
+
+    chartInstances['approvalRateChart'] = new Chart(canvas, {
+        type: 'bar',
         data: {
-            labels: labels,
-            datasets: [{ label: 'KM Traveled', data: data, backgroundColor: '#06b6d4', borderRadius: 3, barThickness: 16 }]
+            labels: items.map(function(i) { return i.inspector_name; }),
+            datasets: [
+                { label: 'Approved', data: items.map(function(i) { return i.approved || 0; }), backgroundColor: '#107c10', borderRadius: 2 },
+                { label: 'Pending', data: items.map(function(i) { return i.pending || 0; }), backgroundColor: '#ffb900', borderRadius: 2 },
+            ]
         },
         options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: txtColor() } } },
             scales: {
-                x: { grid: { color: getChartGridColor() }, ticks: { color: getChartTextColor(), font: { size: 10 } } },
-                y: { grid: { display: false }, ticks: { color: getChartTextColor(), font: { size: 10 } } }
+                x: { stacked: true, grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 } } },
+                y: { stacked: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true }
             }
         }
     });
 }
 
 // ================================================================
-// RENDER: EFFICIENCY MATRIX TABLE (Inspector x Commodity)
+// RENDER: COMMODITY TREND (multi-line)
 // ================================================================
-function renderEfficiencyMatrix() {
-    var headerRow = document.getElementById('matrixHeader');
-    var tbody = document.getElementById('matrixBody');
-    if (!headerRow || !tbody) return;
-
-    var items = dashboardData.inspectorCommodityMatrix || [];
-    if (items.length === 0) {
-        headerRow.innerHTML = '<th>No data</th>';
-        tbody.innerHTML = '';
-        return;
-    }
-
-    // Build matrix: inspector -> { commodity: count }
-    var inspectors = {};
-    var commodities = new Set();
-    items.forEach(function(item) {
-        var name = item.inspector_name;
-        var comm = item.commodity;
-        commodities.add(comm);
-        if (!inspectors[name]) inspectors[name] = {};
-        inspectors[name][comm] = item.count || 0;
-    });
-
-    var commodityList = Array.from(commodities).sort();
-
-    // Header
-    var hHtml = '<th style="position:sticky;left:0;background:var(--primary-light);z-index:1;">Inspector</th>';
-    commodityList.forEach(function(c) {
-        hHtml += '<th style="text-align:center;">' + c + '</th>';
-    });
-    hHtml += '<th style="text-align:center;font-weight:700;">Total</th>';
-    headerRow.innerHTML = hHtml;
-
-    // Body
-    var bHtml = '';
-    var inspectorNames = Object.keys(inspectors).sort();
-    inspectorNames.forEach(function(name) {
-        var total = 0;
-        bHtml += '<tr><td style="position:sticky;left:0;background:var(--card-bg);z-index:1;font-weight:600;white-space:nowrap;">' + name + '</td>';
-        commodityList.forEach(function(c) {
-            var count = inspectors[name][c] || 0;
-            total += count;
-            var bgStyle = count > 0 ? 'background:rgba(0,120,144,0.08);' : '';
-            bHtml += '<td style="text-align:center;' + bgStyle + '">' + (count || '-') + '</td>';
-        });
-        bHtml += '<td style="text-align:center;font-weight:700;">' + total + '</td></tr>';
-    });
-    tbody.innerHTML = bHtml;
-}
-
-// ================================================================
-// RENDER: APPROVAL RATE PER INSPECTOR (bar chart)
-// ================================================================
-function renderApprovalRateChart() {
-    destroyChart('approvalRateChart');
-    var canvas = document.getElementById('approvalRateChart');
+function renderCommodityTrendChart() {
+    destroyChart('commodityTrendChart');
+    var canvas = document.getElementById('commodityTrendChart');
     if (!canvas) return;
+    var trends = dashboardData.monthlyCommodityTrends || [];
+    if (trends.length === 0) return;
 
-    var items = dashboardData.approvalPerInspector || [];
-    if (items.length === 0) return;
-
-    // Add approval rate
-    items.forEach(function(item) {
-        item.approval_rate = item.total > 0 ? ((item.approved / item.total) * 100).toFixed(1) : 0;
+    var commodityMap = {};
+    var monthSet = new Set();
+    trends.forEach(function(item) {
+        var month = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 7) : '') : 'Unknown';
+        var commodity = item.commodity || 'Unknown';
+        monthSet.add(month);
+        if (!commodityMap[commodity]) commodityMap[commodity] = {};
+        commodityMap[commodity][month] = item.count || 0;
     });
 
-    items = items.sort(function(a, b) { return b.total - a.total; }).slice(0, 15);
+    var months = Array.from(monthSet).sort();
+    var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var labels = months.map(function(m) { var p = m.split('-'); return mNames[parseInt(p[1]) - 1] + ' ' + p[0].substring(2); });
 
-    var labels = items.map(function(i) { return i.inspector_name; });
-    var approvedData = items.map(function(i) { return i.approved || 0; });
-    var pendingData = items.map(function(i) { return i.pending || 0; });
+    var datasets = [];
+    Object.keys(commodityMap).forEach(function(commodity, idx) {
+        datasets.push({
+            label: commodity,
+            data: months.map(function(m) { return commodityMap[commodity][m] || 0; }),
+            borderColor: getCommodityColor(commodity) || CHART_PALETTE[idx % CHART_PALETTE.length],
+            backgroundColor: 'transparent',
+            tension: 0.3, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, fill: false
+        });
+    });
 
-    chartInstances['approvalRateChart'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Approved', data: approvedData, backgroundColor: '#10b981', borderRadius: 2 },
-                { label: 'Pending', data: pendingData, backgroundColor: '#f59e0b', borderRadius: 2 },
-            ]
-        },
+    chartInstances['commodityTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: getChartTextColor(), font: { size: 10 } } }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: txtColor(), padding: 12 } } },
             scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { color: getChartTextColor(), font: { size: 9 }, maxRotation: 45 } },
-                y: { stacked: true, grid: { color: getChartGridColor() }, ticks: { color: getChartTextColor(), font: { size: 10 } }, beginAtZero: true }
+                x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45, autoSkip: true } },
+                y: { grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true }
             }
         }
     });
@@ -907,14 +773,13 @@ function renderApprovalRateChart() {
 // ================================================================
 function renderAll() {
     renderKPIs();
+    renderFinancialTable();
+    renderRevenueCostChart();
     renderComplianceBars();
     renderComplianceTrendChart();
+    renderCommodityTrendChart();
     renderCommodityCountChart();
     renderTimeAllocationChart();
-    renderCommodityTrendChart();
-    renderSamplesTakenChart();
-    renderFacilityTypesChart();
-    // Inspector metrics
     renderDirectionsChart();
     renderOccurrenceReportsChart();
     renderTravelChart();
@@ -923,17 +788,13 @@ function renderAll() {
 }
 
 // ================================================================
-// EXTRACT REPORT (CSV)
+// EXPORT CSV
 // ================================================================
 function extractReport() {
-    const items = dashboardData.inspectionsList || [];
-    if (items.length === 0) {
-        alert('No data to export.');
-        return;
-    }
-
-    const headers = ['Date', 'Inspector', 'Client', 'Commodity', 'Facility', 'Sample Taken', 'Status', 'Town'];
-    const rows = items.map(function(row) {
+    var items = dashboardData.inspectionsList || [];
+    if (items.length === 0) { alert('No data to export.'); return; }
+    var headers = ['Date', 'Inspector', 'Client', 'Commodity', 'Facility', 'Sample Taken', 'Status', 'Town'];
+    var rows = items.map(function(row) {
         return [
             row.date_of_inspection || '',
             '"' + (row.inspector_name || '').replace(/"/g, '""') + '"',
@@ -945,11 +806,10 @@ function extractReport() {
             '"' + (row.town || '').replace(/"/g, '""') + '"',
         ].join(',');
     });
-
-    const csv = headers.join(',') + '\n' + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    var csv = headers.join(',') + '\n' + rows.join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
     a.href = url;
     a.download = 'analytics_report_' + new Date().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(a);
@@ -959,187 +819,110 @@ function extractReport() {
 }
 
 // ================================================================
-// INITIALIZATION
+// INIT
 // ================================================================
 document.addEventListener('DOMContentLoaded', function() {
     loadInitialData();
     populateFilterOptions();
+    setupPeriodFilter();
     renderAll();
 
-    // Filter event listeners
-    ['filterYear', 'filterMonth', 'filterInspector', 'filterCommodity'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('change', applyFilters);
-    });
+    // Apply button triggers filter
+    var applyBtn = document.getElementById('applyFilters');
+    if (applyBtn) applyBtn.addEventListener('click', applyFilters);
 
     var resetBtn = document.getElementById('resetFilters');
     if (resetBtn) resetBtn.addEventListener('click', resetFilters);
 
     var extractBtn = document.getElementById('extractReport');
     if (extractBtn) extractBtn.addEventListener('click', extractReport);
-
-    console.log('Inspector Analytics Dashboard initialized');
 });
 
 // ================================================================
-// MOBILE MENU TOGGLE
+// MOBILE SIDEBAR
 // ================================================================
-const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebar-overlay');
+var mobileMenuBtn = document.getElementById('mobile-menu-btn');
+var sidebar = document.getElementById('sidebar');
+var sidebarOverlay = document.getElementById('sidebar-overlay');
 
 function toggleSidebar() {
     sidebar.classList.toggle('show');
     sidebarOverlay.classList.toggle('show');
-
-    const icon = mobileMenuBtn.querySelector('i');
-    if (sidebar.classList.contains('show')) {
-        icon.className = 'fas fa-times text-xl';
-    } else {
-        icon.className = 'fas fa-bars text-xl';
-    }
+    var icon = mobileMenuBtn.querySelector('i');
+    icon.className = sidebar.classList.contains('show') ? 'fas fa-times' : 'fas fa-bars';
 }
 
-if (mobileMenuBtn) {
-    mobileMenuBtn.addEventListener('click', toggleSidebar);
-}
-
-if (sidebarOverlay) {
-    sidebarOverlay.addEventListener('click', toggleSidebar);
-}
-
+if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
 if (sidebar) {
-    var navLinks = sidebar.querySelectorAll('a');
-    navLinks.forEach(function(link) {
-        link.addEventListener('click', function() {
-            if (window.innerWidth <= 1024) {
-                toggleSidebar();
-            }
-        });
+    sidebar.querySelectorAll('a').forEach(function(link) {
+        link.addEventListener('click', function() { if (window.innerWidth <= 1024) toggleSidebar(); });
     });
 }
-
 window.addEventListener('resize', function() {
     if (window.innerWidth > 1024) {
         if (sidebar) sidebar.classList.remove('show');
         if (sidebarOverlay) sidebarOverlay.classList.remove('show');
-        if (mobileMenuBtn) {
-            var icon = mobileMenuBtn.querySelector('i');
-            icon.className = 'fas fa-bars text-xl';
-        }
+        if (mobileMenuBtn) mobileMenuBtn.querySelector('i').className = 'fas fa-bars';
     }
 });
 
 // ================================================================
-// NOTIFICATION SYSTEM
+// NOTIFICATIONS
 // ================================================================
 if (window.DJANGO_CONFIG.userRole === 'super_admin' || window.DJANGO_CONFIG.userRole === 'developer') {
-
     async function fetchNotifications() {
         try {
-            const response = await fetch('/api/notifications/');
-            if (!response.ok) throw new Error('Failed to fetch notifications');
-            const data = await response.json();
-            updateNotificationBell(data.unread_count);
+            var resp = await fetch('/api/notifications/');
+            if (!resp.ok) throw new Error('fail');
+            var data = await resp.json();
+            var badge = document.getElementById('notification-badge');
+            if (badge) {
+                if (data.unread_count > 0) { badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count; badge.classList.remove('hidden'); }
+                else badge.classList.add('hidden');
+            }
             return data.notifications;
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-            return [];
-        }
+        } catch (e) { return []; }
     }
 
-    function updateNotificationBell(count) {
-        const badge = document.getElementById('notification-badge');
-        if (!badge) return;
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+    function getCookie(name) {
+        var v = null;
+        if (document.cookie) document.cookie.split(';').forEach(function(c) { c = c.trim(); if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1)); });
+        return v;
     }
 
     async function showNotificationModal() {
-        const notifications = await fetchNotifications();
-        const modalHTML = '<div id="notification-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;">' +
-            '<div style="background:white;border-radius:8px;width:90%;max-width:500px;max-height:80vh;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);">' +
-                '<div style="padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">' +
-                    '<h3 style="margin:0;font-size:1.125rem;font-weight:600;">Notifications</h3>' +
-                    '<button onclick="closeNotificationModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#6b7280;">&times;</button>' +
+        var notifications = await fetchNotifications();
+        var html = '<div id="notification-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10000;display:flex;align-items:center;justify-content:center">' +
+            '<div style="background:var(--fluent-surface);border-radius:8px;width:90%;max-width:480px;max-height:80vh;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2)">' +
+                '<div style="padding:16px;border-bottom:1px solid var(--fluent-border);display:flex;justify-content:space-between;align-items:center">' +
+                    '<h3 style="margin:0;font-size:16px;font-weight:600">Notifications</h3>' +
+                    '<button onclick="closeNotificationModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--fluent-text-secondary)">&times;</button>' +
                 '</div>' +
-                '<div style="max-height:400px;overflow-y:auto;">' +
+                '<div style="max-height:400px;overflow-y:auto">' +
                     (notifications.length > 0 ? notifications.map(function(n) {
-                        return '<div style="padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;' + (n.is_read ? 'background:#f9fafb;' : 'background:#fff;') + '">' +
-                            '<div style="display:flex;justify-content:space-between;align-items:start;">' +
-                                '<div style="flex:1;"><p style="margin:0 0 0.5rem 0;font-weight:' + (n.is_read ? '400' : '600') + ';">' + n.message + '</p>' +
-                                '<small style="color:#6b7280;">' + new Date(n.created_at).toLocaleString() + '</small></div>' +
-                                '<div style="display:flex;gap:0.5rem;margin-left:1rem;">' +
-                                    (!n.is_read ? '<button onclick="markAsRead(' + n.id + ')" style="padding:0.25rem 0.5rem;background:#007890;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;">Mark Read</button>' : '') +
-                                    '<button onclick="deleteNotification(' + n.id + ')" style="padding:0.25rem 0.5rem;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;">Delete</button>' +
-                                '</div>' +
+                        return '<div style="padding:12px 16px;border-bottom:1px solid var(--fluent-border-subtle)">' +
+                            '<p style="margin:0 0 4px;font-weight:' + (n.is_read ? '400' : '600') + ';font-size:13px">' + n.message + '</p>' +
+                            '<small style="color:var(--fluent-text-tertiary)">' + new Date(n.created_at).toLocaleString() + '</small>' +
+                            '<div style="margin-top:6px;display:flex;gap:6px">' +
+                                (!n.is_read ? '<button onclick="markAsRead(' + n.id + ')" style="padding:4px 8px;background:var(--fluent-brand);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">Read</button>' : '') +
+                                '<button onclick="deleteNotification(' + n.id + ')" style="padding:4px 8px;background:var(--fluent-danger);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">Delete</button>' +
                             '</div></div>';
-                    }).join('') : '<p style="padding:2rem;text-align:center;color:#6b7280;">No notifications</p>') +
-                '</div>' +
-            '</div></div>';
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
+                    }).join('') : '<p style="padding:32px;text-align:center;color:var(--fluent-text-tertiary)">No notifications</p>') +
+                '</div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
     }
 
-    window.closeNotificationModal = function() {
-        var modal = document.getElementById('notification-modal');
-        if (modal) modal.remove();
+    window.closeNotificationModal = function() { var m = document.getElementById('notification-modal'); if (m) m.remove(); };
+    window.markAsRead = async function(id) {
+        try { var r = await fetch('/api/notifications/' + id + '/read/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') } }); if (r.ok) { closeNotificationModal(); showNotificationModal(); } } catch (e) {}
     };
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    window.markAsRead = async function(notificationId) {
-        try {
-            const response = await fetch('/api/notifications/' + notificationId + '/read/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
-            });
-            if (response.ok) {
-                closeNotificationModal();
-                showNotificationModal();
-            }
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-        }
-    };
-
-    window.deleteNotification = async function(notificationId) {
-        try {
-            const response = await fetch('/api/notifications/' + notificationId + '/delete/', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
-            });
-            if (response.ok) {
-                closeNotificationModal();
-                showNotificationModal();
-            }
-        } catch (error) {
-            console.error('Error deleting notification:', error);
-        }
+    window.deleteNotification = async function(id) {
+        try { var r = await fetch('/api/notifications/' + id + '/delete/', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') } }); if (r.ok) { closeNotificationModal(); showNotificationModal(); } } catch (e) {}
     };
 
     document.addEventListener('DOMContentLoaded', function() {
-        var notificationBell = document.getElementById('notification-bell');
-        if (notificationBell) {
-            notificationBell.addEventListener('click', showNotificationModal);
-            fetchNotifications();
-            setInterval(fetchNotifications, 30000);
-        }
+        var bell = document.getElementById('notification-bell');
+        if (bell) { bell.addEventListener('click', showNotificationModal); fetchNotifications(); setInterval(fetchNotifications, 30000); }
     });
 }

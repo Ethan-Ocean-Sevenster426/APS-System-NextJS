@@ -217,24 +217,24 @@ body {
     position: relative;
     overflow-y: auto;
     overflow-x: hidden;
+    min-height: 100vh;
 }
 
 /* Load background image after page loads for better performance */
-body.bg-loaded {
-    background: var(--bg-image) no-repeat center center;
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-}
-
-body::before {
-    content: "";
-    position: absolute;
+body.bg-loaded::before {
+    content: '';
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-image) no-repeat center center fixed;
+    background-size: cover;
+    opacity: 1.0;
+    z-index: -2;
+    pointer-events: none;
 }
 
 .container {
@@ -870,6 +870,21 @@ body::before {
 
 [data-theme="dark"] .inspections-table tbody tr:hover {
     background: rgba(77, 184, 209, 0.1);
+}
+
+.inspections-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.inspections-table .total-row {
+    font-weight: 700;
+    background: var(--primary-light);
+    border-top: 2px solid var(--primary);
+}
+
+[data-theme="dark"] .inspections-table .total-row {
+    background: rgba(0, 120, 144, 0.15);
 }
 
 /* Status badges */

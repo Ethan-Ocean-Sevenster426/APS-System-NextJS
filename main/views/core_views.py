@@ -8217,8 +8217,8 @@ def analytics_dashboard(request):
     if request.user.role == 'inspector':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings
-    from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee
+    from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField, DecimalField, Value, F
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
     from datetime import datetime, timedelta, date
     import json
@@ -8512,6 +8512,23 @@ def analytics_dashboard(request):
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
+    # === DAILY COMPLIANCE TREND PER COMMODITY ===
+    daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).exclude(
+        date_of_inspection__isnull=True
+    ).annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('day', 'commodity'))
+
+    for item in daily_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
     # === TIME ALLOCATION (hours per inspector) ===
     time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
@@ -8657,6 +8674,57 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('-count')[:10]
     
+    # === FINANCIAL / REVENUE DATA ===
+    # Get fee rates (fallback to defaults if not configured)
+    fee_rates = {}
+    try:
+        for fee in InspectionFee.objects.all():
+            fee_rates[fee.fee_code] = float(fee.rate)
+    except Exception:
+        pass
+    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
+    km_rate = fee_rates.get('inspection_km_rate', 0)
+    sample_rate = fee_rates.get('sample_collection', 0)
+
+    # Calculate revenue per inspector
+    inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+        total_samples=Count('id', filter=Q(is_sample_taken=True)),
+        total_bought_sample=Sum('bought_sample'),
+    ).order_by('-total_inspections')
+
+    inspector_financials = []
+    total_revenue = 0
+    for item in inspector_financials_qs:
+        hrs = float(item['total_hours'] or 0)
+        km = float(item['total_km'] or 0)
+        samples = item['total_samples'] or 0
+        rev_hours = round(hrs * hourly_rate, 2)
+        rev_km = round(km * km_rate, 2)
+        rev_samples = round(samples * sample_rate, 2)
+        tot = round(rev_hours + rev_km + rev_samples, 2)
+        total_revenue += tot
+        inspector_financials.append({
+            'inspector_name': item['inspector_name'],
+            'total_inspections': item['total_inspections'],
+            'total_hours': hrs,
+            'revenue_hours': rev_hours,
+            'revenue_km': rev_km,
+            'revenue_samples': rev_samples,
+            'total_revenue': tot,
+        })
+
+    financial_summary = {
+        'total_revenue': round(total_revenue, 2),
+        'hourly_rate': hourly_rate,
+        'km_rate': km_rate,
+        'sample_rate': sample_rate,
+    }
+
     # === CONTEXT PREPARATION ===
     # Ensure all data is properly JSON-encoded and handle None values
     def safe_json_dumps(data, default=None):
@@ -8721,6 +8789,7 @@ def analytics_dashboard(request):
         'facility_type_distribution': safe_json_dumps(facility_type_distribution, []),
         'monthly_commodity_trends': safe_json_dumps(monthly_commodity_trends, []),
         'monthly_compliance_trend': safe_json_dumps(monthly_compliance_trend, []),
+        'daily_compliance_trend': safe_json_dumps(daily_compliance_trend, []),
         'time_allocation': safe_json_dumps(time_allocation, []),
         'inspections_list': safe_json_dumps(inspections_list, []),
         'days_worked': days_worked or 0,
@@ -8733,6 +8802,10 @@ def analytics_dashboard(request):
         'travel_per_inspector': safe_json_dumps(travel_per_inspector, []),
         'inspector_commodity_matrix': safe_json_dumps(inspector_commodity_matrix, []),
         'approval_per_inspector': safe_json_dumps(approval_per_inspector, []),
+
+        # Financial / Revenue data
+        'inspector_financials': safe_json_dumps(inspector_financials, []),
+        'financial_summary': safe_json_dumps(financial_summary, {}),
 
         # Theme settings
         'settings': settings,
@@ -8759,11 +8832,17 @@ def analytics_dashboard_api(request):
     month = request.GET.get('month')
     inspector = request.GET.get('inspector')
     commodity = request.GET.get('commodity')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
 
     # Base queryset
     qs = FoodSafetyAgencyInspection.objects.all()
 
     # Apply filters
+    if date_from:
+        qs = qs.filter(date_of_inspection__gte=date_from)
+    if date_to:
+        qs = qs.filter(date_of_inspection__lte=date_to)
     if year and year != 'all':
         qs = qs.filter(date_of_inspection__year=int(year))
     if month and month != 'all':
@@ -8840,6 +8919,22 @@ def analytics_dashboard_api(request):
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
+    # Daily compliance trend per commodity (last 30 days)
+    from django.db.models.functions import TruncDay
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    daily_compliance_trend = list(qs.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('day', 'commodity'))
+    for item in daily_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
     # Time allocation
     time_allocation = list(qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
@@ -8875,6 +8970,7 @@ def analytics_dashboard_api(request):
         'facilityTypeDistribution': facility_type_distribution,
         'monthlyCommodityTrends': monthly_commodity_trends,
         'monthlyComplianceTrend': monthly_compliance_trend,
+        'dailyComplianceTrend': daily_compliance_trend,
         'timeAllocation': time_allocation,
         'inspectionsList': inspections_list,
         'inspectorPerformance': inspector_performance,
