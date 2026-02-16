@@ -339,34 +339,6 @@
             </div>
         </div>
 
-        <!-- Efficiency KPIs Row -->
-        <div class="efficiency-grid">
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effDaysWorked">{{ days_worked }}</div>
-                <div class="efficiency-label">Days Worked</div>
-            </div>
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effAvgPerDay">-</div>
-                <div class="efficiency-label">Avg Inspections/Day</div>
-            </div>
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effTotalHours">-</div>
-                <div class="efficiency-label">Total Hours</div>
-            </div>
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effAvgHours">-</div>
-                <div class="efficiency-label">Avg Hours/Day</div>
-            </div>
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effThisMonth">{{ this_month_inspections }}</div>
-                <div class="efficiency-label">This Month</div>
-            </div>
-            <div class="efficiency-tile">
-                <div class="efficiency-value" id="effGrowthRate">{{ month_growth_rate|floatformat:1 }}%</div>
-                <div class="efficiency-label">Month Growth</div>
-            </div>
-        </div>
-
         <!-- Two Column: Commodity Count + Time Allocation -->
         <div class="dashboard-grid-2col">
             <div class="card">
@@ -414,7 +386,7 @@
                             <span>Samples Taken</span>
                         </div>
                     </div>
-                    <div class="card-body" style="height: 220px;">
+                    <div class="card-body" style="height: 300px; min-height: 300px;">
                         <canvas id="samplesTakenChart"></canvas>
                     </div>
                 </div>
@@ -425,7 +397,7 @@
                             <span>Facility Types</span>
                         </div>
                     </div>
-                    <div class="card-body" style="height: 220px;">
+                    <div class="card-body" style="height: 300px; min-height: 300px;">
                         <canvas id="facilityTypesChart"></canvas>
                     </div>
                 </div>
