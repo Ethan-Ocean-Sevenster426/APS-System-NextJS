@@ -2094,20 +2094,9 @@ def shipment_list(request):
     # MINIMAL QUERY - Only essential fields for MAXIMUM SPEED
     inspections = FoodSafetyAgencyInspection.objects.select_related(
         'rfi_uploaded_by', 'invoice_uploaded_by', 'sent_by'
-    ).only(
-        # Only critical fields to reduce data transfer
-        'id', 'client_name', 'date_of_inspection', 'inspector_name',
-        'commodity', 'remote_id', 'product_name', 'product_class',
-        'hours', 'km_traveled', 'comment', 'is_sent', 'sent_date',
-        'rfi_uploaded_by_id', 'invoice_uploaded_by_id', 'sent_by_id',
-        # Testing parameters (user-editable)
-        'fat', 'protein', 'calcium', 'dna', 'is_sample_taken', 'bought_sample', 'lab', 'needs_retest',
-        'is_direction_present_for_this_inspection', 'is_manual',
-        # Location and contact
-        'town', 'additional_email', 'internal_account_code'
     )
     # REMOVED: is_manual filter to show ALL inspections (both manual and synced)
-    # .filter(is_manual=True)
+    # Previously had: .filter(is_manual=True)
     
     # No automatic background fetching - only manual via settings button
     

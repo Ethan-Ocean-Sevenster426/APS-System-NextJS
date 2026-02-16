@@ -558,6 +558,9 @@ class FoodSafetyAgencyInspection(models.Model):
             models.Index(fields=['inspector_id']),
             models.Index(fields=['internal_account_code']),
             models.Index(fields=['commodity', 'remote_id']),  # Composite key index for performance
+            models.Index(fields=['inspection_group']),  # Speed up grouping by inspection_group
+            models.Index(fields=['inspection_group', 'date_of_inspection', 'client_name']),  # Composite index for shipment_list grouping query
+            models.Index(fields=['is_sent']),  # Speed up sent/unsent filtering
         ]
 
     @property
