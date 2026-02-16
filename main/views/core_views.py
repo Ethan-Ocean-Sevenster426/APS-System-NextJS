@@ -2263,22 +2263,16 @@ def shipment_list(request):
     
     # Create the base queryset for groups using new parent-child system
     # Group by inspection_group instead of internal_account_code
+    # PERFORMANCE: Removed 6 unnecessary COUNT aggregations (was 9, now 3)
+    # Only keep essential counts for filtering and display
     groups_queryset = inspections.values(
         'inspection_group',  # NEW: Use parent group ID for grouping
         'client_name',
         'date_of_inspection',
     ).annotate(
-        inspection_count=Count('id'),
-        latest_inspection_id=Max('id'),
-        earliest_inspection_id=Min('id'),
-        max_created_at=Max('created_at'),  # Track when the newest inspection in this group was created
-        has_sent_inspections=Count('id', filter=Q(is_sent=True)),  # Count sent inspections in group
-        has_unsent_inspections=Count('id', filter=Q(is_sent=False)),  # Count unsent inspections in group
-        has_rfi_inspections=Count('id', filter=Q(rfi_uploaded_by__isnull=False)),  # Count inspections with RFI uploaded
-        has_no_rfi_inspections=Count('id', filter=Q(rfi_uploaded_by__isnull=True)),  # Count inspections without RFI uploaded
-        has_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=False)),  # Count inspections with Lab Form uploaded
-        has_no_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=True)),  # Count inspections without Lab Form uploaded
-        comment=Max('comment')  # Get the comment from the group (all should have the same comment)
+        inspection_count=Count('id'),  # Essential: number of inspections in group
+        has_sent_inspections=Count('id', filter=Q(is_sent=True)),  # Essential: for sent status filtering
+        has_unsent_inspections=Count('id', filter=Q(is_sent=False)),  # Essential: for sent status filtering
     ).order_by('-date_of_inspection', 'client_name')  # Default: newest first
 
     # FILTER GROUPS BY SENT STATUS: Apply sent status filter to groups, not individual inspections
