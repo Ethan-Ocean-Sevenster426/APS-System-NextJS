@@ -760,31 +760,31 @@ function renderCommodityTrendChart() {
     if (trends.length === 0) return;
 
     var commodityMap = {};
-    var weekSet = new Set();
+    var dateSet = new Set();
     trends.forEach(function(item) {
-        // Handle weekly data format (YYYY-MM-DD)
-        var week = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 10) : '') : 'Unknown';
+        // Handle daily data format (YYYY-MM-DD)
+        var date = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 10) : '') : 'Unknown';
         var commodity = item.commodity || 'Unknown';
-        weekSet.add(week);
+        dateSet.add(date);
         if (!commodityMap[commodity]) commodityMap[commodity] = {};
-        commodityMap[commodity][week] = item.count || 0;
+        commodityMap[commodity][date] = item.compliance_rate || 0;
     });
 
-    var weeks = Array.from(weekSet).sort();
+    var dates = Array.from(dateSet).sort();
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var labels = weeks.map(function(w) {
-        var p = w.split('-');
-        return mNames[parseInt(p[1]) - 1] + ' ' + p[2];
+    var labels = dates.map(function(d) {
+        var p = d.split('-');
+        return mNames[parseInt(p[1]) - 1] + ' ' + parseInt(p[2]);
     });
 
     var datasets = [];
     Object.keys(commodityMap).forEach(function(commodity, idx) {
         datasets.push({
             label: commodity,
-            data: weeks.map(function(w) { return commodityMap[commodity][w] || 0; }),
+            data: dates.map(function(d) { return commodityMap[commodity][d] || 0; }),
             borderColor: getCommodityColor(commodity) || CHART_PALETTE[idx % CHART_PALETTE.length],
             backgroundColor: 'transparent',
-            tension: 0.3, borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, fill: false
+            tension: 0.4, borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 5, fill: false
         });
     });
 
@@ -793,10 +793,27 @@ function renderCommodityTrendChart() {
         data: { labels: labels, datasets: datasets },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: txtColor(), padding: 12 } } },
+            plugins: {
+                legend: { labels: { color: txtColor(), padding: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
             scales: {
                 x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45, autoSkip: true } },
-                y: { grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true }
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: gridColor() },
+                    ticks: {
+                        color: txtColor(),
+                        callback: function(value) { return value + '%'; }
+                    }
+                }
             }
         }
     });

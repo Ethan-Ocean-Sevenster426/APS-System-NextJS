@@ -8497,17 +8497,35 @@ def analytics_dashboard(request):
         Q(facility_type__isnull=True) | Q(facility_type='')
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
-    # === COMMODITY TRENDS (WEEKLY) ===
-    from django.db.models.functions import TruncWeek
-    monthly_commodity_trends = list(FoodSafetyAgencyInspection.objects.exclude(
+    # === COMMODITY COMPLIANCE TRENDS (DAILY) ===
+    from django.db.models.functions import TruncDate
+    from django.db.models import Case, When, FloatField
+
+    # Calculate daily compliance percentage per commodity
+    daily_compliance = FoodSafetyAgencyInspection.objects.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
-        date_of_inspection__gte=now - timedelta(days=90)  # Last 90 days
+        date_of_inspection__gte=now - timedelta(days=30)
     ).annotate(
-        month=TruncWeek('date_of_inspection')
+        month=TruncDate('date_of_inspection')
     ).values('month', 'commodity').annotate(
-        count=Count('id')
-    ).order_by('month', 'commodity'))
+        total=Count('id'),
+        approved=Count('id', filter=Q(approved_status='APPROVED'))
+    )
+
+    # Calculate compliance rate as percentage
+    monthly_commodity_trends = []
+    for item in daily_compliance:
+        total = item['total']
+        approved = item['approved']
+        compliance_rate = round((approved / total * 100) if total > 0 else 0, 1)
+        monthly_commodity_trends.append({
+            'month': item['month'],
+            'commodity': item['commodity'],
+            'compliance_rate': compliance_rate,
+            'total': total,
+            'approved': approved
+        })
 
     # === MONTHLY COMPLIANCE TREND PER COMMODITY ===
     # Use weekly trends for more granular data points
