@@ -479,6 +479,24 @@ function renderComplianceTrendChart() {
             }
         }
     });
+
+    // Update tooltip with inspection counts per commodity
+    var infoIcon = document.getElementById('complianceTrendInfo');
+    if (infoIcon) {
+        var commodityCounts = dashboardData.complianceByCommodity || [];
+        var totalInspections = 0;
+        var breakdown = [];
+
+        commodityCounts.forEach(function(item) {
+            var total = item.total || 0;
+            var commodity = item.commodity || 'Unknown';
+            totalInspections += total;
+            breakdown.push(total + ' ' + commodity);
+        });
+
+        var tooltipText = 'Total: ' + totalInspections + ' inspections\n' + breakdown.join('\n');
+        infoIcon.setAttribute('title', tooltipText);
+    }
 }
 
 // ================================================================
