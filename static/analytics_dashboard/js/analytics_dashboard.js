@@ -769,6 +769,73 @@ function renderCommodityTrendChart() {
 }
 
 // ================================================================
+// RENDER: SAMPLES TAKEN CHART
+// ================================================================
+function renderSamplesTakenChart() {
+    destroyChart('samplesTakenChart');
+    var canvas = document.getElementById('samplesTakenChart');
+    if (!canvas) return;
+    var items = dashboardData.samplesByCommodity || [];
+    if (items.length === 0) return;
+
+    var labels = items.map(function(i) { return i.commodity || 'Unknown'; });
+    var data = items.map(function(i) { return i.count || 0; });
+    var colors = labels.map(function(l) { return getCommodityColor(l); });
+    var bg = document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d2d2d' : '#ffffff';
+
+    chartInstances['samplesTakenChart'] = new Chart(canvas, {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: bg }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { color: txtColor(), padding: 10 } }
+            },
+            cutout: '60%'
+        }
+    });
+}
+
+// ================================================================
+// RENDER: FACILITY TYPES CHART
+// ================================================================
+function renderFacilityTypesChart() {
+    destroyChart('facilityTypesChart');
+    var canvas = document.getElementById('facilityTypesChart');
+    if (!canvas) return;
+    var items = dashboardData.facilityTypeDistribution || [];
+    if (items.length === 0) return;
+
+    var labels = items.map(function(i) { return i.facility_type || 'Unknown'; });
+    var data = items.map(function(i) { return i.count || 0; });
+
+    chartInstances['facilityTypesChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Count',
+                data: data,
+                backgroundColor: '#0078d4',
+                borderRadius: 3,
+                barThickness: 14
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+// ================================================================
 // RENDER ALL
 // ================================================================
 function renderAll() {
@@ -779,12 +846,15 @@ function renderAll() {
     renderComplianceTrendChart();
     renderCommodityTrendChart();
     renderCommodityCountChart();
+    renderSamplesTakenChart();
+    renderFacilityTypesChart();
     renderTimeAllocationChart();
     renderDirectionsChart();
     renderOccurrenceReportsChart();
     renderTravelChart();
     renderEfficiencyMatrix();
     renderApprovalRateChart();
+    renderDailyComplianceChart();
 }
 
 // ================================================================
