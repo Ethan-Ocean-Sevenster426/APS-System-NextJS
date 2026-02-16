@@ -9079,14 +9079,14 @@
                                                             style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: stretch; background: white; border-radius: 6px; padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                                                             <!-- Product Info + Test Flags -->
                                                             <div
-                                                                style="flex: 0 0 180px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 6px;">
+                                                                style="flex: 0 0 auto; min-width: 180px; background: {% if product.is_direction_present_for_this_inspection %}#fef2f2{% else %}#f0fdf4{% endif %}; border-radius: 4px; border-left: 3px solid {% if product.is_direction_present_for_this_inspection %}#ef4444{% else %}#22c55e{% endif %}; padding: 6px;">
                                                                 <div style="font-size: 9px; color: #6b7280;">Commodity:
-                                                                    <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"N/A"|truncatechars:12 }}</span>
+                                                                    <span style="font-weight: 600; color: #374151;">{{ product.commodity|default:"N/A" }}</span>
                                                                 </div>
                                                                 <div
-                                                                    style="font-size: 9px; color: #6b7280; margin-bottom: 2px;">
+                                                                    style="font-size: 9px; color: #6b7280; margin-bottom: 2px; word-break: break-word;">
                                                                     Product: <span
-                                                                        style="font-weight: 600; color: #374151;">{{ product.product_name|default:"N/A"|truncatechars:16 }}</span></div>
+                                                                        style="font-weight: 600; color: #374151;">{{ product.product_name|default:"N/A" }}</span></div>
                                                                 {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                                 <div style="font-size: 9px; color: #6b7280; margin-bottom: 4px; word-break: break-word;">
                                                                     Class: <span style="font-weight: 600; color: #374151;">{{ product.product_class|default:"N/A" }}</span></div>
