@@ -2092,12 +2092,11 @@ def shipment_list(request):
     sixty_days_ago = (dt.now() - timedelta(days=60)).date()
 
     # MINIMAL QUERY - Only essential fields for MAXIMUM SPEED
-    inspections = FoodSafetyAgencyInspection.objects.select_related(
-        'rfi_uploaded_by', 'invoice_uploaded_by', 'sent_by'
-    ).only(
-        # Load ONLY essential fields to reduce data transfer (like master branch)
+    # Removed select_related to avoid conflict with .only()
+    inspections = FoodSafetyAgencyInspection.objects.only(
+        # Load ONLY essential fields to reduce data transfer
         'id', 'client_name', 'date_of_inspection', 'inspector_name', 'inspection_group_id',
-        'commodity', 'remote_id', 'product_name', 'is_sent', 'sent_date'
+        'commodity', 'remote_id', 'product_name', 'is_sent'
     )
     # Show ALL inspections (both manual and synced from SQL Server)
     
