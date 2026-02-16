@@ -2507,7 +2507,7 @@ def shipment_list(request):
     
     # Helper function to check files for a single group (fast version for page load)
     def check_group_files(client_name, inspection_date):
-        """Check if files exist for this group - optimized for speed
+        """Check if files exist for this group - optimized for speed with caching
 
         Checks NEW structure first: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
         Falls back to LEGACY structure: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/...
@@ -2515,6 +2515,12 @@ def shipment_list(request):
         import re
         from django.conf import settings
         from main.models import FoodSafetyAgencyInspection
+
+        # PERFORMANCE: Cache file checks for 10 minutes to avoid repeated filesystem operations
+        cache_key = f"file_check_{client_name}_{inspection_date}"
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return cached_result
 
         try:
             has_rfi = has_invoice = has_lab = has_lab_form = has_compliance = has_composition = has_occurrence = False
@@ -2634,7 +2640,7 @@ def shipment_list(request):
 
             print(f"[FILE CHECK] {client_name}: RFI={has_rfi}, Invoice={has_invoice}, Lab={has_lab}, Lab_Form={has_lab_form}, Compliance={has_compliance}, Composition={has_composition}, Occurrence={has_occurrence}")
 
-            return {
+            result = {
                 'has_rfi': has_rfi,
                 'has_invoice': has_invoice,
                 'has_lab': has_lab,
@@ -2644,9 +2650,13 @@ def shipment_list(request):
                 'has_occurrence': has_occurrence,
                 'file_status': file_status
             }
+
+            # Cache result for 10 minutes (600 seconds)
+            cache.set(cache_key, result, 600)
+            return result
         except Exception as e:
             print(f"[FILE CHECK ERROR] {client_name} on {inspection_date}: {e}")
-            return {
+            error_result = {
                 'has_rfi': False,
                 'has_invoice': False,
                 'has_lab': False,
@@ -2656,6 +2666,9 @@ def shipment_list(request):
                 'has_occurrence': False,
                 'file_status': 'no_files'
             }
+            # Cache error result for 2 minutes (shorter to allow retry)
+            cache.set(cache_key, error_result, 120)
+            return error_result
 
     # Process grouped inspections efficiently - ONLY CREATE REPRESENTATIVE OBJECTS
     grouped_inspections = []
