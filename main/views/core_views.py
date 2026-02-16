@@ -2105,10 +2105,9 @@ def shipment_list(request):
         'is_direction_present_for_this_inspection', 'is_manual',
         # Location and contact
         'town', 'additional_email', 'internal_account_code'
-    ).filter(
-        # Only show manually created inspections (not synced from SQL Server)
-        is_manual=True
     )
+    # REMOVED: is_manual filter to show ALL inspections (both manual and synced)
+    # .filter(is_manual=True)
     
     # No automatic background fetching - only manual via settings button
     
