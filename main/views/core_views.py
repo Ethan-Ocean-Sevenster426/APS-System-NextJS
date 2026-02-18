@@ -1308,6 +1308,7 @@ def edit_fsa_inspection(request, pk):
                     for rel_insp in inspections_to_update:
                         if rel_insp.id != inspection.id:
                             # Copy common fields from main inspection
+                            rel_insp.date_of_inspection = inspection.date_of_inspection
                             rel_insp.additional_email = inspection.additional_email
                             rel_insp.corporate_group = inspection.corporate_group
                             rel_insp.group_type = inspection.group_type
@@ -1336,6 +1337,15 @@ def edit_fsa_inspection(request, pk):
                     # Create new inspections for products that don't have matching existing inspections
                     if products_to_create:
                         from django.db.models import Min
+                        # Get RFI/Invoice stamps from existing group inspections to propagate to new ones
+                        rfi_source = FoodSafetyAgencyInspection.objects.filter(
+                            inspection_group=inspection.inspection_group,
+                            rfi_uploaded_date__isnull=False
+                        ).first()
+                        invoice_source = FoodSafetyAgencyInspection.objects.filter(
+                            inspection_group=inspection.inspection_group,
+                            invoice_uploaded_date__isnull=False
+                        ).first()
                         for product in products_to_create:
                             commodity = product.get('_commodity')
                             idx = product.get('_index', 0)
@@ -1386,6 +1396,11 @@ def edit_fsa_inspection(request, pk):
                                 facility_type=inspection.facility_type,
                                 internal_account_code=None,  # No longer needed!
                                 is_manual=True,
+                                # Propagate RFI/Invoice stamps from existing group inspections
+                                rfi_uploaded_date=rfi_source.rfi_uploaded_date if rfi_source else None,
+                                rfi_uploaded_by_id=rfi_source.rfi_uploaded_by_id if rfi_source else None,
+                                invoice_uploaded_date=invoice_source.invoice_uploaded_date if invoice_source else None,
+                                invoice_uploaded_by_id=invoice_source.invoice_uploaded_by_id if invoice_source else None,
                             )
                             print(f"[EDIT FORM DEBUG] Created new inspection {new_inspection.id} for {commodity} #{idx+1}: {product.get('product_name')}")
 
