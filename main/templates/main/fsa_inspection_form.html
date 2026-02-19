@@ -5003,34 +5003,21 @@
 
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
-                        console.log('[EDIT MODE] Populating ALL product data...');
-                        console.log('[EDIT MODE] commodityData:', editModeData.commodityData);
+                        console.log('[EDIT MODE] Populating ALL product data from productsData...');
                         console.log('[EDIT MODE] productsData:', productsData);
 
-                        // Track per-commodity index so each product gets the correct data
-                        const commodityIndexTracker = {};
-
-                        // Loop through all product forms and populate matching commodities
+                        // Use productsData directly - it was already correctly populated by generateProductForms
+                        // No need to re-index from commodityData
                         for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
-                            const commodity = productsData[productIdx].commodity;
-
-                            // Track which product index within this commodity we're on
-                            if (!(commodity in commodityIndexTracker)) {
-                                commodityIndexTracker[commodity] = 0;
-                            } else {
-                                commodityIndexTracker[commodity]++;
-                            }
-                            const commIdx = commodityIndexTracker[commodity];
-
-                            const dataArray = editModeData.commodityData[commodity];
-                            const data = dataArray && dataArray[commIdx];
+                            const data = productsData[productIdx];
+                            const commodity = data.commodity;
 
                             if (!data) {
-                                console.log(`[EDIT MODE] No data for ${commodity} #${commIdx + 1} at index ${productIdx}`);
+                                console.log(`[EDIT MODE] No data at index ${productIdx}`);
                                 continue;
                             }
 
-                            console.log(`[EDIT MODE] Populating ${commodity} #${commIdx + 1} at index ${productIdx}`);
+                            console.log(`[EDIT MODE] Populating ${commodity} at index ${productIdx}: ${data.product_name}`);
 
                             // Product name
                             const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
