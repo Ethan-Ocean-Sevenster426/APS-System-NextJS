@@ -2,8 +2,11 @@
 Microsoft Graph API Email Backend for Django
 Sends emails using Microsoft Graph API instead of SMTP
 """
+import base64
 import logging
 import json
+import mimetypes
+import os
 from django.core.mail.backends.base import BaseEmailBackend
 from django.conf import settings
 import requests
@@ -130,6 +133,24 @@ class GraphEmailBackend(BaseEmailBackend):
             email_data["message"]["bccRecipients"] = [
                 {"emailAddress": {"address": recipient}} for recipient in message.bcc
             ]
+
+        # Add attachments if any
+        if message.attachments:
+            graph_attachments = []
+            for attachment in message.attachments:
+                if isinstance(attachment, tuple):
+                    # (filename, content, mimetype) tuple from attach() or attach_file()
+                    filename, content, mimetype = attachment
+                    if isinstance(content, str):
+                        content = content.encode('utf-8')
+                    graph_attachments.append({
+                        "@odata.type": "#microsoft.graph.fileAttachment",
+                        "name": filename,
+                        "contentType": mimetype or "application/octet-stream",
+                        "contentBytes": base64.b64encode(content).decode('utf-8')
+                    })
+            if graph_attachments:
+                email_data["message"]["attachments"] = graph_attachments
 
         # Send email using Graph API
         graph_url = f"https://graph.microsoft.com/v1.0/users/{self.from_email}/sendMail"
