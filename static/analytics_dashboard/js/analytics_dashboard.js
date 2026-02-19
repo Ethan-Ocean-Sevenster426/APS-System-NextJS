@@ -964,6 +964,192 @@ function extractReport() {
 }
 
 // ================================================================
+// EXPORT PDF
+// ================================================================
+async function exportDashboardPDF() {
+    var overlay = document.getElementById('pdfExportOverlay');
+    var progressEl = document.getElementById('pdfExportProgress');
+    if (overlay) overlay.style.display = 'flex';
+
+    function updateProgress(msg) {
+        if (progressEl) progressEl.textContent = msg;
+    }
+
+    try {
+        var jsPDF = window.jspdf.jsPDF;
+        var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        var pageWidth = 297;
+        var pageHeight = 210;
+        var margin = 10;
+        var contentWidth = pageWidth - (margin * 2);
+        var yOffset = margin;
+
+        // Title header
+        pdf.setFontSize(18);
+        pdf.setTextColor(0, 120, 144);
+        pdf.text('Food Safety Agency (Pty) Ltd', pageWidth / 2, yOffset + 8, { align: 'center' });
+        pdf.setFontSize(13);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text('Inspector Analytics Dashboard Report', pageWidth / 2, yOffset + 16, { align: 'center' });
+        pdf.setFontSize(9);
+        pdf.setTextColor(120, 120, 120);
+        var dateStr = 'Generated: ' + new Date().toLocaleDateString('en-ZA') + ' ' + new Date().toLocaleTimeString('en-ZA');
+        pdf.text(dateStr, pageWidth / 2, yOffset + 22, { align: 'center' });
+
+        var filterSummary = getFilterSummaryText();
+        if (filterSummary) {
+            pdf.text('Filters: ' + filterSummary, pageWidth / 2, yOffset + 27, { align: 'center' });
+            yOffset += 32;
+        } else {
+            yOffset += 27;
+        }
+
+        // Sections to capture in order
+        var sections = [
+            { selector: '.kpi-grid', label: 'KPI Summary' },
+            { selector: '#complianceBarsContainer', label: 'Compliance Per Commodity', parentCard: true },
+            { selector: '#commodityTrendChart', label: 'Commodity Compliance Trend', isChart: true },
+            { selector: '#commodityCountChart', label: 'Commodity Count', isChart: true },
+            { selector: '#timeAllocationChart', label: 'Time Allocation (Billable Hours)', isChart: true },
+            { selector: '#complianceTrendChart', label: 'Weekly Compliance Trend', isChart: true },
+            { selector: '#samplesTakenChart', label: 'Samples Taken', isChart: true },
+            { selector: '#facilityTypesChart', label: 'Facility Types', isChart: true },
+            { selector: '#directionsChart', label: 'Directions & Non-Compliance', isChart: true },
+            { selector: '#occurrenceReportsChart', label: 'Occurrence Reports', isChart: true },
+            { selector: '#travelChart', label: 'Travel Distance Per Inspector', isChart: true },
+            { title: 'Avg Days to Send Documents', label: 'Avg Days to Send Documents' },
+            { title: 'Avg Days to Upload Invoice', label: 'Avg Days to Upload Invoice' },
+            { title: 'Avg Days: Sample to COA Upload', label: 'Avg Days: Sample to COA Upload' },
+            { title: 'Avg Days to Approval', label: 'Avg Days to Approval' },
+            { title: 'Travel Time Per Inspector', label: 'Travel Time Per Inspector' },
+            { selector: '#efficiencyMatrixTable', label: 'Inspector Efficiency Matrix', parentCard: true },
+            { selector: '#approvalRateChart', label: 'Approval Rate Per Inspector', isChart: true },
+            { selector: '#financialTable', label: 'Revenue Per Inspector', parentCard: true },
+            { selector: '#revenueCostChart', label: 'Revenue Breakdown', isChart: true }
+        ];
+
+        for (var i = 0; i < sections.length; i++) {
+            var section = sections[i];
+            updateProgress('Capturing ' + section.label + ' (' + (i + 1) + '/' + sections.length + ')...');
+
+            if (section.isChart) {
+                // Chart.js canvas - use toBase64Image for quality
+                var chartKey = section.selector.replace('#', '');
+                var chartInstance = chartInstances[chartKey];
+                if (chartInstance) {
+                    var imgData = chartInstance.toBase64Image('image/png', 1.0);
+                    var canvas = document.getElementById(chartKey);
+                    if (canvas && canvas.width > 0 && canvas.height > 0) {
+                        var aspectRatio = canvas.width / canvas.height;
+                        var imgWidth = contentWidth * 0.85;
+                        var imgHeight = imgWidth / aspectRatio;
+                        if (imgHeight > pageHeight - margin * 2 - 12) {
+                            imgHeight = pageHeight - margin * 2 - 12;
+                            imgWidth = imgHeight * aspectRatio;
+                        }
+                        if (yOffset + imgHeight + 12 > pageHeight - margin) {
+                            pdf.addPage();
+                            yOffset = margin;
+                        }
+                        pdf.setFontSize(11);
+                        pdf.setTextColor(0, 120, 144);
+                        pdf.text(section.label, margin, yOffset + 5);
+                        yOffset += 8;
+                        pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
+                        yOffset += imgHeight + 6;
+                    }
+                }
+            } else {
+                // HTML element - use html2canvas
+                var element = null;
+                if (section.title) {
+                    element = findCardByTitle(section.title);
+                } else if (section.selector) {
+                    element = document.querySelector(section.selector);
+                    if (section.parentCard && element) {
+                        element = element.closest('.card') || element;
+                    }
+                }
+                if (element) {
+                    try {
+                        var canvasImg = await html2canvas(element, {
+                            scale: 2,
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: '#ffffff',
+                            logging: false
+                        });
+                        var imgData = canvasImg.toDataURL('image/png');
+                        var aspectRatio = canvasImg.width / canvasImg.height;
+                        var imgWidth = contentWidth;
+                        var imgHeight = imgWidth / aspectRatio;
+                        if (imgHeight > pageHeight - margin * 2 - 10) {
+                            imgHeight = pageHeight - margin * 2 - 10;
+                            imgWidth = imgHeight * aspectRatio;
+                        }
+                        if (yOffset + imgHeight + 8 > pageHeight - margin) {
+                            pdf.addPage();
+                            yOffset = margin;
+                        }
+                        pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
+                        yOffset += imgHeight + 6;
+                    } catch (e) {
+                        console.warn('Could not capture ' + section.label + ':', e);
+                    }
+                }
+            }
+            await new Promise(function(resolve) { setTimeout(resolve, 50); });
+        }
+
+        // Add page footers
+        var totalPages = pdf.internal.getNumberOfPages();
+        for (var p = 1; p <= totalPages; p++) {
+            pdf.setPage(p);
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text('Page ' + p + ' of ' + totalPages + '  |  Food Safety Agency Analytics Report', pageWidth / 2, pageHeight - 5, { align: 'center' });
+        }
+
+        updateProgress('Saving PDF...');
+        var filename = 'analytics_dashboard_' + new Date().toISOString().slice(0, 10) + '.pdf';
+        pdf.save(filename);
+
+    } catch (err) {
+        console.error('PDF export error:', err);
+        alert('Error generating PDF: ' + err.message);
+    } finally {
+        if (overlay) overlay.style.display = 'none';
+    }
+}
+
+function getFilterSummaryText() {
+    var f = getFilterValues();
+    var parts = [];
+    if (f.year !== 'all') parts.push('Year: ' + f.year);
+    if (f.month !== 'all') {
+        var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        parts.push('Month: ' + monthNames[parseInt(f.month) - 1]);
+    }
+    if (f.inspector !== 'all') parts.push('Inspector: ' + f.inspector);
+    if (f.commodity !== 'all') parts.push('Commodity: ' + f.commodity);
+    if (f.date_from) parts.push('From: ' + f.date_from);
+    if (f.date_to) parts.push('To: ' + f.date_to);
+    return parts.join('  |  ');
+}
+
+function findCardByTitle(titleText) {
+    var cards = document.querySelectorAll('.card');
+    for (var i = 0; i < cards.length; i++) {
+        var header = cards[i].querySelector('.card-title span');
+        if (header && header.textContent.trim().indexOf(titleText) !== -1) {
+            return cards[i];
+        }
+    }
+    return null;
+}
+
+// ================================================================
 // INIT
 // ================================================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -981,6 +1167,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var extractBtn = document.getElementById('extractReport');
     if (extractBtn) extractBtn.addEventListener('click', extractReport);
+
+    var pdfBtn = document.getElementById('exportPdfBtn');
+    if (pdfBtn) pdfBtn.addEventListener('click', exportDashboardPDF);
 });
 
 // ================================================================
