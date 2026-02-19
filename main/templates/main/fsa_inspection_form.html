@@ -2389,7 +2389,14 @@
             const container = document.getElementById('productFormsContainer');
             const selectedCommodities = getSelectedCommodities();
 
-            console.log('[generateProductForms] Selected commodities:', selectedCommodities);
+            console.log('[generateProductForms] ===== CALLED =====');
+            console.log('[generateProductForms] Selected commodities:', JSON.stringify(selectedCommodities));
+            console.log('[generateProductForms] Current productsData.length:', productsData.length);
+            console.log('[generateProductForms] isEditMode:', isEditMode);
+            console.log('[generateProductForms] commodityData available:', JSON.stringify(Object.keys(editModeData.commodityData)));
+            for (const [c, a] of Object.entries(editModeData.commodityData)) {
+                console.log(`[generateProductForms] commodityData[${c}] has ${a.length} entries:`, a.map(x => x.product_name));
+            }
 
             // Build list of all products (expand counts)
             const products = [];
@@ -2425,18 +2432,22 @@
                 const commodity = p.commodity;
                 const commodityIndex = products.slice(0, idx).filter(prod => prod.commodity === commodity).length;
 
+                console.log(`[generateProductForms] Processing idx=${idx} commodity=${commodity} commodityIndex=${commodityIndex}`);
+
                 // FIRST: Try existing data from previous productsData (user's current form data)
                 const existing = existingDataMap[commodity] && existingDataMap[commodity][commodityIndex];
 
                 if (existing) {
-                    console.log(`[generateProductForms] Preserving data for ${commodity} #${commodityIndex + 1}`);
+                    console.log(`[generateProductForms] → PRESERVING existing: "${existing.product_name}"`);
                     return existing;
                 }
 
                 // SECOND: Fall back to backend data for initial edit load (use commodityIndex to get correct product)
+                const cdArray = editModeData.commodityData[commodity];
+                console.log(`[generateProductForms] → No existing. Checking backend: isEditMode=${editModeData.isEditMode}, cdArray=${cdArray ? cdArray.length + ' items' : 'MISSING'}, cdArray[${commodityIndex}]=${cdArray && cdArray[commodityIndex] ? '"' + cdArray[commodityIndex].product_name + '"' : 'MISSING'}`);
                 if (editModeData.isEditMode && editModeData.commodityData[commodity] && editModeData.commodityData[commodity][commodityIndex]) {
                     const backendData = editModeData.commodityData[commodity][commodityIndex];
-                    console.log(`[generateProductForms] Using backend data for ${commodity} #${commodityIndex + 1}`);
+                    console.log(`[generateProductForms] → USING BACKEND: "${backendData.product_name}"`);
                     return {
                         commodity: p.commodity,
                         product_name: backendData.product_name || '',
@@ -2454,7 +2465,7 @@
                 }
 
                 // THIRD: Create new empty data
-                console.log(`[generateProductForms] Creating new data for ${commodity} #${commodityIndex + 1}`);
+                console.log(`[generateProductForms] → CREATING EMPTY for ${commodity} #${commodityIndex + 1}`);
                 return {
                     commodity: p.commodity,
                     product_name: '',
@@ -2470,6 +2481,13 @@
                     hours: 0
                 };
             });
+
+            // Log final productsData after building
+            console.log('[generateProductForms] ===== FINAL productsData =====');
+            productsData.forEach((pd, i) => {
+                console.log(`[generateProductForms] productsData[${i}]: commodity="${pd.commodity}" product_name="${pd.product_name}"`);
+            });
+            console.log('[generateProductForms] ================================');
 
             // Generate HTML for each product form
             let html = '';
@@ -4876,6 +4894,19 @@
             // Using JSON.parse for reliable serialization instead of Django template loops
             commodityData: JSON.parse('{{ commodity_data_json|escapejs }}')
         };
+
+        // === DEBUG: Log the full editModeData immediately after creation ===
+        console.log('[DEBUG] ========== EDIT MODE DATA DUMP ==========');
+        console.log('[DEBUG] isEditMode:', editModeData.isEditMode);
+        console.log('[DEBUG] commodityCounts:', JSON.stringify(editModeData.commodityCounts));
+        console.log('[DEBUG] commodityData keys:', Object.keys(editModeData.commodityData));
+        for (const [comm, arr] of Object.entries(editModeData.commodityData)) {
+            console.log(`[DEBUG] commodityData[${comm}]: ${arr.length} items`);
+            arr.forEach((item, i) => {
+                console.log(`[DEBUG]   [${i}] id=${item.id} product_name="${item.product_name}"`);
+            });
+        }
+        console.log('[DEBUG] ==========================================');
 
         // Set initial commodity if editing
         document.addEventListener('DOMContentLoaded', function () {
