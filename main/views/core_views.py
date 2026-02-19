@@ -14876,35 +14876,20 @@ def send_group_documents(request):
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
 
-        # Parse date and build folder path
-        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
-        year_folder = date_obj.strftime('%Y')
-        month_folder = date_obj.strftime('%B')
+        # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
+        files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
 
-        client_folder = client_name or 'Unknown Client'
-
-        # Base client path
-        client_base_path = os.path.join(
-            settings.MEDIA_ROOT,
-            'inspection',
-            year_folder,
-            month_folder,
-            client_folder
-        )
-
-        # Collect ALL available documents (any file type)
         attachments = []
         documents_found = []
-
-        if os.path.exists(client_base_path):
-            for root, dirs, files in os.walk(client_base_path):
-                for filename in files:
-                    file_path = os.path.join(root, filename)
-                    if os.path.isfile(file_path):
-                        # Get relative category path for display
-                        rel_path = os.path.relpath(file_path, client_base_path)
-                        attachments.append(file_path)
-                        documents_found.append(rel_path)
+        for category, file_list in files_by_category.items():
+            for file_info in file_list:
+                # Reconstruct full path from relative_path and MEDIA_ROOT
+                rel_path = file_info.get('relative_path', '')
+                if rel_path:
+                    full_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                    if os.path.isfile(full_path):
+                        attachments.append(full_path)
+                        documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
 
         # Get client email
         recipient_email = get_client_email(client_name)
@@ -14951,6 +14936,7 @@ Food Safety Agency (Pty) Ltd"""
 
         # Mark inspections as sent
         from ..models import FoodSafetyAgencyInspection
+        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
         if inspection_group_id:
             inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
         else:
