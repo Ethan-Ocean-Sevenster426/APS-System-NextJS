@@ -1,67 +1,78 @@
-// Simple sent status - just save YES or NO to database
-console.log('Sent status JS loaded (simplified)');
+// Send documents to client email and update sent status
+console.log('Sent status JS loaded');
 
-function updateSentStatus(dropdown) {
-    const groupId = dropdown.getAttribute('data-group-id');
-    const inspectionGroupId = dropdown.getAttribute('data-inspection-group-id');
-    const sentStatus = dropdown.value;
-    const row = dropdown.closest('tr');
-
-    console.log('Updating sent status:', groupId, '=', sentStatus, 'inspection_group_id:', inspectionGroupId);
+function sendInspectionDocs(btn) {
+    const groupId = btn.getAttribute('data-group-id');
+    const inspectionGroupId = btn.getAttribute('data-inspection-group-id');
+    const clientName = btn.getAttribute('data-client-name');
+    const inspectionDate = btn.getAttribute('data-inspection-date');
 
     if (!groupId) {
-        console.error('No group ID');
+        alert('No group ID found.');
         return;
     }
 
-    // Update dropdown and row colors immediately
-    if (sentStatus === 'YES') {
-        dropdown.style.backgroundColor = '#10b981';
-        dropdown.style.color = 'white';
-        // Green row background
-        if (row) {
-            row.style.backgroundColor = '#d1fae5';
-            row.querySelectorAll('td').forEach(td => td.style.backgroundColor = '#d1fae5');
-        }
-    } else {
-        dropdown.style.backgroundColor = '#ffffff';
-        dropdown.style.color = '#000000';
-        // White row background
-        if (row) {
-            row.style.backgroundColor = '#ffffff';
-            row.querySelectorAll('td').forEach(td => td.style.backgroundColor = '#ffffff');
-        }
+    // Confirm before sending
+    if (!confirm('Send inspection documents for ' + clientName + ' to the client email?')) {
+        return;
     }
 
-    // Get CSRF token
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    btn.style.background = '#fbbf24';
+    btn.style.color = '#000';
+
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    // Send to backend
-    const formData = new FormData();
-    formData.append('group_id', groupId);
-    formData.append('sent_status', sentStatus);
-    formData.append('csrfmiddlewaretoken', csrfToken);
-    if (inspectionGroupId) {
-        formData.append('inspection_group_id', inspectionGroupId);
-    }
-
-    fetch('/inspections/update-sent-status/', {
+    fetch('/inspections/send-documents/', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            group_id: groupId,
+            inspection_group_id: inspectionGroupId,
+            client_name: clientName,
+            inspection_date: inspectionDate
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log('Saved:', sentStatus);
+            // Update button to green "Sent" state
+            btn.innerHTML = '<i class="fas fa-check"></i> Sent';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            btn.title = 'Sent to ' + (data.recipients || 'client');
+            btn.disabled = false;
+
+            // Green row background
+            var row = btn.closest('tr');
+            if (row) {
+                row.style.backgroundColor = '#d1fae5';
+                row.querySelectorAll('td').forEach(function(td) { td.style.backgroundColor = '#d1fae5'; });
+            }
+
+            alert('Documents sent successfully to ' + data.recipients + '\n(' + data.documents_sent + ' documents)');
         } else {
-            console.error('Failed:', data.error);
-            alert('Failed to save: ' + data.error);
+            // Reset button on failure
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            btn.style.background = '#e5e7eb';
+            btn.style.color = '#6b7280';
+            btn.disabled = false;
+            alert('Failed to send: ' + data.error);
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(function(error) {
+        console.error('Send error:', error);
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+        btn.style.background = '#e5e7eb';
+        btn.style.color = '#6b7280';
+        btn.disabled = false;
+        alert('Error sending documents: ' + error.message);
     });
 }
 
-// Make it global
-window.updateSentStatus = updateSentStatus;
+window.sendInspectionDocs = sendInspectionDocs;

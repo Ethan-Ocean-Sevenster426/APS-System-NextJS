@@ -8790,6 +8790,145 @@ def analytics_dashboard(request):
         'sample_rate': sample_rate,
     }
 
+    # === PHASE 2: TIME-BASED ANALYTICS ===
+
+    # 1. Avg days to send supporting documents (per admin user)
+    doc_send_time = []
+    doc_send_qs = FoodSafetyAgencyInspection.objects.filter(
+        is_sent=True,
+        sent_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(sent_by__isnull=True)
+    ).select_related('sent_by')
+
+    doc_send_by_user = {}
+    for insp in doc_send_qs:
+        delta = (insp.sent_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.sent_by.first_name} {insp.sent_by.last_name}".strip() or insp.sent_by.username
+        if name not in doc_send_by_user:
+            doc_send_by_user[name] = {'total_days': 0, 'count': 0}
+        doc_send_by_user[name]['total_days'] += delta
+        doc_send_by_user[name]['count'] += 1
+
+    for name, data in sorted(doc_send_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        doc_send_time.append({
+            'name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 2. Avg days to upload invoices (per admin user)
+    invoice_upload_time = []
+    invoice_qs = FoodSafetyAgencyInspection.objects.filter(
+        invoice_uploaded_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(invoice_uploaded_by__isnull=True)
+    ).select_related('invoice_uploaded_by')
+
+    invoice_by_user = {}
+    for insp in invoice_qs:
+        delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.invoice_uploaded_by.first_name} {insp.invoice_uploaded_by.last_name}".strip() or insp.invoice_uploaded_by.username
+        if name not in invoice_by_user:
+            invoice_by_user[name] = {'total_days': 0, 'count': 0}
+        invoice_by_user[name]['total_days'] += delta
+        invoice_by_user[name]['count'] += 1
+
+    for name, data in sorted(invoice_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        invoice_upload_time.append({
+            'name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 3. Avg days from sample to COA upload (per commodity)
+    coa_analysis_time = []
+    coa_qs = FoodSafetyAgencyInspection.objects.filter(
+        is_sample_taken=True,
+        coa_uploaded_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    )
+
+    coa_by_commodity = {}
+    for insp in coa_qs:
+        delta = (insp.coa_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        comm = insp.commodity
+        if comm not in coa_by_commodity:
+            coa_by_commodity[comm] = {'total_days': 0, 'count': 0}
+        coa_by_commodity[comm]['total_days'] += delta
+        coa_by_commodity[comm]['count'] += 1
+
+    for comm, data in sorted(coa_by_commodity.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        coa_analysis_time.append({
+            'commodity': comm,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 4. Avg days to approval (per inspector)
+    # Uses approved_date if set, falls back to updated_at for historical records
+    approval_time = []
+    approval_qs = FoodSafetyAgencyInspection.objects.filter(
+        approved_status='APPROVED',
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    )
+
+    approval_by_inspector = {}
+    for insp in approval_qs:
+        ref_date = insp.approved_date or insp.updated_at
+        if ref_date is None:
+            continue
+        delta = (ref_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = insp.inspector_name
+        if name not in approval_by_inspector:
+            approval_by_inspector[name] = {'total_days': 0, 'count': 0}
+        approval_by_inspector[name]['total_days'] += delta
+        approval_by_inspector[name]['count'] += 1
+
+    for name, data in sorted(approval_by_inspector.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        approval_time.append({
+            'inspector_name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 5. Travel time per inspector (from InspectionGroup travel_start/end)
+    # Reuses inspection_times dict already computed above
+    travel_time_per_inspector = sorted(
+        [{'inspector_name': name, 'total_hours': round(hours, 1)} for name, hours in inspection_times.items() if hours > 0],
+        key=lambda x: x['total_hours'],
+        reverse=True,
+    )
+
+    # Prepare server-side rendered lists with percentage for bar widths
+    def _add_pct(items, key):
+        if not items:
+            return []
+        max_val = max(i[key] for i in items) or 1
+        for i in items:
+            i['pct'] = round((i[key] / max_val) * 100)
+        return items
+
+    _add_pct(doc_send_time, 'avg_days')
+    _add_pct(invoice_upload_time, 'avg_days')
+    _add_pct(coa_analysis_time, 'avg_days')
+    _add_pct(approval_time, 'avg_days')
+    _add_pct(travel_time_per_inspector, 'total_hours')
+
     # === CONTEXT PREPARATION ===
     # Ensure all data is properly JSON-encoded and handle None values
     def safe_json_dumps(data, default=None):
@@ -8871,6 +9010,20 @@ def analytics_dashboard(request):
         # Financial / Revenue data
         'inspector_financials': safe_json_dumps(inspector_financials, []),
         'financial_summary': safe_json_dumps(financial_summary, {}),
+
+        # Phase 2: Time-based analytics (JSON for JS charts + API)
+        'doc_send_time': safe_json_dumps(doc_send_time, []),
+        'invoice_upload_time': safe_json_dumps(invoice_upload_time, []),
+        'coa_analysis_time': safe_json_dumps(coa_analysis_time, []),
+        'approval_time': safe_json_dumps(approval_time, []),
+        'travel_time_per_inspector': safe_json_dumps(travel_time_per_inspector, []),
+
+        # Phase 2: Plain lists for server-side template rendering
+        'doc_send_time_list': doc_send_time,
+        'invoice_upload_time_list': invoice_upload_time,
+        'coa_analysis_time_list': coa_analysis_time,
+        'approval_time_list': approval_time,
+        'travel_time_list': travel_time_per_inspector[:15],
 
         # Theme settings
         'settings': settings,
@@ -9078,6 +9231,114 @@ def analytics_dashboard_api(request):
             pending=Count('id', filter=Q(approved_status='PENDING')),
         ).order_by('-total')),
     }
+
+    # Phase 2: Time-based analytics (filtered)
+
+    # 1. Doc send time
+    doc_send_time = []
+    doc_send_filtered = qs.filter(
+        is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(sent_by__isnull=True).select_related('sent_by')
+    doc_send_by_user = {}
+    for insp in doc_send_filtered:
+        delta = (insp.sent_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.sent_by.first_name} {insp.sent_by.last_name}".strip() or insp.sent_by.username
+        if name not in doc_send_by_user:
+            doc_send_by_user[name] = {'total_days': 0, 'count': 0}
+        doc_send_by_user[name]['total_days'] += delta
+        doc_send_by_user[name]['count'] += 1
+    for name, d in sorted(doc_send_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        doc_send_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['docSendTime'] = doc_send_time
+
+    # 2. Invoice upload time
+    invoice_upload_time = []
+    invoice_filtered = qs.filter(
+        invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(invoice_uploaded_by__isnull=True).select_related('invoice_uploaded_by')
+    invoice_by_user = {}
+    for insp in invoice_filtered:
+        delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.invoice_uploaded_by.first_name} {insp.invoice_uploaded_by.last_name}".strip() or insp.invoice_uploaded_by.username
+        if name not in invoice_by_user:
+            invoice_by_user[name] = {'total_days': 0, 'count': 0}
+        invoice_by_user[name]['total_days'] += delta
+        invoice_by_user[name]['count'] += 1
+    for name, d in sorted(invoice_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        invoice_upload_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['invoiceUploadTime'] = invoice_upload_time
+
+    # 3. COA analysis time
+    coa_analysis_time = []
+    coa_filtered = qs.filter(
+        is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(Q(commodity__isnull=True) | Q(commodity=''))
+    coa_by_commodity = {}
+    for insp in coa_filtered:
+        delta = (insp.coa_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        comm = insp.commodity
+        if comm not in coa_by_commodity:
+            coa_by_commodity[comm] = {'total_days': 0, 'count': 0}
+        coa_by_commodity[comm]['total_days'] += delta
+        coa_by_commodity[comm]['count'] += 1
+    for comm, d in sorted(coa_by_commodity.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        coa_analysis_time.append({'commodity': comm, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['coaAnalysisTime'] = coa_analysis_time
+
+    # 4. Approval time (uses approved_date if set, falls back to updated_at)
+    approval_time = []
+    approval_filtered = qs.filter(
+        approved_status='APPROVED', date_of_inspection__isnull=False,
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown'))
+    approval_by_inspector = {}
+    for insp in approval_filtered:
+        ref_date = insp.approved_date or insp.updated_at
+        if ref_date is None:
+            continue
+        delta = (ref_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = insp.inspector_name
+        if name not in approval_by_inspector:
+            approval_by_inspector[name] = {'total_days': 0, 'count': 0}
+        approval_by_inspector[name]['total_days'] += delta
+        approval_by_inspector[name]['count'] += 1
+    for name, d in sorted(approval_by_inspector.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        approval_time.append({'inspector_name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['approvalTime'] = approval_time
+
+    # 5. Travel time per inspector
+    travel_time_per_inspector = []
+    travel_time_filtered = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+    tt_dict = {}
+    for insp in travel_time_filtered:
+        start = insp['inspection_group__travel_start_time']
+        end = insp['inspection_group__travel_end_time']
+        if start and end:
+            start_dt = datetime.combine(datetime.today(), start)
+            end_dt = datetime.combine(datetime.today(), end)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            duration = (end_dt - start_dt).total_seconds() / 3600
+            name = insp['inspector_name']
+            tt_dict[name] = tt_dict.get(name, 0) + duration
+    travel_time_per_inspector = sorted(
+        [{'inspector_name': n, 'total_hours': round(h, 1)} for n, h in tt_dict.items() if h > 0],
+        key=lambda x: x['total_hours'], reverse=True,
+    )
+    data['travelTimePerInspector'] = travel_time_per_inspector
 
     return JsonResponse(data, encoder=DjangoJSONEncoder)
 
@@ -10672,7 +10933,19 @@ def update_group_approved(request):
                 })
 
             # Update approved_status for all inspections in the group
-            updated_count = inspections.update(approved_status=approved_status)
+            from django.utils import timezone as _tz
+            if approved_status == 'APPROVED':
+                updated_count = inspections.update(
+                    approved_status=approved_status,
+                    approved_date=_tz.now(),
+                    approved_by=request.user,
+                )
+            else:
+                updated_count = inspections.update(
+                    approved_status=approved_status,
+                    approved_date=None,
+                    approved_by=None,
+                )
 
             return JsonResponse({
                 'success': True,
@@ -14585,30 +14858,31 @@ def get_zip_contents(request):
 
 @login_required
 def send_group_documents(request):
-    """Send all documents for a grouped inspection via email."""
+    """Send all documents for a grouped inspection via email and mark as sent."""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
-    
+
     try:
         import json
         import os
         from datetime import datetime
         from django.conf import settings
         from django.core.mail import EmailMessage
-        
+        from django.utils import timezone
+
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
+        inspection_group_id = data.get('inspection_group_id', '')
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
-        
+
         # Parse date and build folder path
         date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
         year_folder = date_obj.strftime('%Y')
         month_folder = date_obj.strftime('%B')
-        
-        # Use original client name for folder structure (folders now use original names)
+
         client_folder = client_name or 'Unknown Client'
-        
+
         # Base client path
         client_base_path = os.path.join(
             settings.MEDIA_ROOT,
@@ -14617,12 +14891,12 @@ def send_group_documents(request):
             month_folder,
             client_folder
         )
-        
+
         # Collect all available documents
         document_categories = ['rfi', 'invoice', 'lab', 'retest']
         attachments = []
         documents_found = []
-        
+
         for category in document_categories:
             category_path = os.path.join(client_base_path, category)
             if os.path.exists(category_path):
@@ -14631,7 +14905,7 @@ def send_group_documents(request):
                     if os.path.isfile(file_path) and filename.lower().endswith('.pdf'):
                         attachments.append(file_path)
                         documents_found.append(f"{category.upper()}: {filename}")
-        
+
         # Also check compliance documents
         compliance_path = os.path.join(client_base_path, 'Compliance')
         if os.path.exists(compliance_path):
@@ -14643,27 +14917,25 @@ def send_group_documents(request):
                         if os.path.isfile(file_path):
                             attachments.append(file_path)
                             documents_found.append(f"Compliance/{commodity}: {filename}")
-        
+
         if not attachments:
             return JsonResponse({
                 'success': False,
                 'error': 'No documents found to send. Please upload RFI, Invoice, Lab results, or other documents first.'
             })
-        
-        # Get client email (you'll need to implement client email lookup)
-        # For now, using a placeholder - you can extend this to get actual client emails
-        recipient_email = get_client_email(client_name)  # Function to implement
-        
+
+        # Get client email
+        recipient_email = get_client_email(client_name)
+
         if not recipient_email:
             return JsonResponse({
                 'success': False,
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
-        
-        # Create email
+
+        # Create and send email
         subject = f'Inspection Documents - {client_name} - {inspection_date}'
-        message = f"""
-Dear {client_name},
+        message = f"""Dear {client_name},
 
 Please find attached the inspection documents for the inspection conducted on {inspection_date}.
 
@@ -14671,9 +14943,8 @@ Documents included:
 {chr(10).join('• ' + doc for doc in documents_found)}
 
 Best regards,
-Food Safety Agency (Pty) Ltd
-        """.strip()
-        
+Food Safety Agency (Pty) Ltd"""
+
         email = EmailMessage(
             subject=subject,
             body=message,
@@ -14681,14 +14952,23 @@ Food Safety Agency (Pty) Ltd
             to=[recipient_email],
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
-        
-        # Attach all documents
+
         for file_path in attachments:
             email.attach_file(file_path)
-        
-        # Send email
-            email.send()
-        
+
+        email.send()
+
+        # Mark inspections as sent
+        from ..models import FoodSafetyAgencyInspection
+        if inspection_group_id:
+            inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
+        else:
+            inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj.date()
+            )
+        inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
+
         # Log the activity
         from ..models import SystemLog
         SystemLog.log_activity(
@@ -14697,7 +14977,7 @@ Food Safety Agency (Pty) Ltd
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name}',
+            description=f'Sent {len(attachments)} documents for {client_name} to {recipient_email}',
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
@@ -14705,16 +14985,17 @@ Food Safety Agency (Pty) Ltd
                 'recipient': recipient_email
             }
         )
-        
+
         return JsonResponse({
             'success': True,
             'message': f'Documents sent successfully to {recipient_email}',
             'recipients': recipient_email,
             'documents_sent': len(attachments),
-            'email_id': f'inspection_{group_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
         })
-        
+
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)})
 
 

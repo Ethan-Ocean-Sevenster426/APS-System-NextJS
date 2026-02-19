@@ -448,6 +448,8 @@ class FoodSafetyAgencyInspection(models.Model):
                                          ('PENDING', 'Pending'),
                                          ('APPROVED', 'Approved')
                                      ], default='PENDING')
+    approved_date = models.DateTimeField(blank=True, null=True, help_text="When this inspection was approved")
+    approved_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, blank=True, null=True, related_name='approved_inspections', help_text="Who approved this inspection")
     comment = models.TextField(blank=True, null=True, help_text="Comment for this inspection group")
     lab = models.CharField(max_length=20, blank=True, null=True, help_text="Laboratory used for testing",
                           choices=[
