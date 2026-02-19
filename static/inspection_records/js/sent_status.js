@@ -1,78 +1,53 @@
-// Send documents to client email and update sent status
+// Toggle sent status for inspection group
 console.log('Sent status JS loaded');
 
-function sendInspectionDocs(btn) {
+function toggleSentStatus(btn) {
     const groupId = btn.getAttribute('data-group-id');
-    const inspectionGroupId = btn.getAttribute('data-inspection-group-id');
-    const clientName = btn.getAttribute('data-client-name');
-    const inspectionDate = btn.getAttribute('data-inspection-date');
-
     if (!groupId) {
         alert('No group ID found.');
         return;
     }
 
-    // Confirm before sending
-    if (!confirm('Send inspection documents for ' + clientName + ' to the client email?')) {
-        return;
-    }
+    const isSent = btn.getAttribute('data-is-sent') === 'true';
+    const newStatus = isSent ? 'NO' : 'YES';
 
-    // Show loading state
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    btn.style.background = '#fbbf24';
-    btn.style.color = '#000';
 
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    fetch('/inspections/send-documents/', {
+    fetch('/inspections/update-sent-status/', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRFToken': csrfToken
         },
-        body: JSON.stringify({
-            group_id: groupId,
-            inspection_group_id: inspectionGroupId,
-            client_name: clientName,
-            inspection_date: inspectionDate
-        })
+        body: 'group_id=' + encodeURIComponent(groupId) + '&sent_status=' + encodeURIComponent(newStatus)
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            // Update button to green "Sent" state
-            btn.innerHTML = '<i class="fas fa-check"></i> Sent';
-            btn.style.background = '#10b981';
-            btn.style.color = 'white';
-            btn.title = 'Sent to ' + (data.recipients || 'client');
-            btn.disabled = false;
-
-            // Green row background
-            var row = btn.closest('tr');
-            if (row) {
-                row.style.backgroundColor = '#d1fae5';
-                row.querySelectorAll('td').forEach(function(td) { td.style.backgroundColor = '#d1fae5'; });
+        btn.disabled = false;
+        if (data.success || data.status === 'success') {
+            if (newStatus === 'YES') {
+                btn.innerHTML = '<i class="fas fa-check"></i> Sent';
+                btn.style.background = '#10b981';
+                btn.style.color = 'white';
+                btn.setAttribute('data-is-sent', 'true');
+                btn.title = 'Click to mark as not sent';
+            } else {
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+                btn.style.background = '#e5e7eb';
+                btn.style.color = '#6b7280';
+                btn.setAttribute('data-is-sent', 'false');
+                btn.title = 'Click to mark as sent';
             }
-
-            alert('Documents sent successfully to ' + data.recipients + '\n(' + data.documents_sent + ' documents)');
         } else {
-            // Reset button on failure
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
-            btn.style.background = '#e5e7eb';
-            btn.style.color = '#6b7280';
-            btn.disabled = false;
-            alert('Failed to send: ' + data.error);
+            alert('Failed to update: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(function(error) {
-        console.error('Send error:', error);
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
-        btn.style.background = '#e5e7eb';
-        btn.style.color = '#6b7280';
         btn.disabled = false;
-        alert('Error sending documents: ' + error.message);
+        alert('Error: ' + error.message);
     });
 }
 
-window.sendInspectionDocs = sendInspectionDocs;
+window.toggleSentStatus = toggleSentStatus;

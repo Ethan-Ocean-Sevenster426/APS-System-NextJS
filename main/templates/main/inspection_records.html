@@ -1329,15 +1329,13 @@
                                         <td class="px-2 py-2 text-center">
                                             {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
                                             <button type="button"
-                                                class="send-docs-btn"
-                                                onclick="event.stopPropagation(); sendInspectionDocs(this);"
+                                                class="sent-toggle-btn"
+                                                onclick="event.stopPropagation(); toggleSentStatus(this);"
                                                 data-group-id="{{ fallback_group_id }}"
-                                                data-inspection-group-id="{{ shipment.inspection_group_id|default:'' }}"
-                                                data-client-name="{{ shipment.client_name|escapejs }}"
-                                                data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
+                                                data-is-sent="{% if shipment.is_sent %}true{% else %}false{% endif %}"
                                                 style="padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;
                                                 {% if shipment.is_sent %}background: #10b981; color: white;{% else %}background: #e5e7eb; color: #6b7280;{% endif %}"
-                                                title="{% if shipment.is_sent %}Sent on {{ shipment.sent_date|date:'d M Y H:i' }}{% else %}Send documents to client{% endif %}">
+                                                title="{% if shipment.is_sent %}Click to mark as not sent{% else %}Click to mark as sent{% endif %}">
                                                 {% if shipment.is_sent %}<i class="fas fa-check"></i> Sent{% else %}<i class="fas fa-paper-plane"></i> Send{% endif %}
                                             </button>
                                             {% else %}
@@ -1800,7 +1798,7 @@
             <link rel="stylesheet" href="{% static 'inspection_records/css/inspection_table.css' %}?v=20260212">
 
             <!-- Load sent status functionality from external file -->
-            <script src="{% static 'inspection_records/js/sent_status.js' %}?v=20260112-cache-bust"></script>
+            <script src="{% static 'inspection_records/js/sent_status.js' %}?v=20260219-toggle"></script>
             <!-- Load clean upload functions -->
             <script src="{% static 'inspection_records/js/upload_functions.js'%}?v=20260125-V1"></script>
             <!-- Load bought sample functionality -->
