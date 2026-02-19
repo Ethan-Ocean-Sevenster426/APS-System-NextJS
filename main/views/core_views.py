@@ -1543,9 +1543,10 @@ def edit_fsa_inspection(request, pk):
         # Get all related inspections in the same group
         if inspection.inspection_group_id:
             # Use the proper InspectionGroup relationship
+            # Order by 'id' to match save logic ordering (commodity, id)
             related_inspections = FoodSafetyAgencyInspection.objects.filter(
                 inspection_group_id=inspection.inspection_group_id
-            )
+            ).order_by('id')
         else:
             # Fallback: just get this single inspection if no group exists
             related_inspections = FoodSafetyAgencyInspection.objects.filter(pk=inspection.pk)
