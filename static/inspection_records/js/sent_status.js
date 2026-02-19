@@ -1,51 +1,68 @@
-// Toggle sent status for inspection group
+// Send inspection documents to client email
 console.log('Sent status JS loaded');
 
 function toggleSentStatus(btn) {
-    const groupId = btn.getAttribute('data-group-id');
+    var groupId = btn.getAttribute('data-group-id');
+    var clientName = btn.getAttribute('data-client-name');
+    var inspectionDate = btn.getAttribute('data-inspection-date');
+    var inspectionGroupId = btn.getAttribute('data-inspection-group-id');
+
     if (!groupId) {
         alert('No group ID found.');
         return;
     }
 
-    const isSent = btn.getAttribute('data-is-sent') === 'true';
-    const newStatus = isSent ? 'NO' : 'YES';
+    var isSent = btn.getAttribute('data-is-sent') === 'true';
+    if (isSent) {
+        alert('Documents already sent.');
+        return;
+    }
+
+    if (!confirm('Send all inspection documents for ' + clientName + ' to the client email?')) {
+        return;
+    }
 
     btn.disabled = true;
+    btn.innerHTML = 'Sending...';
+    btn.style.background = '#fbbf24';
+    btn.style.color = '#000';
 
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    fetch('/inspections/update-sent-status/', {
+    fetch('/inspections/send-documents/', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken
         },
-        body: 'group_id=' + encodeURIComponent(groupId) + '&sent_status=' + encodeURIComponent(newStatus)
+        body: JSON.stringify({
+            group_id: groupId,
+            inspection_group_id: inspectionGroupId,
+            client_name: clientName,
+            inspection_date: inspectionDate
+        })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
         btn.disabled = false;
-        if (data.success || data.status === 'success') {
-            if (newStatus === 'YES') {
-                btn.innerHTML = 'Sent';
-                btn.style.background = '#10b981';
-                btn.style.color = 'white';
-                btn.setAttribute('data-is-sent', 'true');
-                btn.title = 'Click to mark as not sent';
-            } else {
-                btn.innerHTML = 'Send';
-                btn.style.background = '#e5e7eb';
-                btn.style.color = '#6b7280';
-                btn.setAttribute('data-is-sent', 'false');
-                btn.title = 'Click to mark as sent';
-            }
+        if (data.success) {
+            btn.innerHTML = 'Sent';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            btn.setAttribute('data-is-sent', 'true');
+            btn.title = 'Documents sent to ' + (data.recipients || 'client');
         } else {
-            alert('Failed to update: ' + (data.error || 'Unknown error'));
+            btn.innerHTML = 'Send';
+            btn.style.background = '#e5e7eb';
+            btn.style.color = '#6b7280';
+            alert('Failed to send: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(function(error) {
         btn.disabled = false;
+        btn.innerHTML = 'Send';
+        btn.style.background = '#e5e7eb';
+        btn.style.color = '#6b7280';
         alert('Error: ' + error.message);
     });
 }

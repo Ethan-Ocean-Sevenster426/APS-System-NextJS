@@ -1332,10 +1332,13 @@
                                                 class="sent-toggle-btn"
                                                 onclick="event.stopPropagation(); toggleSentStatus(this);"
                                                 data-group-id="{{ fallback_group_id }}"
+                                                data-inspection-group-id="{{ shipment.inspection_group_id|default:'' }}"
+                                                data-client-name="{{ shipment.client_name|escapejs }}"
+                                                data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
                                                 data-is-sent="{% if shipment.is_sent %}true{% else %}false{% endif %}"
                                                 style="padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;
                                                 {% if shipment.is_sent %}background: #10b981; color: white;{% else %}background: #e5e7eb; color: #6b7280;{% endif %}"
-                                                title="{% if shipment.is_sent %}Click to mark as not sent{% else %}Click to mark as sent{% endif %}">
+                                                title="{% if shipment.is_sent %}Documents sent{% else %}Send documents to client{% endif %}">
                                                 {% if shipment.is_sent %}Sent{% else %}Send{% endif %}
                                             </button>
                                             {% else %}
