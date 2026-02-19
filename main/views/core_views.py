@@ -14892,37 +14892,19 @@ def send_group_documents(request):
             client_folder
         )
 
-        # Collect all available documents
-        document_categories = ['rfi', 'invoice', 'lab', 'retest']
+        # Collect ALL available documents (any file type)
         attachments = []
         documents_found = []
 
-        for category in document_categories:
-            category_path = os.path.join(client_base_path, category)
-            if os.path.exists(category_path):
-                for filename in os.listdir(category_path):
-                    file_path = os.path.join(category_path, filename)
-                    if os.path.isfile(file_path) and filename.lower().endswith('.pdf'):
+        if os.path.exists(client_base_path):
+            for root, dirs, files in os.walk(client_base_path):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    if os.path.isfile(file_path):
+                        # Get relative category path for display
+                        rel_path = os.path.relpath(file_path, client_base_path)
                         attachments.append(file_path)
-                        documents_found.append(f"{category.upper()}: {filename}")
-
-        # Also check compliance documents
-        compliance_path = os.path.join(client_base_path, 'Compliance')
-        if os.path.exists(compliance_path):
-            for commodity in ['RAW', 'PMP', 'POULTRY', 'EGGS']:
-                commodity_path = os.path.join(compliance_path, commodity)
-                if os.path.exists(commodity_path):
-                    for filename in os.listdir(commodity_path):
-                        file_path = os.path.join(commodity_path, filename)
-                        if os.path.isfile(file_path):
-                            attachments.append(file_path)
-                            documents_found.append(f"Compliance/{commodity}: {filename}")
-
-        if not attachments:
-            return JsonResponse({
-                'success': False,
-                'error': 'No documents found to send. Please upload RFI, Invoice, Lab results, or other documents first.'
-            })
+                        documents_found.append(rel_path)
 
         # Get client email
         recipient_email = get_client_email(client_name)
@@ -14935,12 +14917,21 @@ def send_group_documents(request):
 
         # Create and send email
         subject = f'Inspection Documents - {client_name} - {inspection_date}'
-        message = f"""Dear {client_name},
+        if documents_found:
+            docs_list = chr(10).join('• ' + doc for doc in documents_found)
+            message = f"""Dear {client_name},
 
 Please find attached the inspection documents for the inspection conducted on {inspection_date}.
 
 Documents included:
-{chr(10).join('• ' + doc for doc in documents_found)}
+{docs_list}
+
+Best regards,
+Food Safety Agency (Pty) Ltd"""
+        else:
+            message = f"""Dear {client_name},
+
+This is to confirm the inspection conducted on {inspection_date} has been completed.
 
 Best regards,
 Food Safety Agency (Pty) Ltd"""
