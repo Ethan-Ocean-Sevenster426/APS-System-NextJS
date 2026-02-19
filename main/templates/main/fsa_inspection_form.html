@@ -4873,29 +4873,8 @@
             },
             // Data for all commodities in the group (for populating all forms)
             // Each commodity maps to an ARRAY of product data objects
-            commodityData: {
-                {% for commodity, data_list in commodity_data.items %}
-                {{ commodity }}: [
-                    {% for data in data_list %}
-                    {
-                        id: {{ data.id }},
-                        product_name: '{{ data.product_name|escapejs }}',
-                        product_class: '{{ data.product_class|escapejs }}',
-                        lab: '{{ data.lab|escapejs }}',
-                        is_sample_taken: {{ data.is_sample_taken|lower }},
-                        bought_sample: {{ data.bought_sample }},
-                        km_traveled: {{ data.km_traveled }},
-                        hours: {{ data.hours }},
-                        fat: {{ data.fat|lower }},
-                        protein: {{ data.protein|lower }},
-                        calcium: {{ data.calcium|lower }},
-                        dna: {{ data.dna|lower }},
-                        needs_retest: '{{ data.needs_retest|default:"NO"|escapejs }}'
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ]{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            }
+            // Using JSON.parse for reliable serialization instead of Django template loops
+            commodityData: JSON.parse('{{ commodity_data_json|escapejs }}')
         };
 
         // Set initial commodity if editing

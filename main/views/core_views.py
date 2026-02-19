@@ -1588,6 +1588,7 @@ def edit_fsa_inspection(request, pk):
         commodity_counts = {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0}
         commodity_data = {}
 
+    import json
     context = {
         'form': form,
         'inspection': inspection,
@@ -1597,7 +1598,8 @@ def edit_fsa_inspection(request, pk):
         'is_occurrence_report': is_occurrence,
         'related_inspections': related_inspections,
         'commodity_counts': commodity_counts,
-        'commodity_data': commodity_data,  # Pass all commodity data for population (empty for occurrence reports)
+        'commodity_data': commodity_data,
+        'commodity_data_json': json.dumps(commodity_data),  # Pre-serialized JSON for reliable JS parsing
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
