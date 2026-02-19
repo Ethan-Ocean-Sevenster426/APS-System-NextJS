@@ -1557,29 +1557,30 @@ def edit_fsa_inspection(request, pk):
             'PMP': 0,
             'EGGS': 0
         }
-        # Map commodity to inspection data for population
+        # Map commodity to list of inspection data for population
         commodity_data = {}
 
         for insp in related_inspections:
             if insp.commodity in commodity_counts:
                 commodity_counts[insp.commodity] += 1
-                # Store the first inspection of each commodity type
+                # Store ALL inspections per commodity type (as a list)
                 if insp.commodity not in commodity_data:
-                    commodity_data[insp.commodity] = {
-                        'id': insp.id,
-                        'product_name': insp.product_name or '',
-                        'product_class': insp.product_class or '',
-                        'lab': insp.lab or '',
-                        'is_sample_taken': insp.is_sample_taken or False,
-                        'bought_sample': float(insp.bought_sample) if insp.bought_sample else 0,
-                        'km_traveled': float(insp.km_traveled) if insp.km_traveled else 0,
-                        'hours': float(insp.hours) if insp.hours else 0,
-                        'fat': bool(insp.fat),
-                        'protein': bool(insp.protein),
-                        'calcium': bool(insp.calcium),
-                        'dna': bool(insp.dna),
-                        'needs_retest': insp.needs_retest or 'NO',
-                    }
+                    commodity_data[insp.commodity] = []
+                commodity_data[insp.commodity].append({
+                    'id': insp.id,
+                    'product_name': insp.product_name or '',
+                    'product_class': insp.product_class or '',
+                    'lab': insp.lab or '',
+                    'is_sample_taken': insp.is_sample_taken or False,
+                    'bought_sample': float(insp.bought_sample) if insp.bought_sample else 0,
+                    'km_traveled': float(insp.km_traveled) if insp.km_traveled else 0,
+                    'hours': float(insp.hours) if insp.hours else 0,
+                    'fat': bool(insp.fat),
+                    'protein': bool(insp.protein),
+                    'calcium': bool(insp.calcium),
+                    'dna': bool(insp.dna),
+                    'needs_retest': insp.needs_retest or 'NO',
+                })
     else:
         # For occurrence reports, no commodity data
         related_inspections = []
