@@ -28,13 +28,13 @@ function toggleSentStatus(btn) {
         btn.disabled = false;
         if (data.success || data.status === 'success') {
             if (newStatus === 'YES') {
-                btn.innerHTML = '<i class="fas fa-check"></i> Sent';
+                btn.innerHTML = 'Sent';
                 btn.style.background = '#10b981';
                 btn.style.color = 'white';
                 btn.setAttribute('data-is-sent', 'true');
                 btn.title = 'Click to mark as not sent';
             } else {
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+                btn.innerHTML = 'Send';
                 btn.style.background = '#e5e7eb';
                 btn.style.color = '#6b7280';
                 btn.setAttribute('data-is-sent', 'false');
