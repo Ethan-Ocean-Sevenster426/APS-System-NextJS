@@ -2138,6 +2138,9 @@
         const totalSteps = {% if action == 'Edit' %}4{% else %}5{% endif %}; // 4 steps in Edit mode (no Documents), 5 in Add mode
         const isOccurrenceReport = {% if is_occurrence_report %}true{% else %} false{% endif %};
         const isEditMode = {% if action == 'Edit' %}true{% else %}false{% endif %};
+        // Early-declared reference so generateProductForms can safely access edit data
+        // before the const editModeData is initialized (avoids temporal dead zone error)
+        var _editData = { commodityData: {}, isEditMode: isEditMode };
 
         // Track uploaded files
         const uploadedFiles = {
@@ -2393,9 +2396,11 @@
             console.log('[generateProductForms] Selected commodities:', JSON.stringify(selectedCommodities));
             console.log('[generateProductForms] Current productsData.length:', productsData.length);
             console.log('[generateProductForms] isEditMode:', isEditMode);
-            console.log('[generateProductForms] commodityData available:', JSON.stringify(Object.keys(editModeData.commodityData)));
-            for (const [c, a] of Object.entries(editModeData.commodityData)) {
-                console.log(`[generateProductForms] commodityData[${c}] has ${a.length} entries:`, a.map(x => x.product_name));
+            if (isEditMode && _editData.commodityData) {
+                console.log('[generateProductForms] commodityData available:', JSON.stringify(Object.keys(_editData.commodityData)));
+                for (const [c, a] of Object.entries(_editData.commodityData)) {
+                    console.log(`[generateProductForms] commodityData[${c}] has ${a.length} entries:`, a.map(x => x.product_name));
+                }
             }
 
             // Build list of all products (expand counts)
@@ -2444,14 +2449,14 @@
                 }
 
                 // SECOND: Fall back to backend data for initial edit load (use commodityIndex to get correct product)
-                const cdArray = editModeData.commodityData[commodity];
+                const cdArray = _editData.commodityData[commodity];
                 console.log(`[GPF] → No existing. cdArray type=${typeof cdArray}, isArray=${Array.isArray(cdArray)}, length=${cdArray ? cdArray.length : 'N/A'}`);
                 if (cdArray) {
                     console.log(`[GPF] → cdArray contents:`, JSON.stringify(cdArray.map(x => x.product_name)));
                     console.log(`[GPF] → cdArray[${commodityIndex}] =`, cdArray[commodityIndex] ? JSON.stringify(cdArray[commodityIndex].product_name) : 'UNDEFINED');
                 }
-                if (editModeData.isEditMode && editModeData.commodityData[commodity] && editModeData.commodityData[commodity][commodityIndex]) {
-                    const backendData = editModeData.commodityData[commodity][commodityIndex];
+                if (_editData.isEditMode && _editData.commodityData[commodity] && _editData.commodityData[commodity][commodityIndex]) {
+                    const backendData = _editData.commodityData[commodity][commodityIndex];
                     console.log(`[GPF] → USING BACKEND[${commodityIndex}]: "${backendData.product_name}"`);
                     return {
                         commodity: p.commodity,
@@ -4897,8 +4902,10 @@
             // Data for all commodities in the group (for populating all forms)
             // Each commodity maps to an ARRAY of product data objects
             // Using JSON.parse for reliable serialization instead of Django template loops
-            commodityData: JSON.parse('{{ commodity_data_json|escapejs }}')
+            commodityData: '{{ commodity_data_json|escapejs }}' ? JSON.parse('{{ commodity_data_json|escapejs }}') : {}
         };
+        // Update early reference so functions defined above can access edit data
+        _editData = editModeData;
 
         // === DEBUG: Log the full editModeData immediately after creation ===
         console.log('[DEBUG] ========== EDIT MODE DATA DUMP ==========');
