@@ -5034,21 +5034,28 @@
 
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
-                        console.log('[EDIT MODE] Populating ALL product data from productsData...');
-                        console.log('[EDIT MODE] productsData:', productsData);
+                        console.log('[EDIT MODE] Populating ALL product data from backend commodityData...');
 
-                        // Use productsData directly - it was already correctly populated by generateProductForms
-                        // No need to re-index from commodityData
+                        // Use editModeData.commodityData as the authoritative source for product names
+                        // Track per-commodity index so each product gets the correct backend data
+                        const commodityCounter = {};
+
                         for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
+                            const commodity = productsData[productIdx].commodity;
+
+                            // Track which product index within this commodity we're on
+                            if (!commodityCounter[commodity]) commodityCounter[commodity] = 0;
+                            const commIdx = commodityCounter[commodity]++;
+
+                            // Use productsData directly - generateProductForms already assigned correct values per commodityIndex
                             const data = productsData[productIdx];
-                            const commodity = data.commodity;
 
                             if (!data) {
                                 console.log(`[EDIT MODE] No data at index ${productIdx}`);
                                 continue;
                             }
 
-                            console.log(`[EDIT MODE] Populating ${commodity} at index ${productIdx}: ${data.product_name}`);
+                            console.log(`[EDIT MODE] Populating ${commodity} #${commIdx} at index ${productIdx}: "${data.product_name}"`);
 
                             // Product name
                             const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
@@ -5150,6 +5157,10 @@
                                 productsData[productIdx].hours = parseFloat(data.hours) || 0;
                             }
                         } // End of for loop
+
+                        // Sync the hidden productsData input with corrected values
+                        document.getElementById('productsData').value = JSON.stringify(productsData);
+                        console.log('[EDIT MODE] Final productsData synced:', productsData.map((p, i) => `[${i}] ${p.commodity}: "${p.product_name}"`));
 
                         // Comment field
                         const commentInput = document.querySelector('[name="comment"]');
