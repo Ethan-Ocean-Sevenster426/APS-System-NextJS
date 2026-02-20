@@ -1349,40 +1349,40 @@
                                                 onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d" }}')" title="{% if shipment.is_occurrence_report %}Occurrence Report{% else %}View All Files{% endif %}"><i
                                                     class="fas fa-folder-open"></i></button>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_rfi %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_rfi %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_rfi %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_invoice %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_invoice %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_invoice %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_lab %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_lab %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_lab %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_lab_form %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_lab_form %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_lab_form %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_composition %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_composition %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_composition %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                        <td class="px-1 py-2 text-center">
+                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_occurrence %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_occurrence %}File Uploaded{% else %}No-File{% endif %}
+                                                {% if shipment.has_occurrence %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center text-gray-600" style="font-size: 0.6rem;">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</td>
