@@ -8262,7 +8262,9 @@
                             <!-- Generate fallback group_id for this shipment -->
                             {% with client_slug=shipment.client_name|sanitize_group_id %}
                             {% with date_str=shipment.date_of_inspection|date:"Ymd" %}
-                            {% with fallback_group_id=client_slug|add:"_"|add:date_str %}
+                            {% with ig_str=shipment.inspection_group_id|stringformat:"d" %}
+                            {% with group_suffix="_g"|add:ig_str %}
+                            {% with fallback_group_id=client_slug|add:"_"|add:date_str|add:group_suffix %}
 
                             <!-- Mobile Group Card -->
                             <div class="group-card bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 overflow-hidden"
@@ -8801,6 +8803,8 @@
                             {% endwith %}
                             {% endwith %}
                             {% endwith %}
+                            {% endwith %}
+                            {% endwith %}
                             {% endfor %}
                         </div>
 
@@ -8831,7 +8835,9 @@
                                     {% for shipment in shipments %}
                                     {% with client_slug=shipment.client_name|sanitize_group_id %}
                                     {% with date_str=shipment.date_of_inspection|date:"Ymd" %}
-                                    {% with fallback_group_id=client_slug|add:"_"|add:date_str %}
+                                    {% with ig_str=shipment.inspection_group_id|stringformat:"d" %}
+                                    {% with group_suffix="_g"|add:ig_str %}
+                                    {% with fallback_group_id=client_slug|add:"_"|add:date_str|add:group_suffix %}
                                     <tr class="group-row shipment-row bg-white hover:bg-gray-50 border-b border-gray-200 cursor-pointer"
                                         data-group-id="{{ fallback_group_id }}"
                                         data-client-name="{{ shipment.client_name }}"
@@ -9282,6 +9288,8 @@
                                             </div>
                                         </td>
                                     </tr>
+                                    {% endwith %}
+                                    {% endwith %}
                                     {% endwith %}
                                     {% endwith %}
                                     {% endwith %}

@@ -1,8 +1,20 @@
 import json
+import re as _re
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from ..models import FoodSafetyAgencyInspection
+
+
+def _parse_group_id(group_id):
+    """Strip _g{inspection_group_pk} suffix from group_id if present.
+    Returns (clean_group_id, inspection_group_pk_or_None)."""
+    if not group_id:
+        return group_id, None
+    m = _re.match(r'^(.+)_g(\d+)$', str(group_id))
+    if m:
+        return m.group(1), int(m.group(2))
+    return group_id, None
 
 @login_required
 def update_product_name(request):
@@ -1658,33 +1670,37 @@ def delete_inspection_group(request):
         if not group_id:
             return JsonResponse({'success': False, 'error': 'No group ID provided'})
 
-        # Parse group_id format: clientslug_YYYYMMDD
-        # The client name part may contain underscores, so split from the right
-        parts = group_id.rsplit('_', 1)
-        if len(parts) != 2:
-            return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+        # Strip _g{pk} suffix for precise group lookup
+        clean_group_id, inspection_group_pk = _parse_group_id(group_id)
 
-        client_slug = parts[0]
-        date_str = parts[1]
+        # Prefer precise lookup by inspection_group PK
+        if inspection_group_pk:
+            matching_inspections = list(FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_pk
+            ))
+        else:
+            # Fallback: parse group_id format: clientslug_YYYYMMDD
+            parts = clean_group_id.rsplit('_', 1)
+            if len(parts) != 2:
+                return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-        # Parse date
-        try:
-            inspection_date = datetime.strptime(date_str, '%Y%m%d').date()
-        except ValueError:
-            return JsonResponse({'success': False, 'error': 'Invalid date in group ID'})
+            client_slug = parts[0]
+            date_str = parts[1]
 
-        # Find all inspections matching this group
-        inspections = FoodSafetyAgencyInspection.objects.filter(
-            date_of_inspection=inspection_date
-        )
+            try:
+                inspection_date = datetime.strptime(date_str, '%Y%m%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'error': 'Invalid date in group ID'})
 
-        # Filter by client name (compare sanitized versions)
-        matching_inspections = []
-        for insp in inspections:
-            # Sanitize the client name the same way the template does
-            sanitized = sanitize_group_id(insp.client_name or '')
-            if sanitized.lower() == client_slug.lower():
-                matching_inspections.append(insp)
+            inspections = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=inspection_date
+            )
+
+            matching_inspections = []
+            for insp in inspections:
+                sanitized = sanitize_group_id(insp.client_name or '')
+                if sanitized.lower() == client_slug.lower():
+                    matching_inspections.append(insp)
 
         if not matching_inspections:
             return JsonResponse({'success': False, 'error': 'No inspections found for this group'})
@@ -2936,7 +2952,7 @@ def shipment_list(request):
         # Generate group_id
         sanitized_client = sanitize_group_id(client_name) if client_name else ""
         date_str = date_of_inspection.strftime('%Y%m%d') if date_of_inspection else "NO_DATE"
-        group_id = f"{sanitized_client}_{date_str}" if sanitized_client and date_of_inspection else f"ERROR_client_{client_name}_date_{date_of_inspection}"
+        group_id = f"{sanitized_client}_{date_str}_g{inspection_group_id}" if sanitized_client and date_of_inspection else f"ERROR_client_{client_name}_date_{date_of_inspection}"
         
         
         # Create a simple dictionary instead of dynamic class object
@@ -3359,6 +3375,7 @@ def upload_document(request):
             
             # Get form data
             group_id = request.POST.get('group_id')
+            group_id, inspection_group_pk = _parse_group_id(group_id)
             inspection_id = request.POST.get('inspection_id')
             document_type = request.POST.get('document_type')
             inspection_number = request.POST.get('inspection_number')  # For individual inspection compliance files
@@ -3809,19 +3826,26 @@ def upload_document(request):
                     target_inspection = None
 
             if not target_inspection and group_id:
-                # Group upload - find first inspection for this client+date
-                parts = group_id.split('_')
-                if len(parts) >= 2:
-                    date_str = parts[-1]
-                    if len(date_str) == 8:
-                        try:
-                            date_obj = datetime.strptime(date_str, '%Y%m%d').date()
-                            target_inspection = FoodSafetyAgencyInspection.objects.filter(
-                                client_name__iexact=client_name,
-                                date_of_inspection=date_obj
-                            ).first()
-                        except ValueError:
-                            pass
+                # Group upload - prefer precise lookup by inspection_group PK
+                if inspection_group_pk:
+                    target_inspection = FoodSafetyAgencyInspection.objects.filter(
+                        inspection_group_id=inspection_group_pk
+                    ).first()
+
+                # Fallback to client+date parse for legacy group_id format
+                if not target_inspection:
+                    parts = group_id.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[-1]
+                        if len(date_str) == 8:
+                            try:
+                                date_obj = datetime.strptime(date_str, '%Y%m%d').date()
+                                target_inspection = FoodSafetyAgencyInspection.objects.filter(
+                                    client_name__iexact=client_name,
+                                    date_of_inspection=date_obj
+                                ).first()
+                            except ValueError:
+                                pass
 
             # Ensure inspection has a linked Client
             if target_inspection:
@@ -9924,56 +9948,57 @@ def update_group_km_traveled(request):
     """Update km_traveled field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            group_id = request.POST.get('group_id')
+            raw_group_id = request.POST.get('group_id')
             km_traveled = request.POST.get('km_traveled')
 
-            # Parse group_id to extract client_name and date_of_inspection
-            # group_id format: "client_name_date_of_inspection"
-            if '_' not in group_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            clean_gid, ig_pk = _parse_group_id(raw_group_id)
 
-            # Split the group_id to get client_name and date
-            parts = group_id.split('_')
-            if len(parts) < 2:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            # Prefer precise lookup by inspection_group PK
+            if ig_pk:
+                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
+            else:
+                # Fallback: parse group_id to extract client_name and date
+                group_id = clean_gid
+                if '_' not in group_id:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Invalid group ID format'
+                    })
 
-            # Reconstruct client_name (may contain underscores) and date
-            date_part = parts[-1]
-            client_name_parts = parts[:-1]
-            client_name = '_'.join(client_name_parts)
+                parts = group_id.split('_')
+                if len(parts) < 2:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Invalid group ID format'
+                    })
 
-            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
-            from datetime import datetime
-            date_of_inspection = None
-            for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                try:
-                    date_of_inspection = datetime.strptime(date_part, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            if not date_of_inspection:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Invalid date format in group ID: {date_part}'
-                })
+                date_part = parts[-1]
+                client_name = '_'.join(parts[:-1])
 
-            # Find all inspections in this group using normalized client name
-            import re as _re
-            def _normalize(n):
-                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+                from datetime import datetime
+                date_of_inspection = None
+                for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                    try:
+                        date_of_inspection = datetime.strptime(date_part, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if not date_of_inspection:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Invalid date format in group ID: {date_part}'
+                    })
 
-            raw_key = _normalize(client_name)
-            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                date_of_inspection=date_of_inspection
-            )
-            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+                import re as _re_local
+                def _normalize(n):
+                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                raw_key = _normalize(client_name)
+                candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                    date_of_inspection=date_of_inspection
+                )
+                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
                 return JsonResponse({
@@ -10005,62 +10030,47 @@ def update_group_comment(request):
     """Update comment field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            group_id = request.POST.get('group_id')
+            raw_group_id = request.POST.get('group_id')
             comment = request.POST.get('comment', '')
 
-            # Parse group_id to extract client_name and date_of_inspection
-            # group_id format: "client_name_date_of_inspection"
-            if '_' not in group_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            clean_gid, ig_pk = _parse_group_id(raw_group_id)
 
-            # Split the group_id to get client_name and date
-            parts = group_id.split('_')
-            if len(parts) < 2:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
-
-            # Reconstruct client_name (may contain underscores) and date
-            date_part = parts[-1]
-            client_name_parts = parts[:-1]
-            client_name = '_'.join(client_name_parts)
-
-            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
-            from datetime import datetime
-            date_of_inspection = None
-            for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                try:
-                    date_of_inspection = datetime.strptime(date_part, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            if not date_of_inspection:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Invalid date format in group ID: {date_part}'
-                })
-
-            # Find all inspections in this group using normalized client name
-            import re as _re
             import logging
             logger = logging.getLogger(__name__)
 
-            def _normalize(n):
-                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+            if ig_pk:
+                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
+            else:
+                group_id = clean_gid
+                if '_' not in group_id:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            raw_key = _normalize(client_name)
+                parts = group_id.split('_')
+                if len(parts) < 2:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                date_of_inspection=date_of_inspection
-            )
+                date_part = parts[-1]
+                client_name = '_'.join(parts[:-1])
 
-            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                from datetime import datetime
+                date_of_inspection = None
+                for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                    try:
+                        date_of_inspection = datetime.strptime(date_part, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if not date_of_inspection:
+                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
 
-            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+                import re as _re_local
+                def _normalize(n):
+                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                raw_key = _normalize(client_name)
+                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
+                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
                 logger.error(f'[COMMENT] No inspections found for group: {group_id}')
@@ -10094,62 +10104,47 @@ def update_group_hours(request):
     """Update hours field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            group_id = request.POST.get('group_id')
+            raw_group_id = request.POST.get('group_id')
             hours = request.POST.get('hours')
 
-            # Parse group_id to extract client_name and date_of_inspection
-            # group_id format: "client_name_date_of_inspection"
-            if '_' not in group_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            clean_gid, ig_pk = _parse_group_id(raw_group_id)
 
-            # Split the group_id to get client_name and date
-            parts = group_id.split('_')
-            if len(parts) < 2:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            if ig_pk:
+                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
+            else:
+                group_id = clean_gid
+                if '_' not in group_id:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Reconstruct client_name (may contain underscores) and date
-            date_part = parts[-1]
-            client_name_parts = parts[:-1]
-            client_name = '_'.join(client_name_parts)
+                parts = group_id.split('_')
+                if len(parts) < 2:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
-            from datetime import datetime
-            date_of_inspection = None
-            for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                try:
-                    date_of_inspection = datetime.strptime(date_part, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            if not date_of_inspection:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Invalid date format in group ID: {date_part}'
-                })
+                date_part = parts[-1]
+                client_name = '_'.join(parts[:-1])
 
-            # Find all inspections in this group using normalized client name
-            import re as _re
-            def _normalize(n):
-                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+                from datetime import datetime
+                date_of_inspection = None
+                for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                    try:
+                        date_of_inspection = datetime.strptime(date_part, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if not date_of_inspection:
+                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
 
-            raw_key = _normalize(client_name)
-            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                date_of_inspection=date_of_inspection
-            )
-            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+                import re as _re_local
+                def _normalize(n):
+                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                raw_key = _normalize(client_name)
+                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
+                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({
-                    'success': False,
-                    'error': f'No inspections found for group: {group_id}'
-                })
+                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
 
             # Update hours for all inspections in the group
             hours_value = float(hours) if hours else None
@@ -10177,62 +10172,47 @@ def update_group_additional_email(request):
     """Update additional_email field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            group_id = request.POST.get('group_id')
+            raw_group_id = request.POST.get('group_id')
             additional_email = request.POST.get('additional_email', '').strip()
 
-            # Parse group_id to extract client_name and date_of_inspection
-            # group_id format: "client_name_date_of_inspection"
-            if '_' not in group_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            clean_gid, ig_pk = _parse_group_id(raw_group_id)
 
-            # Split the group_id to get client_name and date
-            parts = group_id.split('_')
-            if len(parts) < 2:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            if ig_pk:
+                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
+            else:
+                group_id = clean_gid
+                if '_' not in group_id:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Reconstruct client_name (may contain underscores) and date
-            date_part = parts[-1]
-            client_name_parts = parts[:-1]
-            client_name = '_'.join(client_name_parts)
+                parts = group_id.split('_')
+                if len(parts) < 2:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
-            from datetime import datetime
-            date_of_inspection = None
-            for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                try:
-                    date_of_inspection = datetime.strptime(date_part, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            if not date_of_inspection:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Invalid date format in group ID: {date_part}'
-                })
+                date_part = parts[-1]
+                client_name = '_'.join(parts[:-1])
 
-            # Find all inspections in this group using normalized client name
-            import re as _re
-            def _normalize(n):
-                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+                from datetime import datetime
+                date_of_inspection = None
+                for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                    try:
+                        date_of_inspection = datetime.strptime(date_part, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if not date_of_inspection:
+                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
 
-            raw_key = _normalize(client_name)
-            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                date_of_inspection=date_of_inspection
-            )
-            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+                import re as _re_local
+                def _normalize(n):
+                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                raw_key = _normalize(client_name)
+                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
+                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({
-                    'success': False,
-                    'error': f'No inspections found for group: {group_id}'
-                })
+                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
 
             # Validate email if provided
             if additional_email:
@@ -10288,62 +10268,47 @@ def update_group_approved(request):
     """Update approved_status field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            group_id = request.POST.get('group_id')
+            raw_group_id = request.POST.get('group_id')
             approved_status = request.POST.get('approved_status')
 
-            # Parse group_id to extract client_name and date_of_inspection
-            # group_id format: "client_name_date_of_inspection"
-            if '_' not in group_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            clean_gid, ig_pk = _parse_group_id(raw_group_id)
 
-            # Split the group_id to get client_name and date
-            parts = group_id.split('_')
-            if len(parts) < 2:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Invalid group ID format'
-                })
+            if ig_pk:
+                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
+            else:
+                group_id = clean_gid
+                if '_' not in group_id:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Reconstruct client_name (may contain underscores) and date
-            date_part = parts[-1]
-            client_name_parts = parts[:-1]
-            client_name = '_'.join(client_name_parts)
+                parts = group_id.split('_')
+                if len(parts) < 2:
+                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
-            from datetime import datetime
-            date_of_inspection = None
-            for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                try:
-                    date_of_inspection = datetime.strptime(date_part, fmt).date()
-                    break
-                except ValueError:
-                    continue
-            if not date_of_inspection:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Invalid date format in group ID: {date_part}'
-                })
+                date_part = parts[-1]
+                client_name = '_'.join(parts[:-1])
 
-            # Find all inspections in this group using normalized client name
-            import re as _re
-            def _normalize(n):
-                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+                from datetime import datetime
+                date_of_inspection = None
+                for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                    try:
+                        date_of_inspection = datetime.strptime(date_part, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                if not date_of_inspection:
+                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
 
-            raw_key = _normalize(client_name)
-            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                date_of_inspection=date_of_inspection
-            )
-            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+                import re as _re_local
+                def _normalize(n):
+                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                raw_key = _normalize(client_name)
+                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
+                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({
-                    'success': False,
-                    'error': f'No inspections found for group: {group_id}'
-                })
+                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
 
             # Validate approved_status
             valid_statuses = ['PENDING', 'APPROVED']
@@ -13863,9 +13828,14 @@ def update_sent_status(request):
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     try:
-        group_id = request.POST.get('group_id')
+        raw_group_id = request.POST.get('group_id')
         sent_status = request.POST.get('sent_status')
         inspection_group_id = request.POST.get('inspection_group_id')  # NEW: Database group ID
+
+        # Strip _g{pk} suffix from group_id
+        group_id, ig_pk = _parse_group_id(raw_group_id)
+        if not inspection_group_id and ig_pk:
+            inspection_group_id = ig_pk
 
         print(f" Group ID: '{group_id}', Status: '{sent_status}', inspection_group_id: '{inspection_group_id}'")
 
