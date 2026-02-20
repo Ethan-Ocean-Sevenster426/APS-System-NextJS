@@ -9236,6 +9236,13 @@ def analytics_dashboard_api(request):
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
             'inspector_name', 'commodity'
         ).annotate(count=Count('id')).order_by('inspector_name', 'commodity')),
+        'inspectorSampleMatrix': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(Q(commodity__isnull=True) | Q(commodity='')).filter(
+            is_sample_taken=True
+        ).values('inspector_name', 'commodity').annotate(
+            count=Count('id')
+        ).order_by('inspector_name', 'commodity')),
         'approvalPerInspector': list(qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
         ).values('inspector_name').annotate(

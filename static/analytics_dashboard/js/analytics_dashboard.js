@@ -226,6 +226,7 @@ async function applyFilters() {
             directionsPerInspector: data.directionsPerInspector || [],
             travelPerInspector: data.travelPerInspector || [],
             inspectorCommodityMatrix: data.inspectorCommodityMatrix || [],
+            inspectorSampleMatrix: data.inspectorSampleMatrix || [],
             approvalPerInspector: data.approvalPerInspector || [],
             inspectorFinancials: data.inspectorFinancials || [],
             financialSummary: data.financialSummary || {},
