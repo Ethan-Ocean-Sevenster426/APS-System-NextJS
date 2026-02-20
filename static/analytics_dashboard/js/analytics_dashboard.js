@@ -81,6 +81,7 @@ function loadInitialData() {
         directionsPerInspector: cfg.directionsPerInspector || [],
         travelPerInspector: cfg.travelPerInspector || [],
         inspectorCommodityMatrix: cfg.inspectorCommodityMatrix || [],
+        inspectorSampleMatrix: cfg.inspectorSampleMatrix || [],
         approvalPerInspector: cfg.approvalPerInspector || [],
         inspectorFinancials: cfg.inspectorFinancials || [],
         financialSummary: cfg.financialSummary || {},
@@ -911,6 +912,209 @@ function renderFacilityTypesChart() {
 }
 
 // ================================================================
+// INSPECTOR TARGETS (Q1: Jan-Mar 2026)
+// ================================================================
+var INSPECTOR_TARGETS = {
+    inspections: { EGGS: 51, POULTRY: 59, RAW: 63, PMP: 54 },
+    sampling: { RAW: 58, PMP: 12 }
+};
+var SAMPLING_TOTAL_TARGET = 70;
+
+function getInspectorData() {
+    var inspectors = {};
+    // Build inspection counts per inspector per commodity
+    (dashboardData.inspectorCommodityMatrix || []).forEach(function(item) {
+        if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = { inspections: {}, samples: {} };
+        inspectors[item.inspector_name].inspections[item.commodity.toUpperCase()] = item.count || 0;
+    });
+    // Build sample counts per inspector per commodity
+    (dashboardData.inspectorSampleMatrix || []).forEach(function(item) {
+        if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = { inspections: {}, samples: {} };
+        inspectors[item.inspector_name].samples[item.commodity.toUpperCase()] = item.count || 0;
+    });
+    return inspectors;
+}
+
+// ================================================================
+// RENDER: INSPECTOR RADAR CHART
+// ================================================================
+function renderInspectorRadarChart() {
+    destroyChart('inspectorRadarChart');
+    var canvas = document.getElementById('inspectorRadarChart');
+    if (!canvas) return;
+
+    var inspectors = getInspectorData();
+    var inspectorNames = Object.keys(inspectors).sort();
+    if (inspectorNames.length === 0) return;
+
+    // Populate dropdown if not already done
+    var select = document.getElementById('radarInspectorSelect');
+    if (select && select.options.length <= 1) {
+        inspectorNames.forEach(function(name) {
+            var opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+    }
+
+    var selectedInspector = select ? select.value : 'all';
+    var labels = ['Eggs Insp.', 'Poultry Insp.', 'RAW Insp.', 'PMP Insp.', 'RAW Samples', 'PMP Samples'];
+    var targetData = [
+        INSPECTOR_TARGETS.inspections.EGGS,
+        INSPECTOR_TARGETS.inspections.POULTRY,
+        INSPECTOR_TARGETS.inspections.RAW,
+        INSPECTOR_TARGETS.inspections.PMP,
+        INSPECTOR_TARGETS.sampling.RAW,
+        INSPECTOR_TARGETS.sampling.PMP
+    ];
+
+    var datasets = [{
+        label: 'Target',
+        data: targetData,
+        borderColor: '#d13438',
+        backgroundColor: 'rgba(209, 52, 56, 0.08)',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 3,
+        pointBackgroundColor: '#d13438'
+    }];
+
+    if (selectedInspector === 'all') {
+        // Show all inspectors with different colors
+        inspectorNames.forEach(function(name, idx) {
+            var d = inspectors[name];
+            var color = CHART_PALETTE[idx % CHART_PALETTE.length];
+            datasets.push({
+                label: name,
+                data: [
+                    (d.inspections['EGGS'] || d.inspections['EGG'] || 0),
+                    (d.inspections['POULTRY'] || 0),
+                    (d.inspections['RAW'] || 0),
+                    (d.inspections['PMP'] || 0),
+                    (d.samples['RAW'] || 0),
+                    (d.samples['PMP'] || 0)
+                ],
+                borderColor: color,
+                backgroundColor: color.replace(')', ', 0.1)').replace('rgb', 'rgba'),
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: color
+            });
+        });
+    } else {
+        var d = inspectors[selectedInspector];
+        if (d) {
+            datasets.push({
+                label: selectedInspector,
+                data: [
+                    (d.inspections['EGGS'] || d.inspections['EGG'] || 0),
+                    (d.inspections['POULTRY'] || 0),
+                    (d.inspections['RAW'] || 0),
+                    (d.inspections['PMP'] || 0),
+                    (d.samples['RAW'] || 0),
+                    (d.samples['PMP'] || 0)
+                ],
+                borderColor: '#0078d4',
+                backgroundColor: 'rgba(0, 120, 212, 0.15)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: '#0078d4'
+            });
+        }
+    }
+
+    chartInstances['inspectorRadarChart'] = new Chart(canvas, {
+        type: 'radar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    grid: { color: gridColor() },
+                    angleLines: { color: gridColor() },
+                    pointLabels: { color: txtColor(), font: { size: 11 } },
+                    ticks: { color: txtColor(), backdropColor: 'transparent', font: { size: 9 } }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: txtColor(), padding: 10, font: { size: 10 }, usePointStyle: true }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(ctx) {
+                            if (ctx.datasetIndex === 0) return '';
+                            var target = targetData[ctx.dataIndex];
+                            var actual = ctx.raw;
+                            var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+                            return pct + '% of target (' + target + ')';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: INSPECTOR TARGETS TABLE
+// ================================================================
+function renderInspectorTargetsTable() {
+    var headerRow = document.getElementById('targetsHeader');
+    var tbody = document.getElementById('targetsBody');
+    if (!headerRow || !tbody) return;
+
+    var inspectors = getInspectorData();
+    var inspectorNames = Object.keys(inspectors).sort();
+    if (inspectorNames.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
+
+    headerRow.innerHTML = '<th style="min-width:110px;">Inspector</th>' +
+        '<th class="num">Eggs<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.EGGS + '</small></th>' +
+        '<th class="num">Poultry<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.POULTRY + '</small></th>' +
+        '<th class="num">RAW<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.RAW + '</small></th>' +
+        '<th class="num">PMP<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.PMP + '</small></th>' +
+        '<th class="num">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
+        '<th class="num">PMP Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.PMP + '</small></th>' +
+        '<th class="num">Total Samples<br><small style="color:#888;">/ ' + SAMPLING_TOTAL_TARGET + '</small></th>';
+
+    function cell(actual, target) {
+        var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+        var color = actual >= target ? '#166534' : '#991b1b';
+        var bg = actual >= target ? '#dcfce7' : '#fee2e2';
+        return '<td class="num" style="color:' + color + '; background:' + bg + '; font-weight:600;">' +
+            actual + ' <small style="opacity:0.7;">(' + pct + '%)</small></td>';
+    }
+
+    var html = '';
+    inspectorNames.forEach(function(name) {
+        var d = inspectors[name];
+        var eggs = d.inspections['EGGS'] || d.inspections['EGG'] || 0;
+        var poultry = d.inspections['POULTRY'] || 0;
+        var raw = d.inspections['RAW'] || 0;
+        var pmp = d.inspections['PMP'] || 0;
+        var rawSamples = d.samples['RAW'] || 0;
+        var pmpSamples = d.samples['PMP'] || 0;
+        var totalSamples = 0;
+        Object.keys(d.samples).forEach(function(k) { totalSamples += d.samples[k] || 0; });
+
+        html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
+        html += cell(eggs, INSPECTOR_TARGETS.inspections.EGGS);
+        html += cell(poultry, INSPECTOR_TARGETS.inspections.POULTRY);
+        html += cell(raw, INSPECTOR_TARGETS.inspections.RAW);
+        html += cell(pmp, INSPECTOR_TARGETS.inspections.PMP);
+        html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW);
+        html += cell(pmpSamples, INSPECTOR_TARGETS.sampling.PMP);
+        html += cell(totalSamples, SAMPLING_TOTAL_TARGET);
+        html += '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+// ================================================================
 // RENDER ALL
 // ================================================================
 function renderAll() {
@@ -930,6 +1134,8 @@ function renderAll() {
     renderEfficiencyMatrix();
     renderApprovalRateChart();
     renderDailyComplianceChart();
+    renderInspectorRadarChart();
+    renderInspectorTargetsTable();
 }
 
 // ================================================================

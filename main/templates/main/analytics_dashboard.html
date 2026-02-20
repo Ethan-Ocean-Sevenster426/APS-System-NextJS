@@ -654,6 +654,41 @@
             </div>
         </div>
 
+        <!-- Inspector Targets Radar Chart -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Inspector Performance vs Targets (Q1: Jan-Mar)</span>
+                </div>
+                <select id="radarInspectorSelect" onchange="renderInspectorRadarChart()" style="font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                    <option value="all">All Inspectors</option>
+                </select>
+            </div>
+            <div class="card-body" style="height: 380px;">
+                <canvas id="inspectorRadarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Inspector Targets vs Actual Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Inspector Quarterly Targets Tracker (Q1: Jan-Mar)</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto;">
+                <table class="inspections-table" id="inspectorTargetsTable" style="font-size: 10.5px;">
+                    <thead>
+                        <tr id="targetsHeader"></tr>
+                    </thead>
+                    <tbody id="targetsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         </div>
         </div>
     </div>
@@ -697,6 +732,7 @@
             directionsPerInspector: {{ directions_per_inspector|safe }},
             travelPerInspector: {{ travel_per_inspector|safe }},
             inspectorCommodityMatrix: {{ inspector_commodity_matrix|safe }},
+            inspectorSampleMatrix: {{ inspector_sample_matrix|safe }},
             approvalPerInspector: {{ approval_per_inspector|safe }},
 
             // Financial / Revenue data

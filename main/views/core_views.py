@@ -8622,6 +8622,17 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('inspector_name', 'commodity'))
 
+    # Per-inspector per-commodity sample counts for target tracking
+    inspector_sample_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        is_sample_taken=True
+    ).values('inspector_name', 'commodity').annotate(
+        count=Count('id')
+    ).order_by('inspector_name', 'commodity'))
+
     # Approval status breakdown per inspector
     approval_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
@@ -9006,6 +9017,7 @@ def analytics_dashboard(request):
         'directions_per_inspector': safe_json_dumps(directions_per_inspector, []),
         'travel_per_inspector': safe_json_dumps(travel_per_inspector, []),
         'inspector_commodity_matrix': safe_json_dumps(inspector_commodity_matrix, []),
+        'inspector_sample_matrix': safe_json_dumps(inspector_sample_matrix, []),
         'approval_per_inspector': safe_json_dumps(approval_per_inspector, []),
 
         # Financial / Revenue data
