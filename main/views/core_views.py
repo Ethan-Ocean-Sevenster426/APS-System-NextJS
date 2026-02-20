@@ -8645,6 +8645,59 @@ def analytics_dashboard(request):
     for item in approval_per_inspector:
         item['approval_rate'] = round((item['approved'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
+    # === MONTHLY TREND DATA ===
+    from django.db.models.functions import TruncMonth as _TruncMonth
+    # Monthly occurrence reports
+    monthly_occurrence_trend = list(FoodSafetyAgencyInspection.objects.filter(
+        is_occurrence_report=True
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=_TruncMonth('date_of_inspection')
+    ).values('month').annotate(count=Count('id')).order_by('month'))
+
+    # Monthly total travel distance
+    monthly_travel_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+    ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
+        total_km=Sum('km_traveled')
+    ).order_by('month'))
+
+    # Monthly avg days to send documents
+    _doc_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(sent_by__isnull=True):
+        _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _doc_by_month:
+            _doc_by_month[_mk] = {'total': 0, 'count': 0}
+        _doc_by_month[_mk]['total'] += _delta
+        _doc_by_month[_mk]['count'] += 1
+    monthly_doc_send_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
+
+    # Monthly avg days to upload invoice
+    _inv_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(invoice_uploaded_by__isnull=True):
+        _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _inv_by_month:
+            _inv_by_month[_mk] = {'total': 0, 'count': 0}
+        _inv_by_month[_mk]['total'] += _delta
+        _inv_by_month[_mk]['count'] += 1
+    monthly_invoice_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
+
+    # Monthly inspections count (for trend)
+    monthly_inspections_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        date_of_inspection__isnull=True
+    ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
     # === FILTER OPTIONS ===
     all_years = sorted(set(
         d.year for d in FoodSafetyAgencyInspection.objects.exclude(
@@ -9020,6 +9073,13 @@ def analytics_dashboard(request):
         'inspector_sample_matrix': safe_json_dumps(inspector_sample_matrix, []),
         'approval_per_inspector': safe_json_dumps(approval_per_inspector, []),
 
+        # Monthly trends
+        'monthly_occurrence_trend': safe_json_dumps(monthly_occurrence_trend, []),
+        'monthly_travel_trend': safe_json_dumps(monthly_travel_trend, []),
+        'monthly_doc_send_trend': safe_json_dumps(monthly_doc_send_trend, []),
+        'monthly_invoice_trend': safe_json_dumps(monthly_invoice_trend, []),
+        'monthly_inspections_trend': safe_json_dumps(monthly_inspections_trend, []),
+
         # Financial / Revenue data
         'inspector_financials': safe_json_dumps(inspector_financials, []),
         'financial_summary': safe_json_dumps(financial_summary, {}),
@@ -9359,6 +9419,50 @@ def analytics_dashboard_api(request):
         key=lambda x: x['total_hours'], reverse=True,
     )
     data['travelTimePerInspector'] = travel_time_per_inspector
+
+    # Monthly trends (filtered)
+    from django.db.models.functions import TruncMonth as _TM
+    data['monthlyOccurrenceTrend'] = list(qs.filter(
+        is_occurrence_report=True
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=_TM('date_of_inspection')
+    ).values('month').annotate(count=Count('id')).order_by('month'))
+
+    data['monthlyTravelTrend'] = list(qs.exclude(
+        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+        total_km=Sum('km_traveled')
+    ).order_by('month'))
+
+    data['monthlyInspectionsTrend'] = list(qs.exclude(
+        date_of_inspection__isnull=True
+    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
+    _doc_by_month = {}
+    for _insp in qs.filter(is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False).exclude(sent_by__isnull=True):
+        _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _doc_by_month:
+            _doc_by_month[_mk] = {'total': 0, 'count': 0}
+        _doc_by_month[_mk]['total'] += _delta
+        _doc_by_month[_mk]['count'] += 1
+    data['monthlyDocSendTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
+
+    _inv_by_month = {}
+    for _insp in qs.filter(invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(invoice_uploaded_by__isnull=True):
+        _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _inv_by_month:
+            _inv_by_month[_mk] = {'total': 0, 'count': 0}
+        _inv_by_month[_mk]['total'] += _delta
+        _inv_by_month[_mk]['count'] += 1
+    data['monthlyInvoiceTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
 
     return JsonResponse(data, encoder=DjangoJSONEncoder)
 

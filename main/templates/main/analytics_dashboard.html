@@ -431,7 +431,7 @@
             </div>
         </div>
 
-        <!-- Two Column: Occurrence Reports + Travel Per Inspector -->
+        <!-- Two Column: Occurrence Reports + Monthly Occurrence Trend -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -447,6 +447,21 @@
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Occurrence Reports Monthly Trend</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 220px;">
+                    <canvas id="occurrenceTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column: Travel Distance + Monthly Travel Trend -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
                         <i class="fas fa-route"></i>
                         <span>Travel Distance Per Inspector</span>
                     </div>
@@ -455,9 +470,20 @@
                     <canvas id="travelChart"></canvas>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-area"></i>
+                        <span>Monthly Travel Distance (km)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 220px;">
+                    <canvas id="travelTrendChart"></canvas>
+                </div>
+            </div>
         </div>
 
-        <!-- Phase 2: Admin & Lab Time Metrics -->
+        <!-- Admin & Lab Time Metrics: Charts + Trend -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -466,22 +492,24 @@
                         <span>Avg Days to Send Documents</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: auto; max-height: 280px; overflow-y: auto; padding: 12px;">
-                    {% if doc_send_time_list %}
-                        {% for item in doc_send_time_list %}
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">
-                            <div style="min-width:120px;text-align:right;color:var(--text-secondary, #616161);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.name }}</div>
-                            <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:3px;height:18px;">
-                                <div style="width:{{ item.pct }}%;height:100%;background:#0078d4;border-radius:3px;"></div>
-                            </div>
-                            <div style="min-width:80px;font-weight:600;color:var(--text-primary, #333);">{{ item.avg_days }} days ({{ item.count }})</div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="no-data"><p>No document send data</p></div>
-                    {% endif %}
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="docSendChart"></canvas>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Doc Send Time Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="docSendTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -489,20 +517,19 @@
                         <span>Avg Days to Upload Invoice</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: auto; max-height: 280px; overflow-y: auto; padding: 12px;">
-                    {% if invoice_upload_time_list %}
-                        {% for item in invoice_upload_time_list %}
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">
-                            <div style="min-width:120px;text-align:right;color:var(--text-secondary, #616161);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.name }}</div>
-                            <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:3px;height:18px;">
-                                <div style="width:{{ item.pct }}%;height:100%;background:#f59e0b;border-radius:3px;"></div>
-                            </div>
-                            <div style="min-width:80px;font-weight:600;color:var(--text-primary, #333);">{{ item.avg_days }} days ({{ item.count }})</div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="no-data"><p>No invoice upload data</p></div>
-                    {% endif %}
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="invoiceUploadChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Invoice Upload Time Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="invoiceTrendChart"></canvas>
                 </div>
             </div>
         </div>
@@ -515,24 +542,12 @@
                     <span>Avg Days: Sample to COA Upload</span>
                 </div>
             </div>
-            <div class="card-body" style="height: auto; max-height: 280px; overflow-y: auto; padding: 12px;">
-                {% if coa_analysis_time_list %}
-                    {% for item in coa_analysis_time_list %}
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">
-                        <div style="min-width:120px;text-align:right;color:var(--text-secondary, #616161);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.commodity }}</div>
-                        <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:3px;height:18px;">
-                            <div style="width:{{ item.pct }}%;height:100%;background:#10b981;border-radius:3px;"></div>
-                        </div>
-                        <div style="min-width:80px;font-weight:600;color:var(--text-primary, #333);">{{ item.avg_days }} days ({{ item.count }})</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="no-data"><p>No COA analysis data</p></div>
-                {% endif %}
+            <div class="card-body" style="height: 200px;">
+                <canvas id="coaTimeChart"></canvas>
             </div>
         </div>
 
-        <!-- Inspector: Approval Time + Travel Time -->
+        <!-- Approval Time + Travel Time Charts -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -541,20 +556,8 @@
                         <span>Avg Days to Approval</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: auto; max-height: 280px; overflow-y: auto; padding: 12px;">
-                    {% if approval_time_list %}
-                        {% for item in approval_time_list %}
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">
-                            <div style="min-width:120px;text-align:right;color:var(--text-secondary, #616161);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.inspector_name }}</div>
-                            <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:3px;height:18px;">
-                                <div style="width:{{ item.pct }}%;height:100%;background:#8764b8;border-radius:3px;"></div>
-                            </div>
-                            <div style="min-width:80px;font-weight:600;color:var(--text-primary, #333);">{{ item.avg_days }} days ({{ item.count }})</div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="no-data"><p>No approval data yet</p></div>
-                    {% endif %}
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="approvalTimeChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -564,21 +567,22 @@
                         <span>Travel Time Per Inspector (Hours)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: auto; max-height: 280px; overflow-y: auto; padding: 12px;">
-                    {% if travel_time_list %}
-                        {% for item in travel_time_list %}
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">
-                            <div style="min-width:120px;text-align:right;color:var(--text-secondary, #616161);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.inspector_name }}</div>
-                            <div style="flex:1;background:rgba(0,0,0,0.06);border-radius:3px;height:18px;">
-                                <div style="width:{{ item.pct }}%;height:100%;background:#00b7c3;border-radius:3px;"></div>
-                            </div>
-                            <div style="min-width:80px;font-weight:600;color:var(--text-primary, #333);">{{ item.total_hours }} hrs</div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="no-data"><p>No travel time data</p></div>
-                    {% endif %}
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="travelTimeChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <!-- Monthly Inspections Trend -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Monthly Inspections Trend</span>
+                </div>
+            </div>
+            <div class="card-body" style="height: 220px;">
+                <canvas id="monthlyInspectionsTrendChart"></canvas>
             </div>
         </div>
 
@@ -735,6 +739,13 @@
             inspectorSampleMatrix: {{ inspector_sample_matrix|safe }},
             approvalPerInspector: {{ approval_per_inspector|safe }},
 
+            // Monthly trends
+            monthlyOccurrenceTrend: {{ monthly_occurrence_trend|safe }},
+            monthlyTravelTrend: {{ monthly_travel_trend|safe }},
+            monthlyDocSendTrend: {{ monthly_doc_send_trend|safe }},
+            monthlyInvoiceTrend: {{ monthly_invoice_trend|safe }},
+            monthlyInspectionsTrend: {{ monthly_inspections_trend|safe }},
+
             // Financial / Revenue data
             inspectorFinancials: {{ inspector_financials|safe }},
             financialSummary: {{ financial_summary|safe }},
@@ -746,12 +757,9 @@
             approvalTime: {{ approval_time|safe }},
             travelTimePerInspector: {{ travel_time_per_inspector|safe }}
         };
-    // DIAGNOSTIC: log radar data counts immediately from template
-    console.log('[DIAG] inspectorCommodityMatrix count:', (window.DJANGO_CONFIG.inspectorCommodityMatrix || []).length);
-    console.log('[DIAG] inspectorSampleMatrix count:', (window.DJANGO_CONFIG.inspectorSampleMatrix || []).length);
     </script>
     <!-- Analytics Dashboard JS -->
-    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221e"></script>
+    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221f"></script>
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:white; padding:32px 48px; border-radius:8px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.3);">

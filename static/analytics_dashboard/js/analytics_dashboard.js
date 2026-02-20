@@ -85,6 +85,18 @@ function loadInitialData() {
         approvalPerInspector: cfg.approvalPerInspector || [],
         inspectorFinancials: cfg.inspectorFinancials || [],
         financialSummary: cfg.financialSummary || {},
+        // Monthly trends
+        monthlyOccurrenceTrend: cfg.monthlyOccurrenceTrend || [],
+        monthlyTravelTrend: cfg.monthlyTravelTrend || [],
+        monthlyDocSendTrend: cfg.monthlyDocSendTrend || [],
+        monthlyInvoiceTrend: cfg.monthlyInvoiceTrend || [],
+        monthlyInspectionsTrend: cfg.monthlyInspectionsTrend || [],
+        // Phase 2 time data
+        docSendTime: cfg.docSendTime || [],
+        invoiceUploadTime: cfg.invoiceUploadTime || [],
+        coaAnalysisTime: cfg.coaAnalysisTime || [],
+        approvalTime: cfg.approvalTime || [],
+        travelTimePerInspector: cfg.travelTimePerInspector || [],
     };
 }
 
@@ -230,6 +242,16 @@ async function applyFilters() {
             approvalPerInspector: data.approvalPerInspector || [],
             inspectorFinancials: data.inspectorFinancials || [],
             financialSummary: data.financialSummary || {},
+            monthlyOccurrenceTrend: data.monthlyOccurrenceTrend || [],
+            monthlyTravelTrend: data.monthlyTravelTrend || [],
+            monthlyDocSendTrend: data.monthlyDocSendTrend || [],
+            monthlyInvoiceTrend: data.monthlyInvoiceTrend || [],
+            monthlyInspectionsTrend: data.monthlyInspectionsTrend || [],
+            docSendTime: data.docSendTime || [],
+            invoiceUploadTime: data.invoiceUploadTime || [],
+            coaAnalysisTime: data.coaAnalysisTime || [],
+            approvalTime: data.approvalTime || [],
+            travelTimePerInspector: data.travelTimePerInspector || [],
         };
         renderAll();
         console.log('Dashboard updated with filtered data');
@@ -940,18 +962,30 @@ function getInspectorData() {
 // RENDER: INSPECTOR RADAR CHART
 // ================================================================
 function renderInspectorRadarChart() {
-    console.log('Radar chart: function entered');
     destroyChart('inspectorRadarChart');
     var canvas = document.getElementById('inspectorRadarChart');
-    if (!canvas) { console.warn('Radar chart: canvas not found'); return; }
+    if (!canvas) return;
 
-    console.log('Radar chart: inspectorCommodityMatrix length =', (dashboardData.inspectorCommodityMatrix || []).length);
-    console.log('Radar chart: inspectorSampleMatrix length =', (dashboardData.inspectorSampleMatrix || []).length);
+    // Use dashboardData first, fall back to DJANGO_CONFIG directly
+    var matrixData = (dashboardData.inspectorCommodityMatrix && dashboardData.inspectorCommodityMatrix.length)
+        ? dashboardData.inspectorCommodityMatrix
+        : (window.DJANGO_CONFIG ? window.DJANGO_CONFIG.inspectorCommodityMatrix || [] : []);
+    var sampleMatrixData = (dashboardData.inspectorSampleMatrix && dashboardData.inspectorSampleMatrix.length)
+        ? dashboardData.inspectorSampleMatrix
+        : (window.DJANGO_CONFIG ? window.DJANGO_CONFIG.inspectorSampleMatrix || [] : []);
 
-    var inspectors = getInspectorData();
+    var inspectors = {};
+    matrixData.forEach(function(item) {
+        if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = { inspections: {}, samples: {} };
+        inspectors[item.inspector_name].inspections[item.commodity.toUpperCase()] = item.count || 0;
+    });
+    sampleMatrixData.forEach(function(item) {
+        if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = { inspections: {}, samples: {} };
+        inspectors[item.inspector_name].samples[item.commodity.toUpperCase()] = item.count || 0;
+    });
+
     var inspectorNames = Object.keys(inspectors).sort();
-    console.log('Radar chart: inspectorNames =', inspectorNames);
-    if (inspectorNames.length === 0) { console.warn('Radar chart: no inspector data'); return; }
+    if (inspectorNames.length === 0) return;
 
     // Populate dropdown if not already done
     var select = document.getElementById('radarInspectorSelect');
@@ -1121,6 +1155,283 @@ function renderInspectorTargetsTable() {
 }
 
 // ================================================================
+// RENDER: PHASE 2 TIME-BASED CHARTS (converted from static lists)
+// ================================================================
+function renderDocSendChart() {
+    destroyChart('docSendChart');
+    var canvas = document.getElementById('docSendChart');
+    if (!canvas) return;
+    var items = dashboardData.docSendTime || [];
+    if (!items.length) return;
+    chartInstances['docSendChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.name; }),
+            datasets: [{
+                label: 'Avg Days',
+                data: items.map(function(d) { return d.avg_days; }),
+                backgroundColor: '#0078d4',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+        }
+    });
+}
+
+function renderDocSendTrendChart() {
+    destroyChart('docSendTrendChart');
+    var canvas = document.getElementById('docSendTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyDocSendTrend || [];
+    if (!items.length) { return; }
+    chartInstances['docSendTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return d.month; }),
+            datasets: [{
+                label: 'Avg Days to Send',
+                data: items.map(function(d) { return d.avg_days; }),
+                borderColor: '#0078d4', backgroundColor: 'rgba(0,120,212,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#0078d4'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+function renderInvoiceUploadChart() {
+    destroyChart('invoiceUploadChart');
+    var canvas = document.getElementById('invoiceUploadChart');
+    if (!canvas) return;
+    var items = dashboardData.invoiceUploadTime || [];
+    if (!items.length) return;
+    chartInstances['invoiceUploadChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.name; }),
+            datasets: [{
+                label: 'Avg Days',
+                data: items.map(function(d) { return d.avg_days; }),
+                backgroundColor: '#f59e0b',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+        }
+    });
+}
+
+function renderInvoiceTrendChart() {
+    destroyChart('invoiceTrendChart');
+    var canvas = document.getElementById('invoiceTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyInvoiceTrend || [];
+    if (!items.length) return;
+    chartInstances['invoiceTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return d.month; }),
+            datasets: [{
+                label: 'Avg Days to Upload Invoice',
+                data: items.map(function(d) { return d.avg_days; }),
+                borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#f59e0b'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+function renderCoaTimeChart() {
+    destroyChart('coaTimeChart');
+    var canvas = document.getElementById('coaTimeChart');
+    if (!canvas) return;
+    var items = dashboardData.coaAnalysisTime || [];
+    if (!items.length) return;
+    chartInstances['coaTimeChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.commodity; }),
+            datasets: [{
+                label: 'Avg Days',
+                data: items.map(function(d) { return d.avg_days; }),
+                backgroundColor: '#10b981',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+function renderApprovalTimeChart() {
+    destroyChart('approvalTimeChart');
+    var canvas = document.getElementById('approvalTimeChart');
+    if (!canvas) return;
+    var items = dashboardData.approvalTime || [];
+    if (!items.length) return;
+    chartInstances['approvalTimeChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.inspector_name; }),
+            datasets: [{
+                label: 'Avg Days',
+                data: items.map(function(d) { return d.avg_days; }),
+                backgroundColor: '#8764b8',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+        }
+    });
+}
+
+function renderTravelTimeChart() {
+    destroyChart('travelTimeChart');
+    var canvas = document.getElementById('travelTimeChart');
+    if (!canvas) return;
+    var items = dashboardData.travelTimePerInspector || [];
+    if (!items.length) return;
+    chartInstances['travelTimeChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.inspector_name; }),
+            datasets: [{
+                label: 'Travel Hours',
+                data: items.map(function(d) { return d.total_hours; }),
+                backgroundColor: '#00b7c3',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: OCCURRENCE TREND
+// ================================================================
+function renderOccurrenceTrendChart() {
+    destroyChart('occurrenceTrendChart');
+    var canvas = document.getElementById('occurrenceTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyOccurrenceTrend || [];
+    if (!items.length) return;
+    chartInstances['occurrenceTrendChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
+            datasets: [{
+                label: 'Occurrence Reports',
+                data: items.map(function(d) { return d.count; }),
+                backgroundColor: '#d13438',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: TRAVEL TREND
+// ================================================================
+function renderTravelTrendChart() {
+    destroyChart('travelTrendChart');
+    var canvas = document.getElementById('travelTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyTravelTrend || [];
+    if (!items.length) return;
+    chartInstances['travelTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
+            datasets: [{
+                label: 'Total KM',
+                data: items.map(function(d) { return parseFloat(d.total_km) || 0; }),
+                borderColor: '#107c10', backgroundColor: 'rgba(16,124,16,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#107c10'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: MONTHLY INSPECTIONS TREND
+// ================================================================
+function renderMonthlyInspectionsTrendChart() {
+    destroyChart('monthlyInspectionsTrendChart');
+    var canvas = document.getElementById('monthlyInspectionsTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyInspectionsTrend || [];
+    if (!items.length) return;
+    chartInstances['monthlyInspectionsTrendChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
+            datasets: [{
+                label: 'Inspections',
+                data: items.map(function(d) { return d.count; }),
+                backgroundColor: '#0078d4',
+                borderRadius: 4,
+                order: 2,
+            }, {
+                label: 'Trend',
+                data: items.map(function(d) { return d.count; }),
+                type: 'line',
+                borderColor: '#d13438',
+                backgroundColor: 'transparent',
+                tension: 0.4,
+                pointRadius: 3,
+                borderWidth: 2,
+                order: 1,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { color: txtColor(), font: { size: 10 } } } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+// ================================================================
 // RENDER ALL
 // ================================================================
 function renderAll() {
@@ -1136,15 +1447,22 @@ function renderAll() {
     renderTimeAllocationChart();
     renderDirectionsChart();
     renderOccurrenceReportsChart();
+    renderOccurrenceTrendChart();
     renderTravelChart();
+    renderTravelTrendChart();
+    renderDocSendChart();
+    renderDocSendTrendChart();
+    renderInvoiceUploadChart();
+    renderInvoiceTrendChart();
+    renderCoaTimeChart();
+    renderApprovalTimeChart();
+    renderTravelTimeChart();
+    renderMonthlyInspectionsTrendChart();
     renderEfficiencyMatrix();
     renderApprovalRateChart();
     renderDailyComplianceChart();
-    // Radar chart and targets table rendered after a tick to ensure DOM is settled
-    setTimeout(function() {
-        renderInspectorRadarChart();
-        renderInspectorTargetsTable();
-    }, 0);
+    renderInspectorRadarChart();
+    renderInspectorTargetsTable();
 }
 
 // ================================================================
