@@ -1124,30 +1124,27 @@ function renderInspectorTargetsTable() {
 // RENDER ALL
 // ================================================================
 function renderAll() {
-    var renderers = [
-        renderKPIs,
-        renderFinancialTable,
-        renderRevenueCostChart,
-        renderComplianceBars,
-        renderComplianceTrendChart,
-        renderCommodityTrendChart,
-        renderCommodityCountChart,
-        renderSamplesTakenChart,
-        renderFacilityTypesChart,
-        renderTimeAllocationChart,
-        renderDirectionsChart,
-        renderOccurrenceReportsChart,
-        renderTravelChart,
-        renderEfficiencyMatrix,
-        renderApprovalRateChart,
-        renderDailyComplianceChart,
-        renderInspectorRadarChart,
-        renderInspectorTargetsTable
-    ];
-    renderers.forEach(function(fn) {
-        console.log('renderAll: calling', fn.name);
-        try { fn(); } catch (e) { console.error('Render error in ' + fn.name + ':', e); }
-    });
+    renderKPIs();
+    renderFinancialTable();
+    renderRevenueCostChart();
+    renderComplianceBars();
+    renderComplianceTrendChart();
+    renderCommodityTrendChart();
+    renderCommodityCountChart();
+    renderSamplesTakenChart();
+    renderFacilityTypesChart();
+    renderTimeAllocationChart();
+    renderDirectionsChart();
+    renderOccurrenceReportsChart();
+    renderTravelChart();
+    renderEfficiencyMatrix();
+    renderApprovalRateChart();
+    renderDailyComplianceChart();
+    // Radar chart and targets table rendered after a tick to ensure DOM is settled
+    setTimeout(function() {
+        renderInspectorRadarChart();
+        renderInspectorTargetsTable();
+    }, 0);
 }
 
 // ================================================================
