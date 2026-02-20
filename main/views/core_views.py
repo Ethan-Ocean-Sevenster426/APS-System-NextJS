@@ -3918,120 +3918,38 @@ def upload_document(request):
                 if inspection and inspection.commodity:
                     print(f"Commodity: {inspection.commodity}")
 
-            # Generate unique filename with timestamp
+            # Generate filename: FSA-ClientName-Type-YYMMDD.ext
             file_extension = os.path.splitext(uploaded_file.name)[1]
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # Special naming for COA/Lab documents: FSL-RAW-250719
-            if document_type in ['lab', 'lab_form'] and inspection_id and str(inspection_id).isdigit():
-                # Get inspection data
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
+            # Get the real client name from the inspection record
+            real_client_name = (target_inspection.client_name if target_inspection else client_name) or 'Unknown'
+            clean_client = _re.sub(r'[^a-zA-Z0-9\s\-]', '', real_client_name)
+            clean_client = clean_client.strip().replace(' ', '-')
+            clean_client = _re.sub(r'-+', '-', clean_client).strip('-') or 'Unknown'
 
-                if inspection:
-                    # Get lab name (default to FSL if not set)
-                    lab_map = {
-                        'lab_a': 'FSL',
-                        'lab_b': 'Lab-B',
-                        'lab_c': 'Lab-C',
-                        'lab_d': 'Lab-D',
-                        'lab_e': 'Lab-E',
-                        'lab_f': 'Lab-F',
-                    }
-                    lab_name = lab_map.get(inspection.lab, 'FSL') if inspection.lab else 'FSL'
-
-                    # Get commodity (e.g., RAW, POULTRY, PMP, EGGS)
-                    commodity = inspection.commodity.upper() if inspection.commodity else 'UNKNOWN'
-
-                    # Get date from inspection (format: YYMMDD)
-                    if inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-
-                    # Format: FSL-RAW-250719
-                    filename = f"{lab_name}-{commodity}-{formatted_date}{file_extension}"
-                    print(f"[COA NAMING] Generated COA filename: {filename}")
-                    print(f"[COA NAMING] Lab: {lab_name}, Commodity: {commodity}, Date: {formatted_date}")
-                else:
-                    # Fallback to default naming if inspection not found
-                    filename = f"lab-{inspection_id}-{timestamp}{file_extension}"
-            # Special naming for RFI and Invoice: FSA-INV-250711, FSA-RFI-250711
-            elif document_type in ['rfi', 'invoice']:
-                # Get date from group_id or inspection (format: YYMMDD)
-                if group_id:
-                    parts = group_id.split('_')
-                    if len(parts) >= 2:
-                        date_str = parts[-1]
-                        if len(date_str) == 8:
-                            # Convert YYYYMMDD to YYMMDD format
-                            try:
-                                date_obj = datetime.strptime(date_str, '%Y%m%d')
-                                formatted_date = date_obj.strftime('%y%m%d')
-                            except ValueError:
-                                formatted_date = datetime.now().strftime('%y%m%d')
-                        else:
-                            formatted_date = datetime.now().strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-                elif inspection_id and str(inspection_id).isdigit():
-                    # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
-                    if inspection and inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-                else:
-                    formatted_date = datetime.now().strftime('%y%m%d')
-
-                # Map document types to their naming suffixes
-                type_mapping = {
-                    'rfi': 'RFI',
-                    'invoice': 'INV'
-                }
-
-                type_suffix = type_mapping.get(document_type, document_type.upper())
-                # Format: FSA-INV-250711, FSA-RFI-250711
-                filename = f"FSA-{type_suffix}-{formatted_date}{file_extension}"
-                print(f"[{type_suffix} NAMING] Generated filename: {filename}")
-                print(f"[{type_suffix} NAMING] Date: {formatted_date}")
-
-            # Special naming for retest: keep old format with client name
-            elif document_type == 'retest':
-                # Clean client name for filename (remove special characters)
-                import re
-                clean_client_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', client_name)
-                clean_client_name = clean_client_name.replace(' ', '-').replace('_', '-')
-                clean_client_name = re.sub(r'-+', '-', clean_client_name).strip('-')
-
-                # Get date from group_id or inspection
-                if group_id:
-                    parts = group_id.split('_')
-                    if len(parts) >= 2:
-                        date_str = parts[-1]
-                        if len(date_str) == 8:
-                            # Convert YYYYMMDD to YYYY-MM-DD format
-                            try:
-                                date_obj = datetime.strptime(date_str, '%Y%m%d')
-                                formatted_date = date_obj.strftime('%Y-%m-%d')
-                            except ValueError:
-                                formatted_date = datetime.now().strftime('%Y-%m-%d')
-                        else:
-                            formatted_date = datetime.now().strftime('%Y-%m-%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%Y-%m-%d')
-                elif inspection_id and str(inspection_id).isdigit():
-                    # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
-                    if inspection and inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%Y-%m-%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%Y-%m-%d')
-                else:
-                    formatted_date = datetime.now().strftime('%Y-%m-%d')
-
-                filename = f"{clean_client_name}-{formatted_date}-retest{file_extension}"
+            # Get date (YYMMDD) from inspection or fallback to now
+            if target_inspection and target_inspection.date_of_inspection:
+                formatted_date = target_inspection.date_of_inspection.strftime('%y%m%d')
             else:
-                filename = f"{identifier}_{document_type}_{timestamp}{file_extension}"
+                formatted_date = datetime.now().strftime('%y%m%d')
+
+            # Map document_type to a short label for the filename
+            type_label_map = {
+                'rfi': 'RFI',
+                'invoice': 'INV',
+                'lab': 'COA',
+                'lab_form': 'LAB',
+                'retest': 'RETEST',
+                'compliance': 'COMP',
+                'composition': 'COMPOSITION',
+                'occurrence': 'OCC',
+                'other': 'OTHER',
+                'coa': 'COA',
+            }
+            type_label = type_label_map.get(document_type, document_type.upper())
+
+            filename = f"FSA-{clean_client}-{type_label}-{formatted_date}{file_extension}"
+            print(f"[FILE NAMING] {document_type} -> {filename} (client: {real_client_name})")
             
             # Log the filename for debugging
             print(f"Generated filename: {filename}")
