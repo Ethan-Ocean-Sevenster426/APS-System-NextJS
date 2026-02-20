@@ -8698,6 +8698,61 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('month'))
 
+    # Monthly avg days from sample to COA upload
+    _coa_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(Q(commodity__isnull=True) | Q(commodity='')):
+        _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _coa_by_month:
+            _coa_by_month[_mk] = {'total': 0, 'count': 0}
+        _coa_by_month[_mk]['total'] += _delta
+        _coa_by_month[_mk]['count'] += 1
+    monthly_coa_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
+
+    # Monthly avg days to approval
+    _appr_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        approved_status='APPROVED', date_of_inspection__isnull=False
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+        _ref = _insp.approved_date or _insp.updated_at
+        if _ref is None:
+            continue
+        _delta = (_ref.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _appr_by_month:
+            _appr_by_month[_mk] = {'total': 0, 'count': 0}
+        _appr_by_month[_mk]['total'] += _delta
+        _appr_by_month[_mk]['count'] += 1
+    monthly_approval_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
+
+    # Monthly total travel hours
+    _travel_hrs_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
+        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    ):
+        _start = _insp['inspection_group__travel_start_time']
+        _end = _insp['inspection_group__travel_end_time']
+        if not (_start and _end):
+            continue
+        _start_dt = datetime.combine(datetime.today(), _start)
+        _end_dt = datetime.combine(datetime.today(), _end)
+        if _end_dt < _start_dt:
+            _end_dt += timedelta(days=1)
+        _dur = (_end_dt - _start_dt).total_seconds() / 3600
+        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
+    monthly_travel_hours_trend = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
+
     # === FILTER OPTIONS ===
     all_years = sorted(set(
         d.year for d in FoodSafetyAgencyInspection.objects.exclude(
@@ -9079,6 +9134,9 @@ def analytics_dashboard(request):
         'monthly_doc_send_trend': safe_json_dumps(monthly_doc_send_trend, []),
         'monthly_invoice_trend': safe_json_dumps(monthly_invoice_trend, []),
         'monthly_inspections_trend': safe_json_dumps(monthly_inspections_trend, []),
+        'monthly_coa_trend': safe_json_dumps(monthly_coa_trend, []),
+        'monthly_approval_trend': safe_json_dumps(monthly_approval_trend, []),
+        'monthly_travel_hours_trend': safe_json_dumps(monthly_travel_hours_trend, []),
 
         # Financial / Revenue data
         'inspector_financials': safe_json_dumps(inspector_financials, []),
@@ -9463,6 +9521,58 @@ def analytics_dashboard_api(request):
         _inv_by_month[_mk]['total'] += _delta
         _inv_by_month[_mk]['count'] += 1
     data['monthlyInvoiceTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
+
+    # Monthly avg days from sample to COA upload (filtered)
+    _coa_by_month = {}
+    for _insp in qs.filter(is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(Q(commodity__isnull=True) | Q(commodity='')):
+        _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _coa_by_month:
+            _coa_by_month[_mk] = {'total': 0, 'count': 0}
+        _coa_by_month[_mk]['total'] += _delta
+        _coa_by_month[_mk]['count'] += 1
+    data['monthlyCoaTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
+
+    # Monthly avg days to approval (filtered)
+    _appr_by_month = {}
+    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+        _ref = _insp.approved_date or _insp.updated_at
+        if _ref is None:
+            continue
+        _delta = (_ref.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _appr_by_month:
+            _appr_by_month[_mk] = {'total': 0, 'count': 0}
+        _appr_by_month[_mk]['total'] += _delta
+        _appr_by_month[_mk]['count'] += 1
+    data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
+
+    # Monthly total travel hours (filtered)
+    _travel_hrs_by_month = {}
+    for _insp in qs.exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
+        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    ):
+        _start = _insp['inspection_group__travel_start_time']
+        _end = _insp['inspection_group__travel_end_time']
+        if not (_start and _end):
+            continue
+        from datetime import datetime as _dt, timedelta as _td
+        _start_dt = _dt.combine(_dt.today(), _start)
+        _end_dt = _dt.combine(_dt.today(), _end)
+        if _end_dt < _start_dt:
+            _end_dt += _td(days=1)
+        _dur = (_end_dt - _start_dt).total_seconds() / 3600
+        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
+    data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
     return JsonResponse(data, encoder=DjangoJSONEncoder)
 

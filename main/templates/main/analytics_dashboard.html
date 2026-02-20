@@ -534,20 +534,33 @@
             </div>
         </div>
 
-        <!-- Lab: COA Analysis Time -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-flask"></i>
-                    <span>Avg Days: Sample to COA Upload</span>
+        <!-- Lab: COA Analysis Time + Trend -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-flask"></i>
+                        <span>Avg Days: Sample to COA Upload</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 220px;">
+                    <canvas id="coaTimeChart"></canvas>
                 </div>
             </div>
-            <div class="card-body" style="height: 200px;">
-                <canvas id="coaTimeChart"></canvas>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>COA Upload Time Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 220px;">
+                    <canvas id="coaTrendChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- Approval Time + Travel Time Charts -->
+        <!-- Approval Time + Trend -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -563,12 +576,38 @@
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Approval Time Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="approvalTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Travel Time Per Inspector + Trend -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
                         <i class="fas fa-car"></i>
                         <span>Travel Time Per Inspector (Hours)</span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 260px;">
                     <canvas id="travelTimeChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Travel Hours Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="travelHoursTrendChart"></canvas>
                 </div>
             </div>
         </div>
@@ -745,6 +784,9 @@
             monthlyDocSendTrend: {{ monthly_doc_send_trend|safe }},
             monthlyInvoiceTrend: {{ monthly_invoice_trend|safe }},
             monthlyInspectionsTrend: {{ monthly_inspections_trend|safe }},
+            monthlyCoaTrend: {{ monthly_coa_trend|safe }},
+            monthlyApprovalTrend: {{ monthly_approval_trend|safe }},
+            monthlyTravelHoursTrend: {{ monthly_travel_hours_trend|safe }},
 
             // Financial / Revenue data
             inspectorFinancials: {{ inspector_financials|safe }},
@@ -759,7 +801,7 @@
         };
     </script>
     <!-- Analytics Dashboard JS -->
-    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221f"></script>
+    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221g"></script>
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:white; padding:32px 48px; border-radius:8px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.3);">

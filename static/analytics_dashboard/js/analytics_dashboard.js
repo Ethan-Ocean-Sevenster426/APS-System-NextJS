@@ -91,6 +91,9 @@ function loadInitialData() {
         monthlyDocSendTrend: cfg.monthlyDocSendTrend || [],
         monthlyInvoiceTrend: cfg.monthlyInvoiceTrend || [],
         monthlyInspectionsTrend: cfg.monthlyInspectionsTrend || [],
+        monthlyCoaTrend: cfg.monthlyCoaTrend || [],
+        monthlyApprovalTrend: cfg.monthlyApprovalTrend || [],
+        monthlyTravelHoursTrend: cfg.monthlyTravelHoursTrend || [],
         // Phase 2 time data
         docSendTime: cfg.docSendTime || [],
         invoiceUploadTime: cfg.invoiceUploadTime || [],
@@ -247,6 +250,9 @@ async function applyFilters() {
             monthlyDocSendTrend: data.monthlyDocSendTrend || [],
             monthlyInvoiceTrend: data.monthlyInvoiceTrend || [],
             monthlyInspectionsTrend: data.monthlyInspectionsTrend || [],
+            monthlyCoaTrend: data.monthlyCoaTrend || [],
+            monthlyApprovalTrend: data.monthlyApprovalTrend || [],
+            monthlyTravelHoursTrend: data.monthlyTravelHoursTrend || [],
             docSendTime: data.docSendTime || [],
             invoiceUploadTime: data.invoiceUploadTime || [],
             coaAnalysisTime: data.coaAnalysisTime || [],
@@ -1337,6 +1343,96 @@ function renderTravelTimeChart() {
 }
 
 // ================================================================
+// RENDER: COA TIME TREND
+// ================================================================
+function renderCoaTrendChart() {
+    destroyChart('coaTrendChart');
+    var canvas = document.getElementById('coaTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyCoaTrend || [];
+    if (!items.length) return;
+    chartInstances['coaTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return d.month; }),
+            datasets: [{
+                label: 'Avg Days (Sample to COA)',
+                data: items.map(function(d) { return d.avg_days; }),
+                borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#10b981'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } }
+            },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: APPROVAL TIME TREND
+// ================================================================
+function renderApprovalTrendChart() {
+    destroyChart('approvalTrendChart');
+    var canvas = document.getElementById('approvalTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyApprovalTrend || [];
+    if (!items.length) return;
+    chartInstances['approvalTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return d.month; }),
+            datasets: [{
+                label: 'Avg Days to Approval',
+                data: items.map(function(d) { return d.avg_days; }),
+                borderColor: '#8764b8', backgroundColor: 'rgba(135,100,184,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#8764b8'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } }
+            },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+// ================================================================
+// RENDER: TRAVEL HOURS TREND
+// ================================================================
+function renderTravelHoursTrendChart() {
+    destroyChart('travelHoursTrendChart');
+    var canvas = document.getElementById('travelHoursTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyTravelHoursTrend || [];
+    if (!items.length) return;
+    chartInstances['travelHoursTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: items.map(function(d) { return d.month; }),
+            datasets: [{
+                label: 'Total Travel Hours',
+                data: items.map(function(d) { return d.total_hours; }),
+                borderColor: '#00b7c3', backgroundColor: 'rgba(0,183,195,0.1)',
+                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#00b7c3'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 9 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return v + 'h'; } } } }
+        }
+    });
+}
+
+// ================================================================
 // RENDER: OCCURRENCE TREND
 // ================================================================
 function renderOccurrenceTrendChart() {
@@ -1455,8 +1551,11 @@ function renderAll() {
     renderInvoiceUploadChart();
     renderInvoiceTrendChart();
     renderCoaTimeChart();
+    renderCoaTrendChart();
     renderApprovalTimeChart();
+    renderApprovalTrendChart();
     renderTravelTimeChart();
+    renderTravelHoursTrendChart();
     renderMonthlyInspectionsTrendChart();
     renderEfficiencyMatrix();
     renderApprovalRateChart();
