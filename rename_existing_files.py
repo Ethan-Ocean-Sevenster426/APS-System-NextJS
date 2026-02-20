@@ -94,6 +94,9 @@ for client_dir_id in sorted(os.listdir(DOCS_DIR)):
 
             type_label = TYPE_LABEL_MAP.get(doc_type, doc_type.upper())
 
+            # RFI and Invoice are group-level, no commodity/product in name
+            use_commodity = commodity_tag if doc_type not in ('rfi', 'invoice') else ''
+
             files = sorted(os.listdir(type_path))
             for i, filename in enumerate(files):
                 file_path = os.path.join(type_path, filename)
@@ -104,9 +107,9 @@ for client_dir_id in sorted(os.listdir(DOCS_DIR)):
 
                 # Build new name. If multiple files in same folder, add suffix
                 if len(files) == 1:
-                    new_name = f"FSA-{clean_client}{commodity_tag}-{type_label}-{date_str}{ext}"
+                    new_name = f"FSA-{clean_client}{use_commodity}-{type_label}-{date_str}{ext}"
                 else:
-                    new_name = f"FSA-{clean_client}{commodity_tag}-{type_label}-{date_str}-{i+1}{ext}"
+                    new_name = f"FSA-{clean_client}{use_commodity}-{type_label}-{date_str}-{i+1}{ext}"
 
                 # Check if already correctly named
                 if filename == new_name:

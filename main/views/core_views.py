@@ -3949,8 +3949,9 @@ def upload_document(request):
             type_label = type_label_map.get(document_type, document_type.upper())
 
             # Add commodity and product name for per-inspection documents
+            # RFI and Invoice are group-level (not per product), so skip commodity tag
             commodity_tag = ''
-            if target_inspection:
+            if target_inspection and document_type not in ('rfi', 'invoice'):
                 parts = []
                 if target_inspection.commodity:
                     parts.append(target_inspection.commodity.upper())
