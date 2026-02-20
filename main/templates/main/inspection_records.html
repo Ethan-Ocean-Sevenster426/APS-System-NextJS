@@ -811,13 +811,6 @@
                                             </span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-gray-500">Compliance:</span>
-                                            <span
-                                                class="text-xs px-2 py-1 rounded {% if shipment.has_compliance %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                                {% if shipment.has_compliance %}Uploaded{% else %}No File{% endif %}
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between">
                                             <span class="text-gray-500">Composition:</span>
                                             <span
                                                 class="text-xs px-2 py-1 rounded {% if shipment.has_composition %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
@@ -1318,8 +1311,6 @@
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 55px;">Lab Form</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 65px;">Compliance</th>
-                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 65px;">Composition</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 65px;">Occurrence</th>
@@ -1361,43 +1352,37 @@
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_rfi %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_rfi %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_rfi %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_invoice %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_invoice %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_invoice %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_lab %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_lab %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_lab %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_lab_form %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_lab_form %}Yes{% else %}No{% endif %}
-                                            </span>
-                                        </td>
-                                        <td class="px-2 py-2 text-center">
-                                            <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
-                                                {% if shipment.has_compliance %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_compliance %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_lab_form %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_composition %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_composition %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_composition %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block;
                                                 {% if shipment.has_occurrence %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_occurrence %}Yes{% else %}No{% endif %}
+                                                {% if shipment.has_occurrence %}File Uploaded{% else %}No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center text-gray-600" style="font-size: 0.6rem;">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</td>
@@ -1477,7 +1462,7 @@
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
                                     <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
-                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}14{% else %}13{% endif %}"
+                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}13{% else %}12{% endif %}"
                                             class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
                                                 <!-- Main Layout: Facility info on left, Products list on right -->
