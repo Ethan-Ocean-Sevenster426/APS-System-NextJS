@@ -782,6 +782,13 @@
                                                 {% if shipment.sent_date %}Sent{% else %}Not Sent{% endif %}
                                             </span>
                                         </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Invoice:</span>
+                                            <span
+                                                class="text-xs px-2 py-1 rounded {% if shipment.has_invoice %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                {% if shipment.has_invoice %}Uploaded{% else %}No File{% endif %}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <!-- Action Buttons -->
@@ -1261,6 +1268,8 @@
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 50px;">Files</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
+                                            style="width: 60px;">Invoice</th>
+                                        <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 100px;">Date</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 80px;">Approved</th>
@@ -1294,6 +1303,12 @@
                                                 style="padding: 3px 6px; background: {% if shipment.is_occurrence_report %}#f97316{% else %}#007890{% endif %}; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;"
                                                 onclick="event.stopPropagation(); viewFilesForGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d" }}')" title="{% if shipment.is_occurrence_report %}Occurrence Report{% else %}View All Files{% endif %}"><i
                                                     class="fas fa-folder-open"></i></button>
+                                        </td>
+                                        <td class="px-2 py-2 text-center">
+                                            <span style="font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; display: inline-block;
+                                                {% if shipment.has_invoice %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
+                                                {% if shipment.has_invoice %}Yes{% else %}No{% endif %}
+                                            </span>
                                         </td>
                                         <td class="px-2 py-2 text-center text-gray-600" style="font-size: 0.6rem;">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</td>
                                         <td class="px-2 py-2 text-center">
@@ -1372,7 +1387,7 @@
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
                                     <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
-                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}6{% else %}5{% endif %}"
+                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}8{% else %}7{% endif %}"
                                             class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
                                                 <!-- Main Layout: Facility info on left, Products list on right -->
