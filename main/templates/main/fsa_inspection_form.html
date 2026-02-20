@@ -2432,22 +2432,27 @@
                 const commodity = p.commodity;
                 const commodityIndex = products.slice(0, idx).filter(prod => prod.commodity === commodity).length;
 
-                console.log(`[generateProductForms] Processing idx=${idx} commodity=${commodity} commodityIndex=${commodityIndex}`);
+                console.log(`[GPF] idx=${idx} commodity=${commodity} commodityIndex=${commodityIndex}`);
+                console.log(`[GPF] existingDataMap[${commodity}]:`, JSON.stringify(existingDataMap[commodity] ? existingDataMap[commodity].map(x => x.product_name) : 'NONE'));
 
                 // FIRST: Try existing data from previous productsData (user's current form data)
                 const existing = existingDataMap[commodity] && existingDataMap[commodity][commodityIndex];
 
                 if (existing) {
-                    console.log(`[generateProductForms] → PRESERVING existing: "${existing.product_name}"`);
+                    console.log(`[GPF] → PRESERVING existing: "${existing.product_name}"`);
                     return existing;
                 }
 
                 // SECOND: Fall back to backend data for initial edit load (use commodityIndex to get correct product)
                 const cdArray = editModeData.commodityData[commodity];
-                console.log(`[generateProductForms] → No existing. Checking backend: isEditMode=${editModeData.isEditMode}, cdArray=${cdArray ? cdArray.length + ' items' : 'MISSING'}, cdArray[${commodityIndex}]=${cdArray && cdArray[commodityIndex] ? '"' + cdArray[commodityIndex].product_name + '"' : 'MISSING'}`);
+                console.log(`[GPF] → No existing. cdArray type=${typeof cdArray}, isArray=${Array.isArray(cdArray)}, length=${cdArray ? cdArray.length : 'N/A'}`);
+                if (cdArray) {
+                    console.log(`[GPF] → cdArray contents:`, JSON.stringify(cdArray.map(x => x.product_name)));
+                    console.log(`[GPF] → cdArray[${commodityIndex}] =`, cdArray[commodityIndex] ? JSON.stringify(cdArray[commodityIndex].product_name) : 'UNDEFINED');
+                }
                 if (editModeData.isEditMode && editModeData.commodityData[commodity] && editModeData.commodityData[commodity][commodityIndex]) {
                     const backendData = editModeData.commodityData[commodity][commodityIndex];
-                    console.log(`[generateProductForms] → USING BACKEND: "${backendData.product_name}"`);
+                    console.log(`[GPF] → USING BACKEND[${commodityIndex}]: "${backendData.product_name}"`);
                     return {
                         commodity: p.commodity,
                         product_name: backendData.product_name || '',
@@ -5034,16 +5039,20 @@
 
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
-                        console.log('[EDIT MODE] Populating ALL product data from backend commodityData...');
+                        console.log('[SETTIMEOUT] ===== START =====');
+                        console.log('[SETTIMEOUT] productsData BEFORE any changes:');
+                        productsData.forEach((p, i) => console.log(`[SETTIMEOUT]   [${i}] commodity="${p.commodity}" product_name="${p.product_name}"`));
+                        console.log('[SETTIMEOUT] commodityData from backend:');
+                        for (const [c, arr] of Object.entries(editModeData.commodityData)) {
+                            console.log(`[SETTIMEOUT]   ${c}: isArray=${Array.isArray(arr)}, length=${arr.length}`);
+                            arr.forEach((item, i) => console.log(`[SETTIMEOUT]     [${i}] product_name="${item.product_name}"`));
+                        }
 
-                        // Use editModeData.commodityData as the authoritative source for product names
-                        // Track per-commodity index so each product gets the correct backend data
                         const commodityCounter = {};
 
                         for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
                             const commodity = productsData[productIdx].commodity;
 
-                            // Track which product index within this commodity we're on
                             if (!commodityCounter[commodity]) commodityCounter[commodity] = 0;
                             const commIdx = commodityCounter[commodity]++;
 
@@ -5051,11 +5060,11 @@
                             const data = productsData[productIdx];
 
                             if (!data) {
-                                console.log(`[EDIT MODE] No data at index ${productIdx}`);
+                                console.log(`[SETTIMEOUT] No data at index ${productIdx}`);
                                 continue;
                             }
 
-                            console.log(`[EDIT MODE] Populating ${commodity} #${commIdx} at index ${productIdx}: "${data.product_name}"`);
+                            console.log(`[SETTIMEOUT] Populating ${commodity} #${commIdx} at index ${productIdx}: "${data.product_name}"`);
 
                             // Product name
                             const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
