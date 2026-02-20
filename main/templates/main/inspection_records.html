@@ -811,13 +811,6 @@
                                             </span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-gray-500">Composition:</span>
-                                            <span
-                                                class="text-xs px-2 py-1 rounded {% if shipment.has_composition %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                                {% if shipment.has_composition %}Uploaded{% else %}No File{% endif %}
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between">
                                             <span class="text-gray-500">Occurrence:</span>
                                             <span
                                                 class="text-xs px-2 py-1 rounded {% if shipment.has_occurrence %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
@@ -1311,9 +1304,7 @@
                                         <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 50px;">Lab Form</th>
                                         <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 55px;">Comp.</th>
-                                        <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 55px;">Occur.</th>
+                                            style="width: 45px;">OCC</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 100px;">Date</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
@@ -1371,12 +1362,6 @@
                                             <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
                                                 {% if shipment.has_lab_form %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
                                                 {% if shipment.has_lab_form %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
-                                            </span>
-                                        </td>
-                                        <td class="px-0 py-1 text-center">
-                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
-                                                {% if shipment.has_composition %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_composition %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-0 py-1 text-center">
@@ -1462,7 +1447,7 @@
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
                                     <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
-                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}13{% else %}12{% endif %}"
+                                        <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}12{% else %}11{% endif %}"
                                             class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
                                                 <!-- Main Layout: Facility info on left, Products list on right -->
