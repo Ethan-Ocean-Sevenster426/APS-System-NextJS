@@ -3948,7 +3948,22 @@ def upload_document(request):
             }
             type_label = type_label_map.get(document_type, document_type.upper())
 
-            filename = f"FSA-{clean_client}-{type_label}-{formatted_date}{file_extension}"
+            # Add commodity and product name for per-inspection documents
+            commodity_tag = ''
+            if target_inspection:
+                parts = []
+                if target_inspection.commodity:
+                    parts.append(target_inspection.commodity.upper())
+                if target_inspection.product_name:
+                    clean_product = _re.sub(r'[^a-zA-Z0-9\s\-]', '', target_inspection.product_name)
+                    clean_product = clean_product.strip().replace(' ', '-')
+                    clean_product = _re.sub(r'-+', '-', clean_product).strip('-')
+                    if clean_product:
+                        parts.append(clean_product)
+                if parts:
+                    commodity_tag = '-' + '-'.join(parts)
+
+            filename = f"FSA-{clean_client}{commodity_tag}-{type_label}-{formatted_date}{file_extension}"
             print(f"[FILE NAMING] {document_type} -> {filename} (client: {real_client_name})")
             
             # Log the filename for debugging

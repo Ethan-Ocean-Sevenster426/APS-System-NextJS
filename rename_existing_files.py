@@ -70,6 +70,18 @@ for client_dir_id in sorted(os.listdir(DOCS_DIR)):
         client_name = inspection.client_name or 'Unknown'
         clean_client = clean_name(client_name)
 
+        # Build commodity + product tag
+        commodity_tag = ''
+        parts = []
+        if inspection.commodity:
+            parts.append(inspection.commodity.upper())
+        if inspection.product_name:
+            clean_product = clean_name(inspection.product_name)
+            if clean_product:
+                parts.append(clean_product)
+        if parts:
+            commodity_tag = '-' + '-'.join(parts)
+
         if inspection.date_of_inspection:
             date_str = inspection.date_of_inspection.strftime('%y%m%d')
         else:
@@ -92,9 +104,9 @@ for client_dir_id in sorted(os.listdir(DOCS_DIR)):
 
                 # Build new name. If multiple files in same folder, add suffix
                 if len(files) == 1:
-                    new_name = f"FSA-{clean_client}-{type_label}-{date_str}{ext}"
+                    new_name = f"FSA-{clean_client}{commodity_tag}-{type_label}-{date_str}{ext}"
                 else:
-                    new_name = f"FSA-{clean_client}-{type_label}-{date_str}-{i+1}{ext}"
+                    new_name = f"FSA-{clean_client}{commodity_tag}-{type_label}-{date_str}-{i+1}{ext}"
 
                 # Check if already correctly named
                 if filename == new_name:
