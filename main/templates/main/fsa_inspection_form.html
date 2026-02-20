@@ -1117,7 +1117,7 @@
             </div>
             {% endif %}
 
-            <form method="post" id="inspectionForm" enctype="multipart/form-data">
+            <form method="post" id="inspectionForm" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
 
                 <!-- Step 1: Basic Information -->
