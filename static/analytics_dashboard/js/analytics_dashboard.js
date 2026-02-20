@@ -942,11 +942,15 @@ function getInspectorData() {
 function renderInspectorRadarChart() {
     destroyChart('inspectorRadarChart');
     var canvas = document.getElementById('inspectorRadarChart');
-    if (!canvas) return;
+    if (!canvas) { console.warn('Radar chart: canvas not found'); return; }
+
+    console.log('Radar chart: inspectorCommodityMatrix length =', (dashboardData.inspectorCommodityMatrix || []).length);
+    console.log('Radar chart: inspectorSampleMatrix length =', (dashboardData.inspectorSampleMatrix || []).length);
 
     var inspectors = getInspectorData();
     var inspectorNames = Object.keys(inspectors).sort();
-    if (inspectorNames.length === 0) return;
+    console.log('Radar chart: inspectorNames =', inspectorNames);
+    if (inspectorNames.length === 0) { console.warn('Radar chart: no inspector data'); return; }
 
     // Populate dropdown if not already done
     var select = document.getElementById('radarInspectorSelect');
@@ -1119,24 +1123,29 @@ function renderInspectorTargetsTable() {
 // RENDER ALL
 // ================================================================
 function renderAll() {
-    renderKPIs();
-    renderFinancialTable();
-    renderRevenueCostChart();
-    renderComplianceBars();
-    renderComplianceTrendChart();
-    renderCommodityTrendChart();
-    renderCommodityCountChart();
-    renderSamplesTakenChart();
-    renderFacilityTypesChart();
-    renderTimeAllocationChart();
-    renderDirectionsChart();
-    renderOccurrenceReportsChart();
-    renderTravelChart();
-    renderEfficiencyMatrix();
-    renderApprovalRateChart();
-    renderDailyComplianceChart();
-    renderInspectorRadarChart();
-    renderInspectorTargetsTable();
+    var renderers = [
+        renderKPIs,
+        renderFinancialTable,
+        renderRevenueCostChart,
+        renderComplianceBars,
+        renderComplianceTrendChart,
+        renderCommodityTrendChart,
+        renderCommodityCountChart,
+        renderSamplesTakenChart,
+        renderFacilityTypesChart,
+        renderTimeAllocationChart,
+        renderDirectionsChart,
+        renderOccurrenceReportsChart,
+        renderTravelChart,
+        renderEfficiencyMatrix,
+        renderApprovalRateChart,
+        renderDailyComplianceChart,
+        renderInspectorRadarChart,
+        renderInspectorTargetsTable
+    ];
+    renderers.forEach(function(fn) {
+        try { fn(); } catch (e) { console.error('Render error in ' + fn.name + ':', e); }
+    });
 }
 
 // ================================================================
