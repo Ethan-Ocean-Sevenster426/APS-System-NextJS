@@ -940,6 +940,7 @@ function getInspectorData() {
 // RENDER: INSPECTOR RADAR CHART
 // ================================================================
 function renderInspectorRadarChart() {
+    console.log('Radar chart: function entered');
     destroyChart('inspectorRadarChart');
     var canvas = document.getElementById('inspectorRadarChart');
     if (!canvas) { console.warn('Radar chart: canvas not found'); return; }
@@ -1144,6 +1145,7 @@ function renderAll() {
         renderInspectorTargetsTable
     ];
     renderers.forEach(function(fn) {
+        console.log('renderAll: calling', fn.name);
         try { fn(); } catch (e) { console.error('Render error in ' + fn.name + ':', e); }
     });
 }
