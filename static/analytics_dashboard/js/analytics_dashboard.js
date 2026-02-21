@@ -1607,7 +1607,33 @@ async function exportDashboardPDF() {
         if (progressEl) progressEl.textContent = msg;
     }
 
+    // Save current panel so we can restore after export
+    var savedPanel = currentPanel;
+    var allPanelEls = document.querySelectorAll('.dashboard-panel');
+
     try {
+        // ── Step 1: Force-render every panel that hasn't been visited yet ──────
+        updateProgress('Preparing all dashboard panels...');
+        var panelIds = Object.keys(PANEL_RENDER_MAP);
+        for (var pi = 0; pi < panelIds.length; pi++) {
+            var pid = panelIds[pi];
+            if (!panelRendered[pid]) {
+                var panelEl = document.getElementById('panel-' + pid);
+                if (panelEl) {
+                    panelEl.style.display = 'block';           // show so canvases have dimensions
+                    renderPanelCharts(pid);
+                    panelRendered[pid] = true;
+                    await new Promise(function(r) { setTimeout(r, 300); });
+                    panelEl.style.display = '';                // hide again
+                }
+            }
+        }
+
+        // ── Step 2: Make ALL panels visible so html2canvas can read them ───────
+        allPanelEls.forEach(function(p) { p.style.display = 'block'; });
+        await new Promise(function(r) { setTimeout(r, 200); });
+
+        // ── Step 3: Build the PDF ────────────────────────────────────────────
         var jsPDF = window.jspdf.jsPDF;
         var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -1617,7 +1643,7 @@ async function exportDashboardPDF() {
         var contentWidth = pageWidth - (margin * 2);
         var yOffset = margin;
 
-        // Title header
+        // Cover header
         pdf.setFontSize(18);
         pdf.setTextColor(0, 120, 144);
         pdf.text('Food Safety Agency (Pty) Ltd', pageWidth / 2, yOffset + 8, { align: 'center' });
@@ -1628,7 +1654,6 @@ async function exportDashboardPDF() {
         pdf.setTextColor(120, 120, 120);
         var dateStr = 'Generated: ' + new Date().toLocaleDateString('en-ZA') + ' ' + new Date().toLocaleTimeString('en-ZA');
         pdf.text(dateStr, pageWidth / 2, yOffset + 22, { align: 'center' });
-
         var filterSummary = getFilterSummaryText();
         if (filterSummary) {
             pdf.text('Filters: ' + filterSummary, pageWidth / 2, yOffset + 27, { align: 'center' });
@@ -1637,28 +1662,45 @@ async function exportDashboardPDF() {
             yOffset += 27;
         }
 
-        // Sections to capture in order
+        // ── Sections — grouped by panel ──────────────────────────────────────
         var sections = [
-            { selector: '.kpi-grid', label: 'KPI Summary' },
-            { selector: '#complianceBarsContainer', label: 'Compliance Per Commodity', parentCard: true },
-            { selector: '#commodityTrendChart', label: 'Commodity Compliance Trend', isChart: true },
-            { selector: '#commodityCountChart', label: 'Commodity Count', isChart: true },
-            { selector: '#timeAllocationChart', label: 'Time Allocation (Billable Hours)', isChart: true },
-            { selector: '#complianceTrendChart', label: 'Weekly Compliance Trend', isChart: true },
-            { selector: '#samplesTakenChart', label: 'Samples Taken', isChart: true },
-            { selector: '#facilityTypesChart', label: 'Facility Types', isChart: true },
-            { selector: '#directionsChart', label: 'Directions & Non-Compliance', isChart: true },
-            { selector: '#occurrenceReportsChart', label: 'Occurrence Reports', isChart: true },
-            { selector: '#travelChart', label: 'Travel Distance Per Inspector', isChart: true },
-            { title: 'Avg Days to Send Documents', label: 'Avg Days to Send Documents' },
-            { title: 'Avg Days to Upload Invoice', label: 'Avg Days to Upload Invoice' },
-            { title: 'Avg Days: Sample to COA Upload', label: 'Avg Days: Sample to COA Upload' },
-            { title: 'Avg Days to Approval', label: 'Avg Days to Approval' },
-            { title: 'Travel Time Per Inspector', label: 'Travel Time Per Inspector' },
-            { selector: '#efficiencyMatrixTable', label: 'Inspector Efficiency Matrix', parentCard: true },
-            { selector: '#approvalRateChart', label: 'Approval Rate Per Inspector', isChart: true },
-            { selector: '#financialTable', label: 'Revenue Per Inspector', parentCard: true },
-            { selector: '#revenueCostChart', label: 'Revenue Breakdown', isChart: true }
+            // OVERVIEW
+            { label: 'KPI Summary',                         selector: '.kpi-grid' },
+            { label: 'Compliance Per Commodity',            selector: '#complianceBarsContainer', parentCard: true },
+            { label: 'Daily Compliance',                    selector: '#dailyComplianceChart',            isChart: true },
+            { label: 'Monthly Inspections Trend',           selector: '#monthlyInspectionsTrendChart',    isChart: true },
+            { label: 'Approval Rate Per Inspector',         selector: '#approvalRateChart',               isChart: true },
+            // INSPECTORS
+            { label: 'Quarterly Targets Tracker',           selector: '#inspectorTargetsTable',   parentCard: true },
+            { label: 'Inspector Efficiency Matrix',         selector: '#efficiencyMatrixTable',   parentCard: true },
+            { label: 'Inspector Performance Radar',         selector: '#inspectorRadarChart',             isChart: true },
+            { label: 'Directions & Non-Compliance',         selector: '#directionsChart',                 isChart: true },
+            // COMPLIANCE
+            { label: 'Commodity Compliance Trend',          selector: '#commodityTrendChart',             isChart: true },
+            { label: 'Weekly Compliance Trend',             selector: '#complianceTrendChart',            isChart: true },
+            { label: 'Samples Taken Per Inspector',         selector: '#samplesTakenChart',               isChart: true },
+            { label: 'Facility Types',                      selector: '#facilityTypesChart',              isChart: true },
+            { label: 'Commodity Count',                     selector: '#commodityCountChart',             isChart: true },
+            { label: 'Time Allocation (Billable Hours)',    selector: '#timeAllocationChart',             isChart: true },
+            { label: 'Occurrence Reports',                  selector: '#occurrenceReportsChart',          isChart: true },
+            { label: 'Occurrence Trend',                    selector: '#occurrenceTrendChart',            isChart: true },
+            // OPERATIONS
+            { label: 'Travel Distance Per Inspector',       selector: '#travelChart',                     isChart: true },
+            { label: 'Travel Distance Trend',               selector: '#travelTrendChart',                isChart: true },
+            { label: 'Travel Time Per Inspector',           selector: '#travelTimeChart',                 isChart: true },
+            { label: 'Travel Hours Trend',                  selector: '#travelHoursTrendChart',           isChart: true },
+            // DOCUMENTS / TIMELINES
+            { label: 'Avg Days to Send Documents',          selector: '#docSendChart',                    isChart: true },
+            { label: 'Document Send Trend',                 selector: '#docSendTrendChart',               isChart: true },
+            { label: 'Avg Days to Upload Invoice',          selector: '#invoiceUploadChart',              isChart: true },
+            { label: 'Invoice Upload Trend',                selector: '#invoiceTrendChart',               isChart: true },
+            { label: 'Avg Days: Sample to COA Upload',      selector: '#coaTimeChart',                    isChart: true },
+            { label: 'COA Upload Trend',                    selector: '#coaTrendChart',                   isChart: true },
+            { label: 'Avg Days to Approval',                selector: '#approvalTimeChart',               isChart: true },
+            { label: 'Approval Time Trend',                 selector: '#approvalTrendChart',              isChart: true },
+            // FINANCIAL
+            { label: 'Revenue Per Inspector',               selector: '#financialTable',           parentCard: true },
+            { label: 'Revenue & Cost Breakdown',            selector: '#revenueCostChart',                isChart: true },
         ];
 
         for (var i = 0; i < sections.length; i++) {
@@ -1666,21 +1708,21 @@ async function exportDashboardPDF() {
             updateProgress('Capturing ' + section.label + ' (' + (i + 1) + '/' + sections.length + ')...');
 
             if (section.isChart) {
-                // Chart.js canvas - use toBase64Image for quality
+                // Chart.js canvas — use toBase64Image for best quality
                 var chartKey = section.selector.replace('#', '');
                 var chartInstance = chartInstances[chartKey];
                 if (chartInstance) {
-                    var imgData = chartInstance.toBase64Image('image/png', 1.0);
                     var canvas = document.getElementById(chartKey);
                     if (canvas && canvas.width > 0 && canvas.height > 0) {
+                        var imgData = chartInstance.toBase64Image('image/png', 1.0);
                         var aspectRatio = canvas.width / canvas.height;
                         var imgWidth = contentWidth * 0.85;
                         var imgHeight = imgWidth / aspectRatio;
-                        if (imgHeight > pageHeight - margin * 2 - 12) {
-                            imgHeight = pageHeight - margin * 2 - 12;
+                        if (imgHeight > pageHeight - margin * 2 - 14) {
+                            imgHeight = pageHeight - margin * 2 - 14;
                             imgWidth = imgHeight * aspectRatio;
                         }
-                        if (yOffset + imgHeight + 12 > pageHeight - margin) {
+                        if (yOffset + imgHeight + 14 > pageHeight - margin) {
                             pdf.addPage();
                             yOffset = margin;
                         }
@@ -1689,21 +1731,16 @@ async function exportDashboardPDF() {
                         pdf.text(section.label, margin, yOffset + 5);
                         yOffset += 8;
                         pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
-                        yOffset += imgHeight + 6;
+                        yOffset += imgHeight + 8;
                     }
                 }
             } else {
-                // HTML element - use html2canvas
-                var element = null;
-                if (section.title) {
-                    element = findCardByTitle(section.title);
-                } else if (section.selector) {
-                    element = document.querySelector(section.selector);
-                    if (section.parentCard && element) {
+                // HTML element — use html2canvas
+                var element = document.querySelector(section.selector);
+                if (element) {
+                    if (section.parentCard) {
                         element = element.closest('.card') || element;
                     }
-                }
-                if (element) {
                     try {
                         var canvasImg = await html2canvas(element, {
                             scale: 2,
@@ -1724,6 +1761,10 @@ async function exportDashboardPDF() {
                             pdf.addPage();
                             yOffset = margin;
                         }
+                        pdf.setFontSize(11);
+                        pdf.setTextColor(0, 120, 144);
+                        pdf.text(section.label, margin, yOffset + 5);
+                        yOffset += 8;
                         pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
                         yOffset += imgHeight + 6;
                     } catch (e) {
@@ -1731,10 +1772,10 @@ async function exportDashboardPDF() {
                     }
                 }
             }
-            await new Promise(function(resolve) { setTimeout(resolve, 50); });
+            await new Promise(function(resolve) { setTimeout(resolve, 60); });
         }
 
-        // Add page footers
+        // Page footers
         var totalPages = pdf.internal.getNumberOfPages();
         for (var p = 1; p <= totalPages; p++) {
             pdf.setPage(p);
@@ -1751,6 +1792,11 @@ async function exportDashboardPDF() {
         console.error('PDF export error:', err);
         alert('Error generating PDF: ' + err.message);
     } finally {
+        // ── Restore panel visibility ─────────────────────────────────────────
+        allPanelEls.forEach(function(p) { p.style.display = ''; });
+        // Re-show only the originally active panel
+        var activePanelEl = document.getElementById('panel-' + savedPanel);
+        if (activePanelEl) activePanelEl.style.display = 'block';
         if (overlay) overlay.style.display = 'none';
     }
 }
