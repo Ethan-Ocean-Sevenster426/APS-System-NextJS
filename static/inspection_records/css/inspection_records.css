@@ -6738,7 +6738,7 @@
             /* Col 1: Facility - fixed compact width, content wraps */
             #shipmentsTable th:nth-child(1),
             #shipmentsTable td:nth-child(1) {
-                width: 160px !important;
+                width: 210px !important;
                 white-space: normal !important;
                 text-align: left !important;
                 word-break: break-word !important;
