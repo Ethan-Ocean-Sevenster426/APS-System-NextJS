@@ -1302,9 +1302,7 @@
                                         <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 40px;">COA</th>
                                         <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 50px;">Lab Form</th>
-                                        <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 45px;">OCC</th>
+                                            style="width: 70px;">Compliance</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 100px;">Date</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
@@ -1360,14 +1358,8 @@
                                         </td>
                                         <td class="px-0 py-1 text-center">
                                             <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
-                                                {% if shipment.has_lab_form %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_lab_form %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
-                                            </span>
-                                        </td>
-                                        <td class="px-0 py-1 text-center">
-                                            <span style="font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap;
-                                                {% if shipment.has_occurrence %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
-                                                {% if shipment.has_occurrence %}<i class="fas fa-check" style="font-size:8px;"></i> File{% else %}<i class="fas fa-times" style="font-size:8px;"></i> No-File{% endif %}
+                                                {% if shipment.inspection_compliance_status == 'compliant' %}background: #dcfce7; color: #166534;{% else %}background: #fee2e2; color: #991b1b;{% endif %}">
+                                                {% if shipment.inspection_compliance_status == 'compliant' %}<i class="fas fa-check" style="font-size:8px;"></i> Compliant{% else %}<i class="fas fa-times" style="font-size:8px;"></i> Non-Compliant{% endif %}
                                             </span>
                                         </td>
                                         <td class="px-2 py-2 text-center text-gray-600" style="font-size: 0.6rem;">{{ shipment.date_of_inspection|date:"d F Y"|default:"-" }}</td>
