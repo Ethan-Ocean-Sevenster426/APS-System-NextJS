@@ -1607,187 +1607,395 @@ async function exportDashboardPDF() {
         if (progressEl) progressEl.textContent = msg;
     }
 
-    // Save current panel so we can restore after export
     var savedPanel = currentPanel;
     var allPanelEls = document.querySelectorAll('.dashboard-panel');
 
+    // ── helpers ─────────────────────────────────────────────────────────────
+    var PW = 297, PH = 210, M = 10, CW = 277;   // landscape A4 constants
+    var C_TEAL = [0, 120, 144], C_RED = [236, 52, 60], C_DARK = [30, 41, 59];
+    var C_GREY = [100, 116, 139], C_LIGHT = [241, 245, 249], C_WHITE = [255, 255, 255];
+
+
+    // Draw the repeating page header bar (12 mm tall)
+    function drawPageHeader(pdf, title) {
+        pdf.setFillColor.apply(pdf, C_DARK);
+        pdf.rect(0, 0, PW, 12, 'F');
+        pdf.setFillColor.apply(pdf, C_RED);
+        pdf.rect(0, 10, PW, 2, 'F');
+        pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_WHITE);
+        pdf.text('Food Safety Agency (Pty) Ltd  —  Inspector Analytics Dashboard', M, 7.5);
+        if (title) {
+            pdf.setFontSize(8); pdf.setTextColor(180, 210, 220);
+            pdf.text(title, PW - M, 7.5, { align: 'right' });
+        }
+    }
+
+    // Draw the repeating page footer
+    function drawPageFooter(pdf, pageNum, total) {
+        pdf.setFillColor.apply(pdf, C_LIGHT);
+        pdf.rect(0, PH - 8, PW, 8, 'F');
+        pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_GREY);
+        pdf.text('CONFIDENTIAL — Food Safety Agency (Pty) Ltd', M, PH - 3);
+        pdf.text('Page ' + pageNum + ' of ' + total, PW / 2, PH - 3, { align: 'center' });
+        pdf.text(new Date().toLocaleDateString('en-ZA'), PW - M, PH - 3, { align: 'right' });
+    }
+
+    // Draw a teal section-divider banner and return new yOffset
+    // Draw a labelled KPI box; returns nothing (positions are passed in)
+    function drawKpiBox(pdf, x, y, w, h, value, label, color) {
+        pdf.setFillColor.apply(pdf, color || C_TEAL);
+        pdf.roundedRect(x, y, w, h, 2, 2, 'F');
+        pdf.setFontSize(16); pdf.setTextColor.apply(pdf, C_WHITE);
+        pdf.text(String(value), x + w / 2, y + h / 2 - 1, { align: 'center' });
+        pdf.setFontSize(7); pdf.setTextColor(210, 235, 240);
+        pdf.text(label, x + w / 2, y + h / 2 + 5, { align: 'center' });
+    }
+
+    // Add a chart image to the PDF, fitting within remaining vertical space
+    function addChartImage(pdf, imgData, canvasW, canvasH, yOff, sectionTitle) {
+        var maxH = PH - M - 9 - yOff;
+        var aspectRatio = canvasW / canvasH;
+        var iW = CW * 0.88;
+        var iH = iW / aspectRatio;
+        if (iH > maxH) { iH = maxH; iW = iH * aspectRatio; }
+        if (iW > CW)   { iW = CW;   iH = iW / aspectRatio; }
+        if (yOff + iH > PH - M - 9) {
+            pdf.addPage();
+            drawPageHeader(pdf, sectionTitle);
+            yOff = 14;
+        }
+        pdf.addImage(imgData, 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
+        return yOff + iH + 5;
+    }
+
+    // Add an html2canvas screenshot
+    async function addElementCapture(pdf, element, yOff, sectionTitle) {
+        try {
+            var cap = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false });
+            var iW = CW;
+            var iH = iW * cap.height / cap.width;
+            var maxH = PH - M - 9 - yOff;
+            if (iH > maxH) { iH = maxH; iW = iH * cap.width / cap.height; }
+            if (yOff + iH > PH - M - 9) {
+                pdf.addPage();
+                drawPageHeader(pdf, sectionTitle);
+                yOff = 14;
+            }
+            pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
+            return yOff + iH + 5;
+        } catch (e) {
+            console.warn('html2canvas failed:', e);
+            return yOff;
+        }
+    }
+
     try {
-        // ── Step 1: Force-render every panel that hasn't been visited yet ──────
-        updateProgress('Preparing all dashboard panels...');
+        // ── Force-render all unvisited panels ────────────────────────────────
+        updateProgress('Rendering all dashboard panels...');
         var panelIds = Object.keys(PANEL_RENDER_MAP);
         for (var pi = 0; pi < panelIds.length; pi++) {
             var pid = panelIds[pi];
             if (!panelRendered[pid]) {
                 var panelEl = document.getElementById('panel-' + pid);
                 if (panelEl) {
-                    panelEl.style.display = 'block';           // show so canvases have dimensions
+                    panelEl.style.display = 'block';
                     renderPanelCharts(pid);
                     panelRendered[pid] = true;
                     await new Promise(function(r) { setTimeout(r, 300); });
-                    panelEl.style.display = '';                // hide again
+                    panelEl.style.display = '';
                 }
             }
         }
-
-        // ── Step 2: Make ALL panels visible so html2canvas can read them ───────
         allPanelEls.forEach(function(p) { p.style.display = 'block'; });
         await new Promise(function(r) { setTimeout(r, 200); });
 
-        // ── Step 3: Build the PDF ────────────────────────────────────────────
+        // ── Init PDF ─────────────────────────────────────────────────────────
         var jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) throw new Error('PDF library not loaded — please refresh the page and try again.');
         var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-        var pageWidth = 297;
-        var pageHeight = 210;
-        var margin = 10;
-        var contentWidth = pageWidth - (margin * 2);
-        var yOffset = margin;
+        // ── Compute summary values ───────────────────────────────────────────
+        var d = dashboardData;
+        var fin = d.financialSummary || {};
+        var totalKm = 0;
+        (d.travelPerInspector || []).forEach(function(r) { totalKm += (r.total_km || r.km || 0); });
+        var totalSamples = 0;
+        (d.samplesByCommodity || []).forEach(function(r) { totalSamples += (r.count || r.samples || 0); });
+        var docItems = d.docSendTime || [];
+        var docAvg = docItems.length ? Math.round(docItems.reduce(function(s, r) { return s + (r.avg_days || 0); }, 0) / docItems.length) : null;
+        var apprItems = d.approvalTime || [];
+        var apprAvg = apprItems.length ? Math.round(apprItems.reduce(function(s, r) { return s + (r.avg_days || 0); }, 0) / apprItems.length) : null;
+        var coaItems = d.coaAnalysisTime || [];
+        var coaAvg = coaItems.length ? Math.round(coaItems.reduce(function(s, r) { return s + (r.avg_days || 0); }, 0) / coaItems.length) : null;
+        var invItems = d.invoiceUploadTime || [];
+        var invAvg = invItems.length ? Math.round(invItems.reduce(function(s, r) { return s + (r.avg_days || 0); }, 0) / invItems.length) : null;
 
-        // Cover header
-        pdf.setFontSize(18);
-        pdf.setTextColor(0, 120, 144);
-        pdf.text('Food Safety Agency (Pty) Ltd', pageWidth / 2, yOffset + 8, { align: 'center' });
-        pdf.setFontSize(13);
-        pdf.setTextColor(80, 80, 80);
-        pdf.text('Inspector Analytics Dashboard Report', pageWidth / 2, yOffset + 16, { align: 'center' });
-        pdf.setFontSize(9);
-        pdf.setTextColor(120, 120, 120);
-        var dateStr = 'Generated: ' + new Date().toLocaleDateString('en-ZA') + ' ' + new Date().toLocaleTimeString('en-ZA');
-        pdf.text(dateStr, pageWidth / 2, yOffset + 22, { align: 'center' });
+        // ── PAGE 1 — COVER ───────────────────────────────────────────────────
+        updateProgress('Building cover page...');
+
+        // dark header band
+        pdf.setFillColor.apply(pdf, C_DARK);
+        pdf.rect(0, 0, PW, 42, 'F');
+        pdf.setFillColor.apply(pdf, C_RED);
+        pdf.rect(0, 40, PW, 3, 'F');
+
+        // titles
+        pdf.setFontSize(22); pdf.setTextColor.apply(pdf, C_WHITE);
+        pdf.text('Food Safety Agency (Pty) Ltd', PW / 2, 16, { align: 'center' });
+        pdf.setFontSize(13); pdf.setTextColor(180, 210, 220);
+        pdf.text('Inspector Analytics Dashboard Report', PW / 2, 25, { align: 'center' });
+        pdf.setFontSize(9); pdf.setTextColor(140, 170, 185);
+        pdf.text('Generated: ' + new Date().toLocaleDateString('en-ZA', { weekday:'long', year:'numeric', month:'long', day:'numeric' }), PW / 2, 33, { align: 'center' });
+
         var filterSummary = getFilterSummaryText();
         if (filterSummary) {
-            pdf.text('Filters: ' + filterSummary, pageWidth / 2, yOffset + 27, { align: 'center' });
-            yOffset += 32;
-        } else {
-            yOffset += 27;
+            pdf.setFontSize(8); pdf.setTextColor(120, 155, 170);
+            pdf.text('Active filters:  ' + filterSummary, PW / 2, 39, { align: 'center' });
         }
 
-        // ── Sections — grouped by panel ──────────────────────────────────────
-        var sections = [
-            // OVERVIEW
-            { label: 'KPI Summary',                         selector: '.kpi-grid' },
-            { label: 'Compliance Per Commodity',            selector: '#complianceBarsContainer', parentCard: true },
-            { label: 'Daily Compliance',                    selector: '#dailyComplianceChart',            isChart: true },
-            { label: 'Monthly Inspections Trend',           selector: '#monthlyInspectionsTrendChart',    isChart: true },
-            { label: 'Approval Rate Per Inspector',         selector: '#approvalRateChart',               isChart: true },
-            // INSPECTORS
-            { label: 'Quarterly Targets Tracker',           selector: '#inspectorTargetsTable',   parentCard: true },
-            { label: 'Inspector Efficiency Matrix',         selector: '#efficiencyMatrixTable',   parentCard: true },
-            { label: 'Inspector Performance Radar',         selector: '#inspectorRadarChart',             isChart: true },
-            { label: 'Directions & Non-Compliance',         selector: '#directionsChart',                 isChart: true },
-            // COMPLIANCE
-            { label: 'Commodity Compliance Trend',          selector: '#commodityTrendChart',             isChart: true },
-            { label: 'Weekly Compliance Trend',             selector: '#complianceTrendChart',            isChart: true },
-            { label: 'Samples Taken Per Inspector',         selector: '#samplesTakenChart',               isChart: true },
-            { label: 'Facility Types',                      selector: '#facilityTypesChart',              isChart: true },
-            { label: 'Commodity Count',                     selector: '#commodityCountChart',             isChart: true },
-            { label: 'Time Allocation (Billable Hours)',    selector: '#timeAllocationChart',             isChart: true },
-            { label: 'Occurrence Reports',                  selector: '#occurrenceReportsChart',          isChart: true },
-            { label: 'Occurrence Trend',                    selector: '#occurrenceTrendChart',            isChart: true },
-            // OPERATIONS
-            { label: 'Travel Distance Per Inspector',       selector: '#travelChart',                     isChart: true },
-            { label: 'Travel Distance Trend',               selector: '#travelTrendChart',                isChart: true },
-            { label: 'Travel Time Per Inspector',           selector: '#travelTimeChart',                 isChart: true },
-            { label: 'Travel Hours Trend',                  selector: '#travelHoursTrendChart',           isChart: true },
-            // DOCUMENTS / TIMELINES
-            { label: 'Avg Days to Send Documents',          selector: '#docSendChart',                    isChart: true },
-            { label: 'Document Send Trend',                 selector: '#docSendTrendChart',               isChart: true },
-            { label: 'Avg Days to Upload Invoice',          selector: '#invoiceUploadChart',              isChart: true },
-            { label: 'Invoice Upload Trend',                selector: '#invoiceTrendChart',               isChart: true },
-            { label: 'Avg Days: Sample to COA Upload',      selector: '#coaTimeChart',                    isChart: true },
-            { label: 'COA Upload Trend',                    selector: '#coaTrendChart',                   isChart: true },
-            { label: 'Avg Days to Approval',                selector: '#approvalTimeChart',               isChart: true },
-            { label: 'Approval Time Trend',                 selector: '#approvalTrendChart',              isChart: true },
-            // FINANCIAL
-            { label: 'Revenue Per Inspector',               selector: '#financialTable',           parentCard: true },
-            { label: 'Revenue & Cost Breakdown',            selector: '#revenueCostChart',                isChart: true },
+        // ── KPI boxes (row 1) ────────────────────────────────────────────────
+        var boxY = 48, boxH = 26, boxW = 43, gap = 3;
+        var row1start = M + 2;
+        drawKpiBox(pdf, row1start,            boxY, boxW, boxH, (d.totalInspections || 0).toLocaleString(), 'Total Inspections', C_TEAL);
+        drawKpiBox(pdf, row1start + boxW+gap, boxY, boxW, boxH, (d.complianceRate || 0).toFixed(1) + '%',   'Overall Compliance Rate', [16, 132, 90]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*2, boxY, boxW, boxH, d.activeInspectors || 0,                  'Active Inspectors', [79, 70, 229]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, (d.daysWorked || 0).toLocaleString(),     'Total Days Worked', [14, 116, 144]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, (d.totalOccurrenceReports || 0),          'Occurrence Reports', [220, 38, 38]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*5, boxY, boxW, boxH, fin.total_revenue ? 'R ' + Number(fin.total_revenue).toLocaleString('en-ZA', {maximumFractionDigits:0}) : '—', 'Total Revenue', [5, 122, 85]);
+
+        // ── KPI boxes (row 2) ────────────────────────────────────────────────
+        boxY = 80;
+        drawKpiBox(pdf, row1start,              boxY, boxW, boxH, totalKm > 0 ? totalKm.toLocaleString() + ' km' : '—',    'Total KM Traveled',      [8, 145, 178]);
+        drawKpiBox(pdf, row1start + boxW+gap,   boxY, boxW, boxH, totalSamples > 0 ? totalSamples.toLocaleString() : '—', 'Total Samples Taken',    [16, 132, 90]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*2, boxY, boxW, boxH, docAvg !== null ? docAvg + ' days' : '—',               'Avg Days — Doc Send',    [124, 58, 237]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, invAvg !== null ? invAvg + ' days' : '—',               'Avg Days — Invoice Upload', [217, 119, 6]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, coaAvg !== null ? coaAvg + ' days' : '—',               'Avg Days — COA Upload',  [190, 18, 60]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*5, boxY, boxW, boxH, apprAvg !== null ? apprAvg + ' days' : '—',            'Avg Days — Approval',    [15, 118, 110]);
+
+        // ── Inspector performance summary table ──────────────────────────────
+        var inspPerf = d.inspectorPerformance || [];
+        if (inspPerf.length > 0) {
+            var tY = 114;
+            pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+            pdf.text('Inspector Performance Summary', M, tY - 2);
+            pdf.setFillColor.apply(pdf, C_DARK);
+            pdf.rect(M, tY, CW, 6, 'F');
+            var cols = ['Inspector', 'Inspections', 'Compliance %', 'Directions', 'Occurrences', 'Samples', 'Days'];
+            var colW = [60, 30, 32, 30, 32, 26, 22];
+            var xPos = M;
+            pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_WHITE);
+            cols.forEach(function(c, ci) {
+                pdf.text(c, xPos + 2, tY + 4.2);
+                xPos += colW[ci];
+            });
+            var rowH = 6;
+            var maxRows = Math.min(inspPerf.length, Math.floor((PH - 9 - tY - 6 - 2) / rowH));
+            for (var ri = 0; ri < maxRows; ri++) {
+                var row = inspPerf[ri];
+                var ry = tY + 6 + ri * rowH;
+                if (ri % 2 === 0) {
+                    pdf.setFillColor.apply(pdf, C_LIGHT);
+                    pdf.rect(M, ry, CW, rowH, 'F');
+                }
+                pdf.setFontSize(7); pdf.setTextColor.apply(pdf, C_DARK);
+                var vals = [
+                    (row.inspector_name || row.name || '').substring(0, 22),
+                    (row.total_inspections || row.count || 0).toString(),
+                    (row.compliance_rate != null ? Number(row.compliance_rate).toFixed(1) + '%' : '—'),
+                    (row.total_directions || row.directions || 0).toString(),
+                    (row.total_occurrences || row.occurrences || 0).toString(),
+                    (row.total_samples || row.samples || 0).toString(),
+                    (row.days_worked || row.days || '—').toString(),
+                ];
+                xPos = M;
+                vals.forEach(function(v, ci) {
+                    pdf.text(v, xPos + 2, ry + 4.2);
+                    xPos += colW[ci];
+                });
+                // row separator
+                pdf.setDrawColor(220, 225, 230);
+                pdf.line(M, ry + rowH, M + CW, ry + rowH);
+            }
+            if (inspPerf.length > maxRows) {
+                pdf.setFontSize(7); pdf.setTextColor.apply(pdf, C_GREY);
+                pdf.text('... and ' + (inspPerf.length - maxRows) + ' more inspectors (see Inspector panel)', M, tY + 6 + maxRows * rowH + 4);
+            }
+        }
+
+        // cover footer
+        pdf.setFillColor.apply(pdf, C_LIGHT);
+        pdf.rect(0, PH - 8, PW, 8, 'F');
+        pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_GREY);
+        pdf.text('CONFIDENTIAL — Food Safety Agency (Pty) Ltd', M, PH - 3);
+        pdf.text('Page 1 of ?', PW / 2, PH - 3, { align: 'center' });
+        pdf.text(new Date().toLocaleDateString('en-ZA'), PW - M, PH - 3, { align: 'right' });
+
+        // ── Define section groups ────────────────────────────────────────────
+        var groups = [
+            {
+                icon: 'Overview', title: 'Overview', color: C_TEAL,
+                description: 'High-level KPIs, compliance rates per commodity, and monthly inspection trends.',
+                charts: [
+                    { label: 'Compliance Per Commodity', selector: '#complianceBarsContainer', parentCard: true },
+                    { label: 'Daily Compliance Trend',   selector: '#dailyComplianceChart',         isChart: true },
+                    { label: 'Monthly Inspections',      selector: '#monthlyInspectionsTrendChart', isChart: true },
+                    { label: 'Approval Rate',            selector: '#approvalRateChart',            isChart: true },
+                ]
+            },
+            {
+                icon: 'Inspectors', title: 'Inspector Performance', color: [79, 70, 229],
+                description: 'Individual inspector metrics, radar performance scoring, quarterly targets, and efficiency matrix.',
+                charts: [
+                    { label: 'Quarterly Targets',        selector: '#inspectorTargetsTable',  parentCard: true },
+                    { label: 'Efficiency Matrix',        selector: '#efficiencyMatrixTable',  parentCard: true },
+                    { label: 'Performance Radar',        selector: '#inspectorRadarChart',         isChart: true },
+                    { label: 'Directions & Non-Compliance', selector: '#directionsChart',          isChart: true },
+                ]
+            },
+            {
+                icon: 'Compliance', title: 'Compliance Analysis', color: [16, 132, 90],
+                description: 'Commodity-level compliance trends, samples taken, facility types, time allocation and occurrence reports.',
+                charts: [
+                    { label: 'Commodity Compliance Trend',    selector: '#commodityTrendChart',     isChart: true },
+                    { label: 'Weekly Compliance Trend',       selector: '#complianceTrendChart',    isChart: true },
+                    { label: 'Samples Per Inspector',         selector: '#samplesTakenChart',       isChart: true },
+                    { label: 'Facility Types',                selector: '#facilityTypesChart',      isChart: true },
+                    { label: 'Commodity Count',               selector: '#commodityCountChart',     isChart: true },
+                    { label: 'Time Allocation (Billable)',    selector: '#timeAllocationChart',     isChart: true },
+                    { label: 'Occurrence Reports',            selector: '#occurrenceReportsChart',  isChart: true },
+                    { label: 'Occurrence Trend',              selector: '#occurrenceTrendChart',    isChart: true },
+                ]
+            },
+            {
+                icon: 'Operations', title: 'Operations & Travel', color: [8, 145, 178],
+                description: 'Inspector travel distances, travel time breakdown, and monthly travel trends.',
+                charts: [
+                    { label: 'Travel Distance Per Inspector', selector: '#travelChart',             isChart: true },
+                    { label: 'Travel Distance Trend',         selector: '#travelTrendChart',        isChart: true },
+                    { label: 'Travel Time Per Inspector',     selector: '#travelTimeChart',         isChart: true },
+                    { label: 'Travel Hours Trend',            selector: '#travelHoursTrendChart',   isChart: true },
+                ]
+            },
+            {
+                icon: 'Timelines', title: 'Document & Approval Timelines', color: [124, 58, 237],
+                description: 'Average turnaround times for document dispatch, invoice upload, COA upload, and final approval.',
+                charts: [
+                    { label: 'Avg Days — Doc Send',        selector: '#docSendChart',       isChart: true },
+                    { label: 'Doc Send Trend',             selector: '#docSendTrendChart',  isChart: true },
+                    { label: 'Avg Days — Invoice Upload',  selector: '#invoiceUploadChart', isChart: true },
+                    { label: 'Invoice Upload Trend',       selector: '#invoiceTrendChart',  isChart: true },
+                    { label: 'Avg Days — COA Upload',      selector: '#coaTimeChart',       isChart: true },
+                    { label: 'COA Upload Trend',           selector: '#coaTrendChart',      isChart: true },
+                    { label: 'Avg Days — Approval',        selector: '#approvalTimeChart',  isChart: true },
+                    { label: 'Approval Trend',             selector: '#approvalTrendChart', isChart: true },
+                ]
+            },
+            {
+                icon: 'Financial', title: 'Financial Summary', color: [5, 122, 85],
+                description: 'Revenue per inspector, cost breakdown, and overall financial performance.',
+                charts: [
+                    { label: 'Revenue Per Inspector',     selector: '#financialTable',      parentCard: true },
+                    { label: 'Revenue & Cost Breakdown',  selector: '#revenueCostChart',    isChart: true },
+                ]
+            },
         ];
 
-        for (var i = 0; i < sections.length; i++) {
-            var section = sections[i];
-            updateProgress('Capturing ' + section.label + ' (' + (i + 1) + '/' + sections.length + ')...');
+        // ── Render each section group ─────────────────────────────────────────
+        for (var gi = 0; gi < groups.length; gi++) {
+            var grp = groups[gi];
+            updateProgress('Exporting ' + grp.title + ' (' + (gi + 1) + '/' + groups.length + ')...');
 
-            if (section.isChart) {
-                // Chart.js canvas — use toBase64Image for best quality
-                var chartKey = section.selector.replace('#', '');
-                var chartInstance = chartInstances[chartKey];
-                if (chartInstance) {
-                    var canvas = document.getElementById(chartKey);
-                    if (canvas && canvas.width > 0 && canvas.height > 0) {
-                        var imgData = chartInstance.toBase64Image('image/png', 1.0);
-                        var aspectRatio = canvas.width / canvas.height;
-                        var imgWidth = contentWidth * 0.85;
-                        var imgHeight = imgWidth / aspectRatio;
-                        if (imgHeight > pageHeight - margin * 2 - 14) {
-                            imgHeight = pageHeight - margin * 2 - 14;
-                            imgWidth = imgHeight * aspectRatio;
-                        }
-                        if (yOffset + imgHeight + 6 > pageHeight - margin) {
-                            pdf.addPage();
-                            yOffset = margin;
-                        }
-                        pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
-                        yOffset += imgHeight + 6;
+            // Section divider page
+            pdf.addPage();
+            // full-page tinted background
+            pdf.setFillColor(245, 248, 250);
+            pdf.rect(0, 0, PW, PH, 'F');
+            // top accent bar
+            pdf.setFillColor.apply(pdf, grp.color || C_TEAL);
+            pdf.rect(0, 0, PW, 30, 'F');
+            pdf.setFillColor.apply(pdf, C_RED);
+            pdf.rect(0, 28, PW, 3, 'F');
+            // section number circle
+            pdf.setFillColor.apply(pdf, C_WHITE);
+            pdf.circle(M + 15, 15, 9, 'F');
+            pdf.setFontSize(16); pdf.setTextColor.apply(pdf, grp.color || C_TEAL);
+            pdf.text(String(gi + 1), M + 15, 18, { align: 'center' });
+            // section title
+            pdf.setFontSize(20); pdf.setTextColor.apply(pdf, C_WHITE);
+            pdf.text(grp.title, M + 30, 12);
+            pdf.setFontSize(9); pdf.setTextColor(200, 230, 240);
+            pdf.text(grp.icon.toUpperCase(), M + 30, 19);
+            // description box
+            pdf.setFillColor.apply(pdf, C_WHITE);
+            pdf.roundedRect(M, 36, CW, 18, 2, 2, 'F');
+            pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+            pdf.text('About this section:', M + 4, 44);
+            pdf.setFontSize(8.5); pdf.setTextColor.apply(pdf, C_GREY);
+            var descLines = pdf.splitTextToSize(grp.description, CW - 8);
+            pdf.text(descLines, M + 4, 50);
+            // contents list
+            pdf.setFontSize(8); pdf.setTextColor.apply(pdf, C_DARK);
+            pdf.text('Contents:', M + 4, 62);
+            grp.charts.forEach(function(ch, ci) {
+                pdf.setFillColor.apply(pdf, grp.color || C_TEAL);
+                pdf.circle(M + 6, 67 + ci * 7, 1.5, 'F');
+                pdf.setTextColor.apply(pdf, C_DARK);
+                pdf.text(ch.label, M + 10, 68.2 + ci * 7);
+            });
+            // footer
+            pdf.setFillColor.apply(pdf, C_LIGHT);
+            pdf.rect(0, PH - 8, PW, 8, 'F');
+            pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_GREY);
+            pdf.text('CONFIDENTIAL — Food Safety Agency (Pty) Ltd', M, PH - 3);
+            pdf.text(new Date().toLocaleDateString('en-ZA'), PW - M, PH - 3, { align: 'right' });
+
+            // ── Charts / tables for this section ─────────────────────────────
+            for (var ci2 = 0; ci2 < grp.charts.length; ci2++) {
+                var ch = grp.charts[ci2];
+                pdf.addPage();
+                drawPageHeader(pdf, grp.title);
+                var yOff = 14;
+
+                if (ch.isChart) {
+                    var chartKey = ch.selector.replace('#', '');
+                    var inst = chartInstances[chartKey];
+                    var can = document.getElementById(chartKey);
+                    if (inst && can && can.width > 0 && can.height > 0) {
+                        yOff = addChartImage(pdf, inst.toBase64Image('image/png', 1.0), can.width, can.height, yOff, grp.title);
+                    }
+                } else {
+                    var el = document.querySelector(ch.selector);
+                    if (el) {
+                        if (ch.parentCard) el = el.closest('.card') || el;
+                        yOff = await addElementCapture(pdf, el, yOff, grp.title);
                     }
                 }
-            } else {
-                // HTML element — use html2canvas
-                var element = document.querySelector(section.selector);
-                if (element) {
-                    if (section.parentCard) {
-                        element = element.closest('.card') || element;
-                    }
-                    try {
-                        var canvasImg = await html2canvas(element, {
-                            scale: 2,
-                            useCORS: true,
-                            allowTaint: true,
-                            backgroundColor: '#ffffff',
-                            logging: false
-                        });
-                        var imgData = canvasImg.toDataURL('image/png');
-                        var aspectRatio = canvasImg.width / canvasImg.height;
-                        var imgWidth = contentWidth;
-                        var imgHeight = imgWidth / aspectRatio;
-                        if (imgHeight > pageHeight - margin * 2 - 10) {
-                            imgHeight = pageHeight - margin * 2 - 10;
-                            imgWidth = imgHeight * aspectRatio;
-                        }
-                        if (yOffset + imgHeight + 6 > pageHeight - margin) {
-                            pdf.addPage();
-                            yOffset = margin;
-                        }
-                        pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
-                        yOffset += imgHeight + 6;
-                    } catch (e) {
-                        console.warn('Could not capture ' + section.label + ':', e);
-                    }
-                }
+                drawPageFooter(pdf, '?', '?');
+                await new Promise(function(r) { setTimeout(r, 60); });
             }
-            await new Promise(function(resolve) { setTimeout(resolve, 60); });
         }
 
-        // Page footers
+        // ── Stamp correct page numbers now we know the total ─────────────────
+        updateProgress('Finalising PDF...');
         var totalPages = pdf.internal.getNumberOfPages();
         for (var p = 1; p <= totalPages; p++) {
             pdf.setPage(p);
-            pdf.setFontSize(8);
-            pdf.setTextColor(150, 150, 150);
-            pdf.text('Page ' + p + ' of ' + totalPages + '  |  Food Safety Agency Analytics Report', pageWidth / 2, pageHeight - 5, { align: 'center' });
+            pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_GREY);
+            // overwrite the placeholder '?' with real numbers (centre of footer)
+            pdf.setFillColor.apply(pdf, C_LIGHT);
+            pdf.rect(PW / 2 - 20, PH - 8, 40, 8, 'F');
+            pdf.text('Page ' + p + ' of ' + totalPages, PW / 2, PH - 3, { align: 'center' });
         }
 
         updateProgress('Saving PDF...');
-        var filename = 'analytics_dashboard_' + new Date().toISOString().slice(0, 10) + '.pdf';
+        var filename = 'FSA_Analytics_Report_' + new Date().toISOString().slice(0, 10) + '.pdf';
         pdf.save(filename);
 
     } catch (err) {
         console.error('PDF export error:', err);
         alert('Error generating PDF: ' + err.message);
     } finally {
-        // ── Restore panel visibility ─────────────────────────────────────────
         allPanelEls.forEach(function(p) { p.style.display = ''; });
-        // Re-show only the originally active panel
         var activePanelEl = document.getElementById('panel-' + savedPanel);
         if (activePanelEl) activePanelEl.style.display = 'block';
         if (overlay) overlay.style.display = 'none';
