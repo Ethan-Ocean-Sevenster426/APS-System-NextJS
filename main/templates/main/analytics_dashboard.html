@@ -45,7 +45,7 @@
         }
     </script>
     <!-- Analytics Dashboard Styles -->
-    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260221h">
     <style>
         /* Background image URL must stay inline because it uses a Django static tag */
         :root {
@@ -54,187 +54,183 @@
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Button -->
-    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
-        <i class="fas fa-bars text-xl"></i>
-    </button>
 
-    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
-    {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
-    <div id="notification-bell" class="notification-bell-float" title="Notifications">
-        <i class="fas fa-bell"></i>
-        <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+<!-- ============================================================
+     TOP NAVIGATION BAR
+     ============================================================ -->
+<header id="topnav">
+    <div id="topnav-left">
+        <button id="drawer-toggle" class="topnav-icon-btn" title="Navigation menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="FSA" id="topnav-logo">
+        <span id="topnav-brand">Inspector Analytics</span>
+    </div>
+
+    <nav id="panel-tabs" role="tablist" aria-label="Dashboard panels">
+        <button class="tab-btn active" data-panel="overview" role="tab" aria-selected="true">
+            <i class="fas fa-tachometer-alt"></i><span>Overview</span>
+        </button>
+        <button class="tab-btn" data-panel="inspectors" role="tab" aria-selected="false">
+            <i class="fas fa-user-tie"></i><span>Inspectors</span>
+        </button>
+        <button class="tab-btn" data-panel="compliance" role="tab" aria-selected="false">
+            <i class="fas fa-shield-alt"></i><span>Compliance</span>
+        </button>
+        <button class="tab-btn" data-panel="operations" role="tab" aria-selected="false">
+            <i class="fas fa-route"></i><span>Operations</span>
+        </button>
+        <button class="tab-btn" data-panel="documents" role="tab" aria-selected="false">
+            <i class="fas fa-file-alt"></i><span>Timelines</span>
+        </button>
+        <button class="tab-btn" data-panel="financial" role="tab" aria-selected="false">
+            <i class="fas fa-chart-bar"></i><span>Financial</span>
+        </button>
+    </nav>
+
+    <div id="topnav-right">
+        <button id="filter-toggle-btn" class="topnav-icon-btn" title="Toggle filters">
+            <i class="fas fa-filter"></i>
+        </button>
+        {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
+        <div id="notification-bell" class="topnav-icon-btn" title="Notifications" style="cursor:pointer;">
+            <i class="fas fa-bell"></i>
+            <span id="notification-badge" class="notification-bell-badge hidden">0</span>
+        </div>
+        {% endif %}
+        <button id="topnav-theme-toggle" class="topnav-icon-btn" title="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+</header>
+
+<!-- ============================================================
+     OFF-CANVAS DRAWER (navigation links)
+     ============================================================ -->
+<div id="drawer-overlay"></div>
+<div id="drawer">
+    <div id="drawer-header">
+        <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
+        <span>Food Safety Agency (Pty) Ltd</span>
+        <button id="drawer-close"><i class="fas fa-times"></i></button>
+    </div>
+    <ul id="drawer-nav">
+        <li>
+            <a href="{% url 'home' %}">
+                <i class="fas fa-home w-4 text-center"></i> Home Center
+            </a>
+        </li>
+        {% if request.user.role == 'inspector' %}
+        <li>
+            <a href="{% url 'inspector_dashboard' %}">
+                <i class="fas fa-chart-line w-4 text-center"></i> My Analytics
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'shipment_list' %}">
+                <i class="fas fa-clipboard-check w-4 text-center"></i> Inspections
+            </a>
+        </li>
+        {% else %}
+        <li>
+            <a href="{% url 'client_allocation_sheet' %}">
+                <i class="fas fa-th-list w-4 text-center text-green-400"></i> Client Allocation Sheet
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'shipment_list' %}">
+                <i class="fas fa-file-invoice w-4 text-center"></i> Inspection Records
+            </a>
+        </li>
+        {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+        <li>
+            <a href="{% url 'user_management' %}">
+                <i class="fas fa-user-shield w-4 text-center text-blue-400"></i> User Management
+            </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+        <li>
+            <a href="{% url 'system_logs' %}">
+                <i class="fas fa-history w-4 text-center text-yellow-400"></i> System Logs
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'fsa_operations_board' %}">
+                <i class="fas fa-ticket-alt w-4 text-center text-cyan-400"></i> Support Tickets
+            </a>
+        </li>
+        {% endif %}
+        <li>
+            <a href="{% url 'submit_ticket' %}">
+                <i class="fas fa-ticket-alt w-4 text-center text-red-400"></i> Submit Ticket
+            </a>
+        </li>
+        {% if request.user.role == 'developer' %}
+        <li>
+            <a href="{% url 'onedrive_view' %}">
+                <i class="fas fa-cloud w-4 text-center text-blue-400"></i> OneDrive View
+            </a>
+        </li>
+        {% endif %}
+        {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+        <li>
+            <a href="{% url 'server_view' %}">
+                <i class="fas fa-database w-4 text-center text-orange-400"></i> Server View
+            </a>
+        </li>
+        {% endif %}
+        {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+        <li>
+            <a href="{% url 'export_sheet' %}">
+                <i class="fas fa-file-download w-4 text-center text-emerald-400"></i> Export Sheet
+            </a>
+        </li>
+        {% endif %}
+        {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+        <li>
+            <a href="{% url 'analytics_dashboard' %}" class="active-nav-link">
+                <i class="fas fa-chart-bar w-4 text-center text-blue-400"></i> Inspector Analytics
+            </a>
+        </li>
+        {% endif %}
+        <li>
+            <a href="{% url 'settings' %}">
+                <i class="fas fa-sliders-h w-4 text-center"></i> Settings
+            </a>
+        </li>
+    </ul>
+    <div id="drawer-footer">
+        <form action="{% url 'logout' %}" method="post" class="w-full">
+            {% csrf_token %}
+            <button type="submit" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<div id="main-content">
+
+    <!-- Django messages -->
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-700 px-3 py-2 rounded text-sm mb-2">
+            <i class="fas fa-info-circle mr-1"></i>
+            {{ message }}
+        </div>
+        {% endfor %}
     </div>
     {% endif %}
 
-    <!-- Sidebar Overlay -->
-    <div id="sidebar-overlay" class="sidebar-overlay"></div>
-
-    <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
-            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
-                <div class="text-center mb-2">
-                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
-                </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
-                    Food Safety Agency (Pty) Ltd
-                </div>
-            </div>
-
-            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
-                <ul class="px-2 py-2 space-y-1">
-                    <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
-                        </a>
-                    </li>
-                    {% if request.user.role == 'inspector' %}
-                    <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
-                        </a>
-                    </li>
-                    {% else %}
-                    <li>
-                        <a href="{% url 'client_allocation_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
-                            Client Allocation Sheet
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
-                        </a>
-                    </li>
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
-                        </a>
-                    </li>
-                    {% if request.user.role == 'developer' %}
-                    <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
-                    <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Logout Button -->
-            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
-                <form action="{% url 'logout' %}" method="post" class="inline w-full">
-                    {% csrf_token %}
-                    <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-1 w-full lg:ml-64">
-            <!-- Header -->
-            <div class="pt-12 pb-4 text-center px-4" style="background: transparent;">
-                <h1 class="text-xl lg:text-2xl font-semibold mb-1" style="color: #ffffff;">Food Safety Agency (Pty) Ltd</h1>
-                <h2 class="text-sm lg:text-base font-normal" style="color: #ffffff;">Inspector Analytics Dashboard</h2>
-            </div>
-
-        <div class="px-4 lg:px-6" style="overflow: visible;">
-
-        <!-- Messages Section -->
-        {% if messages %}
-        <div class="mb-3">
-            {% for message in messages %}
-            <div class="bg-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'warning' %}yellow{% else %}green{% endif %}-700 px-3 py-2 rounded text-sm">
-                <i class="fas fa-info-circle mr-1"></i>
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Filter Bar -->
+    <!-- COLLAPSIBLE FILTER BAR -->
+    <div id="filter-bar-wrapper" class="filter-bar-wrapper collapsed">
         <div class="filter-bar card">
             <div class="filter-bar-inner">
                 <div class="filter-group">
@@ -289,13 +285,24 @@
                         <i class="fas fa-undo"></i> Reset
                     </button>
                     <button id="extractReport" class="btn btn-primary btn-sm">
-                        <i class="fas fa-file-download"></i> Extract Report
+                        <i class="fas fa-file-download"></i> Extract
                     </button>
                     <button id="exportPdfBtn" class="btn btn-primary btn-sm" style="background:#d13438;">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                        <i class="fas fa-file-pdf"></i> PDF
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PANEL 1: OVERVIEW
+         ============================================================ -->
+    <div id="panel-overview" class="dashboard-panel active">
+        <div class="panel-title-bar">
+            <i class="fas fa-tachometer-alt"></i>
+            <h2>Overview</h2>
+            <span class="panel-subtitle">Key performance indicators and compliance summary</span>
         </div>
 
         <!-- KPI Cards -->
@@ -318,7 +325,7 @@
             </div>
             <div class="kpi-card">
                 <div class="kpi-value kpi-green" id="kpiTotalRevenue">R0.00</div>
-                <div class="kpi-label">Total Revenue Generated</div>
+                <div class="kpi-label">Total Revenue</div>
             </div>
         </div>
 
@@ -335,7 +342,121 @@
             </div>
         </div>
 
-        <!-- Commodity Trend -->
+        <!-- 2-col: Monthly Inspections + Approval Rate -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Monthly Inspections Trend</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="monthlyInspectionsTrendChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-check-double"></i>
+                        <span>Approval Rate Per Inspector</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="approvalRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PANEL 2: INSPECTORS
+         ============================================================ -->
+    <div id="panel-inspectors" class="dashboard-panel">
+        <div class="panel-title-bar">
+            <i class="fas fa-user-tie"></i>
+            <h2>Inspector Performance</h2>
+            <span class="panel-subtitle">Performance vs targets, efficiency matrix, and compliance</span>
+        </div>
+
+        <!-- Inspector Radar Chart -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Inspector Performance vs Targets (Q1: Jan-Mar)</span>
+                </div>
+                <select id="radarInspectorSelect" onchange="renderInspectorRadarChart()" style="font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                    <option value="all">All Inspectors</option>
+                </select>
+            </div>
+            <div class="card-body" style="height: 380px;">
+                <canvas id="inspectorRadarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Inspector Quarterly Targets Tracker -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Inspector Quarterly Targets Tracker (Q1: Jan-Mar)</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto;">
+                <table class="inspections-table" id="inspectorTargetsTable" style="font-size: 10.5px;">
+                    <thead>
+                        <tr id="targetsHeader"></tr>
+                    </thead>
+                    <tbody id="targetsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Inspector Efficiency Matrix -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-th"></i>
+                    <span>Inspector Efficiency Matrix (Inspections per Commodity)</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto; overflow-y: hidden; max-width: 100%;">
+                <table class="inspections-table" id="efficiencyMatrixTable" style="min-width: 800px; width: auto;">
+                    <thead><tr id="matrixHeader"></tr></thead>
+                    <tbody id="matrixBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Directions & Non-Compliance -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Directions & Non-Compliance Per Inspector</span>
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-light); font-style: italic;">
+                    Directions issued = good inspector work identifying client issues
+                </div>
+            </div>
+            <div class="card-body" style="height: 280px;">
+                <canvas id="directionsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PANEL 3: COMPLIANCE
+         ============================================================ -->
+    <div id="panel-compliance" class="dashboard-panel">
+        <div class="panel-title-bar">
+            <i class="fas fa-shield-alt"></i>
+            <h2>Compliance & Quality</h2>
+            <span class="panel-subtitle">Commodity compliance trends, occurrence reports, and quality metrics</span>
+        </div>
+
+        <!-- Commodity Compliance Trend -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -343,38 +464,12 @@
                     <span>Commodity Compliance Trend (%)</span>
                 </div>
             </div>
-            <div class="card-body" style="height: 200px;">
+            <div class="card-body" style="height: 220px;">
                 <canvas id="commodityTrendChart"></canvas>
             </div>
         </div>
 
-        <!-- Two Column: Commodity Count + Time Allocation -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-chart-pie"></i>
-                        <span>Commodity Count</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="commodityCountChart"></canvas>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-clock"></i>
-                        <span>Time Allocation (Billable Hours)</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="timeAllocationChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Two Column: Commodity Trend + Samples/Facility -->
+        <!-- Weekly Compliance + Samples + Facility -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -415,23 +510,33 @@
             </div>
         </div>
 
-        <!-- Directions & Non-Compliance Per Inspector -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Directions & Non-Compliance Per Inspector</span>
+        <!-- Commodity Count + Time Allocation -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Commodity Count</span>
+                    </div>
                 </div>
-                <div style="font-size: 0.7rem; color: var(--text-light); font-style: italic;">
-                    Directions issued = good inspector work identifying client issues
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="commodityCountChart"></canvas>
                 </div>
             </div>
-            <div class="card-body" style="height: 280px;">
-                <canvas id="directionsChart"></canvas>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-clock"></i>
+                        <span>Time Allocation (Billable Hours)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 240px;">
+                    <canvas id="timeAllocationChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- Two Column: Occurrence Reports + Monthly Occurrence Trend -->
+        <!-- Occurrence Reports + Monthly Trend -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -456,8 +561,19 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Two Column: Travel Distance + Monthly Travel Trend -->
+    <!-- ============================================================
+         PANEL 4: OPERATIONS
+         ============================================================ -->
+    <div id="panel-operations" class="dashboard-panel">
+        <div class="panel-title-bar">
+            <i class="fas fa-route"></i>
+            <h2>Operations & Travel</h2>
+            <span class="panel-subtitle">Travel distance, time on the road, and field activity</span>
+        </div>
+
+        <!-- Travel Distance + Monthly Travel Trend -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -466,7 +582,7 @@
                         <span>Travel Distance Per Inspector</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 220px;">
+                <div class="card-body" style="height: 260px;">
                     <canvas id="travelChart"></canvas>
                 </div>
             </div>
@@ -477,13 +593,50 @@
                         <span>Monthly Travel Distance (km)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 220px;">
+                <div class="card-body" style="height: 260px;">
                     <canvas id="travelTrendChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Admin & Lab Time Metrics: Charts + Trend -->
+        <!-- Travel Time Per Inspector + Travel Hours Trend -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-car"></i>
+                        <span>Travel Time Per Inspector (Hours)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="travelTimeChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Travel Hours Trend (Monthly)</span>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 260px;">
+                    <canvas id="travelHoursTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PANEL 5: DOCUMENT TIMELINES
+         ============================================================ -->
+    <div id="panel-documents" class="dashboard-panel">
+        <div class="panel-title-bar">
+            <i class="fas fa-file-alt"></i>
+            <h2>Document Timelines</h2>
+            <span class="panel-subtitle">Average days for each document processing milestone — lower is better</span>
+        </div>
+
+        <!-- Doc Send -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -509,6 +662,7 @@
             </div>
         </div>
 
+        <!-- Invoice Upload -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -534,7 +688,7 @@
             </div>
         </div>
 
-        <!-- Lab: COA Analysis Time + Trend -->
+        <!-- COA Upload -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -543,7 +697,7 @@
                         <span>Avg Days: Sample to COA Upload</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 220px;">
+                <div class="card-body" style="height: 240px;">
                     <canvas id="coaTimeChart"></canvas>
                 </div>
             </div>
@@ -554,13 +708,13 @@
                         <span>COA Upload Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 220px;">
+                <div class="card-body" style="height: 240px;">
                     <canvas id="coaTrendChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Approval Time + Trend -->
+        <!-- Approval Time -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
@@ -585,76 +739,19 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Travel Time Per Inspector + Trend -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-car"></i>
-                        <span>Travel Time Per Inspector (Hours)</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelTimeChart"></canvas>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Travel Hours Trend (Monthly)</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelHoursTrendChart"></canvas>
-                </div>
-            </div>
+    <!-- ============================================================
+         PANEL 6: FINANCIAL
+         ============================================================ -->
+    <div id="panel-financial" class="dashboard-panel">
+        <div class="panel-title-bar">
+            <i class="fas fa-chart-bar"></i>
+            <h2>Financial</h2>
+            <span class="panel-subtitle">Revenue per inspector and financial breakdown</span>
         </div>
 
-        <!-- Monthly Inspections Trend -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Monthly Inspections Trend</span>
-                </div>
-            </div>
-            <div class="card-body" style="height: 220px;">
-                <canvas id="monthlyInspectionsTrendChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Efficiency Matrix: Inspector vs Commodity -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-th"></i>
-                    <span>Inspector Efficiency Matrix (Inspections per Commodity)</span>
-                </div>
-            </div>
-            <div class="card-body" style="padding: 0; overflow-x: auto; overflow-y: hidden; max-width: 100%;">
-                <table class="inspections-table" id="efficiencyMatrixTable" style="min-width: 800px; width: auto;">
-                    <thead><tr id="matrixHeader"></tr></thead>
-                    <tbody id="matrixBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Approval Rate Per Inspector -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-check-double"></i>
-                    <span>Approval Rate Per Inspector</span>
-                </div>
-            </div>
-            <div class="card-body" style="height: 280px;">
-                <canvas id="approvalRateChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Inspector Revenue Table -->
+        <!-- Revenue Per Inspector Table -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -692,116 +789,81 @@
                     <span>Revenue Breakdown Per Inspector</span>
                 </div>
             </div>
-            <div class="card-body" style="height: 280px;">
+            <div class="card-body" style="height: 320px;">
                 <canvas id="revenueCostChart"></canvas>
             </div>
         </div>
-
-        <!-- Inspector Targets Radar Chart -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-bullseye"></i>
-                    <span>Inspector Performance vs Targets (Q1: Jan-Mar)</span>
-                </div>
-                <select id="radarInspectorSelect" onchange="renderInspectorRadarChart()" style="font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
-                    <option value="all">All Inspectors</option>
-                </select>
-            </div>
-            <div class="card-body" style="height: 380px;">
-                <canvas id="inspectorRadarChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Inspector Targets vs Actual Table -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-clipboard-check"></i>
-                    <span>Inspector Quarterly Targets Tracker (Q1: Jan-Mar)</span>
-                </div>
-            </div>
-            <div class="card-body" style="padding: 0; overflow-x: auto;">
-                <table class="inspections-table" id="inspectorTargetsTable" style="font-size: 10.5px;">
-                    <thead>
-                        <tr id="targetsHeader"></tr>
-                    </thead>
-                    <tbody id="targetsBody">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        </div>
-        </div>
     </div>
 
-    <!-- Django configuration passed to external JS -->
-    <script>
-        window.DJANGO_CONFIG = {
-            csrfToken: '{{ csrf_token }}',
-            serverTheme: '{{ settings.dark_mode|yesno:"dark,light" }}',
-            userRole: '{{ request.user.role }}',
-            apiUrl: '{% url "analytics_dashboard_api" %}',
+</div><!-- /#main-content -->
 
-            // KPI data
-            totalInspections: {{ total_food_safety_inspections }},
-            complianceRate: {{ compliance_rate }},
-            activeInspectors: {{ active_inspectors_count }},
-            daysWorked: {{ days_worked }},
-            thisMonthInspections: {{ this_month_inspections }},
-            monthGrowthRate: {{ month_growth_rate }},
+<!-- Django configuration passed to external JS -->
+<script>
+    window.DJANGO_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        serverTheme: '{{ settings.dark_mode|yesno:"dark,light" }}',
+        userRole: '{{ request.user.role }}',
+        apiUrl: '{% url "analytics_dashboard_api" %}',
 
-            // Hours data
-            hoursAnalysis: {{ hours_analysis|safe }},
-            efficiencyMetrics: {{ efficiency_metrics|safe }},
+        // KPI data
+        totalInspections: {{ total_food_safety_inspections }},
+        complianceRate: {{ compliance_rate }},
+        activeInspectors: {{ active_inspectors_count }},
+        daysWorked: {{ days_worked }},
+        thisMonthInspections: {{ this_month_inspections }},
+        monthGrowthRate: {{ month_growth_rate }},
 
-            // Dashboard data
-            complianceByCommodity: {{ compliance_by_commodity|safe }},
-            commodityAnalysis: {{ commodity_analysis|safe }},
-            samplesByCommodity: {{ samples_by_commodity|safe }},
-            facilityTypeDistribution: {{ facility_type_distribution|safe }},
-            monthlyCommodityTrends: {{ monthly_commodity_trends|safe }},
-            monthlyComplianceTrend: {{ monthly_compliance_trend|safe }},
-            dailyComplianceTrend: {{ daily_compliance_trend|safe }},
-            timeAllocation: {{ time_allocation|safe }},
-            inspectionsList: {{ inspections_list|safe }},
-            filterOptions: {{ filter_options|safe }},
-            inspectorPerformance: {{ inspector_performance|safe }},
+        // Hours data
+        hoursAnalysis: {{ hours_analysis|safe }},
+        efficiencyMetrics: {{ efficiency_metrics|safe }},
 
-            // Inspector metrics
-            occurrenceReports: {{ occurrence_reports|safe }},
-            totalOccurrenceReports: {{ total_occurrence_reports }},
-            directionsPerInspector: {{ directions_per_inspector|safe }},
-            travelPerInspector: {{ travel_per_inspector|safe }},
-            inspectorCommodityMatrix: {{ inspector_commodity_matrix|safe }},
-            inspectorSampleMatrix: {{ inspector_sample_matrix|safe }},
-            approvalPerInspector: {{ approval_per_inspector|safe }},
+        // Dashboard data
+        complianceByCommodity: {{ compliance_by_commodity|safe }},
+        commodityAnalysis: {{ commodity_analysis|safe }},
+        samplesByCommodity: {{ samples_by_commodity|safe }},
+        facilityTypeDistribution: {{ facility_type_distribution|safe }},
+        monthlyCommodityTrends: {{ monthly_commodity_trends|safe }},
+        monthlyComplianceTrend: {{ monthly_compliance_trend|safe }},
+        dailyComplianceTrend: {{ daily_compliance_trend|safe }},
+        timeAllocation: {{ time_allocation|safe }},
+        inspectionsList: {{ inspections_list|safe }},
+        filterOptions: {{ filter_options|safe }},
+        inspectorPerformance: {{ inspector_performance|safe }},
 
-            // Monthly trends
-            monthlyOccurrenceTrend: {{ monthly_occurrence_trend|safe }},
-            monthlyTravelTrend: {{ monthly_travel_trend|safe }},
-            monthlyDocSendTrend: {{ monthly_doc_send_trend|safe }},
-            monthlyInvoiceTrend: {{ monthly_invoice_trend|safe }},
-            monthlyInspectionsTrend: {{ monthly_inspections_trend|safe }},
-            monthlyCoaTrend: {{ monthly_coa_trend|safe }},
-            monthlyApprovalTrend: {{ monthly_approval_trend|safe }},
-            monthlyTravelHoursTrend: {{ monthly_travel_hours_trend|safe }},
+        // Inspector metrics
+        occurrenceReports: {{ occurrence_reports|safe }},
+        totalOccurrenceReports: {{ total_occurrence_reports }},
+        directionsPerInspector: {{ directions_per_inspector|safe }},
+        travelPerInspector: {{ travel_per_inspector|safe }},
+        inspectorCommodityMatrix: {{ inspector_commodity_matrix|safe }},
+        inspectorSampleMatrix: {{ inspector_sample_matrix|safe }},
+        approvalPerInspector: {{ approval_per_inspector|safe }},
 
-            // Financial / Revenue data
-            inspectorFinancials: {{ inspector_financials|safe }},
-            financialSummary: {{ financial_summary|safe }},
+        // Monthly trends
+        monthlyOccurrenceTrend: {{ monthly_occurrence_trend|safe }},
+        monthlyTravelTrend: {{ monthly_travel_trend|safe }},
+        monthlyDocSendTrend: {{ monthly_doc_send_trend|safe }},
+        monthlyInvoiceTrend: {{ monthly_invoice_trend|safe }},
+        monthlyInspectionsTrend: {{ monthly_inspections_trend|safe }},
+        monthlyCoaTrend: {{ monthly_coa_trend|safe }},
+        monthlyApprovalTrend: {{ monthly_approval_trend|safe }},
+        monthlyTravelHoursTrend: {{ monthly_travel_hours_trend|safe }},
 
-            // Phase 2: Time-based analytics
-            docSendTime: {{ doc_send_time|safe }},
-            invoiceUploadTime: {{ invoice_upload_time|safe }},
-            coaAnalysisTime: {{ coa_analysis_time|safe }},
-            approvalTime: {{ approval_time|safe }},
-            travelTimePerInspector: {{ travel_time_per_inspector|safe }}
-        };
-    </script>
-    <!-- Analytics Dashboard JS -->
-    <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221g"></script>
+        // Financial / Revenue data
+        inspectorFinancials: {{ inspector_financials|safe }},
+        financialSummary: {{ financial_summary|safe }},
+
+        // Phase 2: Time-based analytics
+        docSendTime: {{ doc_send_time|safe }},
+        invoiceUploadTime: {{ invoice_upload_time|safe }},
+        coaAnalysisTime: {{ coa_analysis_time|safe }},
+        approvalTime: {{ approval_time|safe }},
+        travelTimePerInspector: {{ travel_time_per_inspector|safe }}
+    };
+</script>
+<!-- Analytics Dashboard JS -->
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221h"></script>
+
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:white; padding:32px 48px; border-radius:8px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.3);">

@@ -1892,3 +1892,184 @@ if (window.DJANGO_CONFIG.userRole === 'super_admin' || window.DJANGO_CONFIG.user
         if (bell) { bell.addEventListener('click', showNotificationModal); fetchNotifications(); setInterval(fetchNotifications, 30000); }
     });
 }
+
+// ================================================================
+// PANEL SYSTEM — full-page tabbed dashboard
+// ================================================================
+
+// Maps each panel to its render functions
+var PANEL_RENDER_MAP = {
+    'overview': [
+        renderKPIs,
+        renderComplianceBars,
+        renderMonthlyInspectionsTrendChart,
+        renderApprovalRateChart
+    ],
+    'inspectors': [
+        renderInspectorRadarChart,
+        renderInspectorTargetsTable,
+        renderEfficiencyMatrix,
+        renderDirectionsChart
+    ],
+    'compliance': [
+        renderCommodityTrendChart,
+        renderComplianceTrendChart,
+        renderSamplesTakenChart,
+        renderFacilityTypesChart,
+        renderCommodityCountChart,
+        renderTimeAllocationChart,
+        renderOccurrenceReportsChart,
+        renderOccurrenceTrendChart
+    ],
+    'operations': [
+        renderTravelChart,
+        renderTravelTrendChart,
+        renderTravelTimeChart,
+        renderTravelHoursTrendChart
+    ],
+    'documents': [
+        renderDocSendChart,
+        renderDocSendTrendChart,
+        renderInvoiceUploadChart,
+        renderInvoiceTrendChart,
+        renderCoaTimeChart,
+        renderCoaTrendChart,
+        renderApprovalTimeChart,
+        renderApprovalTrendChart
+    ],
+    'financial': [
+        renderFinancialTable,
+        renderRevenueCostChart
+    ]
+};
+
+// Track which panels have been rendered after the last data load
+var panelRendered = {
+    'overview': false, 'inspectors': false, 'compliance': false,
+    'operations': false, 'documents': false, 'financial': false
+};
+
+var currentPanel = 'overview';
+
+function renderPanelCharts(panelId) {
+    var fns = PANEL_RENDER_MAP[panelId] || [];
+    fns.forEach(function(fn) {
+        try { if (typeof fn === 'function') fn(); } catch(e) { /* silent */ }
+    });
+}
+
+function switchPanel(panelId) {
+    if (panelId === currentPanel && panelRendered[panelId]) return;
+
+    // Deactivate current
+    var oldPanel = document.getElementById('panel-' + currentPanel);
+    var oldTab = document.querySelector('.tab-btn[data-panel="' + currentPanel + '"]');
+    if (oldPanel) oldPanel.classList.remove('active');
+    if (oldTab) { oldTab.classList.remove('active'); oldTab.setAttribute('aria-selected', 'false'); }
+
+    // Activate new
+    currentPanel = panelId;
+    var newPanel = document.getElementById('panel-' + panelId);
+    var newTab = document.querySelector('.tab-btn[data-panel="' + panelId + '"]');
+    if (newPanel) newPanel.classList.add('active');
+    if (newTab) { newTab.classList.add('active'); newTab.setAttribute('aria-selected', 'true'); }
+
+    // Lazy render — only render if not yet done since last data load
+    if (!panelRendered[panelId]) {
+        renderPanelCharts(panelId);
+        panelRendered[panelId] = true;
+    }
+
+    // Persist active panel in URL hash
+    try { history.replaceState(null, '', '#' + panelId); } catch(e) {}
+}
+
+// Override renderAll so that after a filter change only the active panel
+// re-renders immediately; other panels re-render lazily on next visit.
+(function() {
+    var _orig = renderAll;
+    renderAll = function() {
+        // Mark all panels as needing re-render
+        Object.keys(panelRendered).forEach(function(p) { panelRendered[p] = false; });
+        // Render only the currently visible panel
+        renderPanelCharts(currentPanel);
+        panelRendered[currentPanel] = true;
+        // Always keep KPIs updated regardless of active panel
+        try { renderKPIs(); } catch(e) {}
+    };
+})();
+
+// ================================================================
+// PANEL SYSTEM INIT (DOMContentLoaded)
+// ================================================================
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ----- Panel Tab Switching -----
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            switchPanel(this.getAttribute('data-panel'));
+        });
+    });
+
+    // Restore panel from URL hash on load
+    var hashPanel = location.hash.replace('#', '');
+    if (hashPanel && PANEL_RENDER_MAP[hashPanel]) {
+        // Defer until after the main DOMContentLoaded has run
+        setTimeout(function() { switchPanel(hashPanel); }, 50);
+    }
+
+    // ----- Drawer Toggle -----
+    var drawerToggle = document.getElementById('drawer-toggle');
+    var drawer = document.getElementById('drawer');
+    var drawerOverlay = document.getElementById('drawer-overlay');
+    var drawerClose = document.getElementById('drawer-close');
+
+    function openDrawer() {
+        if (drawer) drawer.classList.add('open');
+        if (drawerOverlay) drawerOverlay.classList.add('open');
+        if (drawerToggle) drawerToggle.querySelector('i').className = 'fas fa-times';
+    }
+
+    function closeDrawer() {
+        if (drawer) drawer.classList.remove('open');
+        if (drawerOverlay) drawerOverlay.classList.remove('open');
+        if (drawerToggle) drawerToggle.querySelector('i').className = 'fas fa-bars';
+    }
+
+    if (drawerToggle) drawerToggle.addEventListener('click', function() {
+        drawer && drawer.classList.contains('open') ? closeDrawer() : openDrawer();
+    });
+    if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+    if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
+    if (drawer) drawer.querySelectorAll('a').forEach(function(a) { a.addEventListener('click', closeDrawer); });
+
+    // ----- Filter Bar Toggle -----
+    var filterBtn = document.getElementById('filter-toggle-btn');
+    var filterWrapper = document.getElementById('filter-bar-wrapper');
+
+    if (filterBtn && filterWrapper) {
+        filterBtn.addEventListener('click', function() {
+            var collapsed = filterWrapper.classList.toggle('collapsed');
+            filterBtn.classList.toggle('filters-active', !collapsed);
+        });
+    }
+
+    // ----- Dark Mode Toggle -----
+    var themeBtn = document.getElementById('topnav-theme-toggle');
+    if (themeBtn) {
+        // Reflect current theme in icon
+        var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        themeBtn.querySelector('i').className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+
+        themeBtn.addEventListener('click', function() {
+            var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeBtn.querySelector('i').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            // Re-render current panel so charts pick up new colors
+            Object.keys(panelRendered).forEach(function(p) { panelRendered[p] = false; });
+            renderPanelCharts(currentPanel);
+            panelRendered[currentPanel] = true;
+        });
+    }
+});
