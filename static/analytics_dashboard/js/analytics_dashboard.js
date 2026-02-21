@@ -1894,6 +1894,103 @@ if (window.DJANGO_CONFIG.userRole === 'super_admin' || window.DJANGO_CONFIG.user
 }
 
 // ================================================================
+// OVERVIEW SECONDARY KPIs
+// ================================================================
+function renderSecondaryKPIs() {
+    // Total KM traveled
+    var totalKm = 0;
+    (dashboardData.travelPerInspector || []).forEach(function(d) { totalKm += (d.total_km || d.km || 0); });
+    var kmEl = document.getElementById('kpiTotalKm');
+    if (kmEl) kmEl.textContent = totalKm > 0 ? totalKm.toLocaleString() + ' km' : '—';
+
+    // Total samples
+    var totalSamples = 0;
+    (dashboardData.samplesByCommodity || []).forEach(function(d) { totalSamples += (d.count || d.samples || 0); });
+    var samplesEl = document.getElementById('kpiTotalSamples');
+    if (samplesEl) samplesEl.textContent = totalSamples > 0 ? totalSamples.toLocaleString() : '—';
+
+    // Avg days doc send
+    var docItems = dashboardData.docSendTime || [];
+    var docAvg = docItems.length ? Math.round(docItems.reduce(function(s, d) { return s + (d.avg_days || 0); }, 0) / docItems.length) : null;
+    var docEl = document.getElementById('kpiAvgDocSend');
+    if (docEl) docEl.textContent = docAvg !== null ? docAvg + ' days' : '—';
+
+    // Avg days approval
+    var apprItems = dashboardData.approvalTime || [];
+    var apprAvg = apprItems.length ? Math.round(apprItems.reduce(function(s, d) { return s + (d.avg_days || 0); }, 0) / apprItems.length) : null;
+    var apprEl = document.getElementById('kpiAvgApproval');
+    if (apprEl) apprEl.textContent = apprAvg !== null ? apprAvg + ' days' : '—';
+
+    // Occurrence count
+    var occEl = document.getElementById('kpiTotalOccurrences');
+    if (occEl) occEl.textContent = dashboardData.totalOccurrenceReports || 0;
+}
+
+// ================================================================
+// OVERVIEW MIRROR CHARTS (separate canvas IDs from main panel charts)
+// ================================================================
+function renderOccurrenceTrendOverview() {
+    destroyChart('occurrenceTrendChartOverview');
+    var canvas = document.getElementById('occurrenceTrendChartOverview');
+    if (!canvas) return;
+    var items = dashboardData.monthlyOccurrenceTrend || [];
+    if (!items.length) return;
+    chartInstances['occurrenceTrendChartOverview'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
+            datasets: [{ label: 'Occurrences', data: items.map(function(d) { return d.count; }), backgroundColor: '#d13438', borderRadius: 3 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 8 } } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+function renderSamplesTakenOverview() {
+    destroyChart('samplesTakenChartOverview');
+    var canvas = document.getElementById('samplesTakenChartOverview');
+    if (!canvas) return;
+    var items = dashboardData.samplesByCommodity || [];
+    if (!items.length) return;
+    var palette = ['#f59e0b', '#0078d4', '#107c10', '#d13438', '#8764b8', '#00b7c3'];
+    chartInstances['samplesTakenChartOverview'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: items.map(function(d) { return d.commodity || d.label || ''; }),
+            datasets: [{ label: 'Samples', data: items.map(function(d) { return d.count || d.samples || 0; }), backgroundColor: items.map(function(_, i) { return palette[i % palette.length]; }), borderRadius: 4 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false }, ticks: { color: txtColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+        }
+    });
+}
+
+function renderFacilityTypesOverview() {
+    destroyChart('facilityTypesChartOverview');
+    var canvas = document.getElementById('facilityTypesChartOverview');
+    if (!canvas) return;
+    var items = dashboardData.facilityTypeDistribution || [];
+    if (!items.length) return;
+    var palette = ['#0078d4', '#107c10', '#f59e0b', '#d13438', '#8764b8', '#00b7c3', '#e3008c'];
+    chartInstances['facilityTypesChartOverview'] = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: items.map(function(d) { return d.facility_type || d.label || ''; }),
+            datasets: [{ data: items.map(function(d) { return d.count || 0; }), backgroundColor: palette, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: txtColor(), font: { size: 10 }, boxWidth: 12, padding: 8 } } }
+        }
+    });
+}
+
+// ================================================================
 // PANEL SYSTEM — full-page tabbed dashboard
 // ================================================================
 
@@ -1901,9 +1998,14 @@ if (window.DJANGO_CONFIG.userRole === 'super_admin' || window.DJANGO_CONFIG.user
 var PANEL_RENDER_MAP = {
     'overview': [
         renderKPIs,
+        renderSecondaryKPIs,
         renderComplianceBars,
+        renderDailyComplianceChart,
         renderMonthlyInspectionsTrendChart,
-        renderApprovalRateChart
+        renderApprovalRateChart,
+        renderOccurrenceTrendOverview,
+        renderSamplesTakenOverview,
+        renderFacilityTypesOverview
     ],
     'inspectors': [
         renderInspectorRadarChart,
@@ -2043,33 +2145,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
     if (drawer) drawer.querySelectorAll('a').forEach(function(a) { a.addEventListener('click', closeDrawer); });
 
-    // ----- Filter Bar Toggle -----
-    var filterBtn = document.getElementById('filter-toggle-btn');
-    var filterWrapper = document.getElementById('filter-bar-wrapper');
-
-    if (filterBtn && filterWrapper) {
-        filterBtn.addEventListener('click', function() {
-            var collapsed = filterWrapper.classList.toggle('collapsed');
-            filterBtn.classList.toggle('filters-active', !collapsed);
-        });
-    }
-
-    // ----- Dark Mode Toggle -----
-    var themeBtn = document.getElementById('topnav-theme-toggle');
-    if (themeBtn) {
-        // Reflect current theme in icon
-        var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-        themeBtn.querySelector('i').className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-
-        themeBtn.addEventListener('click', function() {
-            var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            themeBtn.querySelector('i').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            // Re-render current panel so charts pick up new colors
-            Object.keys(panelRendered).forEach(function(p) { panelRendered[p] = false; });
-            renderPanelCharts(currentPanel);
-            panelRendered[currentPanel] = true;
-        });
-    }
 });

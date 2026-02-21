@@ -1434,3 +1434,149 @@ body.bg-loaded::before {
 }
 
 @media (max-width: 600px) { .panel-subtitle { display: none; } }
+
+/* ================================================================
+   BACKGROUND — show through cards with glass effect
+   ================================================================ */
+#main-content {
+    background: transparent;
+}
+
+/* Make cards semi-transparent to let background show */
+.card {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .card {
+    background: rgba(45, 45, 45, 0.93) !important;
+}
+
+.filter-bar.card {
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+
+[data-theme="dark"] .filter-bar.card {
+    background: rgba(30, 30, 30, 0.96) !important;
+}
+
+.panel-title-bar {
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+[data-theme="dark"] .panel-title-bar {
+    background: rgba(40, 40, 40, 0.9) !important;
+}
+
+.kpi-card {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .kpi-card {
+    background: rgba(45, 45, 45, 0.93) !important;
+}
+
+/* ================================================================
+   SECONDARY KPI CARDS
+   ================================================================ */
+.kpi-grid-secondary {
+    margin-bottom: 1rem;
+}
+
+.kpi-card-secondary {
+    padding: 0.7rem 0.75rem !important;
+    position: relative;
+}
+
+.kpi-icon {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.kpi-card-secondary .kpi-value {
+    font-size: 1.4rem !important;
+}
+
+/* ================================================================
+   3-COLUMN GRID
+   ================================================================ */
+.dashboard-grid-3col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-grid-3col { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+    .dashboard-grid-3col { grid-template-columns: 1fr; }
+}
+
+/* ================================================================
+   RESPONSIVE IMPROVEMENTS
+   ================================================================ */
+
+/* Filter bar wraps nicely on tablet */
+@media (max-width: 900px) {
+    .filter-bar-inner {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .filter-group {
+        flex: 1 1 140px;
+        min-width: 130px;
+    }
+    .filter-actions {
+        flex: 0 0 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Cards and grids on tablet */
+@media (max-width: 900px) {
+    .dashboard-grid-2col {
+        grid-template-columns: 1fr;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .kpi-grid-secondary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Mobile */
+@media (max-width: 560px) {
+    .kpi-grid,
+    .kpi-grid-secondary {
+        grid-template-columns: 1fr 1fr;
+    }
+    .kpi-value { font-size: 1.6rem; }
+    .card-header { flex-wrap: wrap; gap: 6px; }
+    #topnav { padding: 0 8px; gap: 5px; }
+}
+
+@media (max-width: 400px) {
+    .kpi-grid,
+    .kpi-grid-secondary {
+        grid-template-columns: 1fr 1fr;
+    }
+    #main-content { padding: 8px 8px 16px; }
+}
+
+/* Topnav responsive — ensure tabs are always scrollable */
+@media (max-width: 480px) {
+    .tab-btn { padding: 5px 7px; font-size: 0.68rem; }
+    #topnav-logo { height: 22px; }
+}
+
+@media (max-width: 600px) { .panel-subtitle { display: none; } }
