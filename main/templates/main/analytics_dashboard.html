@@ -23,8 +23,8 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="{% static 'analytics_dashboard/js/html2canvas.min.js' %}?v=1.4.1"></script>
+    <script src="{% static 'analytics_dashboard/js/jspdf.umd.min.js' %}?v=2.5.1"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -45,7 +45,7 @@
         }
     </script>
     <!-- Analytics Dashboard Styles -->
-    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260221l">
+    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260221m">
     <style>
         /* Background image URL must stay inline because it uses a Django static tag */
         :root {
@@ -950,7 +950,7 @@
     };
 </script>
 <!-- Analytics Dashboard JS -->
-<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221l"></script>
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221m"></script>
 
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
