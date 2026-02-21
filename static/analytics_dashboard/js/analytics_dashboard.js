@@ -1652,37 +1652,51 @@ async function exportDashboardPDF() {
     }
 
     // Add a chart image to the PDF, fitting within remaining vertical space
+    var PAGE_BOTTOM = PH - 9;   // usable bottom edge (above footer)
+    var PAGE_TOP    = 14;       // usable top edge (below header)
+    var PAGE_H      = PAGE_BOTTOM - PAGE_TOP;  // 188 mm
+
+    // Place a chart image, starting a new page only when needed.
+    // Returns updated yOff.
     function addChartImage(pdf, imgData, canvasW, canvasH, yOff, sectionTitle) {
-        var maxH = PH - M - 9 - yOff;
-        var aspectRatio = canvasW / canvasH;
-        var iW = CW * 0.88;
-        var iH = iW / aspectRatio;
-        if (iH > maxH) { iH = maxH; iW = iH * aspectRatio; }
-        if (iW > CW)   { iW = CW;   iH = iW / aspectRatio; }
-        if (yOff + iH > PH - M - 9) {
+        var ar = canvasW / canvasH;
+        var iW = CW;
+        var iH = iW / ar;
+        var available = PAGE_BOTTOM - yOff;
+        // If it won't fit in remaining space and we're not at the top, break page
+        if (iH > available && yOff > PAGE_TOP + 2) {
+            drawPageFooter(pdf, '?', '?');
             pdf.addPage();
             drawPageHeader(pdf, sectionTitle);
-            yOff = 14;
+            yOff = PAGE_TOP;
+            available = PAGE_H;
         }
+        // Scale to fit available height if still too tall
+        if (iH > available) { iH = available; iW = iH * ar; }
+        if (iW > CW)        { iW = CW;        iH = iW / ar; }
         pdf.addImage(imgData, 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
-        return yOff + iH + 5;
+        return yOff + iH + 4;
     }
 
-    // Add an html2canvas screenshot
+    // Place an html2canvas screenshot, starting a new page only when needed.
     async function addElementCapture(pdf, element, yOff, sectionTitle) {
         try {
             var cap = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false });
-            var iW = CW;
-            var iH = iW * cap.height / cap.width;
-            var maxH = PH - M - 9 - yOff;
-            if (iH > maxH) { iH = maxH; iW = iH * cap.width / cap.height; }
-            if (yOff + iH > PH - M - 9) {
+            var ar  = cap.width / cap.height;
+            var iW  = CW;
+            var iH  = iW / ar;
+            var available = PAGE_BOTTOM - yOff;
+            if (iH > available && yOff > PAGE_TOP + 2) {
+                drawPageFooter(pdf, '?', '?');
                 pdf.addPage();
                 drawPageHeader(pdf, sectionTitle);
-                yOff = 14;
+                yOff = PAGE_TOP;
+                available = PAGE_H;
             }
+            if (iH > available) { iH = available; iW = iH * ar; }
+            if (iW > CW)        { iW = CW;        iH = iW / ar; }
             pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
-            return yOff + iH + 5;
+            return yOff + iH + 4;
         } catch (e) {
             console.warn('html2canvas failed:', e);
             return yOff;
@@ -1949,12 +1963,13 @@ async function exportDashboardPDF() {
             pdf.text('CONFIDENTIAL — Food Safety Agency (Pty) Ltd', M, PH - 3);
             pdf.text(new Date().toLocaleDateString('en-ZA'), PW - M, PH - 3, { align: 'right' });
 
-            // ── Charts / tables for this section ─────────────────────────────
+            // ── Charts / tables for this section — packed onto as few pages as possible
+            pdf.addPage();
+            drawPageHeader(pdf, grp.title);
+            var yOff = PAGE_TOP;
+
             for (var ci2 = 0; ci2 < grp.charts.length; ci2++) {
                 var ch = grp.charts[ci2];
-                pdf.addPage();
-                drawPageHeader(pdf, grp.title);
-                var yOff = 14;
 
                 if (ch.isChart) {
                     var chartKey = ch.selector.replace('#', '');
@@ -1970,9 +1985,10 @@ async function exportDashboardPDF() {
                         yOff = await addElementCapture(pdf, el, yOff, grp.title);
                     }
                 }
-                drawPageFooter(pdf, '?', '?');
                 await new Promise(function(r) { setTimeout(r, 60); });
             }
+            // Close the last page of this section
+            drawPageFooter(pdf, '?', '?');
         }
 
         // ── Stamp correct page numbers now we know the total ─────────────────
