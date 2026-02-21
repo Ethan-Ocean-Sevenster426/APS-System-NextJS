@@ -23,7 +23,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{% static 'inspection_records/js/tailwind_config.js' %}?v=20260212"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'inspection_records/css/inspection_records.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'inspection_records/css/inspection_records.css' %}?v=20260221b">
 
     <!-- CRITICAL: Define core functions in HEAD so they're available for onclick handlers -->
     <script>window.DJANGO_CSRF = '{{ csrf_token|escapejs }}';</script>
@@ -1291,8 +1291,7 @@
                             <table id="shipmentsTable" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase"
-                                            style="width: 10%;">Facility</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase">Facility</th>
                                         <th class="px-2 py-2 text-center text-xs font-medium text-gray-700 uppercase"
                                             style="width: 50px;">Files</th>
                                         <th class="px-0 py-1 text-center text-xs font-medium text-gray-700 uppercase"

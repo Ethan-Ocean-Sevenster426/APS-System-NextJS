@@ -6714,7 +6714,7 @@
 
             #shipmentsTable {
                 width: 100% !important;
-                table-layout: fixed !important;
+                table-layout: auto !important;
             }
 
             #shipmentsTable th {
@@ -6735,14 +6735,13 @@
                 padding: 8px 6px !important;
             }
 
-            /* Col 1: Facility - client name, town, inspector - allow wrapping */
+            /* Col 1: Facility - fixed compact width, content wraps */
             #shipmentsTable th:nth-child(1),
             #shipmentsTable td:nth-child(1) {
-                width: 40% !important;
-                text-align: left !important;
+                width: 160px !important;
                 white-space: normal !important;
-                overflow: visible !important;
-                text-overflow: clip !important;
+                text-align: left !important;
+                word-break: break-word !important;
             }
 
             /* Col 2: Files button */
@@ -6810,7 +6809,7 @@
 
             #shipmentsTable {
                 width: 100% !important;
-                table-layout: fixed !important;
+                table-layout: auto !important;
             }
         }
 
