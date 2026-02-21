@@ -2120,29 +2120,5 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() { switchPanel(hashPanel); }, 50);
     }
 
-    // ----- Drawer Toggle -----
-    var drawerToggle = document.getElementById('drawer-toggle');
-    var drawer = document.getElementById('drawer');
-    var drawerOverlay = document.getElementById('drawer-overlay');
-    var drawerClose = document.getElementById('drawer-close');
-
-    function openDrawer() {
-        if (drawer) drawer.classList.add('open');
-        if (drawerOverlay) drawerOverlay.classList.add('open');
-        if (drawerToggle) drawerToggle.querySelector('i').className = 'fas fa-times';
-    }
-
-    function closeDrawer() {
-        if (drawer) drawer.classList.remove('open');
-        if (drawerOverlay) drawerOverlay.classList.remove('open');
-        if (drawerToggle) drawerToggle.querySelector('i').className = 'fas fa-bars';
-    }
-
-    if (drawerToggle) drawerToggle.addEventListener('click', function() {
-        drawer && drawer.classList.contains('open') ? closeDrawer() : openDrawer();
-    });
-    if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
-    if (drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
-    if (drawer) drawer.querySelectorAll('a').forEach(function(a) { a.addEventListener('click', closeDrawer); });
 
 });
