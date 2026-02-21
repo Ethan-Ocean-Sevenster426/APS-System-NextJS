@@ -1634,7 +1634,8 @@ async function exportDashboardPDF() {
         await new Promise(function(r) { setTimeout(r, 200); });
 
         // ── Step 3: Build the PDF ────────────────────────────────────────────
-        var jsPDF = window.jspdf.jsPDF;
+        var jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) throw new Error('PDF library not loaded — please refresh the page and try again.');
         var pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
         var pageWidth = 297;
@@ -1722,16 +1723,12 @@ async function exportDashboardPDF() {
                             imgHeight = pageHeight - margin * 2 - 14;
                             imgWidth = imgHeight * aspectRatio;
                         }
-                        if (yOffset + imgHeight + 14 > pageHeight - margin) {
+                        if (yOffset + imgHeight + 6 > pageHeight - margin) {
                             pdf.addPage();
                             yOffset = margin;
                         }
-                        pdf.setFontSize(11);
-                        pdf.setTextColor(0, 120, 144);
-                        pdf.text(section.label, margin, yOffset + 5);
-                        yOffset += 8;
                         pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
-                        yOffset += imgHeight + 8;
+                        yOffset += imgHeight + 6;
                     }
                 }
             } else {
@@ -1757,14 +1754,10 @@ async function exportDashboardPDF() {
                             imgHeight = pageHeight - margin * 2 - 10;
                             imgWidth = imgHeight * aspectRatio;
                         }
-                        if (yOffset + imgHeight + 8 > pageHeight - margin) {
+                        if (yOffset + imgHeight + 6 > pageHeight - margin) {
                             pdf.addPage();
                             yOffset = margin;
                         }
-                        pdf.setFontSize(11);
-                        pdf.setTextColor(0, 120, 144);
-                        pdf.text(section.label, margin, yOffset + 5);
-                        yOffset += 8;
                         pdf.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yOffset, imgWidth, imgHeight);
                         yOffset += imgHeight + 6;
                     } catch (e) {
