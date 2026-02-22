@@ -63,7 +63,6 @@ function loadInitialData() {
         totalInspections: cfg.totalInspections,
         complianceRate: cfg.complianceRate,
         activeInspectors: cfg.activeInspectors,
-        daysWorked: cfg.daysWorked,
         totalHours: cfg.hoursAnalysis ? parseFloat(cfg.hoursAnalysis.total_hours || 0) : 0,
         avgHours: cfg.hoursAnalysis ? parseFloat(cfg.hoursAnalysis.avg_hours || 0) : 0,
         complianceByCommodity: cfg.complianceByCommodity || [],
@@ -223,7 +222,6 @@ async function applyFilters() {
             totalInspections: data.totalInspections,
             complianceRate: data.complianceRate,
             activeInspectors: data.activeInspectors,
-            daysWorked: data.daysWorked,
             totalHours: parseFloat(data.totalHours || 0),
             avgHours: parseFloat(data.avgHours || 0),
             complianceByCommodity: data.complianceByCommodity || [],
@@ -307,7 +305,6 @@ function renderKPIs() {
     document.getElementById('kpiTotalInspections').textContent = (d.totalInspections || 0).toLocaleString();
     document.getElementById('kpiComplianceRate').textContent = (d.complianceRate || 0).toFixed(1) + '%';
     document.getElementById('kpiActiveInspectors').textContent = d.activeInspectors || 0;
-    document.getElementById('kpiDaysWorked').textContent = (d.daysWorked || 0).toLocaleString();
 
     // Financial KPIs
     var fin = d.financialSummary || {};
@@ -1773,9 +1770,8 @@ async function exportDashboardPDF() {
         drawKpiBox(pdf, row1start,            boxY, boxW, boxH, (d.totalInspections || 0).toLocaleString(), 'Total Inspections', C_TEAL);
         drawKpiBox(pdf, row1start + boxW+gap, boxY, boxW, boxH, (d.complianceRate || 0).toFixed(1) + '%',   'Overall Compliance Rate', [16, 132, 90]);
         drawKpiBox(pdf, row1start+(boxW+gap)*2, boxY, boxW, boxH, d.activeInspectors || 0,                  'Active Inspectors', [79, 70, 229]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, (d.daysWorked || 0).toLocaleString(),     'Total Days Worked', [14, 116, 144]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, (d.totalOccurrenceReports || 0),          'Occurrence Reports', [220, 38, 38]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*5, boxY, boxW, boxH, fin.total_revenue ? 'R ' + Number(fin.total_revenue).toLocaleString('en-ZA', {maximumFractionDigits:0}) : '—', 'Total Revenue', [5, 122, 85]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, (d.totalOccurrenceReports || 0),          'Occurrence Reports', [220, 38, 38]);
+        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, fin.total_revenue ? 'R ' + Number(fin.total_revenue).toLocaleString('en-ZA', {maximumFractionDigits:0}) : '—', 'Total Revenue', [5, 122, 85]);
 
         // ── KPI boxes (row 2) ────────────────────────────────────────────────
         boxY = 80;
