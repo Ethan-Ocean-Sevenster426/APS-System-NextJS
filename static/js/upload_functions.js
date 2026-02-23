@@ -7307,6 +7307,45 @@ async function downloadAllFiles() {
                 }
             }
 
+            console.log('📦 ZIP downloaded: ' + filename + ' (' + (blob.size / 1024).toFixed(1) + ' KB)');
+            console.log('📦 ZIP contains SEPARATE category ZIPs (RFI.zip, Invoice.zip, Compliance.zip, etc.)');
+            console.log('📦 Extract the outer ZIP to find individual category ZIPs you can drag into emails');
+
+            // Log inner ZIP contents using JSZip-free approach
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const dataView = new DataView(arrayBuffer);
+                // Parse ZIP central directory to list entries
+                const entries = [];
+                let offset = arrayBuffer.byteLength - 22;
+                while (offset >= 0 && !(dataView.getUint32(offset, true) === 0x06054b50)) offset--;
+                if (offset >= 0) {
+                    const cdOffset = dataView.getUint32(offset + 16, true);
+                    const cdSize = dataView.getUint32(offset + 12, true);
+                    let pos = cdOffset;
+                    while (pos < cdOffset + cdSize) {
+                        if (dataView.getUint32(pos, true) === 0x02014b50) {
+                            const nameLen = dataView.getUint16(pos + 28, true);
+                            const extraLen = dataView.getUint16(pos + 30, true);
+                            const commentLen = dataView.getUint16(pos + 32, true);
+                            const uncompSize = dataView.getUint32(pos + 24, true);
+                            const nameBytes = new Uint8Array(arrayBuffer, pos + 46, nameLen);
+                            const name = new TextDecoder().decode(nameBytes);
+                            entries.push({name: name, size: uncompSize});
+                            pos += 46 + nameLen + extraLen + commentLen;
+                        } else break;
+                    }
+                }
+                if (entries.length > 0) {
+                    console.log('📦 Category ZIPs inside downloaded file:');
+                    entries.forEach(function(e) {
+                        console.log('   📁 ' + e.name + ' (' + (e.size / 1024).toFixed(1) + ' KB)');
+                    });
+                }
+            } catch(zipErr) {
+                console.log('📦 (Could not inspect ZIP contents in browser)');
+            }
+
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
