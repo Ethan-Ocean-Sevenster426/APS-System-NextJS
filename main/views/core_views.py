@@ -13532,213 +13532,169 @@ def download_all_inspection_files(request):
         if not matching_folders and not docs_files:
             return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'})
 
-        # Create temporary ZIP file
+        # Collect all files grouped by category
+        # Each entry: { 'category': [(file_path, filename), ...] }
+        files_by_category = {}
+        added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
+
+        def normalize_category(category):
+            """Map folder names to standard category labels."""
+            cat_lower = category.lower()
+            if cat_lower in ['request for invoice', 'rfi']:
+                return 'RFI'
+            elif cat_lower == 'invoice':
+                return 'Invoice'
+            elif cat_lower in ['lab', 'lab results', 'coa']:
+                return 'COA'
+            elif cat_lower in ['labform', 'lab_form']:
+                return 'Lab_Form'
+            elif cat_lower == 'compliance':
+                return 'Compliance'
+            elif cat_lower == 'composition':
+                return 'Composition'
+            elif cat_lower == 'retest':
+                return 'Retest'
+            elif cat_lower == 'occurrence':
+                return 'Occurrence'
+            elif cat_lower == 'other':
+                return 'Other'
+            return category
+
+        def add_file_to_category(file_path, filename, category):
+            """Add a file to the category bucket after dedup check."""
+            try:
+                if not os.path.exists(file_path):
+                    safe_print(f"Skipping {filename} - file no longer exists")
+                    return False
+
+                stat = os.stat(file_path)
+                file_size = stat.st_size
+                file_modified = stat.st_mtime
+                file_key = f"{filename}_{file_size}_{file_modified}"
+
+                if file_key not in added_files:
+                    norm_cat = normalize_category(category)
+                    if norm_cat not in files_by_category:
+                        files_by_category[norm_cat] = []
+                    files_by_category[norm_cat].append((file_path, filename))
+                    added_files[file_key] = True
+                    safe_print(f"Collected {norm_cat}: {filename} ({file_size} bytes)")
+                    return True
+                else:
+                    safe_print(f"Skipped (exact duplicate): {filename}")
+                    return False
+            except Exception as e:
+                safe_print(f"Error collecting file {filename}: {e}")
+                norm_cat = normalize_category(category)
+                if norm_cat not in files_by_category:
+                    files_by_category[norm_cat] = []
+                files_by_category[norm_cat].append((file_path, filename))
+                return True
+
+        # First collect files from docs structure
+        for file_path, category, filename in docs_files:
+            add_file_to_category(file_path, filename, category)
+
+        # Process all matching client folders (legacy structure)
+        for base_path in matching_folders:
+            folder_name = os.path.basename(base_path)
+            safe_print(f"Processing folder: {folder_name} at {base_path}")
+
+            if os.path.exists(base_path):
+                folder_contents = os.listdir(base_path)
+                safe_print(f"Folder contents: {folder_contents}")
+
+            categories = ['Request For Invoice', 'rfi', 'invoice', 'lab results', 'lab', 'retest', 'labform', 'coa', 'composition', 'occurrence', 'other']
+
+            for category in categories:
+                category_path = os.path.join(base_path, category)
+                if os.path.exists(category_path):
+                    safe_print(f"Found {category} folder")
+                    for filename in os.listdir(category_path):
+                        file_path = os.path.join(category_path, filename)
+                        if os.path.isfile(file_path):
+                            if is_file_for_inspection_date(filename, inspection_date):
+                                # Detect lab_form files even in other folders
+                                if '_lab_form_' in filename.lower() or '_labform_' in filename.lower() or 'lab-form' in filename.lower() or '-lab-form' in filename.lower() or category == 'labform':
+                                    add_file_to_category(file_path, filename, 'lab_form')
+                                else:
+                                    add_file_to_category(file_path, filename, category)
+                            else:
+                                safe_print(f"Skipped {category} (wrong date): {filename}")
+                else:
+                    safe_print(f"No {category} folder found")
+
+            # Check for compliance documents (legacy Compliance/commodity subfolders)
+            compliance_base = os.path.join(base_path, 'Compliance')
+            if os.path.exists(compliance_base):
+                safe_print(f"Found Compliance folder: {compliance_base}")
+                for commodity_folder in os.listdir(compliance_base):
+                    commodity_path = os.path.join(compliance_base, commodity_folder)
+                    if os.path.isdir(commodity_path):
+                        for filename in os.listdir(commodity_path):
+                            file_path = os.path.join(commodity_path, filename)
+                            if os.path.isfile(file_path):
+                                if is_file_for_inspection_date(filename, inspection_date):
+                                    add_file_to_category(file_path, filename, 'compliance')
+                                else:
+                                    safe_print(f"   Skipped compliance (wrong date): {filename}")
+
+        total_files = sum(len(files) for files in files_by_category.values())
+        if total_files == 0:
+            return JsonResponse({'success': False, 'error': 'No files found to download'})
+
+        safe_print(f"Collected {total_files} files across {len(files_by_category)} categories: {list(files_by_category.keys())}")
+
+        # Create outer ZIP containing separate category ZIPs
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
 
         try:
-            with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                files_added = 0
-                added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
-                used_arcnames = set()  # Track used archive names for flat structure
+            safe_folder_name = re.sub(r'[^a-zA-Z0-9._-]', '_', f"{client_name}_{inspection_date}")
+            safe_folder_name = re.sub(r'_+', '_', safe_folder_name).strip('_')
 
-                # Create a single parent folder name for all files
-                safe_folder_name = re.sub(r'[^a-zA-Z0-9._-]', '_', f"{client_name}_{inspection_date}")
-                safe_folder_name = re.sub(r'_+', '_', safe_folder_name).strip('_')
+            with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as outer_zip:
+                for category_name, file_list in files_by_category.items():
+                    # Create an in-memory ZIP for this category
+                    import io
+                    category_buffer = io.BytesIO()
+                    used_names = set()
 
-                def get_unique_arcname(base_filename):
-                    """Get a unique filename for flat ZIP structure, adding suffix if needed."""
-                    if base_filename not in used_arcnames:
-                        used_arcnames.add(base_filename)
-                        return f"{safe_folder_name}/{base_filename}"
-                    # Add numeric suffix to make unique
-                    name, ext = os.path.splitext(base_filename)
-                    counter = 1
-                    while f"{name}_{counter}{ext}" in used_arcnames:
-                        counter += 1
-                    unique_name = f"{name}_{counter}{ext}"
-                    used_arcnames.add(unique_name)
-                    return f"{safe_folder_name}/{unique_name}"
+                    with zipfile.ZipFile(category_buffer, 'w', zipfile.ZIP_DEFLATED) as cat_zip:
+                        for file_path, filename in file_list:
+                            try:
+                                # Handle duplicate filenames within category
+                                arc_name = filename
+                                if arc_name in used_names:
+                                    name, ext = os.path.splitext(filename)
+                                    counter = 1
+                                    while f"{name}_{counter}{ext}" in used_names:
+                                        counter += 1
+                                    arc_name = f"{name}_{counter}{ext}"
+                                used_names.add(arc_name)
+                                cat_zip.write(file_path, arc_name)
+                            except Exception as e:
+                                safe_print(f"Error adding {filename} to {category_name} zip: {e}")
 
-                # First add files from docs structure
-                for file_path, category, filename in docs_files:
-                    try:
-                        # Verify file still exists before adding (prevent race conditions with deletions)
-                        if not os.path.exists(file_path):
-                            safe_print(f"Skipping {filename} - file no longer exists")
-                            continue
+                    # Write the category ZIP into the outer ZIP
+                    category_zip_name = f"{safe_folder_name}/{category_name}.zip"
+                    outer_zip.writestr(category_zip_name, category_buffer.getvalue())
+                    safe_print(f"Created {category_name}.zip ({len(file_list)} files, {len(category_buffer.getvalue())} bytes)")
 
-                        file_size = os.path.getsize(file_path)
-                        file_mtime = os.path.getmtime(file_path)
-                        file_key = f"{filename}_{file_size}_{file_mtime}"
-
-                        if file_key not in added_files:
-                            # Add to ZIP with flat structure (all files in root)
-                            zip_path = get_unique_arcname(filename)
-                            zip_file.write(file_path, zip_path)
-                            added_files[file_key] = True
-                            files_added += 1
-                            safe_print(f"Added docs file to ZIP: {zip_path}")
-                    except Exception as e:
-                        safe_print(f"Error adding docs file {filename}: {e}")
-
-                # Process all matching client folders (legacy structure)
-                for base_path in matching_folders:
-                    folder_name = os.path.basename(base_path)
-                    safe_print(f"Processing folder: {folder_name} at {base_path}")
-                    
-                    # Check what's actually in this folder
-                    if os.path.exists(base_path):
-                        folder_contents = os.listdir(base_path)
-                        safe_print(f"Folder contents: {folder_contents}")
-                    
-                    # Define categories to check (using actual folder names)
-                    # Include all document types: RFI, Invoice, Lab Form, COA, Composition, Lab Results, Retest, Occurrence, Other
-                    categories = ['Request For Invoice', 'rfi', 'invoice', 'lab results', 'lab', 'retest', 'labform', 'coa', 'composition', 'occurrence', 'other']
-                    
-                    # Check each category folder
-                    for category in categories:
-                        category_path = os.path.join(base_path, category)
-                        if os.path.exists(category_path):
-                            safe_print(f"Found {category} folder")
-                            for filename in os.listdir(category_path):
-                                file_path = os.path.join(category_path, filename)
-                                if os.path.isfile(file_path):
-                                    # Filter files by inspection date to avoid mixing different dates
-                                    if is_file_for_inspection_date(filename, inspection_date):
-                                        # Extract inspection ID from filename
-                                        inspection_id = None
-                                        id_match = re.match(r'^(\d+)_', filename)
-                                        if id_match:
-                                            inspection_id = id_match.group(1)
-                                        
-                                        # Determine document type from filename and category
-                                        if '_lab_form_' in filename.lower() or '_labform_' in filename.lower() or 'lab-form' in filename.lower() or '-lab-form' in filename.lower() or category == 'labform':
-                                            doc_type = 'Lab Form'
-                                        elif category in ['lab', 'lab results']:
-                                            doc_type = 'Lab'
-                                        elif category in ['Request For Invoice', 'rfi']:
-                                            doc_type = 'RFI'
-                                        elif category == 'invoice':
-                                            doc_type = 'Invoice'
-                                        elif category == 'retest':
-                                            doc_type = 'Retest'
-                                        elif category == 'coa':
-                                            doc_type = 'COA'
-                                        elif category == 'composition':
-                                            doc_type = 'Composition'
-                                        elif category == 'occurrence':
-                                            doc_type = 'Occurrence'
-                                        elif category == 'other':
-                                            doc_type = 'Other'
-                                        else:
-                                            doc_type = category
-                                        
-                                        # Get file stats for duplicate detection
-                                        try:
-                                            # Verify file still exists before adding (prevent race conditions with deletions)
-                                            if not os.path.exists(file_path):
-                                                safe_print(f"Skipping {filename} - file no longer exists")
-                                                continue
-
-                                            stat = os.stat(file_path)
-                                            file_size = stat.st_size
-                                            file_modified = stat.st_mtime
-                                            file_key = f"{filename}_{file_size}_{file_modified}"
-
-                                            # Check if we've already added this exact file (same name, size, and modified time)
-                                            if file_key not in added_files:
-                                                # Flat structure: all files in single folder
-                                                arcname = get_unique_arcname(filename)
-                                                zip_file.write(file_path, arcname)
-                                                added_files[file_key] = arcname
-                                                files_added += 1
-                                                safe_print(f"Added {category}: {arcname} ({file_size} bytes)")
-                                            else:
-                                                safe_print(f"Skipped {category} (exact duplicate): {filename}")
-                                        except Exception as e:
-                                            safe_print(f"Error getting file stats for {file_path}: {e}")
-                                            # If we can't get stats, include the file to be safe
-                                            arcname = get_unique_arcname(filename)
-                                            zip_file.write(file_path, arcname)
-                                            files_added += 1
-                                            safe_print(f"Added {category}: {arcname} (no stats)")
-                                    else:
-                                        safe_print(f"Skipped {category} (wrong date): {filename}")
-                        else:
-                            safe_print(f"No {category} folder found")
-                    
-                    # Check for compliance documents
-                    compliance_base = os.path.join(base_path, 'Compliance')
-                    if os.path.exists(compliance_base):
-                        safe_print(f"Found Compliance folder: {compliance_base}")
-                        compliance_contents = os.listdir(compliance_base)
-                        safe_print(f"Compliance folder contents: {compliance_contents}")
-                        
-                        # Check all commodity subfolders
-                        for commodity_folder in compliance_contents:
-                            commodity_path = os.path.join(compliance_base, commodity_folder)
-                            if os.path.isdir(commodity_path):
-                                safe_print(f"Checking commodity folder: {commodity_folder}")
-                                commodity_files = os.listdir(commodity_path)
-                                safe_print(f"Commodity {commodity_folder} files: {commodity_files}")
-                                
-                                for filename in commodity_files:
-                                    file_path = os.path.join(commodity_path, filename)
-                                    if os.path.isfile(file_path):
-                                        # Filter compliance files by inspection date
-                                        if is_file_for_inspection_date(filename, inspection_date):
-                                            # Get file stats for duplicate detection
-                                            try:
-                                                stat = os.stat(file_path)
-                                                file_size = stat.st_size
-                                                file_modified = stat.st_mtime
-
-                                                # For compliance files, use filename + size for duplicate detection
-                                                file_key = f"{filename}_{file_size}"
-
-                                                # Check if we've already added this exact file (same name and size)
-                                                if file_key not in added_files:
-                                                    # Flat structure: all files in single folder
-                                                    arcname = get_unique_arcname(filename)
-                                                    zip_file.write(file_path, arcname)
-                                                    added_files[file_key] = arcname
-                                                    files_added += 1
-                                                    safe_print(f"   Added compliance: {arcname} ({file_size} bytes)")
-                                                else:
-                                                    safe_print(f"   Skipped compliance (exact duplicate): {filename}")
-                                            except Exception as e:
-                                                safe_print(f"   Error getting file stats for {file_path}: {e}")
-                                                # If we can't get stats, include the file to be safe
-                                                arcname = get_unique_arcname(filename)
-                                                zip_file.write(file_path, arcname)
-                                                files_added += 1
-                                                safe_print(f"   Added compliance: {arcname} (no stats)")
-                                        else:
-                                            safe_print(f"   Skipped compliance (wrong date): {filename}")
-                    else:
-                        safe_print(f"No Compliance folder found at: {compliance_base}")
-                
-                if files_added == 0:
-                    return JsonResponse({'success': False, 'error': 'No files found to download'})
-            
             # Prepare response
             zip_filename = f"{client_name}_{inspection_date}_inspection_files.zip"
             zip_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', zip_filename)
-            
-            # Read ZIP file content
+
             with open(temp_zip.name, 'rb') as zip_file:
                 zip_content = zip_file.read()
-            
-            # Create HTTP response
+
             response = HttpResponse(zip_content, content_type='application/zip')
             response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
             response['Content-Length'] = len(zip_content)
-            
-            safe_print(f"ZIP created successfully: {zip_filename} ({files_added} files)")
+
+            safe_print(f"ZIP created successfully: {zip_filename} ({total_files} files in {len(files_by_category)} category zips)")
             return response
-            
+
         finally:
-            # Cleanup temporary file
             try:
                 os.unlink(temp_zip.name)
             except:
