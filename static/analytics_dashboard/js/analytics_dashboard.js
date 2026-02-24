@@ -101,6 +101,12 @@ function loadInitialData() {
         approvalTime: cfg.approvalTime || [],
         travelTimePerInspector: cfg.travelTimePerInspector || [],
     };
+    console.log('=== loadInitialData ===');
+    console.log('  DJANGO_CONFIG.monthlyInspectorTrend:', cfg.monthlyInspectorTrend);
+    console.log('  dashboardData.monthlyInspectorTrend length:', dashboardData.monthlyInspectorTrend ? dashboardData.monthlyInspectorTrend.length : 'undefined/null');
+    if (dashboardData.monthlyInspectorTrend && dashboardData.monthlyInspectorTrend.length > 0) {
+        console.log('  first 3 items:', JSON.stringify(dashboardData.monthlyInspectorTrend.slice(0, 3)));
+    }
 }
 
 // ================================================================
@@ -1222,36 +1228,57 @@ function renderInspectorTargetsTable() {
 // RENDER: INSPECTOR PERFORMANCE TREND (multi-line over time)
 // ================================================================
 function renderInspectorTrendChart() {
+    console.log('=== renderInspectorTrendChart START ===');
     destroyChart('inspectorTrendChart');
     var canvas = document.getElementById('inspectorTrendChart');
-    if (!canvas) return;
+    console.log('  canvas element:', canvas);
+    if (!canvas) { console.log('  ABORT: no canvas element found'); return; }
+
+    console.log('  dashboardData keys:', Object.keys(dashboardData));
+    console.log('  dashboardData.monthlyInspectorTrend:', dashboardData.monthlyInspectorTrend);
+    console.log('  typeof monthlyInspectorTrend:', typeof dashboardData.monthlyInspectorTrend);
+
     var items = dashboardData.monthlyInspectorTrend || [];
-    if (items.length === 0) return;
+    console.log('  items length:', items.length);
+    if (items.length > 0) {
+        console.log('  first 3 items:', JSON.stringify(items.slice(0, 3)));
+    }
+    if (items.length === 0) { console.log('  ABORT: items array is empty'); return; }
 
     var metricSelect = document.getElementById('inspectorTrendMetricSelect');
     var metric = metricSelect ? metricSelect.value : 'count';
+    console.log('  selected metric:', metric);
     var metricLabels = { count: 'Inspections', total_km: 'KM Traveled', total_hours: 'Hours', samples: 'Samples' };
 
     // Build inspector -> month -> value map
     var inspectorMap = {};
     var monthSet = new Set();
-    items.forEach(function(item) {
-        var month = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 7) : '') : '';
-        if (!month) return;
+    var skippedItems = 0;
+    items.forEach(function(item, i) {
+        var rawMonth = item.month;
+        var month = rawMonth ? (typeof rawMonth === 'string' ? rawMonth.substring(0, 7) : '') : '';
+        if (i < 3) {
+            console.log('  item[' + i + ']: month raw=' + JSON.stringify(rawMonth) + ', parsed=' + month + ', inspector=' + item.inspector_name + ', ' + metric + '=' + item[metric]);
+        }
+        if (!month) { skippedItems++; return; }
         var name = item.inspector_name || 'Unknown';
         monthSet.add(month);
         if (!inspectorMap[name]) inspectorMap[name] = {};
         inspectorMap[name][month] = parseFloat(item[metric] || 0);
     });
+    console.log('  skipped items (no month):', skippedItems);
 
     var months = Array.from(monthSet).sort();
+    console.log('  unique months:', months);
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var labels = months.map(function(m) {
         var parts = m.split('-');
         return mNames[parseInt(parts[1]) - 1] + ' ' + parts[0].substring(2);
     });
+    console.log('  chart labels:', labels);
 
     var inspectorNames = Object.keys(inspectorMap).sort();
+    console.log('  inspectors found:', inspectorNames);
     var datasets = [];
     inspectorNames.forEach(function(name, idx) {
         var color = CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -1297,6 +1324,8 @@ function renderInspectorTrendChart() {
             }
         }
     });
+    console.log('  Chart created successfully with', datasets.length, 'datasets and', labels.length, 'labels');
+    console.log('=== renderInspectorTrendChart END ===');
 }
 
 // ================================================================
