@@ -3940,7 +3940,7 @@ def upload_document(request):
                 'lab': 'COA',
                 'lab_form': 'LAB',
                 'retest': 'RETEST',
-                'compliance': 'COMP',
+                'compliance': '',
                 'composition': 'COMPOSITION',
                 'occurrence': 'OCC',
                 'other': 'OTHER',
@@ -3964,16 +3964,25 @@ def upload_document(request):
                 if parts:
                     commodity_tag = '-' + '-'.join(parts)
 
-            filename = f"FSA-{clean_client}{commodity_tag}-{type_label}-{formatted_date}{file_extension}"
+            type_part = f"-{type_label}" if type_label else ""
+            filename = f"FSA-{clean_client}{commodity_tag}{type_part}-{formatted_date}{file_extension}"
             print(f"[FILE NAMING] {document_type} -> {filename} (client: {real_client_name})")
             
             # Log the filename for debugging
             print(f"Generated filename: {filename}")
             file_path = os.path.join(document_dir, filename)
 
+            # For multi-file types (compliance, other), avoid overwriting by appending a counter
+            single_file_types = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'occurrence', 'composition']
+            if document_type not in single_file_types:
+                base, ext = os.path.splitext(file_path)
+                counter = 1
+                while os.path.exists(file_path):
+                    file_path = f"{base}-{counter}{ext}"
+                    counter += 1
+
             # SINGLE-FILE ENFORCEMENT: Delete existing files for document types that only allow one file
             # Only 'other' and 'compliance' can have multiple files
-            single_file_types = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'occurrence', 'composition']
             if document_type in single_file_types:
                 # Delete all existing files in this document folder before saving the new one
                 try:
