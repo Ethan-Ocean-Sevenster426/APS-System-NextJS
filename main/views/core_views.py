@@ -9370,6 +9370,84 @@ def analytics_dashboard_api(request):
         ).order_by('-total')),
     }
 
+    # === FINANCIAL / REVENUE DATA (filtered) ===
+    from ..models import InspectionFee
+    fee_rates = {}
+    try:
+        for fee in InspectionFee.objects.all():
+            fee_rates[fee.fee_code] = float(fee.rate)
+    except Exception:
+        pass
+    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
+    km_rate = fee_rates.get('inspection_km_rate', 0)
+    sample_rate = fee_rates.get('sample_collection', 0)
+
+    # Calculate inspection time (travel start to end) per inspector for filtered qs
+    inspection_times = {}
+    travel_insp_qs = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values(
+        'inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time'
+    )
+    for _row in travel_insp_qs:
+        _start = _row['inspection_group__travel_start_time']
+        _end = _row['inspection_group__travel_end_time']
+        if _start and _end:
+            _start_dt = datetime.combine(datetime.today(), _start)
+            _end_dt = datetime.combine(datetime.today(), _end)
+            if _end_dt < _start_dt:
+                _end_dt += timedelta(days=1)
+            _dur = (_end_dt - _start_dt).total_seconds() / 3600
+            inspector = _row['inspector_name']
+            inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
+
+    inspector_financials_qs = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+        total_samples=Count('id', filter=Q(is_sample_taken=True)),
+        total_bought_sample=Sum('bought_sample'),
+    ).order_by('-total_inspections')
+
+    inspector_financials = []
+    total_revenue = 0
+    for item in inspector_financials_qs:
+        hrs = float(item['total_hours'] or 0)
+        km = float(item['total_km'] or 0)
+        samples = item['total_samples'] or 0
+        inspection_time = inspection_times.get(item['inspector_name'], 0)
+
+        rev_hours = round(hrs * hourly_rate, 2)
+        rev_km = round(km * km_rate, 2)
+        rev_samples = round(samples * sample_rate, 2)
+        tot = round(rev_hours + rev_km + rev_samples, 2)
+        total_revenue += tot
+        inspector_financials.append({
+            'inspector_name': item['inspector_name'],
+            'total_inspections': item['total_inspections'],
+            'total_hours': hrs,
+            'total_km': km,
+            'inspection_time': round(inspection_time, 1),
+            'revenue_hours': rev_hours,
+            'revenue_km': rev_km,
+            'revenue_samples': rev_samples,
+            'total_revenue': tot,
+        })
+
+    data['inspectorFinancials'] = inspector_financials
+    data['financialSummary'] = {
+        'total_revenue': round(total_revenue, 2),
+        'hourly_rate': hourly_rate,
+        'km_rate': km_rate,
+        'sample_rate': sample_rate,
+    }
+
     # Phase 2: Time-based analytics (filtered)
 
     # 1. Doc send time

@@ -1525,12 +1525,98 @@ function renderMonthlyInspectionsTrendChart() {
 }
 
 // ================================================================
+// RENDER: INSPECTOR COMPARISON CHART
+// ================================================================
+function renderInspectorComparisonChart() {
+    destroyChart('inspectorComparisonChart');
+    var canvas = document.getElementById('inspectorComparisonChart');
+    if (!canvas) return;
+    var items = dashboardData.inspectorFinancials || [];
+    if (items.length === 0) return;
+
+    var metricSel = document.getElementById('inspectorTrendMetric');
+    var metric = metricSel ? metricSel.value : 'total_revenue';
+
+    var metricLabels = {
+        'total_revenue': 'Total Revenue',
+        'revenue_hours': 'Revenue (Hours)',
+        'revenue_km': 'Revenue (KM)',
+        'revenue_samples': 'Revenue (Samples)',
+        'total_hours': 'Billable Hours',
+        'total_km': 'KM Traveled',
+        'inspection_time': 'On-Site Hours',
+        'total_inspections': 'Inspections',
+    };
+    var isRand = metric.indexOf('revenue') !== -1 || metric === 'total_revenue';
+
+    // Sort by selected metric descending
+    var sorted = items.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
+
+    var labels = sorted.map(function(i) { return i.inspector_name || 'Unknown'; });
+    var values = sorted.map(function(i) { return i[metric] || 0; });
+
+    // Assign colors from palette
+    var colors = labels.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
+
+    chartInstances['inspectorComparisonChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: metricLabels[metric] || metric,
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 4,
+                barPercentage: 0.65,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var v = ctx.parsed.x;
+                            if (isRand) return ' ' + formatRand(v);
+                            if (metric === 'total_km') return ' ' + v.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' km';
+                            if (metric === 'total_hours' || metric === 'inspection_time') return ' ' + v.toFixed(1) + ' hrs';
+                            return ' ' + v.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor() },
+                    ticks: {
+                        color: txtColor(),
+                        callback: function(v) {
+                            if (isRand) return 'R' + v.toLocaleString();
+                            return v.toLocaleString();
+                        }
+                    },
+                    beginAtZero: true,
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: txtColor(), font: { size: 10 } },
+                }
+            }
+        }
+    });
+}
+
+// ================================================================
 // RENDER ALL
 // ================================================================
 function renderAll() {
     renderKPIs();
     renderFinancialTable();
     renderRevenueCostChart();
+    renderInspectorComparisonChart();
     renderComplianceBars();
     renderComplianceTrendChart();
     renderCommodityTrendChart();
@@ -2061,6 +2147,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var pdfBtn = document.getElementById('exportPdfBtn');
     if (pdfBtn) pdfBtn.addEventListener('click', exportDashboardPDF);
+
+    // Re-render inspector comparison chart when metric changes
+    var metricSel = document.getElementById('inspectorTrendMetric');
+    if (metricSel) metricSel.addEventListener('change', renderInspectorComparisonChart);
 });
 
 // ================================================================

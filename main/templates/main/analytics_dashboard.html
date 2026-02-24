@@ -45,7 +45,7 @@
         }
     </script>
     <!-- Analytics Dashboard Styles -->
-    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260221o">
+    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260223a">
     <style>
         /* Background image URL must stay inline because it uses a Django static tag */
         :root {
@@ -877,6 +877,31 @@
                 <canvas id="revenueCostChart"></canvas>
             </div>
         </div>
+
+        <!-- Inspector Comparison Trend -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Inspector Comparison</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
+                        <option value="total_revenue">Total Revenue</option>
+                        <option value="revenue_hours">Revenue (Hours)</option>
+                        <option value="revenue_km">Revenue (KM)</option>
+                        <option value="revenue_samples">Revenue (Samples)</option>
+                        <option value="total_hours">Billable Hours</option>
+                        <option value="total_km">KM Traveled</option>
+                        <option value="inspection_time">On-Site Hours</option>
+                        <option value="total_inspections">Inspections</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body" style="height: 380px;">
+                <canvas id="inspectorComparisonChart"></canvas>
+            </div>
+        </div>
     </div>
 
 </div><!-- /#main-content -->
@@ -945,7 +970,7 @@
     };
 </script>
 <!-- Analytics Dashboard JS -->
-<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260221o"></script>
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260223a"></script>
 
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
