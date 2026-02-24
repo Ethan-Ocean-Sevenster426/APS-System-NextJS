@@ -1069,6 +1069,27 @@ class InspectionFee(models.Model):
         return self.rate
 
 
+class InspectorTarget(models.Model):
+    """Per-inspector quarterly targets for inspections and sampling."""
+    inspector_name = models.CharField(max_length=100, unique=True, help_text="Inspector name matching inspection records")
+    eggs = models.IntegerField(default=51)
+    poultry = models.IntegerField(default=59)
+    raw = models.IntegerField(default=63)
+    pmp = models.IntegerField(default=54)
+    raw_samples = models.IntegerField(default=58)
+    pmp_samples = models.IntegerField(default=12)
+    total_samples = models.IntegerField(default=70)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'inspector_targets'
+        ordering = ['inspector_name']
+
+    def __str__(self):
+        return f"Targets: {self.inspector_name}"
+
+
 class FeeHistory(models.Model):
     """
     Track historical changes to fee rates with effective dates.

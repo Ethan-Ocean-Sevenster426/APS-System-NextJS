@@ -1,7 +1,7 @@
 import json
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from ..models import FoodSafetyAgencyInspection
 
 @login_required
@@ -8215,7 +8215,7 @@ def analytics_dashboard(request):
     if request.user.role == 'inspector':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget
     from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField, DecimalField, Value, F
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
     from datetime import datetime, timedelta, date
@@ -8230,6 +8230,17 @@ def analytics_dashboard(request):
         settings = type('Settings', (), {'dark_mode': system_settings.dark_mode})()
     except Exception:
         settings = type('Settings', (), {'dark_mode': False})()
+
+    # Load per-inspector targets
+    inspector_targets_data = {}
+    try:
+        for t in InspectorTarget.objects.all():
+            inspector_targets_data[t.inspector_name] = {
+                'eggs': t.eggs, 'poultry': t.poultry, 'raw': t.raw, 'pmp': t.pmp,
+                'raw_samples': t.raw_samples, 'pmp_samples': t.pmp_samples, 'total_samples': t.total_samples,
+            }
+    except Exception:
+        pass
 
     # Date ranges for analysis
     now = datetime.now()
@@ -9157,6 +9168,9 @@ def analytics_dashboard(request):
         'inspector_financials': safe_json_dumps(inspector_financials, []),
         'financial_summary': safe_json_dumps(financial_summary, {}),
 
+        # Per-inspector targets
+        'inspector_targets_data': safe_json_dumps(inspector_targets_data, {}),
+
         # Phase 2: Time-based analytics (JSON for JS charts + API)
         'doc_send_time': safe_json_dumps(doc_send_time, []),
         'invoice_upload_time': safe_json_dumps(invoice_upload_time, []),
@@ -9685,6 +9699,60 @@ def analytics_dashboard_api(request):
     data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
     return JsonResponse(data, encoder=DjangoJSONEncoder)
+
+
+@login_required
+def get_inspector_targets(request):
+    """Return all inspector targets and list of known inspectors."""
+    from ..models import InspectorTarget, FoodSafetyAgencyInspection
+    from django.db.models import Q
+
+    targets = {}
+    for t in InspectorTarget.objects.all():
+        targets[t.inspector_name] = {
+            'eggs': t.eggs, 'poultry': t.poultry, 'raw': t.raw, 'pmp': t.pmp,
+            'raw_samples': t.raw_samples, 'pmp_samples': t.pmp_samples, 'total_samples': t.total_samples,
+        }
+
+    inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
+
+    return JsonResponse({'targets': targets, 'inspectors': inspectors})
+
+
+@login_required
+@require_POST
+def update_inspector_targets(request):
+    """Create or update targets for a specific inspector."""
+    import json
+    from ..models import InspectorTarget
+
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('inspector_name', '').strip()
+        if not name:
+            return JsonResponse({'error': 'Inspector name is required'}, status=400)
+
+        obj, created = InspectorTarget.objects.update_or_create(
+            inspector_name=name,
+            defaults={
+                'eggs': int(data.get('eggs', 51)),
+                'poultry': int(data.get('poultry', 59)),
+                'raw': int(data.get('raw', 63)),
+                'pmp': int(data.get('pmp', 54)),
+                'raw_samples': int(data.get('raw_samples', 58)),
+                'pmp_samples': int(data.get('pmp_samples', 12)),
+                'total_samples': int(data.get('total_samples', 70)),
+                'updated_by': request.user,
+            }
+        )
+        return JsonResponse({'success': True, 'created': created})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required

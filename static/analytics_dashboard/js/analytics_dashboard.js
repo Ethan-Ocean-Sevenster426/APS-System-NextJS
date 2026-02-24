@@ -94,6 +94,7 @@ function loadInitialData() {
         monthlyApprovalTrend: cfg.monthlyApprovalTrend || [],
         monthlyTravelHoursTrend: cfg.monthlyTravelHoursTrend || [],
         monthlyInspectorTrend: cfg.monthlyInspectorTrend || [],
+        inspectorTargets: cfg.inspectorTargets || {},
         // Phase 2 time data
         docSendTime: cfg.docSendTime || [],
         invoiceUploadTime: cfg.invoiceUploadTime || [],
@@ -259,6 +260,7 @@ async function applyFilters() {
             monthlyApprovalTrend: data.monthlyApprovalTrend || [],
             monthlyTravelHoursTrend: data.monthlyTravelHoursTrend || [],
             monthlyInspectorTrend: data.monthlyInspectorTrend || [],
+            inspectorTargets: dashboardData.inspectorTargets || {},
             docSendTime: data.docSendTime || [],
             invoiceUploadTime: data.invoiceUploadTime || [],
             coaAnalysisTime: data.coaAnalysisTime || [],
@@ -952,13 +954,35 @@ function renderFacilityTypesChart() {
 }
 
 // ================================================================
-// INSPECTOR TARGETS (Q1: Jan-Mar 2026)
+// DEFAULT INSPECTOR TARGETS (Q1: Jan-Mar 2026) — overridden per-inspector from DB
 // ================================================================
+var DEFAULT_TARGETS = {
+    eggs: 51, poultry: 59, raw: 63, pmp: 54,
+    raw_samples: 58, pmp_samples: 12, total_samples: 70
+};
+
+// Legacy format for backward compat with radar chart
 var INSPECTOR_TARGETS = {
     inspections: { EGGS: 51, POULTRY: 59, RAW: 63, PMP: 54 },
     sampling: { RAW: 58, PMP: 12 }
 };
 var SAMPLING_TOTAL_TARGET = 70;
+
+function getTargetsForInspector(name) {
+    var custom = (dashboardData.inspectorTargets || {})[name];
+    if (custom) {
+        return {
+            inspections: { EGGS: custom.eggs, POULTRY: custom.poultry, RAW: custom.raw, PMP: custom.pmp },
+            sampling: { RAW: custom.raw_samples, PMP: custom.pmp_samples },
+            totalSamples: custom.total_samples
+        };
+    }
+    return {
+        inspections: INSPECTOR_TARGETS.inspections,
+        sampling: INSPECTOR_TARGETS.sampling,
+        totalSamples: SAMPLING_TOTAL_TARGET
+    };
+}
 
 function getInspectorData() {
     var inspectors = {};
@@ -1016,14 +1040,15 @@ function renderInspectorRadarChart() {
     }
 
     var selectedInspector = select ? select.value : 'all';
+    var radarTargets = (selectedInspector && selectedInspector !== 'all') ? getTargetsForInspector(selectedInspector) : getTargetsForInspector('');
     var labels = ['Eggs Insp.', 'Poultry Insp.', 'RAW Insp.', 'PMP Insp.', 'RAW Samples', 'PMP Samples'];
     var targetData = [
-        INSPECTOR_TARGETS.inspections.EGGS,
-        INSPECTOR_TARGETS.inspections.POULTRY,
-        INSPECTOR_TARGETS.inspections.RAW,
-        INSPECTOR_TARGETS.inspections.PMP,
-        INSPECTOR_TARGETS.sampling.RAW,
-        INSPECTOR_TARGETS.sampling.PMP
+        radarTargets.inspections.EGGS,
+        radarTargets.inspections.POULTRY,
+        radarTargets.inspections.RAW,
+        radarTargets.inspections.PMP,
+        radarTargets.sampling.RAW,
+        radarTargets.sampling.PMP
     ];
 
     var datasets = [{
@@ -1204,24 +1229,25 @@ function renderInspectorTargetsTable() {
         var totalSamples = 0;
         Object.keys(d.samples).forEach(function(k) { totalSamples += d.samples[k] || 0; });
 
+        var t = getTargetsForInspector(name);
         html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
         // Total first
         html += '<td class="num" style="font-weight:700;">' + totalInsp + '</td>';
-        // Commodity breakdown
-        html += cell(eggs, INSPECTOR_TARGETS.inspections.EGGS).replace('style="', 'style="border-left:2px solid #d1d5db; ');
-        html += cell(poultry, INSPECTOR_TARGETS.inspections.POULTRY);
-        html += cell(raw, INSPECTOR_TARGETS.inspections.RAW);
-        html += cell(pmp, INSPECTOR_TARGETS.inspections.PMP);
+        // Commodity breakdown (per-inspector targets)
+        html += cell(eggs, t.inspections.EGGS).replace('style="', 'style="border-left:2px solid #d1d5db; ');
+        html += cell(poultry, t.inspections.POULTRY);
+        html += cell(raw, t.inspections.RAW);
+        html += cell(pmp, t.inspections.PMP);
         if (hasOther) {
             otherList.forEach(function(c) {
                 var count = d.inspections[c] || 0;
                 html += '<td class="num">' + (count || '-') + '</td>';
             });
         }
-        // Samples
-        html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW).replace('style="', 'style="border-left:2px solid #d1d5db; ');
-        html += cell(pmpSamples, INSPECTOR_TARGETS.sampling.PMP);
-        html += cell(totalSamples, SAMPLING_TOTAL_TARGET);
+        // Samples (per-inspector targets)
+        html += cell(rawSamples, t.sampling.RAW).replace('style="', 'style="border-left:2px solid #d1d5db; ');
+        html += cell(pmpSamples, t.sampling.PMP);
+        html += cell(totalSamples, t.totalSamples);
         // Activity
         html += '<td class="num" style="border-left:2px solid #d1d5db;">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
         html += '<td class="num">' + (hours ? parseFloat(hours).toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>';
@@ -2514,6 +2540,104 @@ function renderFacilityTypesOverview() {
             plugins: { legend: { position: 'right', labels: { color: txtColor(), font: { size: 10 }, boxWidth: 12, padding: 8 } } }
         }
     });
+}
+
+// ================================================================
+// INSPECTOR TARGETS MODAL
+// ================================================================
+function openTargetsModal() {
+    var modal = document.getElementById('targetsModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    // Populate inspector dropdown from known inspectors
+    var sel = document.getElementById('targetInspectorSelect');
+    if (!sel) return;
+    // Gather inspector names from current data
+    var names = new Set();
+    (dashboardData.travelPerInspector || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
+    (dashboardData.inspectorCommodityMatrix || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
+    Object.keys(dashboardData.inspectorTargets || {}).forEach(function(n) { names.add(n); });
+    var sorted = Array.from(names).sort();
+    sel.innerHTML = '<option value="">-- Select Inspector --</option>';
+    sorted.forEach(function(name) {
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        // Mark inspectors with custom targets
+        if ((dashboardData.inspectorTargets || {})[name]) opt.textContent += ' *';
+        sel.appendChild(opt);
+    });
+    document.getElementById('targetSaveStatus').textContent = '';
+}
+
+function closeTargetsModal() {
+    var modal = document.getElementById('targetsModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function onTargetInspectorChange() {
+    var name = document.getElementById('targetInspectorSelect').value;
+    var t = name ? getTargetsForInspector(name) : getTargetsForInspector('');
+    document.getElementById('targetEggs').value = t.inspections.EGGS;
+    document.getElementById('targetPoultry').value = t.inspections.POULTRY;
+    document.getElementById('targetRaw').value = t.inspections.RAW;
+    document.getElementById('targetPmp').value = t.inspections.PMP;
+    document.getElementById('targetRawSamples').value = t.sampling.RAW;
+    document.getElementById('targetPmpSamples').value = t.sampling.PMP;
+    document.getElementById('targetTotalSamples').value = t.totalSamples;
+    document.getElementById('targetSaveStatus').textContent = '';
+}
+
+function saveInspectorTarget() {
+    var name = document.getElementById('targetInspectorSelect').value;
+    if (!name) { document.getElementById('targetSaveStatus').innerHTML = '<span style="color:#991b1b;">Please select an inspector</span>'; return; }
+    var payload = {
+        inspector_name: name,
+        eggs: parseInt(document.getElementById('targetEggs').value) || 0,
+        poultry: parseInt(document.getElementById('targetPoultry').value) || 0,
+        raw: parseInt(document.getElementById('targetRaw').value) || 0,
+        pmp: parseInt(document.getElementById('targetPmp').value) || 0,
+        raw_samples: parseInt(document.getElementById('targetRawSamples').value) || 0,
+        pmp_samples: parseInt(document.getElementById('targetPmpSamples').value) || 0,
+        total_samples: parseInt(document.getElementById('targetTotalSamples').value) || 0,
+    };
+    var btn = document.getElementById('targetSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    var statusEl = document.getElementById('targetSaveStatus');
+    fetch(window.DJANGO_CONFIG.updateTargetsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify(payload)
+    }).then(function(resp) { return resp.json(); }).then(function(data) {
+        if (data.success) {
+            // Update local data
+            if (!dashboardData.inspectorTargets) dashboardData.inspectorTargets = {};
+            dashboardData.inspectorTargets[name] = {
+                eggs: payload.eggs, poultry: payload.poultry, raw: payload.raw, pmp: payload.pmp,
+                raw_samples: payload.raw_samples, pmp_samples: payload.pmp_samples, total_samples: payload.total_samples
+            };
+            statusEl.innerHTML = '<span style="color:#166534;">Saved successfully!</span>';
+            // Re-render table and radar to reflect new targets
+            renderInspectorTargetsTable();
+            renderInspectorRadarChart();
+            // Update dropdown marker
+            var opt = document.querySelector('#targetInspectorSelect option[value="' + name + '"]');
+            if (opt && opt.textContent.indexOf('*') === -1) opt.textContent += ' *';
+        } else {
+            statusEl.innerHTML = '<span style="color:#991b1b;">Error: ' + (data.error || 'Unknown') + '</span>';
+        }
+    }).catch(function(err) {
+        statusEl.innerHTML = '<span style="color:#991b1b;">Network error</span>';
+    }).finally(function() {
+        btn.disabled = false;
+        btn.textContent = 'Save Target';
+    });
+}
+
+function getCsrfToken() {
+    var cookie = document.cookie.split(';').find(function(c) { return c.trim().startsWith('csrftoken='); });
+    return cookie ? cookie.split('=')[1] : '';
 }
 
 // ================================================================
