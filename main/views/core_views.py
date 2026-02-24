@@ -8698,17 +8698,19 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('month'))
 
-    # Monthly inspector performance trend
+    # Daily inspector performance trend (same period as daily compliance trend)
     monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
-    ).exclude(date_of_inspection__isnull=True).annotate(
-        month=_TruncMonth('date_of_inspection')
-    ).values('month', 'inspector_name').annotate(
+    ).exclude(date_of_inspection__isnull=True).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'inspector_name').annotate(
         count=Count('id'),
         total_km=Sum('km_traveled'),
         total_hours=Sum('hours'),
         samples=Count('id', filter=Q(is_sample_taken=True)),
-    ).order_by('month', 'inspector_name'))
+    ).order_by('day', 'inspector_name'))
 
     # Monthly avg days from sample to COA upload
     _coa_by_month = {}
@@ -9181,7 +9183,7 @@ def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
     from ..models import FoodSafetyAgencyInspection
     from django.db.models import Count, Q, Avg, Sum
-    from django.db.models.functions import TruncMonth
+    from django.db.models.functions import TruncMonth, TruncDay
     from datetime import datetime, timedelta
     from django.core.serializers.json import DjangoJSONEncoder
 
@@ -9383,14 +9385,16 @@ def analytics_dashboard_api(request):
         ).order_by('-total')),
         'monthlyInspectorTrend': list(qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
-        ).exclude(date_of_inspection__isnull=True).annotate(
-            month=TruncMonth('date_of_inspection')
-        ).values('month', 'inspector_name').annotate(
+        ).exclude(date_of_inspection__isnull=True).filter(
+            date_of_inspection__gte=thirty_days_ago
+        ).annotate(
+            day=TruncDay('date_of_inspection')
+        ).values('day', 'inspector_name').annotate(
             count=Count('id'),
             total_km=Sum('km_traveled'),
             total_hours=Sum('hours'),
             samples=Count('id', filter=Q(is_sample_taken=True)),
-        ).order_by('month', 'inspector_name')),
+        ).order_by('day', 'inspector_name')),
     }
 
     # === FINANCIAL / REVENUE DATA (filtered) ===

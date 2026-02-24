@@ -1248,126 +1248,80 @@ function renderInspectorTrendChart() {
     console.log('  selected metric:', metric);
     var metricLabels = { count: 'Inspections', total_km: 'KM Traveled', total_hours: 'Hours', samples: 'Samples' };
 
-    // Build inspector -> month -> value map
+    // Build inspector -> date -> value map (daily granularity, same as Daily Compliance Trend)
     var inspectorMap = {};
-    var monthSet = new Set();
+    var dateSet = new Set();
     items.forEach(function(item, i) {
-        var rawMonth = item.month;
-        var month = rawMonth ? (typeof rawMonth === 'string' ? rawMonth.substring(0, 7) : '') : '';
+        // Backend sends 'day' field from TruncDay
+        var rawDate = item.day || item.month || '';
+        var dateKey = rawDate ? (typeof rawDate === 'string' ? rawDate.substring(0, 10) : '') : '';
         if (i < 3) {
-            console.log('  item[' + i + ']: month raw=' + JSON.stringify(rawMonth) + ', parsed=' + month + ', inspector=' + item.inspector_name + ', ' + metric + '=' + item[metric]);
+            console.log('  item[' + i + ']: day raw=' + JSON.stringify(rawDate) + ', parsed=' + dateKey + ', inspector=' + item.inspector_name + ', ' + metric + '=' + item[metric]);
         }
-        if (!month) return;
+        if (!dateKey) return;
         var name = item.inspector_name || 'Unknown';
-        monthSet.add(month);
+        dateSet.add(dateKey);
         if (!inspectorMap[name]) inspectorMap[name] = {};
-        inspectorMap[name][month] = parseFloat(item[metric] || 0);
+        inspectorMap[name][dateKey] = parseFloat(item[metric] || 0);
     });
 
-    var months = Array.from(monthSet).sort();
-    console.log('  unique months:', months);
+    var dates = Array.from(dateSet).sort();
+    console.log('  unique dates:', dates);
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var labels = months.map(function(m) {
-        var parts = m.split('-');
-        return mNames[parseInt(parts[1]) - 1] + ' ' + parts[0].substring(2);
+    var labels = dates.map(function(d) {
+        var parts = d.split('-');
+        return mNames[parseInt(parts[1]) - 1] + ' ' + parseInt(parts[2]);
     });
 
     var inspectorNames = Object.keys(inspectorMap).sort();
     console.log('  inspectors found:', inspectorNames);
-    var singleMonth = months.length <= 1;
-    console.log('  singleMonth mode:', singleMonth);
 
-    if (singleMonth) {
-        // Use horizontal bar chart when there's only 1 month of data
-        var barData = inspectorNames.map(function(name) { return inspectorMap[name][months[0]] || 0; });
-        var barColors = inspectorNames.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
-        console.log('  bar data:', barData);
+    // Multi-line chart (daily data, same style as Daily Compliance Trend)
+    var datasets = [];
+    inspectorNames.forEach(function(name, idx) {
+        var color = CHART_PALETTE[idx % CHART_PALETTE.length];
+        datasets.push({
+            label: name,
+            data: dates.map(function(d) { return inspectorMap[name][d] || 0; }),
+            borderColor: color,
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            fill: false
+        });
+    });
 
-        chartInstances['inspectorTrendChart'] = new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels: inspectorNames,
-                datasets: [{
-                    label: metricLabels[metric] || metric,
-                    data: barData,
-                    backgroundColor: barColors,
-                    borderRadius: 4,
-                    barThickness: 18
-                }]
+    chartInstances['inspectorTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: txtColor(), padding: 12, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var val = context.parsed.y;
+                            if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                            if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                            return context.dataset.label + ': ' + val;
+                        }
+                    }
+                }
             },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: true, text: labels[0] || '', color: txtColor(), font: { size: 12 } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                var val = context.parsed.x;
-                                if (metric === 'total_km') return val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                                if (metric === 'total_hours') return val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                                return val + ' ' + (metricLabels[metric] || '').toLowerCase();
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } },
-                    y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } }
-                }
+            scales: {
+                x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45, autoSkip: true } },
+                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
             }
-        });
-    } else {
-        // Multi-line chart when there are multiple months
-        var datasets = [];
-        inspectorNames.forEach(function(name, idx) {
-            var color = CHART_PALETTE[idx % CHART_PALETTE.length];
-            datasets.push({
-                label: name,
-                data: months.map(function(m) { return inspectorMap[name][m] || 0; }),
-                borderColor: color,
-                backgroundColor: 'transparent',
-                tension: 0.3,
-                borderWidth: 2.5,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: color,
-                fill: false
-            });
-        });
-
-        chartInstances['inspectorTrendChart'] = new Chart(canvas, {
-            type: 'line',
-            data: { labels: labels, datasets: datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: txtColor(), padding: 10, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                var val = context.parsed.y;
-                                if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                                if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                                return context.dataset.label + ': ' + val;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45 } },
-                    y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
-                }
-            }
-        });
-    }
-    console.log('  Chart created successfully, singleMonth=' + singleMonth);
+        }
+    });
+    console.log('  Chart created with', datasets.length, 'inspectors and', dates.length, 'dates');
     console.log('=== renderInspectorTrendChart END ===');
     } catch(e) {
         console.error('renderInspectorTrendChart ERROR:', e);
