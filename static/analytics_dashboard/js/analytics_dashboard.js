@@ -2530,7 +2530,7 @@ var PANEL_RENDER_MAP = {
     'inspectors': [
         renderInspectorRadarChart,
         renderInspectorTargetsTable,
-        renderEfficiencyMatrix,
+        renderInspectorTrendChart,
         renderDirectionsChart
     ],
     'compliance': [

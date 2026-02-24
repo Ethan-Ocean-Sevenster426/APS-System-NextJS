@@ -45,7 +45,7 @@
         }
     </script>
     <!-- Analytics Dashboard Styles -->
-    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260224h">
+    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260224i">
     <style>
         /* Background image URL must stay inline because it uses a Django static tag */
         :root {
@@ -504,7 +504,7 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Inspector Performance Trend</span>
                 </div>
-                <select id="inspectorTrendMetricSelect" onchange="renderInspectorTrendChart()" style="font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                <select id="inspectorTrendMetricSelect" onchange="renderInspectorTrendChart()" style="font-size: 12px; padding: 6px 28px 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236b7280%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E') no-repeat right 8px center; -webkit-appearance: none; -moz-appearance: none; appearance: none; color: #374151; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s, box-shadow 0.2s;" onfocus="this.style.borderColor='#007890';this.style.boxShadow='0 0 0 2px rgba(0,120,144,0.15)'" onblur="this.style.borderColor='#d1d5db';this.style.boxShadow='none'">
                     <option value="count">Inspections</option>
                     <option value="total_km">KM Traveled</option>
                     <option value="total_hours">Hours</option>
@@ -974,7 +974,7 @@
     };
 </script>
 <!-- Analytics Dashboard JS -->
-<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260224h"></script>
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260224i"></script>
 
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
