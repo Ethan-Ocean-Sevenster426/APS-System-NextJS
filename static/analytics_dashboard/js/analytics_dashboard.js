@@ -1229,15 +1229,13 @@ function renderInspectorTargetsTable() {
 // ================================================================
 function renderInspectorTrendChart() {
     console.log('=== renderInspectorTrendChart START ===');
+    try {
     destroyChart('inspectorTrendChart');
     var canvas = document.getElementById('inspectorTrendChart');
     console.log('  canvas element:', canvas);
     if (!canvas) { console.log('  ABORT: no canvas element found'); return; }
 
-    console.log('  dashboardData keys:', Object.keys(dashboardData));
     console.log('  dashboardData.monthlyInspectorTrend:', dashboardData.monthlyInspectorTrend);
-    console.log('  typeof monthlyInspectorTrend:', typeof dashboardData.monthlyInspectorTrend);
-
     var items = dashboardData.monthlyInspectorTrend || [];
     console.log('  items length:', items.length);
     if (items.length > 0) {
@@ -1253,20 +1251,18 @@ function renderInspectorTrendChart() {
     // Build inspector -> month -> value map
     var inspectorMap = {};
     var monthSet = new Set();
-    var skippedItems = 0;
     items.forEach(function(item, i) {
         var rawMonth = item.month;
         var month = rawMonth ? (typeof rawMonth === 'string' ? rawMonth.substring(0, 7) : '') : '';
         if (i < 3) {
             console.log('  item[' + i + ']: month raw=' + JSON.stringify(rawMonth) + ', parsed=' + month + ', inspector=' + item.inspector_name + ', ' + metric + '=' + item[metric]);
         }
-        if (!month) { skippedItems++; return; }
+        if (!month) return;
         var name = item.inspector_name || 'Unknown';
         monthSet.add(month);
         if (!inspectorMap[name]) inspectorMap[name] = {};
         inspectorMap[name][month] = parseFloat(item[metric] || 0);
     });
-    console.log('  skipped items (no month):', skippedItems);
 
     var months = Array.from(monthSet).sort();
     console.log('  unique months:', months);
@@ -1275,57 +1271,107 @@ function renderInspectorTrendChart() {
         var parts = m.split('-');
         return mNames[parseInt(parts[1]) - 1] + ' ' + parts[0].substring(2);
     });
-    console.log('  chart labels:', labels);
 
     var inspectorNames = Object.keys(inspectorMap).sort();
     console.log('  inspectors found:', inspectorNames);
-    var datasets = [];
-    inspectorNames.forEach(function(name, idx) {
-        var color = CHART_PALETTE[idx % CHART_PALETTE.length];
-        datasets.push({
-            label: name,
-            data: months.map(function(m) { return inspectorMap[name][m] || 0; }),
-            borderColor: color,
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            borderWidth: 2.5,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: color,
-            fill: false
-        });
-    });
+    var singleMonth = months.length <= 1;
+    console.log('  singleMonth mode:', singleMonth);
 
-    chartInstances['inspectorTrendChart'] = new Chart(canvas, {
-        type: 'line',
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: txtColor(), padding: 10, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            var val = context.parsed.y;
-                            if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                            if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                            return context.dataset.label + ': ' + val;
+    if (singleMonth) {
+        // Use horizontal bar chart when there's only 1 month of data
+        var barData = inspectorNames.map(function(name) { return inspectorMap[name][months[0]] || 0; });
+        var barColors = inspectorNames.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
+        console.log('  bar data:', barData);
+
+        chartInstances['inspectorTrendChart'] = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: inspectorNames,
+                datasets: [{
+                    label: metricLabels[metric] || metric,
+                    data: barData,
+                    backgroundColor: barColors,
+                    borderRadius: 4,
+                    barThickness: 18
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: labels[0] || '', color: txtColor(), font: { size: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var val = context.parsed.x;
+                                if (metric === 'total_km') return val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                                if (metric === 'total_hours') return val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                                return val + ' ' + (metricLabels[metric] || '').toLowerCase();
+                            }
                         }
                     }
+                },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } },
+                    y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } }
                 }
-            },
-            scales: {
-                x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45 } },
-                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
             }
-        }
-    });
-    console.log('  Chart created successfully with', datasets.length, 'datasets and', labels.length, 'labels');
+        });
+    } else {
+        // Multi-line chart when there are multiple months
+        var datasets = [];
+        inspectorNames.forEach(function(name, idx) {
+            var color = CHART_PALETTE[idx % CHART_PALETTE.length];
+            datasets.push({
+                label: name,
+                data: months.map(function(m) { return inspectorMap[name][m] || 0; }),
+                borderColor: color,
+                backgroundColor: 'transparent',
+                tension: 0.3,
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: color,
+                fill: false
+            });
+        });
+
+        chartInstances['inspectorTrendChart'] = new Chart(canvas, {
+            type: 'line',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: txtColor(), padding: 10, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var val = context.parsed.y;
+                                if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                                if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                                return context.dataset.label + ': ' + val;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45 } },
+                    y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
+                }
+            }
+        });
+    }
+    console.log('  Chart created successfully, singleMonth=' + singleMonth);
     console.log('=== renderInspectorTrendChart END ===');
+    } catch(e) {
+        console.error('renderInspectorTrendChart ERROR:', e);
+    }
 }
 
 // ================================================================
