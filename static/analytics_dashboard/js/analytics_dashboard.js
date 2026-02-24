@@ -265,8 +265,14 @@ async function applyFilters() {
             approvalTime: data.approvalTime || [],
             travelTimePerInspector: data.travelTimePerInspector || [],
         };
+        console.log('=== FILTER: monthlyInspectorTrend from API:', data.monthlyInspectorTrend);
+        console.log('=== FILTER: dashboardData.monthlyInspectorTrend:', dashboardData.monthlyInspectorTrend ? dashboardData.monthlyInspectorTrend.length + ' items' : 'MISSING');
+        if (data.monthlyInspectorTrend && data.monthlyInspectorTrend.length > 0) {
+            console.log('=== FILTER: first 3 items:', JSON.stringify(data.monthlyInspectorTrend.slice(0, 3)));
+        }
+        console.log('=== FILTER: currentPanel=' + currentPanel + ', panelRendered:', JSON.stringify(panelRendered));
         renderAll();
-        console.log('Dashboard updated with filtered data');
+        console.log('=== FILTER: after renderAll, panelRendered:', JSON.stringify(panelRendered));
     } catch (err) {
         console.error('Filter error:', err);
         alert('Error loading filtered data. Please try again.');
