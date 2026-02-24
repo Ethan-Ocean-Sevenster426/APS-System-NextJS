@@ -93,6 +93,7 @@ function loadInitialData() {
         monthlyCoaTrend: cfg.monthlyCoaTrend || [],
         monthlyApprovalTrend: cfg.monthlyApprovalTrend || [],
         monthlyTravelHoursTrend: cfg.monthlyTravelHoursTrend || [],
+        monthlyInspectorTrend: cfg.monthlyInspectorTrend || [],
         // Phase 2 time data
         docSendTime: cfg.docSendTime || [],
         invoiceUploadTime: cfg.invoiceUploadTime || [],
@@ -251,6 +252,7 @@ async function applyFilters() {
             monthlyCoaTrend: data.monthlyCoaTrend || [],
             monthlyApprovalTrend: data.monthlyApprovalTrend || [],
             monthlyTravelHoursTrend: data.monthlyTravelHoursTrend || [],
+            monthlyInspectorTrend: data.monthlyInspectorTrend || [],
             docSendTime: data.docSendTime || [],
             invoiceUploadTime: data.invoiceUploadTime || [],
             coaAnalysisTime: data.coaAnalysisTime || [],
