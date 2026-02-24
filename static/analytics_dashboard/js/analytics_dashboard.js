@@ -1115,10 +1115,12 @@ function renderInspectorTargetsTable() {
     var inspectorNames = Object.keys(inspectors).sort();
     if (inspectorNames.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
 
-    // Build KM lookup from travelPerInspector data
+    // Build KM and Hours lookup from travelPerInspector data
     var kmLookup = {};
+    var hoursLookup = {};
     (dashboardData.travelPerInspector || []).forEach(function(item) {
         kmLookup[item.inspector_name] = item.total_km || 0;
+        hoursLookup[item.inspector_name] = item.total_hours || 0;
     });
 
     headerRow.innerHTML = '<th style="min-width:110px;">Inspector</th>' +
@@ -1128,6 +1130,7 @@ function renderInspectorTargetsTable() {
         '<th class="num">PMP<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.PMP + '</small></th>' +
         '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>' +
         '<th class="num">KM</th>' +
+        '<th class="num">Hours</th>' +
         '<th class="num" style="border-left:2px solid #d1d5db;">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
         '<th class="num">PMP Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.PMP + '</small></th>' +
         '<th class="num">Total Samples<br><small style="color:#888;">/ ' + SAMPLING_TOTAL_TARGET + '</small></th>';
@@ -1140,6 +1143,29 @@ function renderInspectorTargetsTable() {
             actual + ' <small style="opacity:0.7;">(' + pct + '%)</small></td>';
     }
 
+    // Discover any additional commodities beyond the fixed 4
+    var knownCommodities = ['EGGS', 'EGG', 'POULTRY', 'RAW', 'PMP'];
+    var otherCommodities = new Set();
+    inspectorNames.forEach(function(name) {
+        Object.keys(inspectors[name].inspections).forEach(function(c) {
+            if (knownCommodities.indexOf(c) === -1) otherCommodities.add(c);
+        });
+    });
+    var otherList = Array.from(otherCommodities).sort();
+    var hasOther = otherList.length > 0;
+
+    // Add Other column headers if needed
+    if (hasOther) {
+        var otherHeaders = '';
+        otherList.forEach(function(c) {
+            otherHeaders += '<th class="num">' + c + '</th>';
+        });
+        headerRow.innerHTML = headerRow.innerHTML.replace(
+            '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>',
+            otherHeaders + '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>'
+        );
+    }
+
     var html = '';
     inspectorNames.forEach(function(name) {
         var d = inspectors[name];
@@ -1147,7 +1173,9 @@ function renderInspectorTargetsTable() {
         var poultry = d.inspections['POULTRY'] || 0;
         var raw = d.inspections['RAW'] || 0;
         var pmp = d.inspections['PMP'] || 0;
-        var totalInsp = eggs + poultry + raw + pmp;
+        // Total includes ALL commodities, not just the 4 fixed ones
+        var totalInsp = 0;
+        Object.keys(d.inspections).forEach(function(k) { totalInsp += d.inspections[k] || 0; });
         var km = kmLookup[name] || 0;
         var rawSamples = d.samples['RAW'] || 0;
         var pmpSamples = d.samples['PMP'] || 0;
@@ -1159,8 +1187,17 @@ function renderInspectorTargetsTable() {
         html += cell(poultry, INSPECTOR_TARGETS.inspections.POULTRY);
         html += cell(raw, INSPECTOR_TARGETS.inspections.RAW);
         html += cell(pmp, INSPECTOR_TARGETS.inspections.PMP);
+        // Add Other commodity columns if they exist
+        if (hasOther) {
+            otherList.forEach(function(c) {
+                var count = d.inspections[c] || 0;
+                html += '<td class="num">' + (count || '-') + '</td>';
+            });
+        }
+        var hours = hoursLookup[name] || 0;
         html += '<td class="num" style="font-weight:700; border-left:2px solid #d1d5db;">' + totalInsp + '</td>';
         html += '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
+        html += '<td class="num">' + (hours ? parseFloat(hours).toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>';
         html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW).replace('style="', 'style="border-left:2px solid #d1d5db; ');
         html += cell(pmpSamples, INSPECTOR_TARGETS.sampling.PMP);
         html += cell(totalSamples, SAMPLING_TOTAL_TARGET);
