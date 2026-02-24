@@ -8698,6 +8698,18 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('month'))
 
+    # Monthly inspector performance trend
+    monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=_TruncMonth('date_of_inspection')
+    ).values('month', 'inspector_name').annotate(
+        count=Count('id'),
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        samples=Count('id', filter=Q(is_sample_taken=True)),
+    ).order_by('month', 'inspector_name'))
+
     # Monthly avg days from sample to COA upload
     _coa_by_month = {}
     for _insp in FoodSafetyAgencyInspection.objects.filter(
@@ -9137,6 +9149,7 @@ def analytics_dashboard(request):
         'monthly_coa_trend': safe_json_dumps(monthly_coa_trend, []),
         'monthly_approval_trend': safe_json_dumps(monthly_approval_trend, []),
         'monthly_travel_hours_trend': safe_json_dumps(monthly_travel_hours_trend, []),
+        'monthly_inspector_trend': safe_json_dumps(monthly_inspector_trend, []),
 
         # Financial / Revenue data
         'inspector_financials': safe_json_dumps(inspector_financials, []),
