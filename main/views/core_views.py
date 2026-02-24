@@ -9368,6 +9368,16 @@ def analytics_dashboard_api(request):
             approved=Count('id', filter=Q(approved_status='APPROVED')),
             pending=Count('id', filter=Q(approved_status='PENDING')),
         ).order_by('-total')),
+        'monthlyInspectorTrend': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(date_of_inspection__isnull=True).annotate(
+            month=TruncMonth('date_of_inspection')
+        ).values('month', 'inspector_name').annotate(
+            count=Count('id'),
+            total_km=Sum('km_traveled'),
+            total_hours=Sum('hours'),
+            samples=Count('id', filter=Q(is_sample_taken=True)),
+        ).order_by('month', 'inspector_name')),
     }
 
     # === FINANCIAL / REVENUE DATA (filtered) ===

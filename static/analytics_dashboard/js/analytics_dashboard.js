@@ -1217,6 +1217,87 @@ function renderInspectorTargetsTable() {
 }
 
 // ================================================================
+// RENDER: INSPECTOR PERFORMANCE TREND (multi-line over time)
+// ================================================================
+function renderInspectorTrendChart() {
+    destroyChart('inspectorTrendChart');
+    var canvas = document.getElementById('inspectorTrendChart');
+    if (!canvas) return;
+    var items = dashboardData.monthlyInspectorTrend || [];
+    if (items.length === 0) return;
+
+    var metricSelect = document.getElementById('inspectorTrendMetricSelect');
+    var metric = metricSelect ? metricSelect.value : 'count';
+    var metricLabels = { count: 'Inspections', total_km: 'KM Traveled', total_hours: 'Hours', samples: 'Samples' };
+
+    // Build inspector -> month -> value map
+    var inspectorMap = {};
+    var monthSet = new Set();
+    items.forEach(function(item) {
+        var month = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 7) : '') : '';
+        if (!month) return;
+        var name = item.inspector_name || 'Unknown';
+        monthSet.add(month);
+        if (!inspectorMap[name]) inspectorMap[name] = {};
+        inspectorMap[name][month] = parseFloat(item[metric] || 0);
+    });
+
+    var months = Array.from(monthSet).sort();
+    var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var labels = months.map(function(m) {
+        var parts = m.split('-');
+        return mNames[parseInt(parts[1]) - 1] + ' ' + parts[0].substring(2);
+    });
+
+    var inspectorNames = Object.keys(inspectorMap).sort();
+    var datasets = [];
+    inspectorNames.forEach(function(name, idx) {
+        var color = CHART_PALETTE[idx % CHART_PALETTE.length];
+        datasets.push({
+            label: name,
+            data: months.map(function(m) { return inspectorMap[name][m] || 0; }),
+            borderColor: color,
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: color,
+            fill: false
+        });
+    });
+
+    chartInstances['inspectorTrendChart'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: txtColor(), padding: 10, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var val = context.parsed.y;
+                            if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                            if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                            return context.dataset.label + ': ' + val;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45 } },
+                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+// ================================================================
 // RENDER: PHASE 2 TIME-BASED CHARTS (converted from static lists)
 // ================================================================
 function renderDocSendChart() {
@@ -1703,6 +1784,7 @@ function renderAll() {
     renderDailyComplianceChart();
     renderInspectorRadarChart();
     renderInspectorTargetsTable();
+    renderInspectorTrendChart();
 }
 
 // ================================================================
