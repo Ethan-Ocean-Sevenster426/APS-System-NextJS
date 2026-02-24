@@ -9329,6 +9329,22 @@ def analytics_dashboard_api(request):
         non_compliant=Count('id', filter=Q(approved_status='PENDING')),
     ).order_by('-total_inspections')[:15])
 
+    # Inspector trend: use user's date range if set, otherwise default to last 30 days
+    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
+    _inspector_trend_base = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(date_of_inspection__isnull=True)
+    if not _has_date_filter:
+        _inspector_trend_base = _inspector_trend_base.filter(date_of_inspection__gte=thirty_days_ago)
+    _inspector_trend_qs = _inspector_trend_base.annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'inspector_name').annotate(
+        count=Count('id'),
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        samples=Count('id', filter=Q(is_sample_taken=True)),
+    ).order_by('day', 'inspector_name')
+
     data = {
         'totalInspections': total_inspections,
         'complianceRate': compliance_rate,
@@ -9383,18 +9399,7 @@ def analytics_dashboard_api(request):
             approved=Count('id', filter=Q(approved_status='APPROVED')),
             pending=Count('id', filter=Q(approved_status='PENDING')),
         ).order_by('-total')),
-        'monthlyInspectorTrend': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
-        ).exclude(date_of_inspection__isnull=True).filter(
-            date_of_inspection__gte=thirty_days_ago
-        ).annotate(
-            day=TruncDay('date_of_inspection')
-        ).values('day', 'inspector_name').annotate(
-            count=Count('id'),
-            total_km=Sum('km_traveled'),
-            total_hours=Sum('hours'),
-            samples=Count('id', filter=Q(is_sample_taken=True)),
-        ).order_by('day', 'inspector_name')),
+        'monthlyInspectorTrend': list(_inspector_trend_qs),
     }
 
     # === FINANCIAL / REVENUE DATA (filtered) ===
