@@ -1115,33 +1115,21 @@ function renderInspectorTargetsTable() {
     var inspectorNames = Object.keys(inspectors).sort();
     if (inspectorNames.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
 
-    // Build KM and Hours lookup from travelPerInspector data
+    // Build lookups from travelPerInspector (total counts, KM, hours)
     var kmLookup = {};
     var hoursLookup = {};
+    var inspCountLookup = {};
     (dashboardData.travelPerInspector || []).forEach(function(item) {
         kmLookup[item.inspector_name] = item.total_km || 0;
         hoursLookup[item.inspector_name] = item.total_hours || 0;
+        inspCountLookup[item.inspector_name] = item.inspection_count || 0;
     });
 
-    headerRow.innerHTML = '<th style="min-width:110px;">Inspector</th>' +
-        '<th class="num">Eggs<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.EGGS + '</small></th>' +
-        '<th class="num">Poultry<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.POULTRY + '</small></th>' +
-        '<th class="num">RAW<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.RAW + '</small></th>' +
-        '<th class="num">PMP<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.PMP + '</small></th>' +
-        '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>' +
-        '<th class="num">KM</th>' +
-        '<th class="num">Hours</th>' +
-        '<th class="num" style="border-left:2px solid #d1d5db;">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
-        '<th class="num">PMP Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.PMP + '</small></th>' +
-        '<th class="num">Total Samples<br><small style="color:#888;">/ ' + SAMPLING_TOTAL_TARGET + '</small></th>';
-
-    function cell(actual, target) {
-        var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
-        var color = actual >= target ? '#166534' : '#991b1b';
-        var bg = actual >= target ? '#dcfce7' : '#fee2e2';
-        return '<td class="num" style="color:' + color + '; background:' + bg + '; font-weight:600;">' +
-            actual + ' <small style="opacity:0.7;">(' + pct + '%)</small></td>';
-    }
+    // Ensure inspectors from travelPerInspector are included even if they have no commodity data
+    Object.keys(inspCountLookup).forEach(function(name) {
+        if (!inspectors[name]) inspectors[name] = { inspections: {}, samples: {} };
+    });
+    inspectorNames = Object.keys(inspectors).sort();
 
     // Discover any additional commodities beyond the fixed 4
     var knownCommodities = ['EGGS', 'EGG', 'POULTRY', 'RAW', 'PMP'];
@@ -1154,16 +1142,32 @@ function renderInspectorTargetsTable() {
     var otherList = Array.from(otherCommodities).sort();
     var hasOther = otherList.length > 0;
 
-    // Add Other column headers if needed
+    // Build header: Inspector | Total | Eggs | Poultry | RAW | PMP | [Other] || RAW Samples | PMP Samples | Total Samples || KM | Hours
+    var headerHtml = '<th style="min-width:110px;">Inspector</th>' +
+        '<th class="num">Total</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Eggs<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.EGGS + '</small></th>' +
+        '<th class="num">Poultry<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.POULTRY + '</small></th>' +
+        '<th class="num">RAW<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.RAW + '</small></th>' +
+        '<th class="num">PMP<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.PMP + '</small></th>';
     if (hasOther) {
-        var otherHeaders = '';
         otherList.forEach(function(c) {
-            otherHeaders += '<th class="num">' + c + '</th>';
+            headerHtml += '<th class="num">' + c + '</th>';
         });
-        headerRow.innerHTML = headerRow.innerHTML.replace(
-            '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>',
-            otherHeaders + '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>'
-        );
+    }
+    headerHtml +=
+        '<th class="num" style="border-left:2px solid #d1d5db;">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
+        '<th class="num">PMP Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.PMP + '</small></th>' +
+        '<th class="num">Total Samples<br><small style="color:#888;">/ ' + SAMPLING_TOTAL_TARGET + '</small></th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">KM</th>' +
+        '<th class="num">Hours</th>';
+    headerRow.innerHTML = headerHtml;
+
+    function cell(actual, target) {
+        var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+        var color = actual >= target ? '#166534' : '#991b1b';
+        var bg = actual >= target ? '#dcfce7' : '#fee2e2';
+        return '<td class="num" style="color:' + color + '; background:' + bg + '; font-weight:600;">' +
+            actual + ' <small style="opacity:0.7;">(' + pct + '%)</small></td>';
     }
 
     var html = '';
@@ -1173,34 +1177,40 @@ function renderInspectorTargetsTable() {
         var poultry = d.inspections['POULTRY'] || 0;
         var raw = d.inspections['RAW'] || 0;
         var pmp = d.inspections['PMP'] || 0;
-        // Total includes ALL commodities, not just the 4 fixed ones
-        var totalInsp = 0;
-        Object.keys(d.inspections).forEach(function(k) { totalInsp += d.inspections[k] || 0; });
+        // Use travelPerInspector count as the true total (includes inspections without commodity)
+        var totalInsp = inspCountLookup[name] || 0;
+        // Fallback: if no travelPerInspector data, sum all commodity counts
+        if (!totalInsp) {
+            Object.keys(d.inspections).forEach(function(k) { totalInsp += d.inspections[k] || 0; });
+        }
         var km = kmLookup[name] || 0;
+        var hours = hoursLookup[name] || 0;
         var rawSamples = d.samples['RAW'] || 0;
         var pmpSamples = d.samples['PMP'] || 0;
         var totalSamples = 0;
         Object.keys(d.samples).forEach(function(k) { totalSamples += d.samples[k] || 0; });
 
         html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
-        html += cell(eggs, INSPECTOR_TARGETS.inspections.EGGS);
+        // Total first
+        html += '<td class="num" style="font-weight:700;">' + totalInsp + '</td>';
+        // Commodity breakdown
+        html += cell(eggs, INSPECTOR_TARGETS.inspections.EGGS).replace('style="', 'style="border-left:2px solid #d1d5db; ');
         html += cell(poultry, INSPECTOR_TARGETS.inspections.POULTRY);
         html += cell(raw, INSPECTOR_TARGETS.inspections.RAW);
         html += cell(pmp, INSPECTOR_TARGETS.inspections.PMP);
-        // Add Other commodity columns if they exist
         if (hasOther) {
             otherList.forEach(function(c) {
                 var count = d.inspections[c] || 0;
                 html += '<td class="num">' + (count || '-') + '</td>';
             });
         }
-        var hours = hoursLookup[name] || 0;
-        html += '<td class="num" style="font-weight:700; border-left:2px solid #d1d5db;">' + totalInsp + '</td>';
-        html += '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
-        html += '<td class="num">' + (hours ? parseFloat(hours).toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>';
+        // Samples
         html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW).replace('style="', 'style="border-left:2px solid #d1d5db; ');
         html += cell(pmpSamples, INSPECTOR_TARGETS.sampling.PMP);
         html += cell(totalSamples, SAMPLING_TOTAL_TARGET);
+        // Activity
+        html += '<td class="num" style="border-left:2px solid #d1d5db;">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
+        html += '<td class="num">' + (hours ? parseFloat(hours).toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>';
         html += '</tr>';
     });
     tbody.innerHTML = html;
