@@ -1115,12 +1115,20 @@ function renderInspectorTargetsTable() {
     var inspectorNames = Object.keys(inspectors).sort();
     if (inspectorNames.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
 
+    // Build KM lookup from travelPerInspector data
+    var kmLookup = {};
+    (dashboardData.travelPerInspector || []).forEach(function(item) {
+        kmLookup[item.inspector_name] = item.total_km || 0;
+    });
+
     headerRow.innerHTML = '<th style="min-width:110px;">Inspector</th>' +
         '<th class="num">Eggs<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.EGGS + '</small></th>' +
         '<th class="num">Poultry<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.POULTRY + '</small></th>' +
         '<th class="num">RAW<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.RAW + '</small></th>' +
         '<th class="num">PMP<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.inspections.PMP + '</small></th>' +
-        '<th class="num">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Total</th>' +
+        '<th class="num">KM</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">RAW Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.RAW + '</small></th>' +
         '<th class="num">PMP Samples<br><small style="color:#888;">/ ' + INSPECTOR_TARGETS.sampling.PMP + '</small></th>' +
         '<th class="num">Total Samples<br><small style="color:#888;">/ ' + SAMPLING_TOTAL_TARGET + '</small></th>';
 
@@ -1139,6 +1147,8 @@ function renderInspectorTargetsTable() {
         var poultry = d.inspections['POULTRY'] || 0;
         var raw = d.inspections['RAW'] || 0;
         var pmp = d.inspections['PMP'] || 0;
+        var totalInsp = eggs + poultry + raw + pmp;
+        var km = kmLookup[name] || 0;
         var rawSamples = d.samples['RAW'] || 0;
         var pmpSamples = d.samples['PMP'] || 0;
         var totalSamples = 0;
@@ -1149,7 +1159,9 @@ function renderInspectorTargetsTable() {
         html += cell(poultry, INSPECTOR_TARGETS.inspections.POULTRY);
         html += cell(raw, INSPECTOR_TARGETS.inspections.RAW);
         html += cell(pmp, INSPECTOR_TARGETS.inspections.PMP);
-        html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW);
+        html += '<td class="num" style="font-weight:700; border-left:2px solid #d1d5db;">' + totalInsp + '</td>';
+        html += '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
+        html += cell(rawSamples, INSPECTOR_TARGETS.sampling.RAW).replace('style="', 'style="border-left:2px solid #d1d5db; ');
         html += cell(pmpSamples, INSPECTOR_TARGETS.sampling.PMP);
         html += cell(totalSamples, SAMPLING_TOTAL_TARGET);
         html += '</tr>';
@@ -1640,7 +1652,6 @@ function renderAll() {
     renderTravelTimeChart();
     renderTravelHoursTrendChart();
     renderMonthlyInspectionsTrendChart();
-    renderEfficiencyMatrix();
     renderApprovalRateChart();
     renderDailyComplianceChart();
     renderInspectorRadarChart();
