@@ -2747,7 +2747,8 @@ var PANEL_RENDER_MAP = {
     ],
     'financial': [
         renderFinancialTable,
-        renderRevenueCostChart
+        renderRevenueCostChart,
+        renderInspectorComparisonChart
     ]
 };
 
