@@ -4861,6 +4861,13 @@ def list_client_folder_files(request):
             if category not in files_list:
                 files_list[category] = []
 
+        # Debug: log file counts per category
+        total_files = sum(len(v) for v in files_list.values())
+        print(f"[LIST-FILES] Returning {total_files} total files for {client_name} on {inspection_date}")
+        for cat, flist in files_list.items():
+            if flist:
+                print(f"[LIST-FILES]   {cat}: {len(flist)} file(s) -> {[f.get('name', '?') for f in flist]}")
+
         return JsonResponse({
             'success': True,
             'files': files_list,
@@ -11799,7 +11806,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                         cat_path = os.path.join(docs_path, category)
                         if os.path.exists(cat_path):
                             try:
-                                for filename in os.listdir(cat_path):
+                                all_files_in_dir = os.listdir(cat_path)
+                                print(f"[FILES DEBUG] {category} dir has {len(all_files_in_dir)} items: {all_files_in_dir}")
+                                for filename in all_files_in_dir:
                                     file_path = os.path.join(cat_path, filename)
                                     if os.path.isfile(file_path):
                                         file_key = f"{filename}_{os.path.getsize(file_path)}"
@@ -11807,6 +11816,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                                             file_info = get_file_info(file_path, category)
                                             files_by_category[category].append(file_info)
                                             added_files.add(file_key)
+                                            print(f"[FILES DEBUG] Added {category} file: {filename}")
+                                        else:
+                                            print(f"[FILES DEBUG] SKIPPED duplicate {category} file: {filename} (key={file_key})")
                             except (OSError, PermissionError):
                                 pass
 
@@ -11897,6 +11909,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
         # Debug output
         total = sum(len(f) for f in files_by_category.values())
         print(f"[FILES] Found {total} files for {client_name} on {inspection_date}")
+        for cat, flist in files_by_category.items():
+            if flist:
+                print(f"[FILES]   {cat}: {len(flist)} file(s) -> {[f.get('name', '?') for f in flist]}")
 
         return files_by_category
 

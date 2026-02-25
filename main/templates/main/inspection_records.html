@@ -11812,6 +11812,8 @@
                             try {
                                 console.log('🔄 File fetch: Success - processing files...');
                                 console.log('[DEBUG] Files object keys:', Object.keys(result.files || {}));
+                                console.log('[DEBUG] COMPLIANCE files count:', (result.files.compliance || []).length);
+                                console.log('[DEBUG] COMPLIANCE files:', JSON.stringify(result.files.compliance || []));
 
                                 // Check if files exist - verify at least one category has files
                                 const hasFiles = result.files && Object.values(result.files).some(fileList =>
