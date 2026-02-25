@@ -1259,6 +1259,26 @@ function renderInspectorTargetsTable() {
 // ================================================================
 // RENDER: INSPECTOR PERFORMANCE TREND (multi-line over time)
 // ================================================================
+var inspectorTrendChartType = 'line';
+
+function setInspectorTrendChartType(type) {
+    inspectorTrendChartType = type;
+    var toggle = document.getElementById('inspectorTrendChartTypeToggle');
+    if (toggle) {
+        var buttons = toggle.querySelectorAll('button');
+        buttons.forEach(function(btn) {
+            if (btn.getAttribute('data-chart-type') === type) {
+                btn.style.background = '#007890';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.background = '#f9fafb';
+                btn.style.color = '#374151';
+            }
+        });
+    }
+    renderInspectorTrendChart();
+}
+
 function renderInspectorTrendChart() {
     console.log('=== renderInspectorTrendChart START ===');
     try {
@@ -1308,25 +1328,29 @@ function renderInspectorTrendChart() {
     var inspectorNames = Object.keys(inspectorMap).sort();
     console.log('  inspectors found:', inspectorNames);
 
-    // Multi-line chart (daily data, same style as Daily Compliance Trend)
+    // Multi-line/bar chart (daily data, same style as Daily Compliance Trend)
+    var isBar = inspectorTrendChartType === 'bar';
     var datasets = [];
     inspectorNames.forEach(function(name, idx) {
         var color = CHART_PALETTE[idx % CHART_PALETTE.length];
-        datasets.push({
+        var ds = {
             label: name,
             data: dates.map(function(d) { return inspectorMap[name][d] || 0; }),
             borderColor: color,
-            backgroundColor: 'transparent',
-            tension: 0.4,
-            borderWidth: 2.5,
-            pointRadius: 2,
-            pointHoverRadius: 5,
+            backgroundColor: isBar ? color : 'transparent',
+            borderWidth: isBar ? 1 : 2.5,
             fill: false
-        });
+        };
+        if (!isBar) {
+            ds.tension = 0.4;
+            ds.pointRadius = 2;
+            ds.pointHoverRadius = 5;
+        }
+        datasets.push(ds);
     });
 
     chartInstances['inspectorTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: inspectorTrendChartType,
         data: { labels: labels, datasets: datasets },
         options: {
             responsive: true,
