@@ -1331,25 +1331,53 @@ function renderInspectorTrendChart() {
     // Multi-line/bar chart
     var isBar = inspectorTrendChartType === 'bar';
     var datasets = [];
-    inspectorNames.forEach(function(name, idx) {
-        var color = CHART_PALETTE[idx % CHART_PALETTE.length];
-        var ds = {
-            label: name,
-            data: dates.map(function(d) { return inspectorMap[name][d] || (isBar ? null : 0); }),
-            borderColor: color,
-            backgroundColor: isBar ? color : 'transparent',
-            borderWidth: isBar ? 1 : 2.5,
-            fill: false,
-            barThickness: isBar ? 18 : undefined,
-            skipNull: true,
-        };
-        if (!isBar) {
-            ds.tension = 0.4;
-            ds.pointRadius = 2;
-            ds.pointHoverRadius = 5;
-        }
-        datasets.push(ds);
-    });
+
+    if (isBar) {
+        // Flat bar chart: one bar per inspector per week, no gaps
+        var flatLabels = [];
+        var flatValues = [];
+        var flatColors = [];
+        var flatInspectorNames = [];
+        var inspectorColorMap = {};
+        inspectorNames.forEach(function(name, idx) {
+            inspectorColorMap[name] = CHART_PALETTE[idx % CHART_PALETTE.length];
+        });
+        dates.forEach(function(d, di) {
+            var weekLabel = labels[di];
+            inspectorNames.forEach(function(name) {
+                var val = inspectorMap[name][d] || 0;
+                if (val > 0) {
+                    flatLabels.push(weekLabel);
+                    flatValues.push(val);
+                    flatColors.push(inspectorColorMap[name]);
+                    flatInspectorNames.push(name);
+                }
+            });
+        });
+        labels = flatLabels;
+        datasets = [{
+            data: flatValues,
+            backgroundColor: flatColors,
+            borderWidth: 0,
+            barThickness: 20,
+        }];
+    } else {
+        inspectorNames.forEach(function(name, idx) {
+            var color = CHART_PALETTE[idx % CHART_PALETTE.length];
+            var ds = {
+                label: name,
+                data: dates.map(function(d) { return inspectorMap[name][d] || 0; }),
+                borderColor: color,
+                backgroundColor: 'transparent',
+                borderWidth: 2.5,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 2,
+                pointHoverRadius: 5,
+            };
+            datasets.push(ds);
+        });
+    }
 
     console.log('  isBar:', isBar, 'inspectorTrendChartType:', inspectorTrendChartType);
     var chartOptions;
@@ -1357,38 +1385,34 @@ function renderInspectorTrendChart() {
         id: 'inspectorBarLabels',
         afterDatasetsDraw: function(chart) {
             var ctx = chart.ctx;
-            chart.data.datasets.forEach(function(dataset, i) {
-                var meta = chart.getDatasetMeta(i);
-                if (!meta.hidden) {
-                    meta.data.forEach(function(bar, index) {
-                        var val = dataset.data[index];
-                        if (val === 0) return;
-                        var barHeight = bar.height || 10;
-                        // Inspector name inside bar
-                        ctx.save();
-                        ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 10px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'middle';
-                        var nameX = bar.base + 4;
-                        var barWidth = bar.x - bar.base;
-                        if (barWidth > 50) {
-                            ctx.fillText(dataset.label, nameX, bar.y);
-                        }
-                        ctx.restore();
-                        // Value at end of bar
-                        ctx.save();
-                        ctx.fillStyle = txtColor();
-                        ctx.font = 'bold 10px sans-serif';
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'middle';
-                        var valText = val.toLocaleString();
-                        if (metric === 'total_km') valText = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                        if (metric === 'total_hours') valText = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                        ctx.fillText(valText, bar.x + 4, bar.y);
-                        ctx.restore();
-                    });
+            var meta = chart.getDatasetMeta(0);
+            if (meta.hidden) return;
+            meta.data.forEach(function(bar, index) {
+                var val = chart.data.datasets[0].data[index];
+                if (!val) return;
+                var name = flatInspectorNames[index] || '';
+                // Inspector name inside bar
+                ctx.save();
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                var barWidth = bar.x - bar.base;
+                if (barWidth > 50) {
+                    ctx.fillText(name, bar.base + 6, bar.y);
                 }
+                ctx.restore();
+                // Value at end of bar
+                ctx.save();
+                ctx.fillStyle = txtColor();
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                var valText = val.toLocaleString();
+                if (metric === 'total_km') valText = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                if (metric === 'total_hours') valText = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                ctx.fillText(valText, bar.x + 4, bar.y);
+                ctx.restore();
             });
         }
     };
@@ -1399,24 +1423,26 @@ function renderInspectorTrendChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: txtColor(), padding: 12, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
+                        title: function(items) {
+                            if (!items.length) return '';
+                            var idx = items[0].dataIndex;
+                            return flatInspectorNames[idx] + ' (' + items[0].label + ')';
+                        },
                         label: function(context) {
                             var val = context.parsed.x;
-                            if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                            if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                            return context.dataset.label + ': ' + val;
+                            if (metric === 'total_km') return val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                            if (metric === 'total_hours') return val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                            return val.toLocaleString();
                         }
                     }
                 }
             },
             scales: {
                 x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } },
-                y: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: true } }
+                y: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 } } }
             }
         };
     } else {
@@ -1446,13 +1472,10 @@ function renderInspectorTrendChart() {
         };
     }
 
-    // Dynamically size container for bar chart based on actual non-null bars
+    // Dynamically size container for bar chart
     if (isBar) {
-        var actualBars = 0;
-        datasets.forEach(function(ds) {
-            ds.data.forEach(function(v) { if (v !== null) actualBars++; });
-        });
-        var minHeight = Math.max(400, actualBars * 24 + dates.length * 20 + 100);
+        var actualBars = flatValues.length;
+        var minHeight = Math.max(400, actualBars * 26 + 100);
         canvas.parentElement.style.height = minHeight + 'px';
     } else {
         canvas.parentElement.style.height = '600px';
