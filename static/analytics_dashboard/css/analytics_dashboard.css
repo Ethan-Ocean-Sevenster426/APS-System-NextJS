@@ -1347,15 +1347,7 @@ body.bg-loaded::before {
 
 /* Panel Title Bar */
 .panel-title-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-    padding: 12px 18px;
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    border-left: 3px solid var(--primary);
-    box-shadow: var(--shadow);
+    display: none;
 }
 
 .panel-title-bar h2 {
