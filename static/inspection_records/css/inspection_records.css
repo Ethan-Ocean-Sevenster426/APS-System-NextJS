@@ -6754,7 +6754,7 @@
             /* Col 3: RFI */
             #shipmentsTable th:nth-child(3),
             #shipmentsTable td:nth-child(3) {
-                width: 80px !important;
+                width: 60px !important;
                 text-align: center !important;
                 white-space: normal !important;
             }
@@ -6762,21 +6762,21 @@
             /* Col 4: Invoice */
             #shipmentsTable th:nth-child(4),
             #shipmentsTable td:nth-child(4) {
-                width: 80px !important;
+                width: 60px !important;
                 text-align: center !important;
             }
 
             /* Col 5: COA */
             #shipmentsTable th:nth-child(5),
             #shipmentsTable td:nth-child(5) {
-                width: 80px !important;
+                width: 60px !important;
                 text-align: center !important;
             }
 
             /* Col 6: Compliance */
             #shipmentsTable th:nth-child(6),
             #shipmentsTable td:nth-child(6) {
-                width: 80px !important;
+                width: 60px !important;
                 text-align: center !important;
             }
 
