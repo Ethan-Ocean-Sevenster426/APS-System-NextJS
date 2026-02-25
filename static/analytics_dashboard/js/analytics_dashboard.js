@@ -1339,7 +1339,8 @@ function renderInspectorTrendChart() {
             borderColor: color,
             backgroundColor: isBar ? color : 'transparent',
             borderWidth: isBar ? 1 : 2.5,
-            fill: false
+            fill: false,
+            barThickness: isBar ? 12 : undefined,
         };
         if (!isBar) {
             ds.tension = 0.4;
