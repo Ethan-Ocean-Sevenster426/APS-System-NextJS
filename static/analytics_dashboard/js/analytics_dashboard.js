@@ -1354,6 +1354,46 @@ function renderInspectorTrendChart() {
 
     console.log('  isBar:', isBar, 'inspectorTrendChartType:', inspectorTrendChartType);
     var chartOptions;
+    var barLabelPlugin = {
+        id: 'inspectorBarLabels',
+        afterDatasetsDraw: function(chart) {
+            var ctx = chart.ctx;
+            chart.data.datasets.forEach(function(dataset, i) {
+                var meta = chart.getDatasetMeta(i);
+                if (!meta.hidden) {
+                    meta.data.forEach(function(bar, index) {
+                        var val = dataset.data[index];
+                        if (val === 0) return;
+                        var barHeight = bar.height || 10;
+                        // Inspector name inside bar
+                        ctx.save();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 9px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        var nameX = bar.base + 4;
+                        var barWidth = bar.x - bar.base;
+                        if (barWidth > 50) {
+                            ctx.fillText(dataset.label, nameX, bar.y);
+                        }
+                        ctx.restore();
+                        // Value at end of bar
+                        ctx.save();
+                        ctx.fillStyle = txtColor();
+                        ctx.font = 'bold 9px sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        var valText = val.toLocaleString();
+                        if (metric === 'total_km') valText = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                        if (metric === 'total_hours') valText = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                        ctx.fillText(valText, bar.x + 4, bar.y);
+                        ctx.restore();
+                    });
+                }
+            });
+        }
+    };
+
     if (isBar) {
         chartOptions = {
             indexAxis: 'y',
@@ -1410,7 +1450,8 @@ function renderInspectorTrendChart() {
     chartInstances['inspectorTrendChart'] = new Chart(canvas, {
         type: isBar ? 'bar' : 'line',
         data: { labels: labels, datasets: datasets },
-        options: chartOptions
+        options: chartOptions,
+        plugins: isBar ? [barLabelPlugin] : []
     });
     console.log('  Chart created with', datasets.length, 'inspectors and', dates.length, 'dates');
     console.log('=== renderInspectorTrendChart END ===');
