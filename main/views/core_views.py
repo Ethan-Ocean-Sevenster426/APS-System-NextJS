@@ -15363,7 +15363,12 @@ def send_group_documents(request):
                 documents_lines += f'<li style="margin-bottom: 6px;">{cat_label}</li>'
 
         # Create and send email
-        subject = f'Inspection Documents - {client_name} - {inspection_date}'
+        from datetime import datetime as dt_parser
+        try:
+            formatted_date = dt_parser.strptime(inspection_date, '%Y-%m-%d').strftime('%d %B %Y')
+        except (ValueError, TypeError):
+            formatted_date = inspection_date
+        subject = f'FSA Inspection Report – {client_name} – {formatted_date}'
         html_message = f"""
 <div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
     <p>Good day,</p>
