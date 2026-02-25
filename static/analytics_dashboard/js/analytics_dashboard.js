@@ -1343,6 +1343,13 @@ function renderInspectorTrendChart() {
             inspectorColorMap[name] = CHART_PALETTE[idx % CHART_PALETTE.length];
         });
         dates.forEach(function(d, di) {
+            // Add spacer between week groups
+            if (di > 0) {
+                flatLabels.push('');
+                flatValues.push(null);
+                flatColors.push('transparent');
+                flatInspectorNames.push('');
+            }
             var weekLabel = labels[di];
             var first = true;
             inspectorNames.forEach(function(name) {
