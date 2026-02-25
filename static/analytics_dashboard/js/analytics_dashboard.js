@@ -1340,9 +1340,7 @@ function renderInspectorTrendChart() {
             backgroundColor: isBar ? color : 'transparent',
             borderWidth: isBar ? 1 : 2.5,
             fill: false,
-            barThickness: isBar ? 14 : undefined,
-            categoryPercentage: isBar ? 0.7 : undefined,
-            barPercentage: isBar ? 0.85 : undefined,
+            barThickness: isBar ? 18 : undefined,
         };
         if (!isBar) {
             ds.tension = 0.4;
@@ -1368,7 +1366,7 @@ function renderInspectorTrendChart() {
                         // Inspector name inside bar
                         ctx.save();
                         ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 9px sans-serif';
+                        ctx.font = 'bold 10px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
                         var nameX = bar.base + 4;
@@ -1380,7 +1378,7 @@ function renderInspectorTrendChart() {
                         // Value at end of bar
                         ctx.save();
                         ctx.fillStyle = txtColor();
-                        ctx.font = 'bold 9px sans-serif';
+                        ctx.font = 'bold 10px sans-serif';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'middle';
                         var valText = val.toLocaleString();
@@ -1445,6 +1443,15 @@ function renderInspectorTrendChart() {
                 y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
             }
         };
+    }
+
+    // Dynamically size container for bar chart so bars aren't squished
+    if (isBar) {
+        var totalBars = dates.length * inspectorNames.length;
+        var minHeight = Math.max(600, totalBars * 22 + 100);
+        canvas.parentElement.style.height = minHeight + 'px';
+    } else {
+        canvas.parentElement.style.height = '600px';
     }
 
     chartInstances['inspectorTrendChart'] = new Chart(canvas, {
