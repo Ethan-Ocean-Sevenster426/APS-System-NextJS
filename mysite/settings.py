@@ -257,7 +257,7 @@ AUTO_ORGANIZE_ZIP_FILES = True  # Automatically organize ZIP files by inspection
 
 # Email Configuration - Using Microsoft Graph API (Same as E-Click project)
 EMAIL_BACKEND = 'main.graph_email_backend.GraphEmailBackend'
-DEFAULT_FROM_EMAIL = 'info@eclick.co.za'
+DEFAULT_FROM_EMAIL = 'foodsafetyagency.aps@afsq.co.za'
 
 # Microsoft Graph API Credentials
 GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
