@@ -1400,8 +1400,15 @@ function renderInspectorTrendChart() {
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 var barWidth = bar.x - bar.base;
-                if (barWidth > 50) {
-                    ctx.fillText(name, bar.base + 6, bar.y);
+                if (barWidth > 20) {
+                    // Truncate name to fit inside bar
+                    var maxTextWidth = barWidth - 12;
+                    var displayName = name;
+                    while (ctx.measureText(displayName).width > maxTextWidth && displayName.length > 1) {
+                        displayName = displayName.slice(0, -1);
+                    }
+                    if (displayName.length < name.length) displayName += '…';
+                    ctx.fillText(displayName, bar.base + 6, bar.y);
                 }
                 ctx.restore();
                 // Value at end of bar
