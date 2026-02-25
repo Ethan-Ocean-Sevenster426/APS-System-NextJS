@@ -6783,7 +6783,7 @@
             /* Col 7: Date */
             #shipmentsTable th:nth-child(7),
             #shipmentsTable td:nth-child(7) {
-                width: 130px !important;
+                width: 150px !important;
                 text-align: center !important;
                 white-space: nowrap !important;
             }
