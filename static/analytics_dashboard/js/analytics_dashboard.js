@@ -1328,19 +1328,20 @@ function renderInspectorTrendChart() {
     var inspectorNames = Object.keys(inspectorMap).sort();
     console.log('  inspectors found:', inspectorNames);
 
-    // Multi-line/bar chart (daily data, same style as Daily Compliance Trend)
+    // Multi-line/bar chart
     var isBar = inspectorTrendChartType === 'bar';
     var datasets = [];
     inspectorNames.forEach(function(name, idx) {
         var color = CHART_PALETTE[idx % CHART_PALETTE.length];
         var ds = {
             label: name,
-            data: dates.map(function(d) { return inspectorMap[name][d] || 0; }),
+            data: dates.map(function(d) { return inspectorMap[name][d] || (isBar ? null : 0); }),
             borderColor: color,
             backgroundColor: isBar ? color : 'transparent',
             borderWidth: isBar ? 1 : 2.5,
             fill: false,
             barThickness: isBar ? 18 : undefined,
+            skipNull: true,
         };
         if (!isBar) {
             ds.tension = 0.4;
@@ -1445,10 +1446,13 @@ function renderInspectorTrendChart() {
         };
     }
 
-    // Dynamically size container for bar chart so bars aren't squished
+    // Dynamically size container for bar chart based on actual non-null bars
     if (isBar) {
-        var totalBars = dates.length * inspectorNames.length;
-        var minHeight = Math.max(600, totalBars * 22 + 100);
+        var actualBars = 0;
+        datasets.forEach(function(ds) {
+            ds.data.forEach(function(v) { if (v !== null) actualBars++; });
+        });
+        var minHeight = Math.max(400, actualBars * 24 + dates.length * 20 + 100);
         canvas.parentElement.style.height = minHeight + 'px';
     } else {
         canvas.parentElement.style.height = '600px';
