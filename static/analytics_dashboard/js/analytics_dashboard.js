@@ -683,9 +683,8 @@ function renderDirectionsChart() {
         data: {
             labels: items.map(function(i) { return i.inspector_name; }),
             datasets: [
-                { label: 'Directions', data: items.map(function(i) { return i.directions || 0; }), backgroundColor: '#d13438', borderRadius: 2 },
-                { label: 'Non-Compliant', data: items.map(function(i) { return i.non_compliant_products || 0; }), backgroundColor: '#ffb900', borderRadius: 2 },
-                { label: 'Clean', data: items.map(function(i) { return i.total - (i.directions || 0); }), backgroundColor: '#107c10', borderRadius: 2 },
+                { label: 'Non-Compliant', data: items.map(function(i) { return i.non_compliant_products || 0; }), backgroundColor: '#d13438', borderRadius: 2 },
+                { label: 'Compliant', data: items.map(function(i) { return i.total - (i.non_compliant_products || 0); }), backgroundColor: '#107c10', borderRadius: 2 },
             ]
         },
         options: {
