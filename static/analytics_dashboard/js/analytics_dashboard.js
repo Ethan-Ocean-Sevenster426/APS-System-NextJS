@@ -1320,8 +1320,9 @@ function renderInspectorTrendChart() {
     console.log('  unique dates:', dates);
     var mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var labels = dates.map(function(d) {
-        var parts = d.split('-');
-        return mNames[parseInt(parts[1]) - 1] + ' ' + parseInt(parts[2]);
+        var dt = new Date(d + 'T00:00:00');
+        var end = new Date(dt); end.setDate(end.getDate() + 6);
+        return mNames[dt.getMonth()] + ' ' + dt.getDate() + ' - ' + mNames[end.getMonth()] + ' ' + end.getDate();
     });
 
     var inspectorNames = Object.keys(inspectorMap).sort();

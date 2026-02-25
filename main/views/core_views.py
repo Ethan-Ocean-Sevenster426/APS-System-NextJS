@@ -8709,13 +8709,13 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('month'))
 
-    # Daily inspector performance trend (same period as daily compliance trend)
+    # Weekly inspector performance trend
     monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).exclude(date_of_inspection__isnull=True).filter(
         date_of_inspection__gte=thirty_days_ago
     ).annotate(
-        day=TruncDay('date_of_inspection')
+        day=TruncWeek('date_of_inspection')
     ).values('day', 'inspector_name').annotate(
         count=Count('id'),
         total_km=Sum('km_traveled'),
@@ -9351,7 +9351,7 @@ def analytics_dashboard_api(request):
     if not _has_date_filter:
         _inspector_trend_base = _inspector_trend_base.filter(date_of_inspection__gte=thirty_days_ago)
     _inspector_trend_qs = _inspector_trend_base.annotate(
-        day=TruncDay('date_of_inspection')
+        day=TruncWeek('date_of_inspection')
     ).values('day', 'inspector_name').annotate(
         count=Count('id'),
         total_km=Sum('km_traveled'),
