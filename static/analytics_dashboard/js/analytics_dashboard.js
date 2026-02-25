@@ -1333,7 +1333,7 @@ function renderInspectorTrendChart() {
     var datasets = [];
 
     if (isBar) {
-        // Flat bar chart: one bar per inspector per week, no gaps
+        // Flat bar chart: one bar per inspector per week, grouped by week label
         var flatLabels = [];
         var flatValues = [];
         var flatColors = [];
@@ -1344,10 +1344,12 @@ function renderInspectorTrendChart() {
         });
         dates.forEach(function(d, di) {
             var weekLabel = labels[di];
+            var first = true;
             inspectorNames.forEach(function(name) {
                 var val = inspectorMap[name][d] || 0;
                 if (val > 0) {
-                    flatLabels.push(weekLabel);
+                    flatLabels.push(first ? weekLabel : '');
+                    first = false;
                     flatValues.push(val);
                     flatColors.push(inspectorColorMap[name]);
                     flatInspectorNames.push(name);
