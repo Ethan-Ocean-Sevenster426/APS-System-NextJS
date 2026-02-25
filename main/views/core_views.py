@@ -15312,51 +15312,120 @@ def send_group_documents(request):
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
 
+        # Get commodities inspected for this group
+        from ..models import FoodSafetyAgencyInspection
+        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
+        if inspection_group_id:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
+        else:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj.date()
+            )
+
+        # Map commodity codes to full regulation descriptions
+        commodity_regulations = {
+            'PMP': 'Processed Meat Products (Regulation R.1283 of 4 October 2019)',
+            'RAW': 'Certain Raw Processed Meat Products (Regulation R.2410 of 26 August 2022)',
+            'EGGS': 'Eggs (Regulation R.345 of 20 March 2020)',
+            'POULTRY': 'Poultry Meat (Consolidated Document: R.946 of 27 March 1992, R.988 of 25 July 1997, and R.471 of 22 April 2016)',
+        }
+
+        # Get distinct commodities from the inspections
+        distinct_commodities = group_inspections.values_list('commodity', flat=True).distinct()
+        commodity_lines = ''
+        for commodity in distinct_commodities:
+            if commodity:
+                label = commodity_regulations.get(commodity.upper(), commodity)
+                commodity_lines += f'<li style="margin-bottom: 6px;">{label}</li>'
+
+        # Build dynamic document category display names
+        category_display = {
+            'rfi': 'Request for Invoice',
+            'invoice': 'Invoice',
+            'lab': 'Lab Results',
+            'lab_form': 'Lab Form',
+            'retest': 'Retest Results',
+            'compliance': 'Compliance Report',
+            'occurrence': 'Occurrence Report',
+            'composition': 'Composition Report',
+            'other': 'Other Documents',
+        }
+        # Collect categories that have actual files attached
+        attached_categories = set()
+        for category, file_list in files_by_category.items():
+            if file_list:
+                attached_categories.add(category)
+
+        documents_lines = ''
+        for cat_key, cat_label in category_display.items():
+            if cat_key in attached_categories:
+                documents_lines += f'<li style="margin-bottom: 6px;">{cat_label}</li>'
+
         # Create and send email
         subject = f'Inspection Documents - {client_name} - {inspection_date}'
-        if documents_found:
-            docs_list = chr(10).join('• ' + doc for doc in documents_found)
-            message = f"""Dear {client_name},
+        html_message = f"""
+<div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
+    <p>Good day,</p>
 
-Please find attached the inspection documents for the inspection conducted on {inspection_date}.
+    <p>We trust this correspondence finds you well.</p>
 
-Documents included:
-{docs_list}
+    <p>Please find attached the official documentation pertaining to the inspection(s) conducted at your facility.</p>
 
-Best regards,
-Food Safety Agency (Pty) Ltd"""
-        else:
-            message = f"""Dear {client_name},
+    <p><strong>Commodity Breakdown:</strong></p>
+    <ul style="margin: 0 0 16px 20px; padding: 0;">
+        {commodity_lines}
+    </ul>
 
-This is to confirm the inspection conducted on {inspection_date} has been completed.
+    <p><strong>Documents Included:</strong></p>
+    <ul style="margin: 0 0 16px 20px; padding: 0;">
+        {documents_lines}
+    </ul>
 
-Best regards,
-Food Safety Agency (Pty) Ltd"""
+    <p><strong>Important Notice:</strong></p>
+    <p style="margin-left: 0;">
+        Where a direction has been issued, a follow-up inspection will be scheduled in accordance with the prescribed rectification timeframe.
+    </p>
+    <p>
+        Please be advised that our fees are duly gazetted, and our appointment has been made by the Minister of Agriculture.
+    </p>
+
+    <p>For any queries regarding the inspection, invoicing, or to provide feedback, kindly contact:</p>
+
+    <p style="margin-bottom: 4px;"><strong>Manager: Agricultural Products Standards</strong><br>
+    Mr. Simphiwe Mathenjwa<br>
+    <a href="mailto:simphiwe.mathenjwa@afsq.co.za">simphiwe.mathenjwa@afsq.co.za</a></p>
+
+    <p style="margin-bottom: 4px;"><strong>Manager: Compliance</strong><br>
+    Ms. Nicole Bergh<br>
+    <a href="mailto:nicole.bergh@afsq.co.za">nicole.bergh@afsq.co.za</a></p>
+
+    <p style="margin-bottom: 4px;"><strong>General Enquiries</strong><br>
+    Email: <a href="mailto:Info@afsq.co.za">Info@afsq.co.za</a><br>
+    Call: (012) 361-1937</p>
+
+    <p>We appreciate your continued cooperation and commitment to regulatory compliance and quality assurance. Please review the attached documentation at your convenience.</p>
+
+    <p>Kind Regards / Vriendelike Groete</p>
+</div>
+"""
 
         email = EmailMessage(
             subject=subject,
-            body=message,
+            body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient_email],
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
+        email.content_subtype = 'html'
 
         for file_path in attachments:
             email.attach_file(file_path)
 
         email.send()
 
-        # Mark inspections as sent
-        from ..models import FoodSafetyAgencyInspection
-        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
-        if inspection_group_id:
-            inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
-        else:
-            inspections = FoodSafetyAgencyInspection.objects.filter(
-                client_name__iexact=client_name,
-                date_of_inspection=date_obj.date()
-            )
-        inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
+        # Mark inspections as sent (reuse group_inspections queryset from above)
+        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
 
         # Log the activity
         from ..models import SystemLog
