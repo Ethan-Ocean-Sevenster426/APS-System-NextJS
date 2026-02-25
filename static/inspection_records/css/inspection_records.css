@@ -6785,7 +6785,7 @@
             #shipmentsTable td:nth-child(7) {
                 width: 130px !important;
                 text-align: center !important;
-                white-space: normal !important;
+                white-space: nowrap !important;
             }
 
             /* Col 8: Approved */
