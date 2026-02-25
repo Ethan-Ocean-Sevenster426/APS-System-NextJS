@@ -1349,33 +1349,40 @@ function renderInspectorTrendChart() {
         datasets.push(ds);
     });
 
-    chartInstances['inspectorTrendChart'] = new Chart(canvas, {
-        type: inspectorTrendChartType,
-        data: { labels: labels, datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: txtColor(), padding: 12, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            var val = context.parsed.y;
-                            if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                            if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                            return context.dataset.label + ': ' + val;
-                        }
+    var chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { color: txtColor(), padding: 12, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        var val = isBar ? context.parsed.x : context.parsed.y;
+                        if (metric === 'total_km') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                        if (metric === 'total_hours') return context.dataset.label + ': ' + val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                        return context.dataset.label + ': ' + val;
                     }
                 }
-            },
-            scales: {
-                x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45, autoSkip: true } },
-                y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
             }
+        },
+        scales: {
+            x: { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, maxRotation: 45, autoSkip: true } },
+            y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } }
         }
+    };
+    if (isBar) {
+        chartOptions.indexAxis = 'y';
+        chartOptions.scales.x = { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() }, title: { display: true, text: metricLabels[metric] || '', color: txtColor(), font: { size: 11 } } };
+        chartOptions.scales.y = { grid: { color: gridColor() }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: true } };
+    }
+
+    chartInstances['inspectorTrendChart'] = new Chart(canvas, {
+        type: isBar ? 'bar' : 'line',
+        data: { labels: labels, datasets: datasets },
+        options: chartOptions
     });
     console.log('  Chart created with', datasets.length, 'inspectors and', dates.length, 'dates');
     console.log('=== renderInspectorTrendChart END ===');
