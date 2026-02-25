@@ -15465,17 +15465,35 @@ def send_group_documents(request):
 def get_client_email(client_name):
     """Get client email address from database (manual override preferred)."""
     try:
-        from ..models import Client
-        
+        from ..models import Client, ClientEmail
+
         # Try to find client by business name (client_id field)
         client = Client.objects.filter(client_id__iexact=client_name).first()
-        
+
         if client:
-            return client.manual_email or client.email
-        
+            if client.manual_email:
+                return client.manual_email
+            if client.email:
+                return client.email
+            # Check ClientEmail table as fallback
+            client_email = ClientEmail.objects.filter(client=client).first()
+            if client_email:
+                return client_email.email
+
+        # Also try matching by client name
+        client = Client.objects.filter(name__iexact=client_name).first()
+        if client:
+            if client.manual_email:
+                return client.manual_email
+            if client.email:
+                return client.email
+            client_email = ClientEmail.objects.filter(client=client).first()
+            if client_email:
+                return client_email.email
+
         # If no email found, return None for now
         return None
-        
+
     except Exception:
         return None
 
