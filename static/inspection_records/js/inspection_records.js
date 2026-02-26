@@ -451,7 +451,7 @@
                             updateInputBorderColor(this);
                         });
                     });
-                };
+                });
 
                 // Function to update approved status
                 window.updateGroupApproved = function (select) {
