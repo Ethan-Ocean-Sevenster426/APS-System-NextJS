@@ -4090,7 +4090,7 @@ def upload_document(request):
                                     print(f"DEBUG: Received product_compliance_status from POST: '{product_compliance_status}'")
 
                                     if product_compliance_status in ['compliant', 'non-compliant']:
-                                        is_compliant = 1 if product_compliance_status == 'compliant' else 0
+                                        is_compliant = True if product_compliance_status == 'compliant' else False
                                         print(f"DEBUG: Setting is_product_compliant to {is_compliant} ({'True' if is_compliant else 'False'})")
 
                                         compliance_sql = f"""
