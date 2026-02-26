@@ -1,8 +1,20 @@
 import json
+import re as _re
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods, require_POST
 from ..models import FoodSafetyAgencyInspection
+
+
+def _parse_group_id(group_id):
+    """Strip _g{inspection_group_pk} suffix from group_id if present.
+    Returns (clean_group_id, inspection_group_pk_or_None)."""
+    if not group_id:
+        return group_id, None
+    m = _re.match(r'^(.+)_g(\d+)$', str(group_id))
+    if m:
+        return m.group(1), int(m.group(2))
+    return group_id, None
 
 @login_required
 def update_product_name(request):
@@ -276,7 +288,7 @@ def user_login(request):
                     if user_role == 'admin':
                         # Redirect administrators to inspection page
                         return redirect('shipment_list')
-                    elif user_role == 'inspector':
+                    elif user_role in ('inspector', 'inspector_manager'):
                         # Redirect inspectors to inspector dashboard
                         return redirect('inspector_dashboard')
                     else:
@@ -327,7 +339,7 @@ def register(request):
                     if user_role == 'admin':
                         # Redirect administrators to inspection page
                         return redirect('shipment_list')
-                    elif user_role == 'inspector':
+                    elif user_role in ('inspector', 'inspector_manager'):
                         # Redirect inspectors to inspector dashboard
                         return redirect('inspector_dashboard')
                     else:
@@ -1053,15 +1065,15 @@ def add_fsa_inspection(request):
 
 
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer', 'inspector'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector', 'inspector_manager'])
 def edit_fsa_inspection(request, pk):
     """Edit an existing Food Safety Agency inspection."""
     clear_messages(request)
 
     inspection = get_object_or_404(FoodSafetyAgencyInspection, pk=pk)
 
-    # Inspectors may only edit their own inspections
-    if getattr(request.user, 'role', None) == 'inspector':
+    # Inspectors and inspector managers may only edit their own / allocated inspections
+    if getattr(request.user, 'role', None) in ('inspector', 'inspector_manager'):
         try:
             from ..models import InspectorMapping
             inspector_id = None
@@ -1085,6 +1097,15 @@ def edit_fsa_inspection(request, pk):
                     inspector_id = None
                     inspector_name = None
 
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_inspector_ids = set()
+            allowed_inspector_names = set()
+            if inspector_id is not None:
+                allowed_inspector_ids.add(int(inspector_id))
+            if request.user.role == 'inspector_manager':
+                allowed_inspector_ids.update(request.user.get_managed_inspector_ids())
+                allowed_inspector_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
             # Match either by inspector_id (preferred) OR inspector_name (for records with no IDs)
             inspection_inspector_id = getattr(inspection, 'inspector_id', None)
             inspection_inspector_name = (getattr(inspection, 'inspector_name', None) or '').strip()
@@ -1093,18 +1114,18 @@ def edit_fsa_inspection(request, pk):
             user_username = (request.user.username or '').strip()
 
             id_match = (
-                inspector_id is not None and
                 inspection_inspector_id is not None and
-                int(inspection_inspector_id) == int(inspector_id)
+                int(inspection_inspector_id) in allowed_inspector_ids
             )
             name_match = False
             if inspection_inspector_name:
-                # Prefer mapping name if we have it, otherwise fall back to user names
                 if inspector_name and inspection_inspector_name.lower() == str(inspector_name).strip().lower():
                     name_match = True
                 elif user_full_name and inspection_inspector_name.lower() == user_full_name.lower():
                     name_match = True
                 elif user_username and inspection_inspector_name.lower() == user_username.lower():
+                    name_match = True
+                elif inspection_inspector_name.lower() in allowed_inspector_names:
                     name_match = True
 
             if not (id_match or name_match):
@@ -1130,6 +1151,10 @@ def edit_fsa_inspection(request, pk):
             missing.append('Group Type')
         if not request.POST.get('facility_type', '').strip():
             missing.append('Facility Type')
+        if not request.POST.get('travel_start_time', '').strip():
+            missing.append('Travel Start Time')
+        if not request.POST.get('travel_end_time', '').strip():
+            missing.append('Travel End Time')
         if missing:
             messages.error(request, f"Required fields missing: {', '.join(missing)}")
             return redirect('edit_fsa_inspection', pk=pk)
@@ -1280,8 +1305,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
-                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
-                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or parent_group.travel_start_time
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
                         print(f"[EDIT FORM DEBUG] Updated parent InspectionGroup #{parent_group.id} with shared fields")
 
@@ -1294,6 +1319,7 @@ def edit_fsa_inspection(request, pk):
                     for rel_insp in inspections_to_update:
                         if rel_insp.id != inspection.id:
                             # Copy common fields from main inspection
+                            rel_insp.date_of_inspection = inspection.date_of_inspection
                             rel_insp.additional_email = inspection.additional_email
                             rel_insp.corporate_group = inspection.corporate_group
                             rel_insp.group_type = inspection.group_type
@@ -1322,6 +1348,15 @@ def edit_fsa_inspection(request, pk):
                     # Create new inspections for products that don't have matching existing inspections
                     if products_to_create:
                         from django.db.models import Min
+                        # Get RFI/Invoice stamps from existing group inspections to propagate to new ones
+                        rfi_source = FoodSafetyAgencyInspection.objects.filter(
+                            inspection_group=inspection.inspection_group,
+                            rfi_uploaded_date__isnull=False
+                        ).first()
+                        invoice_source = FoodSafetyAgencyInspection.objects.filter(
+                            inspection_group=inspection.inspection_group,
+                            invoice_uploaded_date__isnull=False
+                        ).first()
                         for product in products_to_create:
                             commodity = product.get('_commodity')
                             idx = product.get('_index', 0)
@@ -1372,6 +1407,11 @@ def edit_fsa_inspection(request, pk):
                                 facility_type=inspection.facility_type,
                                 internal_account_code=None,  # No longer needed!
                                 is_manual=True,
+                                # Propagate RFI/Invoice stamps from existing group inspections
+                                rfi_uploaded_date=rfi_source.rfi_uploaded_date if rfi_source else None,
+                                rfi_uploaded_by_id=rfi_source.rfi_uploaded_by_id if rfi_source else None,
+                                invoice_uploaded_date=invoice_source.invoice_uploaded_date if invoice_source else None,
+                                invoice_uploaded_by_id=invoice_source.invoice_uploaded_by_id if invoice_source else None,
                             )
                             print(f"[EDIT FORM DEBUG] Created new inspection {new_inspection.id} for {commodity} #{idx+1}: {product.get('product_name')}")
 
@@ -1425,8 +1465,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
-                        parent_group.travel_start_time = request.POST.get('travel_start_time') or None
-                        parent_group.travel_end_time = request.POST.get('travel_end_time') or None
+                        parent_group.travel_start_time = request.POST.get('travel_start_time') or parent_group.travel_start_time
+                        parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
 
                     # Clear page cache so updated data shows immediately
@@ -1514,9 +1554,10 @@ def edit_fsa_inspection(request, pk):
         # Get all related inspections in the same group
         if inspection.inspection_group_id:
             # Use the proper InspectionGroup relationship
+            # Order by 'id' to match save logic ordering (commodity, id)
             related_inspections = FoodSafetyAgencyInspection.objects.filter(
                 inspection_group_id=inspection.inspection_group_id
-            )
+            ).order_by('id')
         else:
             # Fallback: just get this single inspection if no group exists
             related_inspections = FoodSafetyAgencyInspection.objects.filter(pk=inspection.pk)
@@ -1558,6 +1599,7 @@ def edit_fsa_inspection(request, pk):
         commodity_counts = {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0}
         commodity_data = {}
 
+    import json
     context = {
         'form': form,
         'inspection': inspection,
@@ -1567,7 +1609,8 @@ def edit_fsa_inspection(request, pk):
         'is_occurrence_report': is_occurrence,
         'related_inspections': related_inspections,
         'commodity_counts': commodity_counts,
-        'commodity_data': commodity_data,  # Pass all commodity data for population (empty for occurrence reports)
+        'commodity_data': commodity_data,
+        'commodity_data_json': json.dumps(commodity_data),  # Pre-serialized JSON for reliable JS parsing
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -1626,33 +1669,37 @@ def delete_inspection_group(request):
         if not group_id:
             return JsonResponse({'success': False, 'error': 'No group ID provided'})
 
-        # Parse group_id format: clientslug_YYYYMMDD
-        # The client name part may contain underscores, so split from the right
-        parts = group_id.rsplit('_', 1)
-        if len(parts) != 2:
-            return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+        # Strip _g{pk} suffix for precise group lookup
+        clean_group_id, inspection_group_pk = _parse_group_id(group_id)
 
-        client_slug = parts[0]
-        date_str = parts[1]
+        # Prefer precise lookup by inspection_group PK
+        if inspection_group_pk:
+            matching_inspections = list(FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_pk
+            ))
+        else:
+            # Fallback: parse group_id format: clientslug_YYYYMMDD
+            parts = clean_group_id.rsplit('_', 1)
+            if len(parts) != 2:
+                return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
 
-        # Parse date
-        try:
-            inspection_date = datetime.strptime(date_str, '%Y%m%d').date()
-        except ValueError:
-            return JsonResponse({'success': False, 'error': 'Invalid date in group ID'})
+            client_slug = parts[0]
+            date_str = parts[1]
 
-        # Find all inspections matching this group
-        inspections = FoodSafetyAgencyInspection.objects.filter(
-            date_of_inspection=inspection_date
-        )
+            try:
+                inspection_date = datetime.strptime(date_str, '%Y%m%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'error': 'Invalid date in group ID'})
 
-        # Filter by client name (compare sanitized versions)
-        matching_inspections = []
-        for insp in inspections:
-            # Sanitize the client name the same way the template does
-            sanitized = sanitize_group_id(insp.client_name or '')
-            if sanitized.lower() == client_slug.lower():
-                matching_inspections.append(insp)
+            inspections = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=inspection_date
+            )
+
+            matching_inspections = []
+            for insp in inspections:
+                sanitized = sanitize_group_id(insp.client_name or '')
+                if sanitized.lower() == client_slug.lower():
+                    matching_inspections.append(insp)
 
         if not matching_inspections:
             return JsonResponse({'success': False, 'error': 'No inspections found for this group'})
@@ -2195,7 +2242,7 @@ def shipment_list(request):
             return 'no_compliance'
     
     # Filter inspections based on user role and inspector ID
-    if request.user.role == 'inspector':
+    if request.user.role in ('inspector', 'inspector_manager'):
         # Get the inspector ID and name for the current user
         inspector_id = None
         inspector_name = None
@@ -2214,19 +2261,26 @@ def shipment_list(request):
                 inspector_id = inspector_mapping.inspector_id
                 inspector_name = inspector_mapping.inspector_name
             except InspectorMapping.DoesNotExist:
-                # If still no mapping, show no inspections
                 inspector_id = None
                 inspector_name = None
 
+        # Build filter for own inspections
+        q_filter = Q()
         if inspector_id and inspector_name:
-            # Filter inspections to show those done by this inspector
-            # Include BOTH inspector_id matches (for data with IDs) AND inspector_name matches (for data without IDs)
-            # Use case-insensitive match for inspector_name to handle 'Neo Noe' vs 'NEO NOE'
-            inspections = inspections.filter(
-                Q(inspector_id=inspector_id) | Q(inspector_name__iexact=inspector_name)
-            )
+            q_filter = Q(inspector_id=inspector_id) | Q(inspector_name__iexact=inspector_name)
+
+        # Inspector managers also see their allocated inspectors' inspections
+        if request.user.role == 'inspector_manager':
+            managed_ids = request.user.get_managed_inspector_ids()
+            managed_names = request.user.get_managed_inspector_names()
+            if managed_ids:
+                q_filter = q_filter | Q(inspector_id__in=managed_ids)
+            for name in managed_names:
+                q_filter = q_filter | Q(inspector_name__iexact=name)
+
+        if q_filter:
+            inspections = inspections.filter(q_filter)
         else:
-            # If no inspector ID found, show no inspections
             inspections = inspections.none()
     elif request.user.role == 'lab_technician':
         # Lab technicians can only see inspections where samples were taken
@@ -2894,7 +2948,7 @@ def shipment_list(request):
         # Generate group_id
         sanitized_client = sanitize_group_id(client_name) if client_name else ""
         date_str = date_of_inspection.strftime('%Y%m%d') if date_of_inspection else "NO_DATE"
-        group_id = f"{sanitized_client}_{date_str}" if sanitized_client and date_of_inspection else f"ERROR_client_{client_name}_date_{date_of_inspection}"
+        group_id = f"{sanitized_client}_{date_str}_g{inspection_group_id}" if sanitized_client and date_of_inspection else f"ERROR_client_{client_name}_date_{date_of_inspection}"
         
         
         # Create a simple dictionary instead of dynamic class object
@@ -3162,7 +3216,7 @@ def edit_inspection(request, inspection_id):
         print(f"DEBUG: Found inspection: {inspection.remote_id} for {inspection.client_name}")
         
         # Check if user has permission to edit this inspection
-        if request.user.role == 'inspector':
+        if request.user.role in ('inspector', 'inspector_manager'):
             # Get the inspector ID for the current user
             inspector_id = None
             try:
@@ -3178,15 +3232,26 @@ def edit_inspection(request, inspection_id):
                     inspector_id = inspector_mapping.inspector_id
                 except InspectorMapping.DoesNotExist:
                     inspector_id = None
-            
-            # Check if this inspection belongs to the current inspector
-            if not inspector_id or inspection.inspector_id != inspector_id:
+
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_ids = set()
+            allowed_names = set()
+            if inspector_id:
+                allowed_ids.add(inspector_id)
+            if request.user.role == 'inspector_manager':
+                allowed_ids.update(request.user.get_managed_inspector_ids())
+                allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
+            # Check by ID or name
+            id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
+            name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
+            if not (id_match or name_match):
                 messages.error(request, 'You can only edit your own inspections.')
                 return redirect('shipment_list')
-        
+
         # For admin, super_admin, financial, and scientist roles, allow editing any inspection
         # (no additional permission check needed)
-        
+
         if request.method == 'POST':
             print(f"DEBUG: Processing POST request")
             # Handle form submission for editing inspection
@@ -3238,7 +3303,7 @@ def delete_inspection(request, inspection_id):
             return redirect('shipment_list')
         
         # Check if user has permission to delete this inspection
-        if request.user.role == 'inspector':
+        if request.user.role in ('inspector', 'inspector_manager'):
             # Get the inspector ID for the current user
             inspector_id = None
             try:
@@ -3254,9 +3319,20 @@ def delete_inspection(request, inspection_id):
                     inspector_id = inspector_mapping.inspector_id
                 except InspectorMapping.DoesNotExist:
                     inspector_id = None
-            
-            # Check if this inspection belongs to the current inspector
-            if not inspector_id or inspection.inspector_id != inspector_id:
+
+            # Build set of allowed inspector IDs and names (own + managed)
+            allowed_ids = set()
+            allowed_names = set()
+            if inspector_id:
+                allowed_ids.add(inspector_id)
+            if request.user.role == 'inspector_manager':
+                allowed_ids.update(request.user.get_managed_inspector_ids())
+                allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
+
+            # Check by ID or name
+            id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
+            name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
+            if not (id_match or name_match):
                 messages.error(request, 'You can only delete your own inspections.')
                 return redirect('shipment_list')
         
@@ -3295,6 +3371,7 @@ def upload_document(request):
             
             # Get form data
             group_id = request.POST.get('group_id')
+            group_id, inspection_group_pk = _parse_group_id(group_id)
             inspection_id = request.POST.get('inspection_id')
             document_type = request.POST.get('document_type')
             inspection_number = request.POST.get('inspection_number')  # For individual inspection compliance files
@@ -3745,19 +3822,26 @@ def upload_document(request):
                     target_inspection = None
 
             if not target_inspection and group_id:
-                # Group upload - find first inspection for this client+date
-                parts = group_id.split('_')
-                if len(parts) >= 2:
-                    date_str = parts[-1]
-                    if len(date_str) == 8:
-                        try:
-                            date_obj = datetime.strptime(date_str, '%Y%m%d').date()
-                            target_inspection = FoodSafetyAgencyInspection.objects.filter(
-                                client_name__iexact=client_name,
-                                date_of_inspection=date_obj
-                            ).first()
-                        except ValueError:
-                            pass
+                # Group upload - prefer precise lookup by inspection_group PK
+                if inspection_group_pk:
+                    target_inspection = FoodSafetyAgencyInspection.objects.filter(
+                        inspection_group_id=inspection_group_pk
+                    ).first()
+
+                # Fallback to client+date parse for legacy group_id format
+                if not target_inspection:
+                    parts = group_id.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[-1]
+                        if len(date_str) == 8:
+                            try:
+                                date_obj = datetime.strptime(date_str, '%Y%m%d').date()
+                                target_inspection = FoodSafetyAgencyInspection.objects.filter(
+                                    client_name__iexact=client_name,
+                                    date_of_inspection=date_obj
+                                ).first()
+                            except ValueError:
+                                pass
 
             # Ensure inspection has a linked Client
             if target_inspection:
@@ -3830,128 +3914,70 @@ def upload_document(request):
                 if inspection and inspection.commodity:
                     print(f"Commodity: {inspection.commodity}")
 
-            # Generate unique filename with timestamp
+            # Generate filename: FSA-ClientName-Type-YYMMDD.ext
             file_extension = os.path.splitext(uploaded_file.name)[1]
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # Special naming for COA/Lab documents: FSL-RAW-250719
-            if document_type in ['lab', 'lab_form'] and inspection_id and str(inspection_id).isdigit():
-                # Get inspection data
-                inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
+            # Get the real client name from the inspection record
+            real_client_name = (target_inspection.client_name if target_inspection else client_name) or 'Unknown'
+            clean_client = _re.sub(r'[^a-zA-Z0-9\s\-]', '', real_client_name)
+            clean_client = clean_client.strip().replace(' ', '-')
+            clean_client = _re.sub(r'-+', '-', clean_client).strip('-') or 'Unknown'
 
-                if inspection:
-                    # Get lab name (default to FSL if not set)
-                    lab_map = {
-                        'lab_a': 'FSL',
-                        'lab_b': 'Lab-B',
-                        'lab_c': 'Lab-C',
-                        'lab_d': 'Lab-D',
-                        'lab_e': 'Lab-E',
-                        'lab_f': 'Lab-F',
-                    }
-                    lab_name = lab_map.get(inspection.lab, 'FSL') if inspection.lab else 'FSL'
-
-                    # Get commodity (e.g., RAW, POULTRY, PMP, EGGS)
-                    commodity = inspection.commodity.upper() if inspection.commodity else 'UNKNOWN'
-
-                    # Get date from inspection (format: YYMMDD)
-                    if inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-
-                    # Format: FSL-RAW-250719
-                    filename = f"{lab_name}-{commodity}-{formatted_date}{file_extension}"
-                    print(f"[COA NAMING] Generated COA filename: {filename}")
-                    print(f"[COA NAMING] Lab: {lab_name}, Commodity: {commodity}, Date: {formatted_date}")
-                else:
-                    # Fallback to default naming if inspection not found
-                    filename = f"lab-{inspection_id}-{timestamp}{file_extension}"
-            # Special naming for RFI and Invoice: FSA-INV-250711, FSA-RFI-250711
-            elif document_type in ['rfi', 'invoice']:
-                # Get date from group_id or inspection (format: YYMMDD)
-                if group_id:
-                    parts = group_id.split('_')
-                    if len(parts) >= 2:
-                        date_str = parts[-1]
-                        if len(date_str) == 8:
-                            # Convert YYYYMMDD to YYMMDD format
-                            try:
-                                date_obj = datetime.strptime(date_str, '%Y%m%d')
-                                formatted_date = date_obj.strftime('%y%m%d')
-                            except ValueError:
-                                formatted_date = datetime.now().strftime('%y%m%d')
-                        else:
-                            formatted_date = datetime.now().strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-                elif inspection_id and str(inspection_id).isdigit():
-                    # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
-                    if inspection and inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%y%m%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%y%m%d')
-                else:
-                    formatted_date = datetime.now().strftime('%y%m%d')
-
-                # Map document types to their naming suffixes
-                type_mapping = {
-                    'rfi': 'RFI',
-                    'invoice': 'INV'
-                }
-
-                type_suffix = type_mapping.get(document_type, document_type.upper())
-                # Format: FSA-INV-250711, FSA-RFI-250711
-                filename = f"FSA-{type_suffix}-{formatted_date}{file_extension}"
-                print(f"[{type_suffix} NAMING] Generated filename: {filename}")
-                print(f"[{type_suffix} NAMING] Date: {formatted_date}")
-
-            # Special naming for retest: keep old format with client name
-            elif document_type == 'retest':
-                # Clean client name for filename (remove special characters)
-                import re
-                clean_client_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', client_name)
-                clean_client_name = clean_client_name.replace(' ', '-').replace('_', '-')
-                clean_client_name = re.sub(r'-+', '-', clean_client_name).strip('-')
-
-                # Get date from group_id or inspection
-                if group_id:
-                    parts = group_id.split('_')
-                    if len(parts) >= 2:
-                        date_str = parts[-1]
-                        if len(date_str) == 8:
-                            # Convert YYYYMMDD to YYYY-MM-DD format
-                            try:
-                                date_obj = datetime.strptime(date_str, '%Y%m%d')
-                                formatted_date = date_obj.strftime('%Y-%m-%d')
-                            except ValueError:
-                                formatted_date = datetime.now().strftime('%Y-%m-%d')
-                        else:
-                            formatted_date = datetime.now().strftime('%Y-%m-%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%Y-%m-%d')
-                elif inspection_id and str(inspection_id).isdigit():
-                    # Get date from inspection
-                    inspection = FoodSafetyAgencyInspection.objects.filter(remote_id=int(inspection_id)).first()
-                    if inspection and inspection.date_of_inspection:
-                        formatted_date = inspection.date_of_inspection.strftime('%Y-%m-%d')
-                    else:
-                        formatted_date = datetime.now().strftime('%Y-%m-%d')
-                else:
-                    formatted_date = datetime.now().strftime('%Y-%m-%d')
-
-                filename = f"{clean_client_name}-{formatted_date}-retest{file_extension}"
+            # Get date (YYMMDD) from inspection or fallback to now
+            if target_inspection and target_inspection.date_of_inspection:
+                formatted_date = target_inspection.date_of_inspection.strftime('%y%m%d')
             else:
-                filename = f"{identifier}_{document_type}_{timestamp}{file_extension}"
-            
+                formatted_date = datetime.now().strftime('%y%m%d')
+
+            # Map document_type to a short label for the filename
+            type_label_map = {
+                'rfi': 'RFI',
+                'invoice': 'INV',
+                'lab': 'COA',
+                'lab_form': 'LAB',
+                'retest': 'RETEST',
+                'compliance': '',
+                'composition': 'COMPOSITION',
+                'occurrence': 'OCC',
+                'other': 'OTHER',
+                'coa': 'COA',
+            }
+            type_label = type_label_map.get(document_type, document_type.upper())
+
+            # Add commodity and product name for per-inspection documents
+            # RFI and Invoice are group-level (not per product), so skip commodity tag
+            commodity_tag = ''
+            if target_inspection and document_type not in ('rfi', 'invoice'):
+                parts = []
+                if target_inspection.commodity:
+                    parts.append(target_inspection.commodity.upper())
+                if target_inspection.product_name:
+                    clean_product = _re.sub(r'[^a-zA-Z0-9\s\-]', '', target_inspection.product_name)
+                    clean_product = clean_product.strip().replace(' ', '-')
+                    clean_product = _re.sub(r'-+', '-', clean_product).strip('-')
+                    if clean_product:
+                        parts.append(clean_product)
+                if parts:
+                    commodity_tag = '-' + '-'.join(parts)
+
+            type_part = f"-{type_label}" if type_label else ""
+            filename = f"FSA-{clean_client}{commodity_tag}{type_part}-{formatted_date}{file_extension}"
+            print(f"[FILE NAMING] {document_type} -> {filename} (client: {real_client_name})")
+
             # Log the filename for debugging
             print(f"Generated filename: {filename}")
             file_path = os.path.join(document_dir, filename)
 
-            # SINGLE-FILE ENFORCEMENT: Delete existing files for document types that only allow one file
-            # Only 'other' and 'compliance' can have multiple files
+            # For multi-file types (compliance, other), avoid overwriting by appending a counter
             single_file_types = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'occurrence', 'composition']
+            if document_type not in single_file_types:
+                base, ext = os.path.splitext(file_path)
+                counter = 1
+                while os.path.exists(file_path):
+                    file_path = f"{base}-{counter}{ext}"
+                    counter += 1
+
+            # SINGLE-FILE ENFORCEMENT: Delete existing files for document types that only allow one file
             if document_type in single_file_types:
                 # Delete all existing files in this document folder before saving the new one
                 try:
@@ -8019,8 +8045,8 @@ def home(request):
 @login_required
 def inspector_dashboard(request):
     """Display inspector-specific analytics dashboard with only their data."""
-    # Only allow inspectors to access this dashboard
-    if request.user.role != 'inspector':
+    # Only allow inspectors and inspector managers to access this dashboard
+    if request.user.role not in ('inspector', 'inspector_manager'):
         return redirect('analytics_dashboard')
     
     from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectorMapping
@@ -8048,19 +8074,27 @@ def inspector_dashboard(request):
         )
     if mapping:
         inspector_id = mapping.inspector_id
-    
-    # Get inspector-specific statistics using inspector_id when available
+
+    # Build list of all inspector IDs and names to show (own + managed for inspector_manager)
+    all_inspector_ids = []
+    all_inspector_names = [inspector_name]
     if inspector_id is not None:
-        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
-            inspector_id=inspector_id
-        )
-        # If the selected mapping yields no data (e.g., stale/dummy ID), fall back to name match
-        if not inspector_inspections.exists():
-            inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
-                inspector_name__icontains=inspector_name
-            )
+        all_inspector_ids.append(inspector_id)
+    if request.user.role == 'inspector_manager':
+        all_inspector_ids.extend(request.user.get_managed_inspector_ids())
+        all_inspector_names.extend(request.user.get_managed_inspector_names())
+
+    # Get inspector-specific statistics (match by ID or name)
+    q_filter = Q()
+    if all_inspector_ids:
+        q_filter = q_filter | Q(inspector_id__in=all_inspector_ids)
+    for name in all_inspector_names:
+        if name:
+            q_filter = q_filter | Q(inspector_name__iexact=name)
+
+    if q_filter:
+        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(q_filter)
     else:
-        # As a last resort (unlikely), try name match so page still loads
         inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
             inspector_name__icontains=inspector_name
         )
@@ -8212,7 +8246,7 @@ def analytics_dashboard(request):
         return redirect('home')
     
     # Redirect inspectors to their specific dashboard
-    if request.user.role == 'inspector':
+    if request.user.role in ('inspector', 'inspector_manager'):
         return redirect('inspector_dashboard')
     
     from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget

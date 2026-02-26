@@ -2138,6 +2138,9 @@
         const totalSteps = {% if action == 'Edit' %}4{% else %}5{% endif %}; // 4 steps in Edit mode (no Documents), 5 in Add mode
         const isOccurrenceReport = {% if is_occurrence_report %}true{% else %} false{% endif %};
         const isEditMode = {% if action == 'Edit' %}true{% else %}false{% endif %};
+        // Early-declared reference so generateProductForms can safely access edit data
+        // before the const editModeData is initialized (avoids temporal dead zone error)
+        var _editData = { commodityData: {}, isEditMode: isEditMode };
 
         // Track uploaded files
         const uploadedFiles = {
@@ -2434,8 +2437,8 @@
                 }
 
                 // SECOND: Fall back to backend data for initial edit load (use commodityIndex to get correct product)
-                if (editModeData.isEditMode && editModeData.commodityData[commodity] && editModeData.commodityData[commodity][commodityIndex]) {
-                    const backendData = editModeData.commodityData[commodity][commodityIndex];
+                if (_editData.isEditMode && _editData.commodityData[commodity] && _editData.commodityData[commodity][commodityIndex]) {
+                    const backendData = _editData.commodityData[commodity][commodityIndex];
                     console.log(`[generateProductForms] Using backend data for ${commodity} #${commodityIndex + 1}`);
                     return {
                         commodity: p.commodity,
@@ -4871,32 +4874,11 @@
                 PMP: {{ commodity_counts.PMP|default:0 }},
                 EGGS: {{ commodity_counts.EGGS|default:0 }}
             },
-            // Data for all commodities in the group (for populating all forms)
-            // Each commodity maps to an ARRAY of product data objects
-            commodityData: {
-                {% for commodity, data_list in commodity_data.items %}
-                {{ commodity }}: [
-                    {% for data in data_list %}
-                    {
-                        id: {{ data.id }},
-                        product_name: '{{ data.product_name|escapejs }}',
-                        product_class: '{{ data.product_class|escapejs }}',
-                        lab: '{{ data.lab|escapejs }}',
-                        is_sample_taken: {{ data.is_sample_taken|lower }},
-                        bought_sample: {{ data.bought_sample }},
-                        km_traveled: {{ data.km_traveled }},
-                        hours: {{ data.hours }},
-                        fat: {{ data.fat|lower }},
-                        protein: {{ data.protein|lower }},
-                        calcium: {{ data.calcium|lower }},
-                        dna: {{ data.dna|lower }},
-                        needs_retest: '{{ data.needs_retest|default:"NO"|escapejs }}'
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ]{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            }
+            // Using JSON.parse for reliable serialization instead of Django template loops
+            commodityData: '{{ commodity_data_json|escapejs }}' ? JSON.parse('{{ commodity_data_json|escapejs }}') : {}
         };
+        // Update early reference so functions defined above can access edit data
+        _editData = editModeData;
 
         // Set initial commodity if editing
         document.addEventListener('DOMContentLoaded', function () {
@@ -5025,33 +5007,24 @@
                     // Pre-populate product details after forms are generated
                     setTimeout(function () {
                         console.log('[EDIT MODE] Populating ALL product data...');
-                        console.log('[EDIT MODE] commodityData:', editModeData.commodityData);
-                        console.log('[EDIT MODE] productsData:', productsData);
 
-                        // Track per-commodity index so each product gets the correct data
-                        const commodityIndexTracker = {};
+                        const commodityCounter = {};
 
-                        // Loop through all product forms and populate matching commodities
                         for (let productIdx = 0; productIdx < productsData.length; productIdx++) {
                             const commodity = productsData[productIdx].commodity;
 
-                            // Track which product index within this commodity we're on
-                            if (!(commodity in commodityIndexTracker)) {
-                                commodityIndexTracker[commodity] = 0;
-                            } else {
-                                commodityIndexTracker[commodity]++;
-                            }
-                            const commIdx = commodityIndexTracker[commodity];
+                            if (!commodityCounter[commodity]) commodityCounter[commodity] = 0;
+                            const commIdx = commodityCounter[commodity]++;
 
-                            const dataArray = editModeData.commodityData[commodity];
-                            const data = dataArray && dataArray[commIdx];
+                            // Use productsData directly - generateProductForms already assigned correct values per commodityIndex
+                            const data = productsData[productIdx];
 
                             if (!data) {
-                                console.log(`[EDIT MODE] No data for ${commodity} #${commIdx + 1} at index ${productIdx}`);
+                                console.log(`[EDIT MODE] No data at index ${productIdx}`);
                                 continue;
                             }
 
-                            console.log(`[EDIT MODE] Populating ${commodity} #${commIdx + 1} at index ${productIdx}`);
+                            console.log(`[EDIT MODE] Populating ${commodity} #${commIdx} at index ${productIdx}: "${data.product_name}"`);
 
                             // Product name
                             const productNameInput = document.querySelector(`input[data-product-idx="${productIdx}"][data-field="product_name"]`);
@@ -5153,6 +5126,10 @@
                                 productsData[productIdx].hours = parseFloat(data.hours) || 0;
                             }
                         } // End of for loop
+
+                        // Sync the hidden productsData input with corrected values
+                        document.getElementById('productsData').value = JSON.stringify(productsData);
+                        console.log('[EDIT MODE] Final productsData synced:', productsData.map((p, i) => `[${i}] ${p.commodity}: "${p.product_name}"`));
 
                         // Comment field
                         const commentInput = document.querySelector('[name="comment"]');
