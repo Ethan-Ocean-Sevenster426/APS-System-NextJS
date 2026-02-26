@@ -104,6 +104,12 @@
                         .then(response => {
                             console.log('[UPLOAD DEBUG] Response status:', response.status);
                             console.log('[UPLOAD DEBUG] Response ok:', response.ok);
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('[UPLOAD DEBUG] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
                             return response.json();
                         })
                         .then(data => {

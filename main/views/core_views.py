@@ -781,17 +781,18 @@ def add_fsa_inspection(request):
         form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES)
         if form.is_valid():
             try:
+              with transaction.atomic():
                 # Validate required fields
                 missing = []
                 if not form.cleaned_data.get('client_name', '').strip():
                     missing.append('Client Name')
                 if not form.cleaned_data.get('town', '').strip():
                     missing.append('Town')
-                if not request.POST.get('corporate_group', '').strip():
+                if not form.cleaned_data.get('corporate_group', '').strip():
                     missing.append('Corporate Group')
-                if not request.POST.get('group_type', '').strip():
+                if not form.cleaned_data.get('group_type', '').strip():
                     missing.append('Group Type')
-                if not request.POST.get('facility_type', '').strip():
+                if not form.cleaned_data.get('facility_type', '').strip():
                     missing.append('Facility Type')
                 if not form.cleaned_data.get('commodity', '').strip():
                     missing.append('Commodity Type')
@@ -804,7 +805,9 @@ def add_fsa_inspection(request):
                 products_data_json = request.POST.get('products_data', '[]')
                 try:
                     products_data = json.loads(products_data_json)
-                except json.JSONDecodeError:
+                    if not isinstance(products_data, list):
+                        products_data = []
+                except (json.JSONDecodeError, ValueError, TypeError):
                     products_data = []
 
                 # If no products data, fall back to commodity selections
@@ -884,13 +887,13 @@ def add_fsa_inspection(request):
                         date_of_inspection=form.cleaned_data.get('date_of_inspection'),
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         town=form.cleaned_data.get('town', ''),
-                        facility_type=request.POST.get('facility_type', ''),
-                        group_type=request.POST.get('group_type', ''),
-                        corporate_group=request.POST.get('corporate_group', ''),
-                        additional_email=request.POST.get('additional_email', ''),
+                        facility_type=form.cleaned_data.get('facility_type', ''),
+                        group_type=form.cleaned_data.get('group_type', ''),
+                        corporate_group=form.cleaned_data.get('corporate_group', ''),
+                        additional_email=form.cleaned_data.get('additional_email', ''),
                         comment=form.cleaned_data.get('comment', ''),
-                        km_traveled=float(request.POST.get('km_traveled', 0) or 0),
-                        hours=float(request.POST.get('hours', 0) or 0),
+                        km_traveled=float(form.cleaned_data.get('km_traveled', 0) or 0),
+                        hours=float(form.cleaned_data.get('hours', 0) or 0),
                         travel_start_time=request.POST.get('travel_start_time') or None,
                         travel_end_time=request.POST.get('travel_end_time') or None,
                         is_manual=True,
@@ -921,15 +924,15 @@ def add_fsa_inspection(request):
                         town=form.cleaned_data.get('town', ''),
                         km_traveled=float(product_info.get('km_traveled', 0) or 0),
                         hours=float(product_info.get('hours', 0) or 0),
-                        additional_email=request.POST.get('additional_email', ''),
+                        additional_email=form.cleaned_data.get('additional_email', ''),
                         comment=form.cleaned_data.get('comment', ''),
                         is_manual=True,
                         inspected=bool(form.cleaned_data.get('inspected', True)),
                         follow_up=bool(form.cleaned_data.get('follow_up', False)),
                         dispensation_application=bool(form.cleaned_data.get('dispensation_application', False)),
-                        corporate_group=request.POST.get('corporate_group', ''),
-                        group_type=request.POST.get('group_type', ''),
-                        facility_type=request.POST.get('facility_type', ''),
+                        corporate_group=form.cleaned_data.get('corporate_group', ''),
+                        group_type=form.cleaned_data.get('group_type', ''),
+                        facility_type=form.cleaned_data.get('facility_type', ''),
                     )
 
                     # Generate unique negative remote_id for manual entries
@@ -1164,9 +1167,15 @@ def edit_fsa_inspection(request, pk):
         products_data_json = request.POST.get('products_data', '[]')
         try:
             products_data = json.loads(products_data_json)
+            if not isinstance(products_data, list):
+                print(f"[EDIT FORM ERROR] products_data is not a list: {type(products_data)}")
+                messages.error(request, "Invalid product data format. Please try again.")
+                return redirect('edit_fsa_inspection', pk=pk)
             print(f"[EDIT FORM DEBUG] Products data: {products_data}")
-        except:
-            products_data = []
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            print(f"[EDIT FORM ERROR] Failed to parse products_data JSON: {e}")
+            messages.error(request, "Failed to process product data. Please try again.")
+            return redirect('edit_fsa_inspection', pk=pk)
 
         # Validate that every product has a product_name
         for i, p in enumerate(products_data):
@@ -1184,13 +1193,10 @@ def edit_fsa_inspection(request, pk):
                 )
                 print(f"[EDIT FORM DEBUG] Found {related_inspections.count()} related inspections in group #{inspection.inspection_group.id}")
             else:
-                # No parent group - find all inspections for this client/date
-                # This shouldn't happen with the new system, but keep as fallback
-                related_inspections = FoodSafetyAgencyInspection.objects.filter(
-                    client_name=inspection.client_name,
-                    date_of_inspection=inspection.date_of_inspection
-                )
-                print(f"[EDIT FORM DEBUG] WARNING: Inspection {pk} has no parent group!")
+                # No parent group - only update this single inspection to avoid
+                # accidentally modifying unrelated inspections for the same client/date
+                related_inspections = FoodSafetyAgencyInspection.objects.filter(pk=inspection.pk)
+                print(f"[EDIT FORM DEBUG] WARNING: Inspection {pk} has no parent group! Only updating this single inspection.")
 
             # Group products_data by commodity (keep as lists to preserve duplicates)
             from collections import defaultdict
@@ -1258,6 +1264,7 @@ def edit_fsa_inspection(request, pk):
             form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES, instance=inspection)
             if form.is_valid():
                 try:
+                  with transaction.atomic():
                     # Preserve upload tracking fields before saving
                     original_rfi_date = inspection.rfi_uploaded_date
                     original_rfi_by = inspection.rfi_uploaded_by
@@ -1325,6 +1332,9 @@ def edit_fsa_inspection(request, pk):
                             rel_insp.group_type = inspection.group_type
                             rel_insp.facility_type = inspection.facility_type
                             rel_insp.town = inspection.town
+                            rel_insp.client_name = inspection.client_name
+                            rel_insp.inspector_name = inspection.inspector_name
+                            rel_insp.client = inspection.client
                             rel_insp.save()
                             print(f"[EDIT FORM DEBUG] Saved inspection {rel_insp.id} ({rel_insp.commodity}): {rel_insp.product_name}")
                         else:
@@ -1432,9 +1442,24 @@ def edit_fsa_inspection(request, pk):
                     # Users should manage files (upload/delete) through the "View Files" button in shipment list
                     # This prevents confusion and ensures files are managed in one centralized location
 
-                    # Clear page cache so updated data shows immediately
+                    # Clear relevant caches so updated data shows immediately
                     from django.core.cache import cache
-                    cache.clear()
+                    cache.delete('page_clients_status_cache')
+                    cache.delete('inspection_files_cache')
+                    cache.delete('filter_options')
+                    if inspection.client:
+                        cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    # Clear shipment list caches
+                    try:
+                        if hasattr(cache, 'keys'):
+                            for key in cache.keys('shipment_list_*'):
+                                cache.delete(key)
+                        else:
+                            for page in range(1, 20):
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}_")
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}")
+                    except Exception:
+                        pass
 
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
@@ -1469,9 +1494,23 @@ def edit_fsa_inspection(request, pk):
                         parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
 
-                    # Clear page cache so updated data shows immediately
+                    # Clear relevant caches so updated data shows immediately
                     from django.core.cache import cache
-                    cache.clear()
+                    cache.delete('page_clients_status_cache')
+                    cache.delete('inspection_files_cache')
+                    cache.delete('filter_options')
+                    if inspection.client:
+                        cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    try:
+                        if hasattr(cache, 'keys'):
+                            for key in cache.keys('shipment_list_*'):
+                                cache.delete(key)
+                        else:
+                            for page in range(1, 20):
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}_")
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}")
+                    except Exception:
+                        pass
 
                     messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')

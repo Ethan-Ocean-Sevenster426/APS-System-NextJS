@@ -4680,53 +4680,8 @@
                     document.body.removeChild(fileInput);
                 };
 
-                // Upload Invoice for a specific inspection
-                window.uploadInvoiceForInspection = function (productId, groupId) {
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.accept = '.pdf,.jpg,.jpeg,.png';
-                    fileInput.style.display = 'none';
-
-                    fileInput.onchange = function (e) {
-                        const file = e.target.files[0];
-                        if (file) {
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('inspection_id', productId);
-                            formData.append('document_type', 'invoice');
-                            formData.append('group_id', groupId);
-
-                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || window.DJANGO_CONFIG.csrfToken;
-                            formData.append('csrfmiddlewaretoken', csrfToken);
-
-                            fetch('/upload-document/', {
-                                method: 'POST',
-                                body: formData
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        console.log('✅ Invoice uploaded for inspection ' + productId);
-                                        // Turn button green
-                                        const btn = document.querySelector('.upload-btn[data-type="invoice"][data-id="' + productId + '"]');
-                                        if (btn) btn.style.background = '#22c55e';
-                                        alert('Invoice uploaded successfully!');
-                                    } else {
-                                        console.error('❌ Error uploading invoice:', data.error);
-                                        alert('Error uploading invoice: ' + (data.error || 'Unknown error'));
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('❌ Error uploading invoice:', error);
-                                    alert('Error uploading invoice: ' + error.message);
-                                });
-                        }
-                    };
-
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    document.body.removeChild(fileInput);
-                };
+                // Upload Invoice - handled by head_functions.js generic uploadDocumentForInspection
+                // Do NOT redefine here (was overwriting the better head_functions.js version)
 
                 // Upload Occurrence for a specific inspection
                 window.uploadOccurrenceForInspection = function (productId, groupId) {
