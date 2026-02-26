@@ -5071,7 +5071,15 @@
                         method: 'POST',
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('Server returned HTTP ' + response.status + ' for sample taken update:', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 console.log('[SUCCESS] Sample taken status updated successfully');
@@ -5197,7 +5205,15 @@
                         method: 'POST',
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('Server returned HTTP ' + response.status + ' for needs retest update:', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 // Show success feedback
@@ -5369,7 +5385,15 @@
                             'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: formData
-                    }).then(r => r.json()).then(data => {
+                    }).then(r => {
+                        if (!r.ok) {
+                            return r.text().then(text => {
+                                console.error('Server returned HTTP ' + r.status + ' for product name update:', text.substring(0, 500));
+                                throw new Error('Server error (HTTP ' + r.status + '). Please try again.');
+                            });
+                        }
+                        return r.json();
+                    }).then(data => {
                         if (!data.success) alert('Error updating product name: ' + (data.error || 'Unknown error'));
                     }).catch(err => alert('Error updating product name: ' + (err?.message || err)));
                 }
@@ -5421,7 +5445,15 @@
                             'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: formData
-                    }).then(r => r.json()).then(data => {
+                    }).then(r => {
+                        if (!r.ok) {
+                            return r.text().then(text => {
+                                console.error('Server returned HTTP ' + r.status + ' for product class update:', text.substring(0, 500));
+                                throw new Error('Server error (HTTP ' + r.status + '). Please try again.');
+                            });
+                        }
+                        return r.json();
+                    }).then(data => {
                         if (!data.success) alert('Error updating product class: ' + (data.error || 'Unknown error'));
                     }).catch(err => alert('Error updating product class: ' + (err?.message || err)));
                 }
@@ -7285,7 +7317,15 @@
                         method: 'POST',
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('[ERROR] Server returned HTTP ' + response.status + ' for bought sample update:', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 console.log('[SUCCESS] Bought sample saved successfully:', data);
@@ -7331,7 +7371,15 @@
                         method: 'POST',
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('[ERROR] Server returned HTTP ' + response.status + ' for needs retest update:', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 console.log('[SUCCESS] Needs retest saved successfully:', data);

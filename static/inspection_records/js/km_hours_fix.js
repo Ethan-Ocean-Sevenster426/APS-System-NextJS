@@ -39,7 +39,15 @@ function updateGroupKmTraveled(input) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('[KM] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             console.log('[KM] KM saved successfully:', data);
@@ -87,7 +95,15 @@ function updateGroupHours(input) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('[HOURS] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             console.log('[HOURS] Hours saved successfully:', data);
@@ -128,7 +144,15 @@ function updateGroupApproved(select) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('[APPROVED] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             console.log('[APPROVED] Approved status saved successfully:', data);
@@ -169,7 +193,15 @@ function updateGroupComment(input) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('[COMMENT] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             console.log('[COMMENT] Comment saved successfully:', data);
@@ -313,7 +345,15 @@ function updateGroupAdditionalEmails(input) {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('[EMAIL] Server returned HTTP ' + response.status + ':', text.substring(0, 500));
+                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 console.log('[EMAIL] Additional emails saved successfully:', data);
