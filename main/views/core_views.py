@@ -4034,7 +4034,6 @@ def upload_document(request):
 
                             # Use normalized matching to handle special characters
                             # (apostrophes, hyphens, periods etc. in client names)
-                            import re as _re
                             def _normalize(n):
                                 return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
@@ -10992,7 +10991,6 @@ def update_group_km_traveled(request):
                 })
 
             # Find all inspections in this group using normalized client name
-            import re as _re
             def _normalize(n):
                 return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
@@ -11074,7 +11072,6 @@ def update_group_comment(request):
                 })
 
             # Find all inspections in this group using normalized client name
-            import re as _re
             import logging
             logger = logging.getLogger(__name__)
 
@@ -11163,7 +11160,6 @@ def update_group_hours(request):
                 })
 
             # Find all inspections in this group using normalized client name
-            import re as _re
             def _normalize(n):
                 return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
@@ -11246,7 +11242,6 @@ def update_group_additional_email(request):
                 })
 
             # Find all inspections in this group using normalized client name
-            import re as _re
             def _normalize(n):
                 return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
@@ -11358,7 +11353,6 @@ def update_group_approved(request):
                 })
 
             # Find all inspections in this group using normalized client name
-            import re as _re
             def _normalize(n):
                 return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
@@ -16231,7 +16225,6 @@ def download_first_10_compliance_by_commodity(request):
             fast_candidates = drive.search_files_in_folder_by_tokens(folder_id, tokens, request=request, max_items=50)
             for fc in fast_candidates:
                 name = fc.get('name') or ''
-                import re as _re
                 m = _re.match(r'^([A-Za-z]+)-([A-Z]{2}-[A-Z]{3}-[A-Z]{3}-[A-Z]{2,3}-\d+)-(\d{4}-\d{2}-\d{2})', name)
                 if not m:
                     continue
