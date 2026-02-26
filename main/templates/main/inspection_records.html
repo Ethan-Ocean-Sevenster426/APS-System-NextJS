@@ -27,7 +27,7 @@
 
     <!-- CRITICAL: Define core functions in HEAD so they're available for onclick handlers -->
     <script>window.DJANGO_CSRF = '{{ csrf_token|escapejs }}';</script>
-    <script src="{% static 'inspection_records/js/head_functions.js' %}?v=20260212"></script>
+    <script src="{% static 'inspection_records/js/head_functions.js' %}?v=20260226"></script>
 </head>
 
 <body class="user-role-{{ request.user.role }}">

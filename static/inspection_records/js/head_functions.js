@@ -313,7 +313,15 @@
                         method: 'POST',
                         body: formData
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    console.error('❌ Server returned HTTP ' + response.status + ' for ' + documentType + ' upload:', text.substring(0, 500));
+                                    throw new Error('Server error (HTTP ' + response.status + '). Please try again.');
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 console.log('✅ ' + documentType + ' uploaded for inspection ' + productId);
