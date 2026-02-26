@@ -4,8 +4,19 @@ from django.db import migrations, models
 def add_user_columns(apps, schema_editor):
     """Add custom columns to auth_user if they don't already exist."""
     cursor = schema_editor.connection.cursor()
-    cursor.execute("SHOW COLUMNS FROM auth_user")
-    existing = {row[0] for row in cursor.fetchall()}
+    db_engine = schema_editor.connection.vendor  # 'mysql', 'postgresql', 'sqlite'
+
+    # Get existing columns in a database-agnostic way
+    if db_engine == 'mysql':
+        cursor.execute("SHOW COLUMNS FROM auth_user")
+        existing = {row[0] for row in cursor.fetchall()}
+    else:
+        # PostgreSQL / SQLite
+        cursor.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'auth_user'"
+        )
+        existing = {row[0] for row in cursor.fetchall()}
 
     if 'role' not in existing:
         cursor.execute("ALTER TABLE auth_user ADD COLUMN role VARCHAR(20) DEFAULT 'inspector'")

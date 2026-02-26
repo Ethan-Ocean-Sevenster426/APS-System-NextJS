@@ -151,18 +151,15 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Test server MySQL database (dev branch)
+# Test server PostgreSQL database (dev branch)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'inspection_system',
         'USER': 'inspection_user',
         'PASSWORD': 'InspectionTest2026',
         'HOST': '82.25.97.159',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'PORT': '5432',
     },
 }
 
