@@ -897,6 +897,17 @@ def add_fsa_inspection(request):
                         is_manual=True,
                     )
 
+                # Generate account code once for the entire group
+                group_account_code = generate_unique_internal_account_code(
+                    client_name=form.cleaned_data.get('client_name'),
+                    date_of_inspection=form.cleaned_data.get('date_of_inspection'),
+                    facility_type=request.POST.get('facility_type', ''),
+                    group_type=request.POST.get('group_type', ''),
+                    commodity='',
+                    corporate_group=request.POST.get('corporate_group', ''),
+                    client_id=temp_client.id if temp_client else None,
+                )
+
                 for sequence_num, product_info in enumerate(products_data, start=1):
                     # Convert checkbox boolean to value (True -> 1.0, False -> None)
                     def checkbox_to_value(val):
@@ -949,8 +960,8 @@ def add_fsa_inspection(request):
                     # Assign sequence number (1, 2, 3, etc.) to track individual inspections within the group
                     inspection.inspection_sequence = sequence_num
 
-                    # Account code no longer needed for grouping, but keep null for backward compatibility
-                    inspection.internal_account_code = None
+                    # Assign the group's account code to every inspection
+                    inspection.internal_account_code = group_account_code
 
                     inspection.save()
                     created_inspections.append(inspection)
