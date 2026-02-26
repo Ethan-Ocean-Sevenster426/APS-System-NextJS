@@ -4016,30 +4016,33 @@ def upload_document(request):
                 # Parse group_id to get client_name and date
                 parts = group_id.split('_')
                 if len(parts) >= 2:
-                    # Convert underscores back to spaces for client name matching
-                    client_name_from_group = '_'.join(parts[:-1]).replace('_', ' ')
+                    client_name_from_group = '_'.join(parts[:-1])
                     date_str = parts[-1]
-                    
+
                     # Convert date string to date object
                     if len(date_str) == 8:
                         try:
                             date_obj = datetime.strptime(date_str, '%Y%m%d').date()
-                            
-                            # Find all inspections for this client and date using exact matching
-                            
+
                             print(f"DEBUG: Parsing group_id: {group_id}")
                             print(f"DEBUG: Client name from group: {client_name_from_group}")
                             print(f"DEBUG: Date object: {date_obj}")
-                            
+
                             # Get all inspections for this date
                             candidate_inspections = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_obj)
                             print(f"DEBUG: Found {candidate_inspections.count()} inspections for date {date_obj}")
-                            
-                            # Use exact client name matching (much more efficient)
-                            # Convert to list to avoid MySQL subquery limitation
-                            matching_inspections = list(candidate_inspections.filter(
-                                client_name=client_name_from_group
-                            ).values_list('id', flat=True))
+
+                            # Use normalized matching to handle special characters
+                            # (apostrophes, hyphens, periods etc. in client names)
+                            import re as _re
+                            def _normalize(n):
+                                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                            raw_key = _normalize(client_name_from_group)
+                            matching_inspections = [
+                                ins.id for ins in candidate_inspections
+                                if _normalize(ins.client_name) == raw_key
+                            ]
                             
                             print(f"DEBUG: Found {len(matching_inspections)} matching inspections for '{client_name_from_group}'")
                             
@@ -11026,6 +11029,7 @@ def update_group_km_traveled(request):
         'error': 'Invalid request method'
     })
 
+@login_required
 def update_group_comment(request):
     """Update comment field for all inspections in a group"""
     if request.method == 'POST':
@@ -11309,6 +11313,7 @@ def update_group_additional_email(request):
     })
 
 
+@login_required
 def update_group_approved(request):
     """Update approved_status field for all inspections in a group"""
     if request.method == 'POST':
