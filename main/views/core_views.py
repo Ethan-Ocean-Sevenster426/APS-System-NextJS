@@ -925,7 +925,7 @@ def add_fsa_inspection(request):
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         # Use product-specific sample data (checkboxes)
                         is_sample_taken=bool(product_info.get('is_sample_taken', False)),
-                        needs_retest=form.cleaned_data.get('needs_retest', 'NO'),
+                        needs_retest=product_info.get('needs_retest', 'NO'),
                         fat=bool(product_info.get('fat', False)),
                         protein=bool(product_info.get('protein', False)),
                         calcium=bool(product_info.get('calcium', False)),
@@ -1272,6 +1272,8 @@ def edit_fsa_inspection(request, pk):
                         print(f"[EDIT FORM DEBUG] Inspection {rel_insp.id} ({commodity}) will be deleted (commodity removed)")
 
             # Now update the main inspection with common fields from form
+            # Save internal_account_code BEFORE form binding (form.is_valid() clears it)
+            original_account_code = inspection.internal_account_code
             form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES, instance=inspection)
             if form.is_valid():
                 try:
@@ -1293,7 +1295,8 @@ def edit_fsa_inspection(request, pk):
                     # Save the main inspection
                     inspection = form.save()
 
-                    # Restore upload tracking fields (don't let form overwrite them)
+                    # Restore fields that form.save() would overwrite
+                    inspection.internal_account_code = original_account_code
                     inspection.rfi_uploaded_date = original_rfi_date
                     inspection.rfi_uploaded_by = original_rfi_by
                     inspection.invoice_uploaded_date = original_invoice_date
