@@ -14590,7 +14590,7 @@ def download_all_inspection_files(request):
         import os
         import zipfile
         import tempfile
-        from django.http import HttpResponse
+        from django.http import HttpResponse, FileResponse
         from django.conf import settings
         from datetime import datetime
         import re
