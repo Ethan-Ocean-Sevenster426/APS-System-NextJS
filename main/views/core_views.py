@@ -14947,28 +14947,46 @@ def download_all_inspection_files(request):
                 if files_added == 0:
                     return JsonResponse({'success': False, 'error': 'No files found to download'})
             
-            # Prepare response
+            # Prepare response - stream from disk instead of loading into memory
             zip_filename = f"{client_name}_{inspection_date}_inspection_files.zip"
             zip_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', zip_filename)
-            
-            # Read ZIP file content
-            with open(temp_zip.name, 'rb') as zip_file:
-                zip_content = zip_file.read()
-            
-            # Create HTTP response
-            response = HttpResponse(zip_content, content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-            response['Content-Length'] = len(zip_content)
-            
-            safe_print(f"ZIP created successfully: {zip_filename} ({files_added} files)")
+
+            zip_size = os.path.getsize(temp_zip.name)
+            zip_file_handle = open(temp_zip.name, 'rb')
+
+            # FileResponse streams the file in chunks and closes the handle when done
+            response = FileResponse(
+                zip_file_handle,
+                content_type='application/zip',
+                as_attachment=True,
+                filename=zip_filename
+            )
+            response['Content-Length'] = zip_size
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+
+            safe_print(f"ZIP created successfully: {zip_filename} ({files_added} files, {zip_size} bytes)")
+
+            # Schedule temp file cleanup after response is sent
+            # FileResponse will close the handle; we delete the file via callback
+            original_close = response.close
+            temp_name = temp_zip.name
+            def cleanup_close():
+                original_close()
+                try:
+                    os.unlink(temp_name)
+                except OSError:
+                    pass
+            response.close = cleanup_close
+
             return response
-            
+
         finally:
-            # Cleanup temporary file
-            try:
-                os.unlink(temp_zip.name)
-            except:
-                pass
+            # Cleanup only if response was NOT returned (i.e. error path)
+            if 'response' not in locals():
+                try:
+                    os.unlink(temp_zip.name)
+                except OSError:
+                    pass
                 
     except Exception as e:
         safe_print(f"Error creating ZIP: {e}")
@@ -15257,81 +15275,91 @@ def download_onedrive_file(request, relative_path):
 
 def download_local_file(request, relative_path):
     """Download file from local media folder."""
+    import os
+    from django.http import FileResponse, Http404
+    from django.conf import settings
+    from urllib.parse import quote
+
+    print(f"[DOWNLOAD DEBUG] Download request: {relative_path}")
+
+    # Normalize path separators
+    normalized_relative_path = relative_path.replace('\\', '/')
+
+    # Security: Ensure file is within allowed directories (inspection/ or docs/)
+    if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
+        print(f"[DOWNLOAD DEBUG] Download 404: Access denied - path doesn't start with 'inspection/' or 'docs/': {relative_path}")
+        raise Http404("Access denied")
+
+    # Build full file path - normalize path separators for Windows
+    normalized_path = normalized_relative_path.replace('/', os.sep)
+    file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
+
+    # Additional security: Ensure resolved path is still within MEDIA_ROOT
+    # Check BEFORE touching filesystem to prevent path traversal
+    real_path = os.path.realpath(file_path)
+    media_root_real = os.path.realpath(settings.MEDIA_ROOT)
+    if not real_path.startswith(media_root_real + os.sep):
+        raise Http404("Access denied")
+
+    # Determine content type and filename
+    filename = os.path.basename(file_path)
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+    content_types = {
+        'pdf': 'application/pdf',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'zip': 'application/zip',
+        'txt': 'text/plain',
+        'csv': 'text/csv',
+        'svg': 'image/svg+xml',
+    }
+
+    content_type = content_types.get(ext, 'application/octet-stream')
+
+    # Check if action is view or download
+    action = request.GET.get('action', 'download')
+    is_download = action != 'view'
+
+    # Open file with proper error handling for race conditions
     try:
-        import os
-        from django.http import FileResponse, Http404
-        from django.conf import settings
+        file_handle = open(real_path, 'rb')
+    except FileNotFoundError:
+        raise Http404(f"File not found: {relative_path}")
+    except PermissionError:
+        raise Http404("Permission denied")
 
-        print(f"[DOWNLOAD DEBUG] Download request: {relative_path}")
+    # Get file size for Content-Length header
+    file_size = os.fstat(file_handle.fileno()).st_size
 
-        # Normalize path separators
-        normalized_relative_path = relative_path.replace('\\', '/')
+    # Create file response - FileResponse closes the file handle when done
+    response = FileResponse(
+        file_handle,
+        content_type=content_type,
+        as_attachment=is_download,
+        filename=filename
+    )
 
-        # Security: Ensure file is within allowed directories (inspection/ or docs/)
-        if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
-            print(f"[DOWNLOAD DEBUG] Download 404: Access denied - path doesn't start with 'inspection/' or 'docs/': {relative_path}")
-            raise Http404("Access denied")
+    # RFC 5987 encoding for filenames with special characters
+    ascii_filename = filename.encode('ascii', 'ignore').decode('ascii')
+    encoded_filename = quote(filename)
 
-        # Build full file path - normalize path separators for Windows
-        normalized_path = normalized_relative_path.replace('/', os.sep)
-        file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
-        
-        # Security: Ensure file exists and is within allowed directory
-        if not os.path.exists(file_path):
-            print(f" Download 404: File does not exist: {file_path}")
-            raise Http404(f"File not found: {relative_path}")
-        
-        if not os.path.isfile(file_path):
-            print(f" Download 404: Path is not a file: {file_path}")
-            raise Http404(f"Path is not a file: {relative_path}")
-        
-        # Additional security: Ensure resolved path is still within MEDIA_ROOT
-        real_path = os.path.realpath(file_path)
-        media_root_real = os.path.realpath(settings.MEDIA_ROOT)
-        if not real_path.startswith(media_root_real):
-            raise Http404("Access denied")
-        
-        # Determine content type
-        content_type = 'application/octet-stream'
-        filename = os.path.basename(file_path)
-        ext = filename.split('.')[-1].lower()
-        
-        content_types = {
-            'pdf': 'application/pdf',
-            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'xls': 'application/vnd.ms-excel',
-            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'doc': 'application/msword',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'zip': 'application/zip'
-        }
-        
-        content_type = content_types.get(ext, content_type)
+    if is_download:
+        response['Content-Disposition'] = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
 
-        # Check if action is view or download
-        action = request.GET.get('action', 'download')
-        is_download = action != 'view'
+    response['Content-Length'] = file_size
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
 
-        # Create file response
-        response = FileResponse(
-            open(file_path, 'rb'),
-            content_type=content_type,
-            as_attachment=is_download,
-            filename=filename
-        )
-
-        # Set headers based on action
-        if is_download:
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        else:
-            response['Content-Disposition'] = f'inline; filename="{filename}"'
-
-        return response
-        
-    except Exception as e:
-        raise Http404(f"Error serving file: {str(e)}")
+    return response
 
 
 @login_required

@@ -1505,22 +1505,27 @@ function downloadFile(filePath) {
         alert('This is a test file and cannot be downloaded. Upload real files using the RFI button to enable downloads.');
         return;
     }
-    
-    // Clean the file path - remove /media/ prefix if present
-    let cleanFilePath = filePath;
-    if (cleanFilePath.startsWith('/media/')) {
-        cleanFilePath = cleanFilePath.substring(7); // Remove '/media/'
+
+    // Build download URL - handle different path formats
+    let downloadUrl;
+    if (filePath.startsWith('/inspections/download-file/')) {
+        // Already a full download URL (pre-encoded by backend)
+        downloadUrl = filePath;
+    } else {
+        // Raw path - strip /media/ prefix and encode
+        let cleanFilePath = filePath;
+        if (cleanFilePath.startsWith('/media/')) {
+            cleanFilePath = cleanFilePath.substring(7);
+        }
+        downloadUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath);
     }
-    
-    console.log('Download - Original path:', filePath);
-    console.log('Download - Clean path:', cleanFilePath);
-    
-    // Use fetch to download and create blob for proper download behavior
-    const downloadUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath);
-    
+
+    // Extract filename from original path for the download attribute
+    const filename = decodeURIComponent(filePath.split('/').pop().split('?')[0]);
+
     console.log('Initiating download from:', downloadUrl);
-    
-    // Use fetch to get the file and create a proper download
+
+    // Use fetch to download and create blob for proper download behavior
     fetch(downloadUrl)
         .then(response => {
             if (!response.ok) {
@@ -1533,18 +1538,18 @@ function downloadFile(filePath) {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = filePath.split('/').pop(); // Use original filename
+            link.download = filename;
             link.style.display = 'none';
-            
+
             // Add to DOM, click, and remove
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             // Clean up blob URL
             window.URL.revokeObjectURL(url);
-            
-            console.log('Download completed for:', cleanFilePath);
+
+            console.log('Download completed for:', filename);
         })
         .catch(error => {
             console.error('Download error:', error);
@@ -2243,17 +2248,19 @@ function viewFile(filePath, fileName) {
         return;
     }
 
-    // Clean the file path - remove /media/ prefix if present
-    let cleanFilePath = filePath;
-    if (cleanFilePath.startsWith('/media/')) {
-        cleanFilePath = cleanFilePath.substring(7); // Remove '/media/'
+    // Build view URL - handle different path formats
+    let viewUrl;
+    if (filePath.startsWith('/inspections/download-file/')) {
+        // Already a full download URL - just ensure action=view is set
+        viewUrl = filePath.includes('action=') ? filePath.replace('action=download', 'action=view') : filePath + '&action=view';
+    } else {
+        // Raw path - strip /media/ prefix and encode
+        let cleanFilePath = filePath;
+        if (cleanFilePath.startsWith('/media/')) {
+            cleanFilePath = cleanFilePath.substring(7);
+        }
+        viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath) + '&source=local&action=view';
     }
-
-    console.log('View - Original path:', filePath);
-    console.log('View - Clean path:', cleanFilePath);
-
-    // Use the download endpoint with action=view for inline viewing
-    const viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath) + '&source=local&action=view';
 
     console.log('Opening for viewing:', viewUrl);
 
