@@ -1500,8 +1500,18 @@ function displayFiles(files, message = null, isTestData = false) {
 
 // Download individual file function
 function downloadFile(filePath) {
-    console.log('Downloading file:', filePath);
+    console.log('📥 [DOWNLOAD] downloadFile() called with filePath:', filePath);
+    console.log('📥 [DOWNLOAD] filePath type:', typeof filePath);
+    console.log('📥 [DOWNLOAD] filePath length:', filePath ? filePath.length : 'null/undefined');
+
+    if (!filePath) {
+        console.error('📥 [DOWNLOAD] ERROR: filePath is empty/null/undefined');
+        alert('Download failed: No file path provided');
+        return;
+    }
+
     if (filePath.startsWith('/test/')) {
+        console.warn('📥 [DOWNLOAD] Test file detected, blocking download');
         alert('This is a test file and cannot be downloaded. Upload real files using the RFI button to enable downloads.');
         return;
     }
@@ -1511,29 +1521,51 @@ function downloadFile(filePath) {
     if (filePath.startsWith('/inspections/download-file/')) {
         // Already a full download URL (pre-encoded by backend)
         downloadUrl = filePath;
+        console.log('📥 [DOWNLOAD] Using pre-built URL:', downloadUrl);
     } else {
         // Raw path - strip /media/ prefix and encode
         let cleanFilePath = filePath;
         if (cleanFilePath.startsWith('/media/')) {
             cleanFilePath = cleanFilePath.substring(7);
+            console.log('📥 [DOWNLOAD] Stripped /media/ prefix, clean path:', cleanFilePath);
         }
         downloadUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath);
+        console.log('📥 [DOWNLOAD] Built download URL:', downloadUrl);
     }
 
     // Extract filename from original path for the download attribute
     const filename = decodeURIComponent(filePath.split('/').pop().split('?')[0]);
+    console.log('📥 [DOWNLOAD] Extracted filename:', filename);
 
-    console.log('Initiating download from:', downloadUrl);
+    console.log('📥 [DOWNLOAD] Starting fetch request to:', downloadUrl);
 
     // Use fetch to download and create blob for proper download behavior
     fetch(downloadUrl)
         .then(response => {
+            console.log('📥 [DOWNLOAD] Response received:');
+            console.log('📥 [DOWNLOAD]   Status:', response.status, response.statusText);
+            console.log('📥 [DOWNLOAD]   OK:', response.ok);
+            console.log('📥 [DOWNLOAD]   Content-Type:', response.headers.get('Content-Type'));
+            console.log('📥 [DOWNLOAD]   Content-Length:', response.headers.get('Content-Length'));
+            console.log('📥 [DOWNLOAD]   Content-Disposition:', response.headers.get('Content-Disposition'));
             if (!response.ok) {
-                throw new Error('Download failed: ' + response.status);
+                // Try to read error body
+                return response.text().then(text => {
+                    console.error('📥 [DOWNLOAD] Error response body:', text.substring(0, 500));
+                    throw new Error('Download failed: HTTP ' + response.status + ' - ' + text.substring(0, 200));
+                });
             }
             return response.blob();
         })
         .then(blob => {
+            console.log('📥 [DOWNLOAD] Blob received:');
+            console.log('📥 [DOWNLOAD]   Blob size:', blob.size, 'bytes');
+            console.log('📥 [DOWNLOAD]   Blob type:', blob.type);
+
+            if (blob.size === 0) {
+                console.error('📥 [DOWNLOAD] WARNING: Blob is empty (0 bytes)!');
+            }
+
             // Create download link with blob
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1549,10 +1581,11 @@ function downloadFile(filePath) {
             // Clean up blob URL
             window.URL.revokeObjectURL(url);
 
-            console.log('Download completed for:', filename);
+            console.log('📥 [DOWNLOAD] ✅ Download completed for:', filename, '(' + blob.size + ' bytes)');
         })
         .catch(error => {
-            console.error('Download error:', error);
+            console.error('📥 [DOWNLOAD] ❌ Download error:', error);
+            console.error('📥 [DOWNLOAD] Error stack:', error.stack);
             alert('Download failed: ' + error.message);
         });
 }
@@ -2241,9 +2274,16 @@ async function deleteFile(filePath, fileName) {
 
 // View file function
 function viewFile(filePath, fileName) {
-    console.log('Viewing file:', filePath, fileName);
+    console.log('👁️ [VIEW] viewFile() called with filePath:', filePath, 'fileName:', fileName);
+
+    if (!filePath) {
+        console.error('👁️ [VIEW] ERROR: filePath is empty/null/undefined');
+        alert('View failed: No file path provided');
+        return;
+    }
 
     if (filePath.startsWith('/test/')) {
+        console.warn('👁️ [VIEW] Test file detected, blocking view');
         alert('This is a test file. In a real system, this would open a document viewer or download the file for viewing.');
         return;
     }
@@ -2251,20 +2291,19 @@ function viewFile(filePath, fileName) {
     // Build view URL - handle different path formats
     let viewUrl;
     if (filePath.startsWith('/inspections/download-file/')) {
-        // Already a full download URL - just ensure action=view is set
         viewUrl = filePath.includes('action=') ? filePath.replace('action=download', 'action=view') : filePath + '&action=view';
+        console.log('👁️ [VIEW] Using pre-built URL with action=view:', viewUrl);
     } else {
-        // Raw path - strip /media/ prefix and encode
         let cleanFilePath = filePath;
         if (cleanFilePath.startsWith('/media/')) {
             cleanFilePath = cleanFilePath.substring(7);
+            console.log('👁️ [VIEW] Stripped /media/ prefix, clean path:', cleanFilePath);
         }
         viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(cleanFilePath) + '&source=local&action=view';
+        console.log('👁️ [VIEW] Built view URL:', viewUrl);
     }
 
-    console.log('Opening for viewing:', viewUrl);
-
-    // Open file in new tab for inline viewing
+    console.log('👁️ [VIEW] Opening in new tab:', viewUrl);
     window.open(viewUrl, '_blank');
 }
 

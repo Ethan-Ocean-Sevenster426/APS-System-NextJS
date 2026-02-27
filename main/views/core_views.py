@@ -15203,25 +15203,36 @@ def download_inspection_file(request):
         import os
         from django.http import FileResponse, Http404, HttpResponseRedirect
         from django.conf import settings
-        from urllib.parse import unquote
-        
+
         file_param = request.GET.get('file', '')
-        source = request.GET.get('source', 'local')  # 'local' or 'onedrive'
+        source = request.GET.get('source', 'local')
+        action = request.GET.get('action', 'download')
+
+        print(f"[DOWNLOAD DEBUG] ========== DOWNLOAD REQUEST ==========")
+        print(f"[DOWNLOAD DEBUG] file_param: '{file_param}'")
+        print(f"[DOWNLOAD DEBUG] source: '{source}'")
+        print(f"[DOWNLOAD DEBUG] action: '{action}'")
+        print(f"[DOWNLOAD DEBUG] Full query string: {request.META.get('QUERY_STRING', '')}")
 
         if not file_param:
+            print(f"[DOWNLOAD DEBUG] ERROR: No file parameter provided")
             raise Http404("File not specified")
 
         # Django's request.GET.get() already URL-decodes the parameter
         relative_path = file_param
-        
+        print(f"[DOWNLOAD DEBUG] relative_path: '{relative_path}'")
+
         if source == 'onedrive':
-            # Handle OneDrive file download
+            print(f"[DOWNLOAD DEBUG] Routing to OneDrive download")
             return download_onedrive_file(request, relative_path)
         else:
-            # Handle local file download (existing logic)
+            print(f"[DOWNLOAD DEBUG] Routing to local file download")
             return download_local_file(request, relative_path)
-        
+
+    except Http404:
+        raise
     except Exception as e:
+        print(f"[DOWNLOAD DEBUG] EXCEPTION: {type(e).__name__}: {str(e)}")
         raise Http404(f"Error serving file: {str(e)}")
 
 
@@ -15280,30 +15291,40 @@ def download_local_file(request, relative_path):
     from django.conf import settings
     from urllib.parse import quote
 
-    print(f"[DOWNLOAD DEBUG] Download request: {relative_path}")
+    print(f"[DOWNLOAD DEBUG] === download_local_file ===")
+    print(f"[DOWNLOAD DEBUG] relative_path: '{relative_path}'")
+    print(f"[DOWNLOAD DEBUG] MEDIA_ROOT: '{settings.MEDIA_ROOT}'")
 
     # Normalize path separators
     normalized_relative_path = relative_path.replace('\\', '/')
+    print(f"[DOWNLOAD DEBUG] normalized_relative_path: '{normalized_relative_path}'")
 
     # Security: Ensure file is within allowed directories (inspection/ or docs/)
     if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
-        print(f"[DOWNLOAD DEBUG] Download 404: Access denied - path doesn't start with 'inspection/' or 'docs/': {relative_path}")
+        print(f"[DOWNLOAD DEBUG] ❌ ACCESS DENIED - path doesn't start with 'inspection/' or 'docs/'")
         raise Http404("Access denied")
 
     # Build full file path - normalize path separators for Windows
     normalized_path = normalized_relative_path.replace('/', os.sep)
     file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
+    print(f"[DOWNLOAD DEBUG] file_path: '{file_path}'")
 
     # Additional security: Ensure resolved path is still within MEDIA_ROOT
     # Check BEFORE touching filesystem to prevent path traversal
     real_path = os.path.realpath(file_path)
     media_root_real = os.path.realpath(settings.MEDIA_ROOT)
+    print(f"[DOWNLOAD DEBUG] real_path: '{real_path}'")
+    print(f"[DOWNLOAD DEBUG] media_root_real: '{media_root_real}'")
+    print(f"[DOWNLOAD DEBUG] File exists: {os.path.exists(real_path)}")
+    print(f"[DOWNLOAD DEBUG] Is file: {os.path.isfile(real_path) if os.path.exists(real_path) else 'N/A'}")
     if not real_path.startswith(media_root_real + os.sep):
+        print(f"[DOWNLOAD DEBUG] ❌ ACCESS DENIED - path traversal check failed")
         raise Http404("Access denied")
 
     # Determine content type and filename
     filename = os.path.basename(file_path)
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    print(f"[DOWNLOAD DEBUG] filename: '{filename}', ext: '{ext}'")
 
     content_types = {
         'pdf': 'application/pdf',
@@ -15322,21 +15343,34 @@ def download_local_file(request, relative_path):
     }
 
     content_type = content_types.get(ext, 'application/octet-stream')
+    print(f"[DOWNLOAD DEBUG] content_type: '{content_type}'")
 
     # Check if action is view or download
     action = request.GET.get('action', 'download')
     is_download = action != 'view'
+    print(f"[DOWNLOAD DEBUG] action: '{action}', is_download: {is_download}")
 
     # Open file with proper error handling for race conditions
     try:
         file_handle = open(real_path, 'rb')
+        print(f"[DOWNLOAD DEBUG] ✅ File opened successfully")
     except FileNotFoundError:
+        print(f"[DOWNLOAD DEBUG] ❌ FileNotFoundError: {real_path}")
+        # List the parent directory to help debug
+        parent_dir = os.path.dirname(real_path)
+        if os.path.exists(parent_dir):
+            dir_contents = os.listdir(parent_dir)
+            print(f"[DOWNLOAD DEBUG] Parent dir '{parent_dir}' exists, contents ({len(dir_contents)} items): {dir_contents[:20]}")
+        else:
+            print(f"[DOWNLOAD DEBUG] Parent dir '{parent_dir}' does NOT exist")
         raise Http404(f"File not found: {relative_path}")
     except PermissionError:
+        print(f"[DOWNLOAD DEBUG] ❌ PermissionError: {real_path}")
         raise Http404("Permission denied")
 
     # Get file size for Content-Length header
     file_size = os.fstat(file_handle.fileno()).st_size
+    print(f"[DOWNLOAD DEBUG] ✅ File size: {file_size} bytes")
 
     # Create file response - FileResponse closes the file handle when done
     response = FileResponse(

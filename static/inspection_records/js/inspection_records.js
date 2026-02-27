@@ -1966,12 +1966,18 @@
 
                 // Download all files for current inspection group as ZIP folder
                 async function downloadAllFiles() {
+                    console.log('📦 [DOWNLOAD-ALL] downloadAllFiles() called');
                     const downloadBtn = document.getElementById('downloadAllBtn');
                     const clientName = window.currentFilesClient;
                     const inspectionDate = window.currentFilesDate;
                     const groupId = window.currentFilesGroupId;
 
+                    console.log('📦 [DOWNLOAD-ALL] Client:', clientName);
+                    console.log('📦 [DOWNLOAD-ALL] Date:', inspectionDate);
+                    console.log('📦 [DOWNLOAD-ALL] GroupId:', groupId);
+
                     if (!clientName || !inspectionDate) {
+                        console.error('📦 [DOWNLOAD-ALL] ERROR: Missing client or date');
                         alert('Error: Missing client or inspection date information');
                         return;
                     }
@@ -1982,7 +1988,7 @@
                     downloadBtn.disabled = true;
 
                     try {
-                        console.log('🗂️ Starting download of all files for ' + clientName + ' on ' + inspectionDate);
+                        console.log('📦 [DOWNLOAD-ALL] Starting fetch to /inspections/download-all-files/');
 
                         const response = await fetch('/inspections/download-all-files/', {
                             method: 'POST',
@@ -1997,9 +2003,23 @@
                             })
                         });
 
+                        console.log('📦 [DOWNLOAD-ALL] Response received:');
+                        console.log('📦 [DOWNLOAD-ALL]   Status:', response.status, response.statusText);
+                        console.log('📦 [DOWNLOAD-ALL]   OK:', response.ok);
+                        console.log('📦 [DOWNLOAD-ALL]   Content-Type:', response.headers.get('Content-Type'));
+                        console.log('📦 [DOWNLOAD-ALL]   Content-Length:', response.headers.get('Content-Length'));
+
                         if (response.ok) {
                             const blob = await response.blob();
+                            console.log('📦 [DOWNLOAD-ALL] Blob size:', blob.size, 'bytes');
+                            console.log('📦 [DOWNLOAD-ALL] Blob type:', blob.type);
+
+                            if (blob.size === 0) {
+                                console.error('📦 [DOWNLOAD-ALL] WARNING: ZIP blob is empty!');
+                            }
+
                             const contentDisposition = response.headers.get('Content-Disposition');
+                            console.log('📦 [DOWNLOAD-ALL] Content-Disposition:', contentDisposition);
 
                             let filename = clientName + '_' + inspectionDate + '_files.zip';
                             if (contentDisposition) {
@@ -2019,14 +2039,16 @@
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
 
-                            console.log('✅ Download completed: ' + filename);
+                            console.log('📦 [DOWNLOAD-ALL] ✅ Download completed: ' + filename + ' (' + blob.size + ' bytes)');
                         } else {
-                            const errorData = await response.json();
-                            alert('Download failed: ' + (errorData.error || 'Unknown error'));
+                            const errorText = await response.text();
+                            console.error('📦 [DOWNLOAD-ALL] ❌ Error response:', errorText.substring(0, 500));
+                            alert('Download failed: ' + errorText.substring(0, 200));
                         }
 
                     } catch (error) {
-                        console.error('❌ Download error:', error);
+                        console.error('📦 [DOWNLOAD-ALL] ❌ Download error:', error);
+                        console.error('📦 [DOWNLOAD-ALL] Error stack:', error.stack);
                         alert('Download failed: ' + error.message);
                     } finally {
                         // Reset button state
@@ -2094,6 +2116,15 @@
 
                                 if (hasFiles) {
                                     console.log('📁 Files found - calling displayFiles...');
+                                    // Log all file paths for debugging download issues
+                                    Object.entries(result.files).forEach(([cat, files]) => {
+                                        if (Array.isArray(files) && files.length > 0) {
+                                            console.log(`📁 [FILES] Category "${cat}": ${files.length} files`);
+                                            files.forEach((f, i) => {
+                                                console.log(`📁 [FILES]   [${i}] name: "${f.name || f.filename}", path: "${f.path}", relative_path: "${f.relative_path}", source: "${f.source}"`);
+                                            });
+                                        }
+                                    });
                                     displayFiles(result.files, result.message);
                                     console.log('📁 displayFiles completed');
                                 } else {
@@ -2796,7 +2827,7 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 0.5rem;">
-                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-sm" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Download File">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-sm download-link-debug" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onclick="console.log('📥 [CLICK] Download link clicked! href:', this.href, 'download attr:', this.download, 'relative_path:', '${(file.relative_path || file.path || '').replace(/'/g, "\\'")}', 'source:', '${file.source || 'local'}')" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
                                     <button class="btn btn-sm" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'" title="Delete File">
@@ -3053,7 +3084,7 @@
                                 </div>
                                 <div class="file-actions" style="display: flex !important; gap: 8px !important; align-items: center;">
                                     ${getViewButton(file)}
-                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Download File">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="download-link-debug" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onclick="console.log('📥 [CLICK] Download link clicked! href:', this.href, 'download attr:', this.download, 'relative_path:', '${(file.relative_path || file.path || '').replace(/'/g, "\\'")}', 'source:', '${file.source || 'local'}')" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
                                     <button style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete File" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
