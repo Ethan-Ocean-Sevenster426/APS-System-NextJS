@@ -2697,7 +2697,6 @@
                                         });
                                     }
                                 }
-                            }
                         } else {
                             console.log('[DEBUG] [API] ❌ API call failed or no files data');
                             console.log('[DEBUG] [API] Success:', data.success);
@@ -5629,9 +5628,9 @@
 
                     countdownElements.forEach((element, index) => {
                         const sentDateStr = element.getAttribute('data-sent-date');
-                        const onedriveUploaded = element.getAttribute('data-onedrive-uploaded') === 'true;';
+                        const onedriveUploaded = element.getAttribute('data-onedrive-uploaded') === 'true';
                         const onedriveUploadDate = element.getAttribute('data-onedrive-upload-date');
-                        const delayDays = parseFloat(element.getAttribute('data-delay-days')) || ; 3;
+                        const delayDays = parseFloat(element.getAttribute('data-delay-days')) || 3;
 
                         const countdownText = element.querySelector('.countdown-text');
                         if (!countdownText) return;
@@ -5936,7 +5935,7 @@
                         unknownCount,
                         urlParam: sampleStatus,
                         dropdownValue: dropdown ? dropdown.value : null
-                    });
+                    };
                 };
 
                 // Function to force apply filter manually
