@@ -1768,38 +1768,11 @@
                         <select id="occurrenceCorporateGroup"
                             style="width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: white;">
                             <option value="">Select corporate group (optional)</option>
-                            <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
-                            <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
-                            <option value="Fruit & Veg">Fruit & Veg</option>
-                            <option value="OK Foods">OK Foods</option>
-                            <option value="Checkers">Checkers</option>
-                            <option value="Spar">Spar</option>
-                            <option value="SuperSpar">SuperSpar</option>
-                            <option value="Spar - Northrand">Spar - Northrand</option>
-                            <option value="Shoprite">Shoprite</option>
-                            <option value="Massmart">Massmart</option>
-                            <option value="Chester Butcheries">Chester Butcheries</option>
-                            <option value="Boxer">Boxer</option>
-                            <option value="Food Lovers Market">Food Lovers Market</option>
-                            <option value="Cambridge">Cambridge</option>
-                            <option value="Woolworths">Woolworths</option>
-                            <option value="Jwayelani">Jwayelani</option>
-                            <option value="Usave">Usave</option>
+                            {% for group in corporate_groups %}
+                            <option value="{{ group }}">{{ group }}</option>
+                            {% endfor %}
                             <option value="Not Applicable">Not Applicable (None)</option>
                             <option value="Other">Other (Unlisted Group)</option>
-                            <option value="OBC">OBC</option>
-                            <option value="Roots">Roots</option>
-                            <option value="Meat World">Meat World</option>
-                            <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
-                            <option value="Bluff Meat Supply">Bluff Meat Supply</option>
-                            <option value="Eat Sum Meat">Eat Sum Meat</option>
-                            <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
-                            <option value="Choppies">Choppies</option>
-                            <option value="Econo Foods">Econo Foods</option>
-                            <option value="Makro">Makro</option>
-                            <option value="Boma Vleismark">Boma Vleismark</option>
-                            <option value="Eskort">Eskort</option>
-                            <option value="Nesta Foods">Nesta Foods</option>
                         </select>
                     </div>
 
@@ -3207,7 +3180,22 @@
             // Also populate corporate group, group type, and facility type
             if (corporateGroup) {
                 const corpGroupSelect = document.getElementById('occurrenceCorporateGroup');
-                if (corpGroupSelect) corpGroupSelect.value = corporateGroup;
+                if (corpGroupSelect) {
+                    corpGroupSelect.value = corporateGroup;
+                    // If value wasn't found in options, add it dynamically
+                    if (corpGroupSelect.value !== corporateGroup) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = corporateGroup;
+                        newOpt.textContent = corporateGroup;
+                        const naOpt = corpGroupSelect.querySelector('option[value="Not Applicable"]');
+                        if (naOpt) {
+                            corpGroupSelect.insertBefore(newOpt, naOpt);
+                        } else {
+                            corpGroupSelect.appendChild(newOpt);
+                        }
+                        corpGroupSelect.value = corporateGroup;
+                    }
+                }
             }
             if (groupType) {
                 const groupTypeSelect = document.getElementById('occurrenceGroupType');
