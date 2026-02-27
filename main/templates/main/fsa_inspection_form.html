@@ -1183,38 +1183,11 @@
                         <label class="form-label">Corporate Group *</label>
                         <select name="corporate_group" id="corporate_group" class="form-control" required>
                             <option value="">Select corporate group (required)</option>
-                            <option value="Pick n Pay - Franchise">Pick n Pay - Franchise</option>
-                            <option value="Pick n Pay - Corporate">Pick n Pay - Corporate</option>
-                            <option value="Fruit & Veg">Fruit & Veg</option>
-                            <option value="OK Foods">OK Foods</option>
-                            <option value="Checkers">Checkers</option>
-                            <option value="Spar">Spar</option>
-                            <option value="SuperSpar">SuperSpar</option>
-                            <option value="Spar - Northrand">Spar - Northrand</option>
-                            <option value="Shoprite">Shoprite</option>
-                            <option value="Massmart">Massmart</option>
-                            <option value="Chester Butcheries">Chester Butcheries</option>
-                            <option value="Boxer">Boxer</option>
-                            <option value="Food Lovers Market">Food Lovers Market</option>
-                            <option value="Cambridge">Cambridge</option>
-                            <option value="Woolworths">Woolworths</option>
-                            <option value="Jwayelani">Jwayelani</option>
-                            <option value="Usave">Usave</option>
+                            {% for group in corporate_groups %}
+                            <option value="{{ group }}">{{ group }}</option>
+                            {% endfor %}
                             <option value="Not Applicable">Not Applicable (None)</option>
                             <option value="Other">Other (Unlisted Group)</option>
-                            <option value="OBC">OBC</option>
-                            <option value="Roots">Roots</option>
-                            <option value="Meat World">Meat World</option>
-                            <option value="Quantum Foods Nulaid">Quantum Foods Nulaid</option>
-                            <option value="Bluff Meat Supply">Bluff Meat Supply</option>
-                            <option value="Eat Sum Meat">Eat Sum Meat</option>
-                            <option value="Waltloo Meat and Chicken">Waltloo Meat and Chicken</option>
-                            <option value="Choppies">Choppies</option>
-                            <option value="Econo Foods">Econo Foods</option>
-                            <option value="Makro">Makro</option>
-                            <option value="Boma Vleismark">Boma Vleismark</option>
-                            <option value="Eskort">Eskort</option>
-                            <option value="Nesta Foods">Nesta Foods</option>
                         </select>
                     </div>
 
@@ -4480,13 +4453,28 @@
             // Auto-populate corporate group if available
             const corporateGroupSelect = document.getElementById('corporate_group');
             if (corporateGroupSelect && corporateGroup && corporateGroup.trim() !== '') {
-                // Try to find matching option
+                // Try to find matching option (case-insensitive)
+                let found = false;
                 const options = corporateGroupSelect.options;
                 for (let i = 0; i < options.length; i++) {
                     if (options[i].value.toLowerCase() === corporateGroup.toLowerCase()) {
                         corporateGroupSelect.selectedIndex = i;
+                        found = true;
                         break;
                     }
+                }
+                // If not found, add it dynamically
+                if (!found) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = corporateGroup;
+                    newOpt.textContent = corporateGroup;
+                    const naOpt = corporateGroupSelect.querySelector('option[value="Not Applicable"]');
+                    if (naOpt) {
+                        corporateGroupSelect.insertBefore(newOpt, naOpt);
+                    } else {
+                        corporateGroupSelect.appendChild(newOpt);
+                    }
+                    corporateGroupSelect.value = corporateGroup;
                 }
             }
 
@@ -4954,6 +4942,20 @@
                 const corporateGroupSelect = document.getElementById('corporate_group');
                 if (corporateGroupSelect && editModeData.corporateGroup) {
                     corporateGroupSelect.value = editModeData.corporateGroup;
+                    // If value wasn't found in options, add it dynamically
+                    if (corporateGroupSelect.value !== editModeData.corporateGroup) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = editModeData.corporateGroup;
+                        newOpt.textContent = editModeData.corporateGroup;
+                        // Insert before "Not Applicable" option
+                        const naOpt = corporateGroupSelect.querySelector('option[value="Not Applicable"]');
+                        if (naOpt) {
+                            corporateGroupSelect.insertBefore(newOpt, naOpt);
+                        } else {
+                            corporateGroupSelect.appendChild(newOpt);
+                        }
+                        corporateGroupSelect.value = editModeData.corporateGroup;
+                    }
                 }
 
                 const groupTypeSelect = document.getElementById('group_type');

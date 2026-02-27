@@ -1066,6 +1066,23 @@ def add_fsa_inspection(request):
         town=''
     ).values_list('town', flat=True).distinct().order_by('town')
 
+    # Get all unique corporate groups from database + hardcoded defaults
+    default_corporate_groups = [
+        'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
+        'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
+        'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
+        'Jwayelani', 'Usave',
+    ]
+    db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
+        corporate_group__isnull=True
+    ).exclude(corporate_group='').exclude(
+        corporate_group__in=['Not Applicable', 'Other']
+    ).values_list('corporate_group', flat=True).distinct())
+    # Merge: defaults first, then any DB-only groups alphabetically
+    all_groups = list(default_corporate_groups)
+    extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
+    all_groups.extend(extra_groups)
+
     context = {
         'form': form,
         'action': 'Add',
@@ -1073,6 +1090,7 @@ def add_fsa_inspection(request):
         'clients': clients_with_towns,
         'towns': list(towns),
         'commodity_counts': {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0},
+        'corporate_groups': all_groups,
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -1653,6 +1671,23 @@ def edit_fsa_inspection(request, pk):
         commodity_data = {}
 
     import json
+    # Get all unique corporate groups from database + hardcoded defaults
+    default_corporate_groups = [
+        'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
+        'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
+        'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
+        'Jwayelani', 'Usave',
+    ]
+    db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
+        corporate_group__isnull=True
+    ).exclude(corporate_group='').exclude(
+        corporate_group__in=['Not Applicable', 'Other']
+    ).values_list('corporate_group', flat=True).distinct())
+    # Merge: defaults first, then any DB-only groups alphabetically
+    all_groups = list(default_corporate_groups)
+    extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
+    all_groups.extend(extra_groups)
+
     context = {
         'form': form,
         'inspection': inspection,
@@ -1664,6 +1699,7 @@ def edit_fsa_inspection(request, pk):
         'commodity_counts': commodity_counts,
         'commodity_data': commodity_data,
         'commodity_data_json': json.dumps(commodity_data),  # Pre-serialized JSON for reliable JS parsing
+        'corporate_groups': all_groups,
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
