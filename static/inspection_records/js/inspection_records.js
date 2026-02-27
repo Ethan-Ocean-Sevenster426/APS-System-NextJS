@@ -2009,18 +2009,17 @@
                         console.log('📦 [DOWNLOAD-ALL]   Content-Type:', response.headers.get('Content-Type'));
                         console.log('📦 [DOWNLOAD-ALL]   Content-Length:', response.headers.get('Content-Length'));
 
-                        if (response.ok) {
+                        // Check if the response is a JSON error (server returns JSON for errors)
+                        const contentType = response.headers.get('Content-Type') || '';
+                        if (contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            console.error('[DOWNLOAD-ALL] Server returned error:', errorData);
+                            alert('Download failed: ' + (errorData.error || 'Unknown error'));
+                        } else if (response.ok) {
                             const blob = await response.blob();
-                            console.log('📦 [DOWNLOAD-ALL] Blob size:', blob.size, 'bytes');
-                            console.log('📦 [DOWNLOAD-ALL] Blob type:', blob.type);
-
-                            if (blob.size === 0) {
-                                console.error('📦 [DOWNLOAD-ALL] WARNING: ZIP blob is empty!');
-                            }
+                            console.log('[DOWNLOAD-ALL] Blob size:', blob.size, 'bytes');
 
                             const contentDisposition = response.headers.get('Content-Disposition');
-                            console.log('📦 [DOWNLOAD-ALL] Content-Disposition:', contentDisposition);
-
                             let filename = clientName + '_' + inspectionDate + '_files.zip';
                             if (contentDisposition) {
                                 const match = contentDisposition.match(/filename[^;=\n]*=([^;\n]*)/);
@@ -2039,10 +2038,10 @@
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
 
-                            console.log('📦 [DOWNLOAD-ALL] ✅ Download completed: ' + filename + ' (' + blob.size + ' bytes)');
+                            console.log('[DOWNLOAD-ALL] Download completed: ' + filename + ' (' + blob.size + ' bytes)');
                         } else {
                             const errorText = await response.text();
-                            console.error('📦 [DOWNLOAD-ALL] ❌ Error response:', errorText.substring(0, 500));
+                            console.error('[DOWNLOAD-ALL] Error response:', errorText.substring(0, 500));
                             alert('Download failed: ' + errorText.substring(0, 200));
                         }
 

@@ -14223,34 +14223,21 @@ def get_page_clients_file_status(request):
 
                 # OPTIMIZATION 1: Database check first (fastest - no file system access)
                 date_obj = datetime.strptime(str(inspection_date), '%Y-%m-%d').date()
-                debug_info = {'client_name': client_name, 'date': str(date_obj)}
 
                 inspections = FoodSafetyAgencyInspection.objects.filter(
                     client_name=client_name,
                     date_of_inspection=date_obj
                 ).select_related('client')
 
-                debug_info['inspections_found'] = inspections.count()
-                debug_info['inspection_details'] = []
-
                 # === NEW STRUCTURE CHECK: docs/{client_id}/{inspection_id}/ ===
                 docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
-                debug_info['docs_base'] = docs_base
-                debug_info['docs_base_exists'] = os.path.exists(docs_base)
-
                 for insp in inspections:
-                    insp_debug = {'id': insp.id, 'has_client_fk': insp.client is not None}
                     if insp.client:
-                        insp_debug['client_id'] = insp.client.id
                         insp_path = os.path.join(docs_base, str(insp.client.id), str(insp.id))
-                        insp_debug['path'] = insp_path
-                        insp_debug['path_exists'] = os.path.exists(insp_path)
                         if os.path.exists(insp_path):
-                            insp_debug['categories_found'] = []
                             for cat in ['rfi', 'invoice', 'lab', 'retest', 'compliance', 'composition', 'occurrence']:
                                 cat_path = os.path.join(insp_path, cat)
                                 if os.path.exists(cat_path) and os.listdir(cat_path):
-                                    insp_debug['categories_found'].append(cat)
                                     if cat == 'rfi': has_rfi = True
                                     elif cat == 'invoice': has_invoice = True
                                     elif cat == 'lab': has_lab = True
@@ -14258,7 +14245,6 @@ def get_page_clients_file_status(request):
                                     elif cat == 'compliance': has_compliance = True
                                     elif cat == 'composition': has_composition = True
                                     elif cat == 'occurrence': has_occurrence = True
-                    debug_info['inspection_details'].append(insp_debug)
                 
                 # Check database for upload records (super fast)
                 has_rfi_db = inspections.filter(rfi_uploaded_by__isnull=False).exists()
@@ -14537,16 +14523,14 @@ def get_page_clients_file_status(request):
                 else:
                     file_status = 'no_files'  # Red
 
-            except ValueError as ve:
+            except ValueError:
                 has_rfi = has_invoice = has_lab = has_retest = has_compliance = has_occurrence = has_composition = False
                 file_status = 'no_files'
-                debug_info = {'error': f'ValueError: {ve}'}
 
             except Exception as e:
                 has_rfi = has_invoice = has_lab = has_retest = has_compliance = has_occurrence = has_composition = False
                 # Use 'no_files' instead of 'error' so button turns RED instead of staying GREY
                 file_status = 'no_files'
-                debug_info = {'error': f'Exception: {e}'}
             
             # Store optimized status for this specific combination (common for all cases)
             combination_statuses[unique_key] = {
@@ -14559,8 +14543,7 @@ def get_page_clients_file_status(request):
                 'has_retest': has_retest,
                 'has_occurrence': has_occurrence,
                 'has_composition': has_composition,
-                'has_compliance': has_compliance,
-                'debug': debug_info
+                'has_compliance': has_compliance
             }
 
         # Prepare optimized response - convert combination_statuses to client_statuses format
@@ -14774,7 +14757,7 @@ def download_all_inspection_files(request):
                                     safe_print(f"Found docs file: {filename} in {cat} (inspection {inspection.id})")
 
         if not matching_folders and not docs_files:
-            return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'})
+            return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'}, status=404)
 
         # Create temporary ZIP file
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
@@ -14963,7 +14946,7 @@ def download_all_inspection_files(request):
                         safe_print(f"No Compliance folder found at: {compliance_base}")
                 
                 if files_added == 0:
-                    return JsonResponse({'success': False, 'error': 'No files found to download'})
+                    return JsonResponse({'success': False, 'error': 'No files found to download'}, status=404)
             
             # Prepare response - stream from disk instead of loading into memory
             zip_filename = f"{client_name}_{inspection_date}_inspection_files.zip"
