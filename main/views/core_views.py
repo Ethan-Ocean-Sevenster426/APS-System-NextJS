@@ -15207,12 +15207,12 @@ def download_inspection_file(request):
         
         file_param = request.GET.get('file', '')
         source = request.GET.get('source', 'local')  # 'local' or 'onedrive'
-        
+
         if not file_param:
             raise Http404("File not specified")
-        
-        # Decode URL-encoded filename
-        relative_path = unquote(file_param)
+
+        # Django's request.GET.get() already URL-decodes the parameter
+        relative_path = file_param
         
         if source == 'onedrive':
             # Handle OneDrive file download

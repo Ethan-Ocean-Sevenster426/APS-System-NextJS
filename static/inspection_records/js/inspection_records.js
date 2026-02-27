@@ -3050,8 +3050,7 @@
                                             <span>${file.modified || ''}</span>
                                         </div>
                                     </div>
-                                <
-                                /div>
+                                </div>
                                 <div class="file-actions" style="display: flex !important; gap: 8px !important; align-items: center;">
                                     ${getViewButton(file)}
                                     <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Download File">
