@@ -1013,6 +1013,10 @@ def add_fsa_inspection(request):
                     cache.delete(cache_key)
                     cache.delete(f"{cache_key}_timestamp")
 
+                # Invalidate client data cache so new client appears in dropdowns
+                from django.core.cache import cache as _fc
+                _fc.delete('add_inspection_form_data')
+
                 # Build success message with commodity counts
                 from collections import Counter
                 commodity_counts = Counter(p.get('commodity', '') for p in products_data)
@@ -1036,59 +1040,76 @@ def add_fsa_inspection(request):
         full_name = request.user.get_full_name()
         default_inspector = full_name if full_name else request.user.username
 
-    # Get clients for dropdown with their associated towns
-    # Client is already imported at top of file
-    clients_qs = Client.objects.all().order_by('name')
+    # Get clients, towns, and corporate groups for the form
+    # PERFORMANCE: Cached for 10 minutes to avoid 4800+ queries on every page load
+    from django.core.cache import cache
 
-    # Build clients list with town data from most recent inspection
-    clients_with_towns = []
-    for client in clients_qs:
-        # Get most recent town for this client
-        town = FoodSafetyAgencyInspection.objects.filter(
-            client_name__iexact=client.name
-        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+    cache_key = 'add_inspection_form_data'
+    cached_form_data = cache.get(cache_key)
 
-        clients_with_towns.append({
-            'name': client.name,
-            'client_id': client.client_id,
-            'internal_account_code': client.internal_account_code or '',
-            'email': client.email or '',
-            'town': town or '',
-            'corporate_group': client.corporate_group or '',
-            'group_type': client.group_type or '',
-            'facility_type': client.facility_type or ''
-        })
+    if cached_form_data:
+        clients_with_towns = cached_form_data['clients']
+        towns_list = cached_form_data['towns']
+        all_groups = cached_form_data['groups']
+    else:
+        # Build town lookup: one query using DISTINCT ON (PostgreSQL)
+        town_lookup = dict(
+            FoodSafetyAgencyInspection.objects.exclude(
+                town__isnull=True
+            ).exclude(town='').order_by(
+                'client_name', '-date_of_inspection'
+            ).distinct('client_name').values_list('client_name', 'town')
+        )
 
-    # Get unique towns from existing inspections
-    towns = FoodSafetyAgencyInspection.objects.exclude(
-        town__isnull=True
-    ).exclude(
-        town=''
-    ).values_list('town', flat=True).distinct().order_by('town')
+        # Get all clients in one query
+        clients_with_towns = [
+            {
+                'name': c.name,
+                'client_id': c.client_id,
+                'internal_account_code': c.internal_account_code or '',
+                'email': c.email or '',
+                'town': town_lookup.get(c.name, ''),
+                'corporate_group': c.corporate_group or '',
+                'group_type': c.group_type or '',
+                'facility_type': c.facility_type or '',
+            }
+            for c in Client.objects.all().order_by('name')
+        ]
 
-    # Get all unique corporate groups from database + hardcoded defaults
-    default_corporate_groups = [
-        'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
-        'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
-        'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
-        'Jwayelani', 'Usave',
-    ]
-    db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
-        corporate_group__isnull=True
-    ).exclude(corporate_group='').exclude(
-        corporate_group__in=['Not Applicable', 'Other']
-    ).values_list('corporate_group', flat=True).distinct())
-    # Merge: defaults first, then any DB-only groups alphabetically
-    all_groups = list(default_corporate_groups)
-    extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
-    all_groups.extend(extra_groups)
+        # Get unique towns
+        towns_list = list(FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
+
+        # Get corporate groups
+        default_corporate_groups = [
+            'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
+            'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
+            'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
+            'Jwayelani', 'Usave',
+        ]
+        db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
+            corporate_group__isnull=True
+        ).exclude(corporate_group='').exclude(
+            corporate_group__in=['Not Applicable', 'Other']
+        ).values_list('corporate_group', flat=True).distinct())
+        all_groups = list(default_corporate_groups)
+        extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
+        all_groups.extend(extra_groups)
+
+        # Cache for 10 minutes
+        cache.set(cache_key, {
+            'clients': clients_with_towns,
+            'towns': towns_list,
+            'groups': all_groups,
+        }, 600)
 
     context = {
         'form': form,
         'action': 'Add',
         'default_inspector': default_inspector,
         'clients': clients_with_towns,
-        'towns': list(towns),
+        'towns': towns_list,
         'commodity_counts': {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0},
         'corporate_groups': all_groups,
     }
@@ -1590,33 +1611,45 @@ def edit_fsa_inspection(request, pk):
                 print(f"DEBUG: Could not auto-populate classification fields from client: {e}")
 
     # Get all clients for autocomplete with their associated towns
-    clients_qs = Client.objects.all().order_by('name')
+    # PERFORMANCE: Reuse same cached data as add form
+    from django.core.cache import cache as _cache
 
-    # Build clients list with town data from most recent inspection
-    clients_with_towns = []
-    for client in clients_qs:
-        # Get most recent town for this client
-        town = FoodSafetyAgencyInspection.objects.filter(
-            client_name__iexact=client.name
-        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+    _cache_key = 'add_inspection_form_data'
+    _cached = _cache.get(_cache_key)
 
-        clients_with_towns.append({
-            'name': client.name,
-            'client_id': client.client_id,
-            'internal_account_code': client.internal_account_code or '',
-            'email': client.email or '',
-            'town': town or '',
-            'corporate_group': client.corporate_group or '',
-            'group_type': client.group_type or '',
-            'facility_type': client.facility_type or ''
-        })
+    if _cached:
+        clients_with_towns = _cached['clients']
+        towns_list = _cached['towns']
+    else:
+        town_lookup = dict(
+            FoodSafetyAgencyInspection.objects.exclude(
+                town__isnull=True
+            ).exclude(town='').order_by(
+                'client_name', '-date_of_inspection'
+            ).distinct('client_name').values_list('client_name', 'town')
+        )
+        clients_with_towns = [
+            {
+                'name': c.name,
+                'client_id': c.client_id,
+                'internal_account_code': c.internal_account_code or '',
+                'email': c.email or '',
+                'town': town_lookup.get(c.name, ''),
+                'corporate_group': c.corporate_group or '',
+                'group_type': c.group_type or '',
+                'facility_type': c.facility_type or '',
+            }
+            for c in Client.objects.all().order_by('name')
+        ]
+        towns_list = list(FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
 
-    # Get unique towns from existing inspections
-    towns = FoodSafetyAgencyInspection.objects.exclude(
-        town__isnull=True
-    ).exclude(
-        town=''
-    ).values_list('town', flat=True).distinct().order_by('town')
+        # Cache for 10 minutes
+        _cache.set(_cache_key, {
+            'clients': clients_with_towns,
+            'towns': towns_list,
+        }, 600)
 
     # Only get commodity data for regular inspections, NOT for occurrence reports
     is_occurrence = getattr(inspection, 'is_occurrence_report', False)
@@ -1693,7 +1726,7 @@ def edit_fsa_inspection(request, pk):
         'inspection': inspection,
         'action': 'Edit',
         'clients': clients_with_towns,
-        'towns': list(towns),
+        'towns': towns_list,
         'is_occurrence_report': is_occurrence,
         'related_inspections': related_inspections,
         'commodity_counts': commodity_counts,
