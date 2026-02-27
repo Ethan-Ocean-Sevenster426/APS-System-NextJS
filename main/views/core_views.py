@@ -14468,14 +14468,14 @@ def get_page_clients_file_status(request):
                                             if has_composition_dir:
                                                 break
 
-                # Check actual file existence on disk AND sync database records
-                # If files exist on disk but database doesn't have uploader info, update database
-                has_rfi = has_rfi_dir
-                has_invoice = has_invoice_dir
-                has_lab = has_lab_dir
-                has_retest = has_retest_dir
-                has_occurrence = has_occurrence_dir
-                has_composition = has_composition_dir
+                # Merge new structure results with legacy directory results
+                # (new structure check already set has_rfi etc. above; OR with legacy results)
+                has_rfi = has_rfi or has_rfi_dir
+                has_invoice = has_invoice or has_invoice_dir
+                has_lab = has_lab or has_lab_dir
+                has_retest = has_retest or has_retest_dir
+                has_occurrence = has_occurrence or has_occurrence_dir
+                has_composition = has_composition or has_composition_dir
 
                 # SYNC DATABASE: Update database records to match actual files on disk
                 if has_rfi or has_invoice or has_lab or has_retest or has_composition:
@@ -14509,7 +14509,7 @@ def get_page_clients_file_status(request):
                         # explicitly uploads a document for that specific product.
                         # Auto-syncing would incorrectly mark ALL products as uploaded when
                         # only one file exists in the folder.
-                has_compliance = has_compliance_dir
+                has_compliance = has_compliance or has_compliance_dir
                 
                 # Determine status for this specific client+date combination
                 # Match sent status logic: only require RFI, Invoice, and Compliance
