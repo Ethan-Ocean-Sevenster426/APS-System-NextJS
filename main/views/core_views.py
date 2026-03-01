@@ -8074,93 +8074,84 @@ def home(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     
-    # Get summary statistics from the correct models
-    total_clients = Client.objects.count()
-    total_inspections = FoodSafetyAgencyInspection.objects.count()
-    
-    # Get recent inspections from FoodSafetyAgencyInspection
-    recent_inspections = FoodSafetyAgencyInspection.objects.order_by('-created_at')[:5]
-    
-    # Get inspections by inspector from FoodSafetyAgencyInspection
-    inspector_stats = FoodSafetyAgencyInspection.objects.values('inspector_name').annotate(
-        count=models.Count('id')
-    ).order_by('-count')[:5]
-    
-    # Get system status
-    def check_database_status():
-        """Check PostgreSQL database connectivity"""
+    # PERFORMANCE: Cache all expensive home page data for 5 minutes
+    from django.core.cache import cache
+
+    home_data = cache.get('home_page_data')
+    if not home_data:
+        # Counts
+        total_clients = Client.objects.count()
+        total_inspections = FoodSafetyAgencyInspection.objects.count()
+
+        # Recent inspections - only fetch needed fields
+        recent_inspections = list(
+            FoodSafetyAgencyInspection.objects.only(
+                'id', 'client_name', 'date_of_inspection', 'inspector_name', 'created_at'
+            ).order_by('-created_at')[:5]
+        )
+
+        # Inspector stats
+        inspector_stats = list(
+            FoodSafetyAgencyInspection.objects.values('inspector_name').annotate(
+                count=models.Count('id')
+            ).order_by('-count')[:5]
+        )
+
+        # Recent activities
+        try:
+            from ..models import SystemLog
+            recent_activities = list(SystemLog.objects.select_related('user').order_by('-timestamp')[:5])
+        except Exception:
+            recent_activities = []
+
+        home_data = {
+            'total_clients': total_clients,
+            'total_inspections': total_inspections,
+            'recent_inspections': recent_inspections,
+            'inspector_stats': inspector_stats,
+            'recent_activities': recent_activities,
+        }
+        cache.set('home_page_data', home_data, 300)  # 5 min cache
+
+    # System status checks - cached separately (5 min each)
+    postgresql_online = cache.get('status_postgresql')
+    if postgresql_online is None:
         try:
             from django.db import connection
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
-                result = cursor.fetchone()
-                return True if result else False
+                postgresql_online = bool(cursor.fetchone())
         except Exception:
-            return False
-    
-    def check_sql_server_status():
-        """Check SQL Server database connectivity using pymssql - NO ODBC DRIVERS NEEDED!"""
-        try:
-            # Test SQL Server connection using pymssql
-            import pymssql
+            postgresql_online = False
+        cache.set('status_postgresql', postgresql_online, 300)
 
-            conn = pymssql.connect(
-                server='102.67.140.12',
-                port=1053,
-                user='FSAUser2',
-                password='password',
-                database='AFS',
-                timeout=5
-            )
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            return True if result else False
-        except Exception as e:
-            print(f"SQL Server status check failed: {e}")
-            return False
-    
-    
-    
-    # Check system status with caching to avoid performance issues
-    from django.core.cache import cache
-    
-    # Cache status checks for 30 seconds to avoid repeated expensive checks
-    postgresql_online = cache.get('status_postgresql')
-    if postgresql_online is None:
-        postgresql_online = check_database_status()
-        cache.set('status_postgresql', postgresql_online, 30)
-    
     sql_server_online = cache.get('status_sql_server')
     if sql_server_online is None:
-        sql_server_online = check_sql_server_status()
-        cache.set('status_sql_server', sql_server_online, 30)
-    
-
-    # Get recent activities from SystemLog
-    def get_recent_activities():
         try:
-            from ..models import SystemLog
-            activities = SystemLog.objects.select_related('user').order_by('-timestamp')[:5]
-            return activities
+            import pymssql
+            conn = pymssql.connect(
+                server='102.67.140.12', port=1053,
+                user='FSAUser2', password='password',
+                database='AFS', timeout=3
+            )
+            conn.cursor().execute("SELECT 1")
+            conn.close()
+            sql_server_online = True
         except Exception:
-            return []
-    
-    recent_activities = get_recent_activities()
+            sql_server_online = False
+        cache.set('status_sql_server', sql_server_online, 300)
 
     context = {
-        'total_clients': total_clients,
-        'total_inspections': total_inspections,
-        'recent_inspections': recent_inspections,
-        'inspector_stats': inspector_stats,
+        'total_clients': home_data['total_clients'],
+        'total_inspections': home_data['total_inspections'],
+        'recent_inspections': home_data['recent_inspections'],
+        'inspector_stats': home_data['inspector_stats'],
         'settings': settings,
         'system_status': {
             'postgresql_online': postgresql_online,
             'sql_server_online': sql_server_online,
         },
-        'recent_activities': recent_activities
+        'recent_activities': home_data['recent_activities'],
     }
     
     return render(request, 'main/home.html', context)
