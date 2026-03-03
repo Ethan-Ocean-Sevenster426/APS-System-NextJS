@@ -331,8 +331,8 @@ function renderKPIs() {
 // ================================================================
 // RENDER: FINANCIAL TABLE
 // ================================================================
-// Inspector salary (CTC) lookup - matched by name keywords
-var INSPECTOR_SALARIES = {
+// Inspector salary (CTC) defaults - matched by name keywords
+var DEFAULT_SALARIES = {
     'adams': 20000, 'dlamini': 21000, 'dlisani': 22256,
     'kuntwane': 21000, 'kabelo': 20900, 'manganye': 21000,
     'maqina': 21000, 'modiba': 20000, 'mokgothu': 20000,
@@ -341,14 +341,88 @@ var INSPECTOR_SALARIES = {
     'steyn': 21735, 'visagie': 36847.14
 };
 
+// Non-inspector staff (excluded from salary/profit calculations)
+var NON_INSPECTORS = ['mpho motaung', 'test inspector'];
+
+// Load saved salaries from localStorage, fallback to defaults
+function loadSalaries() {
+    try {
+        var saved = localStorage.getItem('inspector_salaries');
+        if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return {};
+}
+var SAVED_SALARIES = loadSalaries();
+
 function getInspectorSalary(name) {
     if (!name) return 0;
     var lower = name.toLowerCase();
-    var keys = Object.keys(INSPECTOR_SALARIES);
+    // Exclude non-inspectors
+    for (var n = 0; n < NON_INSPECTORS.length; n++) {
+        if (lower.indexOf(NON_INSPECTORS[n]) !== -1) return 0;
+    }
+    // Check saved overrides first
+    if (SAVED_SALARIES[lower] !== undefined) return SAVED_SALARIES[lower];
+    // Fallback to defaults
+    var keys = Object.keys(DEFAULT_SALARIES);
     for (var i = 0; i < keys.length; i++) {
-        if (lower.indexOf(keys[i]) !== -1) return INSPECTOR_SALARIES[keys[i]];
+        if (lower.indexOf(keys[i]) !== -1) return DEFAULT_SALARIES[keys[i]];
     }
     return 0;
+}
+
+// Salary edit modal functions
+function openSalaryModal() {
+    var modal = document.getElementById('salaryModal');
+    var body = document.getElementById('salaryModalBody');
+    if (!modal || !body) return;
+    var items = dashboardData.inspectorFinancials || [];
+    var html = '<table style="width:100%; border-collapse:collapse; font-size:13px;">' +
+        '<thead><tr style="border-bottom:2px solid #e5e7eb;">' +
+        '<th style="text-align:left; padding:8px 6px; font-weight:600; color:#374151;">Inspector</th>' +
+        '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">Salary (CTC) R</th>' +
+        '</tr></thead><tbody>';
+    items.forEach(function(item) {
+        var name = item.inspector_name || '';
+        var lower = name.toLowerCase();
+        var isNonInspector = false;
+        for (var n = 0; n < NON_INSPECTORS.length; n++) {
+            if (lower.indexOf(NON_INSPECTORS[n]) !== -1) { isNonInspector = true; break; }
+        }
+        if (isNonInspector) return;
+        var salary = getInspectorSalary(name);
+        html += '<tr style="border-bottom:1px solid #f3f4f6;">' +
+            '<td style="padding:6px;">' + name + '</td>' +
+            '<td style="padding:6px; text-align:right;">' +
+            '<input type="number" step="0.01" min="0" value="' + (salary || '') + '" data-inspector="' + lower + '" class="salary-input" ' +
+            'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
+            '</td></tr>';
+    });
+    html += '</tbody></table>';
+    body.innerHTML = html;
+    document.getElementById('salarySaveStatus').innerHTML = '';
+    modal.style.display = 'flex';
+}
+
+function closeSalaryModal() {
+    document.getElementById('salaryModal').style.display = 'none';
+}
+
+function saveSalaries() {
+    var inputs = document.querySelectorAll('#salaryModalBody .salary-input');
+    var saved = loadSalaries();
+    inputs.forEach(function(inp) {
+        var key = inp.getAttribute('data-inspector');
+        var val = parseFloat(inp.value);
+        if (!isNaN(val) && val >= 0) {
+            saved[key] = val;
+        }
+    });
+    localStorage.setItem('inspector_salaries', JSON.stringify(saved));
+    SAVED_SALARIES = saved;
+    renderFinancialTable();
+    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
+    setTimeout(function() { closeSalaryModal(); }, 800);
 }
 
 function renderFinancialTable() {
