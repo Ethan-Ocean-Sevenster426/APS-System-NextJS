@@ -358,6 +358,286 @@
             </div>
         </div>
 
+        <!-- Inspector Profitability & Expenses -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Inspector Profitability & Expenses</span>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap;">
+                    <thead>
+                        <tr style="background: var(--primary); color: #fff;">
+                            <th style="padding: 0.6rem 0.75rem; text-align: left; font-weight: 600;">Inspector</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">Inspections</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">Billable Hrs</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">KM</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: center; font-weight: 600;">On-Site Hrs</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">Rev (Hours)</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">Rev (KM)</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">Rev (Samples)</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600;">Total Revenue</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600; background: rgba(0,0,0,0.15);">Salary (CTC)</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: right; font-weight: 600; background: rgba(0,0,0,0.15);">Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Gladys Manganye</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">79</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">87.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4,173</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">65.8</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R44 370</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R22 952</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R900</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R68 222</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R47 222</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Sandisiwe Dlisani</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">72</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">72.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">6,933</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">20.8</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R36 720</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R38 132</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R1 100</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R75 952</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R22 256</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R53 696</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Cinga Ngongo</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">71</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">100.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,425</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">34.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R51 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R18 838</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R700</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R70 538</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R49 538</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Jofred Steyn</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">70</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">106.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4,835.6</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">63.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R54 315</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R26 596</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R1 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R81 911</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 735</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R60 176</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Kabelo Percy</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">67</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">67.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">2,837</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">27.2</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R34 170</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R15 604</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R800</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R50 574</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R20 900</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R29 674</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Thato Sekhotho</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">65</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">67.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,412</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">48.3</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R34 170</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R18 766</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R700</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R53 636</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R20 900</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R32 736</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Mokgadi Selone</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">57</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">53.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4,291</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">8.7</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R27 285</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R23 601</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R650</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R51 536</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R23 930</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R27 607</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Mpeluza Xola</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">57</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">142.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,176.1</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">46.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R72 675</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R17 469</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R300</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R90 444</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R69 444</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Lwandile Maqina</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">56</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">62.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4,903</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">67.3</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R31 620</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R26 967</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R1 150</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R59 737</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R38 737</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Nelisa Ntoyaphi</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">55</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">54.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,849</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">66.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R27 540</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R21 170</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R750</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R49 460</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R20 800</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R28 660</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Kutlwano Kuntwane</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">53</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">65.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">1,428</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">35.1</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R33 150</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R7 854</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R550</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R41 554</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R20 554</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Lwandile Dlamini</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">45</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">45.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,261</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">59.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R22 950</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R17 936</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R500</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R41 386</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R21 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R20 386</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Ben Visagie</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">44</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">44.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">1,968</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">68.6</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R22 440</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R10 824</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R150</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R33 414</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R36 847</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #ef4444; background: var(--primary-light);">-R3 433</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Hellen Modiba</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">39</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">38.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">2,618</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">82.8</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R19 635</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R14 399</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R300</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R34 334</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R20 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R14 334</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Cornelius Adams</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">33</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">33.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3,680</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">68.7</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R16 830</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R20 240</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R100</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R37 170</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R20 000</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #10b981; background: var(--primary-light);">R17 170</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Neo Noe</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">6</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">6.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">6</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">—</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R3 060</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R33</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R100</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R3 193</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">R26 250</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: #ef4444; background: var(--primary-light);">-R23 057</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Mpho Motaung</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">3.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">420</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">12.0</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R1 530</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R2 310</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R50</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R3 890</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">—</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: var(--text-light); background: var(--primary-light);">—</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border); background: var(--background);">
+                            <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--text);">Test Inspector</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">2</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">55</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: center; color: var(--text-light);">4.5</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R2 295</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R303</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light);">R100</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 600; color: var(--text);">R2 698</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; color: var(--text-light); background: var(--primary-light);">—</td>
+                            <td style="padding: 0.5rem 0.75rem; text-align: right; font-weight: 700; color: var(--text-light); background: var(--primary-light);">—</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: var(--primary); color: #fff; font-weight: 700;">
+                            <td style="padding: 0.6rem 0.75rem;">TOTAL</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: center;">874</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: center;">1,050.5</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: center;">55,270.7</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: center;">779.8</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right;">R535 755</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right;">R303 989</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right;">R9 900</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right;">R849 644</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right; background: rgba(0,0,0,0.15);">R357 618</td>
+                            <td style="padding: 0.6rem 0.75rem; text-align: right; background: rgba(0,0,0,0.15);">R492 027</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
         <!-- Compliance Per Commodity -->
         <div class="card">
             <div class="card-header">
