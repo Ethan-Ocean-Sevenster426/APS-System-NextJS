@@ -828,9 +828,21 @@
                     <i class="fas fa-money-bill-wave"></i>
                     <span>Revenue Per Inspector</span>
                 </div>
-                <button onclick="openSalaryModal()" style="font-size: 12px; padding: 6px 14px; border: 1px solid #007890; border-radius: 6px; background: #007890; color: white; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
-                    <i class="fas fa-edit"></i> Edit Salaries
-                </button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <select id="financialPeriod" onchange="applyFinancialPeriod()" style="font-size:11px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; cursor:pointer; min-width:130px;">
+                        <option value="all">All Time</option>
+                        <option value="daily">Today</option>
+                        <option value="weekly">This Week</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="60">Last 60 Days</option>
+                        <option value="90">Last 90 Days</option>
+                        <option value="120">Last 120 Days</option>
+                        <option value="120+">120+ Days</option>
+                    </select>
+                    <button onclick="openSalaryModal()" style="font-size: 12px; padding: 6px 14px; border: 1px solid #007890; border-radius: 6px; background: #007890; color: white; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
+                        <i class="fas fa-edit"></i> Edit Salaries
+                    </button>
+                </div>
             </div>
             <div class="card-body" style="padding: 0; overflow-x: auto;">
                 <table class="inspections-table" id="financialTable" style="font-size: 10.5px;">

@@ -425,6 +425,48 @@ function saveSalaries() {
     setTimeout(function() { closeSalaryModal(); }, 800);
 }
 
+// Financial period filter - sets date range and triggers API filter
+function applyFinancialPeriod() {
+    var sel = document.getElementById('financialPeriod');
+    if (!sel) return;
+    var val = sel.value;
+    var dateFrom = document.getElementById('filterDateFrom');
+    var dateTo = document.getElementById('filterDateTo');
+    if (!dateFrom || !dateTo) return;
+
+    var today = new Date();
+    var toISO = function(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+
+    if (val === 'all') {
+        dateFrom.value = '';
+        dateTo.value = '';
+    } else if (val === 'daily') {
+        dateFrom.value = toISO(today);
+        dateTo.value = toISO(today);
+    } else if (val === 'weekly') {
+        var weekStart = new Date(today);
+        var day = today.getDay();
+        weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+        dateFrom.value = toISO(weekStart);
+        dateTo.value = toISO(today);
+    } else if (val === '120+') {
+        var cutoff = new Date(today);
+        cutoff.setDate(today.getDate() - 120);
+        dateTo.value = toISO(cutoff);
+        dateFrom.value = '';
+    } else {
+        var days = parseInt(val);
+        var start = new Date(today);
+        start.setDate(today.getDate() - days);
+        dateFrom.value = toISO(start);
+        dateTo.value = toISO(today);
+    }
+
+    applyFilters();
+}
+
 function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
