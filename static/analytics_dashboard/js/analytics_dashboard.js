@@ -331,14 +331,35 @@ function renderKPIs() {
 // ================================================================
 // RENDER: FINANCIAL TABLE
 // ================================================================
+// Inspector salary (CTC) lookup - matched by name keywords
+var INSPECTOR_SALARIES = {
+    'adams': 20000, 'dlamini': 21000, 'dlisani': 22256,
+    'kuntwane': 21000, 'kabelo': 20900, 'manganye': 21000,
+    'maqina': 21000, 'modiba': 20000, 'mokgothu': 20000,
+    'mpeluza': 21000, 'ngongo': 21000, 'noe': 26250,
+    'ntoyaphi': 20800, 'sekhotho': 20900, 'selone': 23929.50,
+    'steyn': 21735, 'visagie': 36847.14
+};
+
+function getInspectorSalary(name) {
+    if (!name) return 0;
+    var lower = name.toLowerCase();
+    var keys = Object.keys(INSPECTOR_SALARIES);
+    for (var i = 0; i < keys.length; i++) {
+        if (lower.indexOf(keys[i]) !== -1) return INSPECTOR_SALARIES[keys[i]];
+    }
+    return 0;
+}
+
 function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
 
     var html = '';
-    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, profit: 0 };
+    var shaded = 'background:rgba(0,120,144,0.06);';
 
     items.forEach(function(item) {
         var hrs = parseFloat(item.total_hours || 0);
@@ -348,6 +369,9 @@ function renderFinancialTable() {
         var revK = item.revenue_km || 0;
         var revS = item.revenue_samples || 0;
         var tot = item.total_revenue || 0;
+        var salary = getInspectorSalary(item.inspector_name);
+        var profit = salary ? tot - salary : 0;
+        var profitColor = profit >= 0 ? '#10b981' : '#ef4444';
 
         totals.inspections += item.total_inspections || 0;
         totals.hours += hrs;
@@ -357,6 +381,8 @@ function renderFinancialTable() {
         totals.revKm += revK;
         totals.revSamples += revS;
         totals.total += tot;
+        totals.salary += salary;
+        if (salary) totals.profit += profit;
 
         html += '<tr>' +
             '<td>' + (item.inspector_name || '-') + '</td>' +
@@ -368,6 +394,8 @@ function renderFinancialTable() {
             '<td class="num">' + formatRand(revK) + '</td>' +
             '<td class="num">' + formatRand(revS) + '</td>' +
             '<td class="num">' + formatRand(tot) + '</td>' +
+            '<td class="num" style="' + shaded + '">' + (salary ? formatRand(salary) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + 'font-weight:700;color:' + profitColor + ';">' + (salary ? formatRand(profit) : '—') + '</td>' +
         '</tr>';
     });
 
@@ -382,6 +410,8 @@ function renderFinancialTable() {
         '<td class="num">' + formatRand(totals.revKm) + '</td>' +
         '<td class="num">' + formatRand(totals.revSamples) + '</td>' +
         '<td class="num">' + formatRand(totals.total) + '</td>' +
+        '<td class="num" style="' + shaded + '">' + formatRand(totals.salary) + '</td>' +
+        '<td class="num" style="' + shaded + 'font-weight:700;color:' + (totals.profit >= 0 ? '#10b981' : '#ef4444') + ';">' + formatRand(totals.profit) + '</td>' +
     '</tr>';
 
     tbody.innerHTML = html;
