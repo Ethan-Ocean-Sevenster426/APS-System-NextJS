@@ -425,46 +425,92 @@ function saveSalaries() {
     setTimeout(function() { closeSalaryModal(); }, 800);
 }
 
-// Financial period filter - sets date range and triggers API filter
+// Financial period filter - client-side filter on inspectionsList then recompute financials
 function applyFinancialPeriod() {
     var sel = document.getElementById('financialPeriod');
     if (!sel) return;
     var val = sel.value;
-    var dateFrom = document.getElementById('filterDateFrom');
-    var dateTo = document.getElementById('filterDateTo');
-    if (!dateFrom || !dateTo) return;
 
-    var today = new Date();
-    var toISO = function(d) {
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    };
-
+    // "All Time" = show original unfiltered data
     if (val === 'all') {
-        dateFrom.value = '';
-        dateTo.value = '';
-    } else if (val === 'daily') {
-        dateFrom.value = toISO(today);
-        dateTo.value = toISO(today);
+        // Restore original financials from DJANGO_CONFIG
+        var cfg = window.DJANGO_CONFIG;
+        dashboardData.inspectorFinancials = cfg.inspectorFinancials || [];
+        renderFinancialTable();
+        return;
+    }
+
+    // Calculate date boundaries
+    var today = new Date();
+    today.setHours(23, 59, 59, 999);
+    var fromDate = null;
+    var toDate = null;
+
+    if (val === 'daily') {
+        fromDate = new Date(today);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = today;
     } else if (val === 'weekly') {
         var weekStart = new Date(today);
         var day = today.getDay();
-        weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1)); // Monday
-        dateFrom.value = toISO(weekStart);
-        dateTo.value = toISO(today);
+        weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+        weekStart.setHours(0, 0, 0, 0);
+        fromDate = weekStart;
+        toDate = today;
     } else if (val === '120+') {
         var cutoff = new Date(today);
         cutoff.setDate(today.getDate() - 120);
-        dateTo.value = toISO(cutoff);
-        dateFrom.value = '';
+        cutoff.setHours(23, 59, 59, 999);
+        fromDate = null;
+        toDate = cutoff;
     } else {
         var days = parseInt(val);
         var start = new Date(today);
         start.setDate(today.getDate() - days);
-        dateFrom.value = toISO(start);
-        dateTo.value = toISO(today);
+        start.setHours(0, 0, 0, 0);
+        fromDate = start;
+        toDate = today;
     }
 
-    applyFilters();
+    // Use lightweight date+inspector list for filtering (all inspections, not capped)
+    var allDates = window.DJANGO_CONFIG.inspectionDatesList || [];
+    var cfg = window.DJANGO_CONFIG;
+
+    // Count inspections per inspector in the date range
+    var byInspector = {};
+    allDates.forEach(function(item) {
+        var dateStr = item[0];
+        var name = item[1];
+        if (!dateStr || !name) return;
+        var d = new Date(dateStr);
+        if (fromDate && d < fromDate) return;
+        if (toDate && d > toDate) return;
+        if (!byInspector[name]) byInspector[name] = 0;
+        byInspector[name]++;
+    });
+
+    // Scale from full financials proportionally based on inspection count ratio
+    var fullFinancials = cfg.inspectorFinancials || [];
+    var result = [];
+    fullFinancials.forEach(function(full) {
+        var name = full.inspector_name;
+        var partialCount = byInspector[name] || 0;
+        if (partialCount === 0) return;
+        var ratio = partialCount / (full.total_inspections || 1);
+        result.push({
+            inspector_name: name,
+            total_inspections: partialCount,
+            total_hours: Math.round(full.total_hours * ratio * 10) / 10,
+            total_km: Math.round(full.total_km * ratio * 10) / 10,
+            inspection_time: Math.round((full.inspection_time || 0) * ratio * 10) / 10,
+            revenue_hours: Math.round(full.revenue_hours * ratio),
+            revenue_km: Math.round(full.revenue_km * ratio),
+            revenue_samples: Math.round(full.revenue_samples * ratio),
+            total_revenue: Math.round(full.total_revenue * ratio),
+        });
+    });
+    dashboardData.inspectorFinancials = result;
+    renderFinancialTable();
 }
 
 function renderFinancialTable() {

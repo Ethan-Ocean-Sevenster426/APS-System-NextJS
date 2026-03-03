@@ -9077,6 +9077,19 @@ def analytics_dashboard(request):
             'total_revenue': tot,
         })
 
+    # Lightweight date+inspector list for client-side period filtering
+    inspection_dates_list = list(
+        FoodSafetyAgencyInspection.objects.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(date_of_inspection__isnull=True).values_list(
+            'date_of_inspection', 'inspector_name'
+        )
+    )
+    # Convert to simple list of [date_str, inspector_name]
+    inspection_dates_for_js = [
+        [d.isoformat(), n] for d, n in inspection_dates_list
+    ]
+
     financial_summary = {
         'total_revenue': round(total_revenue, 2),
         'hourly_rate': hourly_rate,
@@ -9316,6 +9329,7 @@ def analytics_dashboard(request):
         # Financial / Revenue data
         'inspector_financials': safe_json_dumps(inspector_financials, []),
         'financial_summary': safe_json_dumps(financial_summary, {}),
+        'inspection_dates_list': safe_json_dumps(inspection_dates_for_js, []),
 
         # Per-inspector targets
         'inspector_targets_data': safe_json_dumps(inspector_targets_data, {}),
