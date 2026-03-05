@@ -628,7 +628,6 @@ function applyFinancialPeriod() {
     fullFinancials.forEach(function(full) {
         var name = full.inspector_name;
         var partialCount = byInspector[name] || 0;
-        if (partialCount === 0) return;
         var ratio = partialCount / (full.total_inspections || 1);
         result.push({
             inspector_name: name,
