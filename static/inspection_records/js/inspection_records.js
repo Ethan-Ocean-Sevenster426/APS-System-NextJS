@@ -2825,11 +2825,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn btn-sm download-link-debug" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onclick="console.log('📥 [CLICK] Download link clicked! href:', this.href, 'download attr:', this.download, 'relative_path:', '${(file.relative_path || file.path || '').replace(/'/g, "\\'")}', 'source:', '${file.source || 'local'}')" title="Download File">
+                                <div class="file-actions">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path || '') + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn-file btn-download-file download-link-debug" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button class="btn btn-sm" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'" title="Delete File">
+                                    <button class="btn-file btn-delete" onclick="deleteFile('${(file.relative_path || file.path || file.name).replace(/'/g, "\\'")}', '${categoryKey}')" title="Delete File">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -3081,12 +3081,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="file-actions" style="display: flex !important; gap: 8px !important; align-items: center;">
+                                <div class="file-actions">
                                     ${getViewButton(file)}
-                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="download-link-debug" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onclick="console.log('📥 [CLICK] Download link clicked! href:', this.href, 'download attr:', this.download, 'relative_path:', '${(file.relative_path || file.path || '').replace(/'/g, "\\'")}', 'source:', '${file.source || 'local'}')" title="Download File">
+                                    <a href="${'/inspections/download-file/?file=' + encodeURIComponent(file.relative_path || file.path) + '&source=' + (file.source || 'local') + '&action=download'}" download="${file.name || 'file'}" class="btn-file btn-download-file download-link-debug" title="Download File">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <button style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete File" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                                    <button class="btn-file btn-delete" onclick="deleteFile('${(file.relative_path || file.path).replace(/'/g, "\\'")}', '${category.key}')" title="Delete File">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -3128,18 +3128,18 @@
 
                         // For ZIP files, show extract/contents button instead of view
                         if (ext === 'zip' || ext === 'rar') {
-                            return `<button onclick="showZipContents('${filePath}', '${file.source || 'local'}')" title="Show ZIP Contents" style="padding: 4px 8px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'"><i class="fas fa-eye"></i></button>`;
+                            return `<button class="btn-file btn-zip" onclick="showZipContents('${filePath}', '${file.source || 'local'}')" title="Show ZIP Contents"><i class="fas fa-eye"></i></button>`;
                         }
 
                         // For viewable files (PDF, images, etc.), show view button
                         const viewableTypes = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
                         if (viewableTypes.includes(ext)) {
                             const viewUrl = '/inspections/download-file/?file=' + encodeURIComponent(filePath) + '&source=' + (file.source || 'local') + '&action=view';
-                            return `<a href="${viewUrl}" target="_blank" title="View File" style="padding: 4px 8px; background: #8b5cf6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'"><i class="fas fa-eye"></i></a>`;
+                            return `<a href="${viewUrl}" target="_blank" class="btn-file btn-view" title="View File"><i class="fas fa-eye"></i></a>`;
                         }
 
                         // For other files (Excel, Word), show info button
-                        return `<button onclick="alert('This file type opens best when downloaded')" title="Download to View" style="padding: 4px 8px; background: #06b6d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;" onmouseover="this.style.background='#0891b2'" onmouseout="this.style.background='#06b6d4'"><i class="fas fa-info"></i></button>`;
+                        return `<button class="btn-file btn-info-file" onclick="alert('This file type opens best when downloaded')" title="Download to View"><i class="fas fa-info"></i></button>`;
                     } catch (e) {
                         console.error('[DEBUG] getViewButton error:', e);
                         return '';

@@ -261,30 +261,92 @@
                 .file-actions {
                     display: flex;
                     gap: 6px;
+                    align-items: center;
                 }
 
                 .btn-file {
-                    padding: 6px 10px;
+                    padding: 6px 12px;
                     font-size: 12px;
-                    border-radius: 6px;
+                    font-weight: 500;
+                    border-radius: 8px;
                     border: none;
                     cursor: pointer;
-                    transition: all 0.2s ease;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                     text-decoration: none;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
+                    gap: 5px;
                     min-width: 36px;
                     height: 32px;
+                    color: white;
+                    position: relative;
+                    overflow: hidden;
                 }
 
                 .btn-file:hover {
-                    transform: translateY(-1px);
+                    transform: translateY(-2px);
+                    filter: brightness(1.1);
                 }
 
+                .btn-file:active {
+                    transform: translateY(0);
+                    filter: brightness(0.95);
+                }
+
+                /* View button - purple/violet */
+                .btn-file.btn-view {
+                    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+                    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.35);
+                }
+
+                .btn-file.btn-view:hover {
+                    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5);
+                }
+
+                /* Download button - blue */
+                .btn-file.btn-download-file {
+                    background: linear-gradient(135deg, #3b82f6, #2563eb);
+                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+                }
+
+                .btn-file.btn-download-file:hover {
+                    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.5);
+                }
+
+                /* Delete button - red */
+                .btn-file.btn-delete {
+                    background: linear-gradient(135deg, #ef4444, #dc2626);
+                    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+                }
+
+                .btn-file.btn-delete:hover {
+                    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5);
+                }
+
+                /* ZIP contents button - amber */
+                .btn-file.btn-zip {
+                    background: linear-gradient(135deg, #f59e0b, #d97706);
+                    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+                }
+
+                .btn-file.btn-zip:hover {
+                    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5);
+                }
+
+                /* Info/download-to-view button - cyan */
+                .btn-file.btn-info-file {
+                    background: linear-gradient(135deg, #06b6d4, #0891b2);
+                    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+                }
+
+                .btn-file.btn-info-file:hover {
+                    box-shadow: 0 4px 14px rgba(6, 182, 212, 0.5);
+                }
+
+                /* Legacy btn-file classes kept for compatibility */
                 .btn-file.btn-primary {
                     background: linear-gradient(135deg, #007890, #005a6b);
-                    color: white;
                     box-shadow: 0 2px 6px rgba(0, 120, 144, 0.3);
                 }
 
@@ -294,7 +356,6 @@
 
                 .btn-file.btn-secondary {
                     background: linear-gradient(135deg, #6b7280, #4b5563);
-                    color: white;
                     box-shadow: 0 2px 6px rgba(107, 114, 128, 0.3);
                 }
 
@@ -304,7 +365,6 @@
 
                 .btn-file.btn-warning {
                     background: linear-gradient(135deg, #f59e0b, #d97706);
-                    color: white;
                     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
                 }
 
@@ -314,7 +374,6 @@
 
                 .btn-file.btn-info {
                     background: linear-gradient(135deg, #3b82f6, #2563eb);
-                    color: white;
                     box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
                 }
 
@@ -324,7 +383,6 @@
 
                 .btn-file.btn-danger {
                     background: linear-gradient(135deg, #ef4444, #dc2626);
-                    color: white;
                     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
                 }
 
