@@ -166,8 +166,8 @@ def sync_invoices_to_db():
             due_date_str = inv.get('DueDateString', '')
             paid_date_str = inv.get('FullyPaidOnDate', '')
 
-            inv_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None
-            due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date() if due_date_str else None
+            inv_date = datetime.strptime(date_str[:10], '%Y-%m-%d').date() if date_str else None
+            due_date = datetime.strptime(due_date_str[:10], '%Y-%m-%d').date() if due_date_str else None
             paid_date = None
             if paid_date_str:
                 try:
