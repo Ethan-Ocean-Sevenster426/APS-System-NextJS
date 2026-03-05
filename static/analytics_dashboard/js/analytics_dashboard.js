@@ -603,14 +603,19 @@ function applyFinancialPeriod() {
     var cfg = window.DJANGO_CONFIG;
 
     // Count inspections per inspector in the date range
+    // Convert boundaries to YYYY-MM-DD strings for reliable comparison (avoids timezone issues)
+    var fromStr = fromDate ? fromDate.getFullYear() + '-' + String(fromDate.getMonth()+1).padStart(2,'0') + '-' + String(fromDate.getDate()).padStart(2,'0') : null;
+    var toStr = toDate ? toDate.getFullYear() + '-' + String(toDate.getMonth()+1).padStart(2,'0') + '-' + String(toDate.getDate()).padStart(2,'0') : null;
+
     var byInspector = {};
     allDates.forEach(function(item) {
         var dateStr = item[0];
         var name = item[1];
         if (!dateStr || !name) return;
-        var d = new Date(dateStr);
-        if (fromDate && d < fromDate) return;
-        if (toDate && d > toDate) return;
+        // Compare as strings (YYYY-MM-DD format sorts correctly)
+        var dStr = dateStr.substring(0, 10);
+        if (fromStr && dStr < fromStr) return;
+        if (toStr && dStr > toStr) return;
         if (!byInspector[name]) byInspector[name] = 0;
         byInspector[name]++;
     });
