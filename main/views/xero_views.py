@@ -261,11 +261,81 @@ def debtors_page(request):
     # Sort clients by outstanding amount descending
     clients = sorted(client_map.values(), key=lambda x: x['total_outstanding'], reverse=True)
 
-    # Apply filter if provided
+    # Apply filters
     filter_bucket = request.GET.get('aging', '')
     filter_status = request.GET.get('status', '')
     search_q = request.GET.get('q', '').strip()
+    filter_inv_status = request.GET.get('inv_status', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to = request.GET.get('date_to', '')
+    filter_due_from = request.GET.get('due_from', '')
+    filter_due_to = request.GET.get('due_to', '')
+    sort_by = request.GET.get('sort', '')
 
+    # Parse date filters
+    date_from = None
+    date_to = None
+    due_from = None
+    due_to = None
+    try:
+        if filter_date_from:
+            date_from = date.fromisoformat(filter_date_from)
+        if filter_date_to:
+            date_to = date.fromisoformat(filter_date_to)
+        if filter_due_from:
+            due_from = date.fromisoformat(filter_due_from)
+        if filter_due_to:
+            due_to = date.fromisoformat(filter_due_to)
+    except (ValueError, TypeError):
+        pass
+
+    # Filter invoices within each client group (date/invoice status filters)
+    if filter_inv_status or date_from or date_to or due_from or due_to:
+        for name, c in client_map.items():
+            filtered = c['invoices']
+            if filter_inv_status:
+                filtered = [inv for inv in filtered if inv.status == filter_inv_status.upper()]
+            if date_from:
+                filtered = [inv for inv in filtered if inv.date and inv.date >= date_from]
+            if date_to:
+                filtered = [inv for inv in filtered if inv.date and inv.date <= date_to]
+            if due_from:
+                filtered = [inv for inv in filtered if inv.due_date and inv.due_date >= due_from]
+            if due_to:
+                filtered = [inv for inv in filtered if inv.due_date and inv.due_date <= due_to]
+            c['invoices'] = filtered
+            # Recalculate totals based on filtered invoices
+            c['total_invoiced'] = sum(inv.total for inv in filtered)
+            c['total_paid'] = sum(inv.amount_paid for inv in filtered if inv.status == 'PAID')
+            c['total_outstanding'] = sum(inv.amount_due for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'))
+            c['overdue_amount'] = sum(inv.amount_due for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT') and inv.due_date and inv.due_date < today)
+            c['invoice_count'] = len(filtered)
+            c['outstanding_count'] = len([inv for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT')])
+            c['paid_count'] = len([inv for inv in filtered if inv.status == 'PAID'])
+            # Recalculate aging buckets
+            c['aging'] = {'current': Decimal('0'), '1_30': Decimal('0'), '31_60': Decimal('0'), '61_90': Decimal('0'), '91_120': Decimal('0'), '120_plus': Decimal('0')}
+            for inv in filtered:
+                if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'):
+                    days = inv.days_outstanding
+                    if days <= 0:
+                        c['aging']['current'] += inv.amount_due
+                    elif days <= 30:
+                        c['aging']['1_30'] += inv.amount_due
+                    elif days <= 60:
+                        c['aging']['31_60'] += inv.amount_due
+                    elif days <= 90:
+                        c['aging']['61_90'] += inv.amount_due
+                    elif days <= 120:
+                        c['aging']['91_120'] += inv.amount_due
+                    else:
+                        c['aging']['120_plus'] += inv.amount_due
+
+        # Remove clients with no matching invoices
+        clients = sorted([c for c in client_map.values() if c['invoice_count'] > 0], key=lambda x: x['total_outstanding'], reverse=True)
+    else:
+        clients = sorted(client_map.values(), key=lambda x: x['total_outstanding'], reverse=True)
+
+    # Client-level filters
     if search_q:
         clients = [c for c in clients if search_q.lower() in c['contact_name'].lower()]
     if filter_status == 'outstanding':
@@ -275,6 +345,20 @@ def debtors_page(request):
     if filter_bucket:
         bucket_key = filter_bucket.replace('-', '_').replace('+', '_plus')
         clients = [c for c in clients if c['aging'].get(bucket_key, 0) > 0]
+
+    # Sorting
+    if sort_by == 'name_asc':
+        clients.sort(key=lambda x: x['contact_name'].lower())
+    elif sort_by == 'name_desc':
+        clients.sort(key=lambda x: x['contact_name'].lower(), reverse=True)
+    elif sort_by == 'outstanding_asc':
+        clients.sort(key=lambda x: x['total_outstanding'])
+    elif sort_by == 'outstanding_desc':
+        clients.sort(key=lambda x: x['total_outstanding'], reverse=True)
+    elif sort_by == 'overdue_desc':
+        clients.sort(key=lambda x: x['overdue_amount'], reverse=True)
+    elif sort_by == 'oldest':
+        clients.sort(key=lambda x: x['oldest_overdue_days'], reverse=True)
 
     # Grand totals
     grand_invoiced = sum(c['total_invoiced'] for c in clients)
@@ -300,5 +384,11 @@ def debtors_page(request):
         'filter_bucket': filter_bucket,
         'filter_status': filter_status,
         'search_q': search_q,
+        'filter_inv_status': filter_inv_status,
+        'filter_date_from': filter_date_from,
+        'filter_date_to': filter_date_to,
+        'filter_due_from': filter_due_from,
+        'filter_due_to': filter_due_to,
+        'sort_by': sort_by,
     }
     return render(request, 'main/debtors.html', context)
