@@ -80,6 +80,7 @@
     <!-- Dashboard Views (panel switching) -->
     <div class="sidebar-section-label">Dashboard Views</div>
     <ul class="sidebar-nav" role="tablist" aria-label="Dashboard panels">
+        {% if request.user.role != 'inspector' %}
         <li>
             <button class="tab-btn active" data-panel="overview" role="tab" aria-selected="true">
                 <i class="fas fa-tachometer-alt"></i><span>Overview</span>
@@ -105,8 +106,9 @@
                 <i class="fas fa-file-alt"></i><span>Timelines</span>
             </button>
         </li>
+        {% endif %}
         <li>
-            <button class="tab-btn" data-panel="financial" role="tab" aria-selected="false">
+            <button class="tab-btn {% if request.user.role == 'inspector' %}active{% endif %}" data-panel="financial" role="tab" aria-selected="{% if request.user.role == 'inspector' %}true{% else %}false{% endif %}">
                 <i class="fas fa-chart-bar"></i><span>Financial</span>
             </button>
         </li>
@@ -307,7 +309,7 @@
     <!-- ============================================================
          PANEL 1: OVERVIEW
          ============================================================ -->
-    <div id="panel-overview" class="dashboard-panel active">
+    <div id="panel-overview" class="dashboard-panel {% if request.user.role != 'inspector' %}active{% endif %}">
 
         <!-- Primary KPI Cards -->
         <div class="kpi-grid">
@@ -819,7 +821,7 @@
     <!-- ============================================================
          PANEL 6: FINANCIAL
          ============================================================ -->
-    <div id="panel-financial" class="dashboard-panel">
+    <div id="panel-financial" class="dashboard-panel {% if request.user.role == 'inspector' %}active{% endif %}">
 
         <!-- Revenue Per Inspector Table -->
         <div class="card">
@@ -839,9 +841,11 @@
                         <option value="120">Last 120 Days</option>
                         <option value="120+">120+ Days</option>
                     </select>
+                    {% if request.user.role != 'inspector' %}
                     <button onclick="openSalaryModal()" style="font-size: 12px; padding: 6px 14px; border: 1px solid #007890; border-radius: 6px; background: #007890; color: white; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
                         <i class="fas fa-edit"></i> Edit Salaries
                     </button>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body" style="padding: 0; overflow-x: auto;">
@@ -858,6 +862,8 @@
                             <th class="num" style="min-width: 80px;">Rev (Samples)</th>
                             <th class="num" style="min-width: 85px;">Total Revenue</th>
                             <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Salary (CTC)</th>
+                            <th class="num" style="min-width: 70px; background: rgba(0,120,144,0.1);">S&T</th>
+                            <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Total Cost</th>
                             <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Profit</th>
                         </tr>
                     </thead>
@@ -915,6 +921,7 @@
         csrfToken: '{{ csrf_token }}',
         serverTheme: '{{ settings.dark_mode|yesno:"dark,light" }}',
         userRole: '{{ request.user.role }}',
+        userName: '{{ request.user.get_full_name|default:request.user.username|escapejs }}',
         apiUrl: '{% url "analytics_dashboard_api" %}',
 
         // KPI data

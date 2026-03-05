@@ -8360,8 +8360,8 @@ def analytics_dashboard(request):
     if request.user.role == 'admin':
         return redirect('home')
     
-    # Redirect inspectors to their specific dashboard
-    if request.user.role in ('inspector', 'inspector_manager'):
+    # Redirect inspector_managers to their specific dashboard (inspectors can view financial panel)
+    if request.user.role == 'inspector_manager':
         return redirect('inspector_dashboard')
     
     from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget

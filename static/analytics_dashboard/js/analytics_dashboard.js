@@ -337,7 +337,7 @@ var DEFAULT_SALARIES = {
     'kuntwane': 21000, 'kabelo': 20900, 'manganye': 21000,
     'maqina': 21000, 'modiba': 20000, 'mokgothu': 20000,
     'mpeluza': 21000, 'ngongo': 21000, 'noe': 26250,
-    'ntoyaphi': 20800, 'sekhotho': 20900, 'selone': 23929.50,
+    'ntoyaphi': 20800, 'sekhotho': 20900, 'seloane': 23929.50,
     'steyn': 21735, 'visagie': 36847.14
 };
 
@@ -353,6 +353,26 @@ function loadSalaries() {
     return {};
 }
 var SAVED_SALARIES = loadSalaries();
+
+// S&T / Guesthouse monthly costs
+function loadSTCosts() {
+    try {
+        var saved = localStorage.getItem('inspector_st_costs');
+        if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return {};
+}
+var SAVED_ST_COSTS = loadSTCosts();
+
+function getInspectorST(name) {
+    if (!name) return 0;
+    var lower = name.toLowerCase();
+    for (var n = 0; n < NON_INSPECTORS.length; n++) {
+        if (lower.indexOf(NON_INSPECTORS[n]) !== -1) return 0;
+    }
+    if (SAVED_ST_COSTS[lower] !== undefined) return SAVED_ST_COSTS[lower];
+    return 0;
+}
 
 function getInspectorSalary(name) {
     if (!name) return 0;
@@ -381,6 +401,7 @@ function openSalaryModal() {
         '<thead><tr style="border-bottom:2px solid #e5e7eb;">' +
         '<th style="text-align:left; padding:8px 6px; font-weight:600; color:#374151;">Inspector</th>' +
         '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">Salary (CTC) R</th>' +
+        '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">S&T (Monthly) R</th>' +
         '</tr></thead><tbody>';
     items.forEach(function(item) {
         var name = item.inspector_name || '';
@@ -391,10 +412,15 @@ function openSalaryModal() {
         }
         if (isNonInspector) return;
         var salary = getInspectorSalary(name);
+        var st = getInspectorST(name);
         html += '<tr style="border-bottom:1px solid #f3f4f6;">' +
             '<td style="padding:6px;">' + name + '</td>' +
             '<td style="padding:6px; text-align:right;">' +
             '<input type="number" step="0.01" min="0" value="' + (salary || '') + '" data-inspector="' + lower + '" class="salary-input" ' +
+            'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
+            '</td>' +
+            '<td style="padding:6px; text-align:right;">' +
+            '<input type="number" step="0.01" min="0" value="' + (st || '') + '" data-inspector="' + lower + '" class="st-input" ' +
             'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
             '</td></tr>';
     });
@@ -409,19 +435,30 @@ function closeSalaryModal() {
 }
 
 function saveSalaries() {
-    var inputs = document.querySelectorAll('#salaryModalBody .salary-input');
-    var saved = loadSalaries();
-    inputs.forEach(function(inp) {
+    var salaryInputs = document.querySelectorAll('#salaryModalBody .salary-input');
+    var stInputs = document.querySelectorAll('#salaryModalBody .st-input');
+    var savedSalaries = loadSalaries();
+    var savedST = loadSTCosts();
+    salaryInputs.forEach(function(inp) {
         var key = inp.getAttribute('data-inspector');
         var val = parseFloat(inp.value);
         if (!isNaN(val) && val >= 0) {
-            saved[key] = val;
+            savedSalaries[key] = val;
         }
     });
-    localStorage.setItem('inspector_salaries', JSON.stringify(saved));
-    SAVED_SALARIES = saved;
+    stInputs.forEach(function(inp) {
+        var key = inp.getAttribute('data-inspector');
+        var val = parseFloat(inp.value);
+        if (!isNaN(val) && val >= 0) {
+            savedST[key] = val;
+        }
+    });
+    localStorage.setItem('inspector_salaries', JSON.stringify(savedSalaries));
+    localStorage.setItem('inspector_st_costs', JSON.stringify(savedST));
+    SAVED_SALARIES = savedSalaries;
+    SAVED_ST_COSTS = savedST;
     renderFinancialTable();
-    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
+    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries & S&T saved successfully</span>';
     setTimeout(function() { closeSalaryModal(); }, 800);
 }
 
@@ -517,13 +554,24 @@ function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+
+    // Role-based filtering: inspectors see only their own row
+    var userRole = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole) || '';
+    var userName = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userName) || '';
+    var filteredItems = items;
+    if (userRole === 'inspector' && userName) {
+        filteredItems = items.filter(function(item) {
+            var inspName = (item.inspector_name || '').toLowerCase();
+            return inspName.indexOf(userName.toLowerCase()) !== -1;
+        });
+    }
 
     var html = '';
-    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, profit: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, st: 0, totalCost: 0, profit: 0 };
     var shaded = 'background:rgba(0,120,144,0.06);';
 
-    items.forEach(function(item) {
+    filteredItems.forEach(function(item) {
         var hrs = parseFloat(item.total_hours || 0);
         var km = parseFloat(item.total_km || 0);
         var inspTime = parseFloat(item.inspection_time || 0);
@@ -532,7 +580,9 @@ function renderFinancialTable() {
         var revS = item.revenue_samples || 0;
         var tot = item.total_revenue || 0;
         var salary = getInspectorSalary(item.inspector_name);
-        var profit = salary ? tot - salary : 0;
+        var st = getInspectorST(item.inspector_name);
+        var totalCost = salary + st;
+        var profit = totalCost ? tot - totalCost : 0;
         var profitColor = profit >= 0 ? '#10b981' : '#ef4444';
 
         totals.inspections += item.total_inspections || 0;
@@ -544,7 +594,9 @@ function renderFinancialTable() {
         totals.revSamples += revS;
         totals.total += tot;
         totals.salary += salary;
-        if (salary) totals.profit += profit;
+        totals.st += st;
+        totals.totalCost += totalCost;
+        if (totalCost) totals.profit += profit;
 
         html += '<tr>' +
             '<td>' + (item.inspector_name || '-') + '</td>' +
@@ -557,7 +609,9 @@ function renderFinancialTable() {
             '<td class="num">' + formatRand(revS) + '</td>' +
             '<td class="num">' + formatRand(tot) + '</td>' +
             '<td class="num" style="' + shaded + '">' + (salary ? formatRand(salary) : '—') + '</td>' +
-            '<td class="num" style="' + shaded + 'font-weight:700;color:' + profitColor + ';">' + (salary ? formatRand(profit) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + '">' + (st ? formatRand(st) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + '">' + (totalCost ? formatRand(totalCost) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + 'font-weight:700;color:' + profitColor + ';">' + (totalCost ? formatRand(profit) : '—') + '</td>' +
         '</tr>';
     });
 
@@ -573,6 +627,8 @@ function renderFinancialTable() {
         '<td class="num">' + formatRand(totals.revSamples) + '</td>' +
         '<td class="num">' + formatRand(totals.total) + '</td>' +
         '<td class="num" style="' + shaded + '">' + formatRand(totals.salary) + '</td>' +
+        '<td class="num" style="' + shaded + '">' + formatRand(totals.st) + '</td>' +
+        '<td class="num" style="' + shaded + '">' + formatRand(totals.totalCost) + '</td>' +
         '<td class="num" style="' + shaded + 'font-weight:700;color:' + (totals.profit >= 0 ? '#10b981' : '#ef4444') + ';">' + formatRand(totals.profit) + '</td>' +
     '</tr>';
 
@@ -3044,7 +3100,7 @@ var panelRendered = {
     'operations': false, 'documents': false, 'financial': false
 };
 
-var currentPanel = 'overview';
+var currentPanel = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole === 'inspector') ? 'financial' : 'overview';
 
 function renderPanelCharts(panelId) {
     var fns = PANEL_RENDER_MAP[panelId] || [];
