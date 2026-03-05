@@ -27,7 +27,22 @@ function toggleSentStatus(btn) {
     btn.style.background = '#fbbf24';
     btn.style.color = '#000';
 
-    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    // Try multiple sources for CSRF token
+    var csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+    var csrfToken = csrfEl ? csrfEl.value : (window.DJANGO_CSRF || '');
+    if (!csrfToken) {
+        // Last resort: read from cookie
+        var match = document.cookie.match(/csrftoken=([^;]+)/);
+        csrfToken = match ? match[1] : '';
+    }
+    if (!csrfToken) {
+        btn.disabled = false;
+        btn.innerHTML = 'Send';
+        btn.style.background = '#e5e7eb';
+        btn.style.color = '#6b7280';
+        alert('CSRF token not found. Please refresh the page and try again.');
+        return;
+    }
 
     fetch('/inspections/send-documents/', {
         method: 'POST',
