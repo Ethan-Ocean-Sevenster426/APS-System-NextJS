@@ -4,17 +4,14 @@
     {% load static %}
     {% load humanize %}
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debtors - Food Safety Agency</title>
 
     <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
     <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
 
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -23,6 +20,7 @@
                     colors: {
                         primary: '#007890',
                         'primary-light': '#e6f3f7',
+                        'primary-dark': '#005a6b',
                         secondary: '#EC343C',
                         danger: '#EC343C',
                         warning: '#f59e0b',
@@ -34,65 +32,127 @@
         }
     </script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f4f8;
-            margin: 0;
-            padding: 0;
+        :root {
+            --primary: #007890;
+            --primary-light: #e6f3f7;
+            --primary-dark: #005a6b;
+            --secondary: #EC343C;
+            --danger: #EC343C;
+            --warning: #f59e0b;
+            --background: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --radius: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--background); margin: 0; }
         .page-container { display: flex; min-height: 100vh; }
-        .main-content { margin-left: 16rem; flex: 1; padding: 1.5rem; }
+
+        /* Sidebar */
+        #sidebar {
+            position: fixed; top: 0; left: 0; height: 100vh; width: 256px;
+            background-color: #1e293b; color: #f1f5f9; z-index: 1000;
+            overflow-y: auto; transition: transform 0.3s ease;
+        }
+        .main-content { margin-left: 256px; flex: 1; }
+
+        /* Mobile */
         .mobile-menu-btn {
-            display: none; position: fixed; top: 1rem; left: 1rem; z-index: 60;
+            display: none; position: fixed; top: 12px; left: 12px; z-index: 1100;
             background: #1e293b; color: white; border: none; border-radius: 8px;
-            width: 40px; height: 40px; cursor: pointer;
+            width: 40px; height: 40px; cursor: pointer; align-items: center; justify-content: center;
         }
-        .sidebar-overlay {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+        @media (max-width: 1024px) {
+            .mobile-menu-btn { display: flex; }
+            #sidebar { transform: translateX(-100%); }
+            #sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; }
         }
-        @media (max-width: 1023px) {
-            .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
-            .main-content { margin-left: 0; padding: 1rem; padding-top: 4rem; }
+
+        /* Card */
+        .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; }
+        .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .card-title { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 0; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; color: white;
         }
+        .header h1 { font-size: 20px; font-weight: 700; margin: 0; }
+        .header h2 { font-size: 13px; font-weight: 400; margin: 4px 0 0; opacity: 0.85; }
+
+        /* Table */
+        #debtorsTable thead { position: sticky; top: 0; z-index: 100; background-color: var(--primary-light) !important; }
+        #debtorsTable th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+        .group-row { background: var(--card-bg); border-left: 3px solid var(--primary); cursor: pointer; transition: background 0.15s; }
+        .group-row:hover { background: var(--primary-light); }
+        .group-row td { padding: 8px 12px; font-size: 13px; color: var(--text); white-space: nowrap; }
+        .detail-row { background: #f8f9fa; }
+        .detail-cell { padding: 0 !important; }
+
+        /* Status Badges */
+        .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-amber { background: #fef3c7; color: #92400e; }
+        .badge-orange { background: #fff7ed; color: #9a3412; }
+        .badge-gray { background: #f3f4f6; color: #6b7280; }
+        .badge-dark-red { background: #fecaca; color: #7f1d1d; }
+
+        /* Action bar */
+        .action-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+        .action-btn {
+            padding: 6px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 600;
+            border: 1px solid var(--border); background: white; color: var(--text-light);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+            text-decoration: none;
+        }
+        .action-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+        .action-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .action-btn.sync-btn { background: var(--primary); color: white; border-color: var(--primary); }
+        .action-btn.sync-btn:hover { background: var(--primary-dark); }
+        .action-btn.sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Filter form */
+        .filter-form { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 16px; align-items: flex-end; }
+        .filter-field { display: flex; flex-direction: column; gap: 3px; }
+        .filter-field label { font-size: 10px; font-weight: 600; color: var(--text-light); text-transform: uppercase; }
+        .filter-field input, .filter-field select {
+            padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+            font-size: 12px; color: var(--text); background: white; min-width: 140px;
+        }
+        .filter-field input:focus, .filter-field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,120,144,0.15); }
+
+        /* Stat cards */
         .stat-card {
-            background: white; border-radius: 12px; padding: 1.25rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;
+            background: white; border-radius: 10px; padding: 16px;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
         }
-        .aging-bar {
-            height: 32px; border-radius: 6px; display: flex; overflow: hidden;
-        }
-        .aging-bar > div {
-            display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 600; color: white; min-width: 40px;
-            transition: width 0.3s ease;
-        }
-        .debtor-row:hover { background: #f8fafc; }
-        .badge {
-            display: inline-flex; align-items: center; padding: 2px 8px;
-            border-radius: 9999px; font-size: 11px; font-weight: 600;
-        }
-        .badge-current { background: #dcfce7; color: #166534; }
-        .badge-warning { background: #fef3c7; color: #92400e; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
-        .badge-overdue { background: #fecaca; color: #7f1d1d; }
-        .sync-btn {
-            background: #007890; color: white; border: none; border-radius: 8px;
-            padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
-            display: inline-flex; align-items: center; gap: 6px;
-            transition: background 0.2s;
-        }
-        .sync-btn:hover { background: #006070; }
-        .sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .filter-btn {
-            padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
-            border: 1px solid #e2e8f0; background: white; color: #475569; cursor: pointer;
-            transition: all 0.2s;
-        }
-        .filter-btn.active { background: #007890; color: white; border-color: #007890; }
-        .filter-btn:hover:not(.active) { background: #f1f5f9; }
+        .stat-value { font-size: 22px; font-weight: 800; color: var(--text); }
+        .stat-label { font-size: 10px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Invoice detail row */
+        .inv-row { display: flex; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #eee; font-size: 12px; align-items: center; }
+        .inv-row:last-child { border-bottom: none; }
+        .inv-row:hover { background: #f0f4f8; }
+
+        /* Mobile cards */
+        .mobile-card { background: white; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+        .mobile-card-header { padding: 12px 16px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .mobile-card-body { padding: 12px 16px; }
+        .mobile-card-detail { padding: 12px 16px; background: #f8f9fa; border-top: 1px solid var(--border); display: none; }
+        .mobile-kv { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f3f4f6; }
+        .mobile-kv:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
+    <!-- Mobile Menu Button -->
     <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
         <i class="fas fa-bars text-xl"></i>
     </button>
@@ -100,152 +160,119 @@
 
     <div class="page-container">
         <!-- Sidebar -->
-        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col fixed left-0 top-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
-            <div class="flex-shrink-0 p-4 border-b border-slate-600">
-                <div class="mb-2">
-                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
+        <div id="sidebar">
+            <div style="flex-shrink: 0; padding: 16px; border-bottom: 1px solid #334155;">
+                <div style="margin-bottom: 8px;">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" style="max-height: 48px; margin: 0 auto; display: block;">
                 </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
+                <div style="color: #f1f5f9; font-size: 13px; font-weight: 600; text-align: center;">
                     Food Safety Agency (Pty) Ltd
                 </div>
             </div>
-            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
-                <ul class="px-2 py-2 space-y-1">
+            <div style="flex: 1; overflow-y: auto; padding: 8px;">
+                <ul style="list-style: none; padding: 0; margin: 0;">
                     <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
+                        <a href="{% url 'home' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px; transition: background 0.2s;">
+                            <i class="fas fa-home" style="width: 16px; margin-right: 8px; text-align: center;"></i> Home Center
                         </a>
                     </li>
                     {% if request.user.role == 'inspector' %}
                     <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
+                        <a href="{% url 'inspector_dashboard' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-chart-line" style="width: 16px; margin-right: 8px; text-align: center;"></i> My Analytics
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
+                        <a href="{% url 'shipment_list' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-clipboard-check" style="width: 16px; margin-right: 8px; text-align: center;"></i> Inspections
                         </a>
                     </li>
                     {% else %}
                     <li>
-                        <a href="{% url 'client_allocation_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
-                            Client Allocation Sheet
+                        <a href="{% url 'client_allocation_sheet' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-th-list" style="width: 16px; margin-right: 8px; text-align: center; color: #22c55e;"></i> Client Allocation Sheet
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
+                        <a href="{% url 'shipment_list' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-file-invoice" style="width: 16px; margin-right: 8px; text-align: center;"></i> Inspection Records
                         </a>
                     </li>
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
+                        <a href="{% url 'user_management' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-user-shield" style="width: 16px; margin-right: 8px; text-align: center; color: #3b82f6;"></i> User Management
                         </a>
                     </li>
                     {% endif %}
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
+                        <a href="{% url 'system_logs' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-history" style="width: 16px; margin-right: 8px; text-align: center; color: #eab308;"></i> System Logs
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
+                        <a href="{% url 'fsa_operations_board' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-ticket-alt" style="width: 16px; margin-right: 8px; text-align: center; color: #22d3ee;"></i> Support Tickets
                         </a>
                     </li>
                     {% endif %}
                     <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
+                        <a href="{% url 'submit_ticket' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-ticket-alt" style="width: 16px; margin-right: 8px; text-align: center; color: #f87171;"></i> Submit Ticket
                         </a>
                     </li>
                     {% if request.user.role == 'developer' %}
                     <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
+                        <a href="{% url 'onedrive_view' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-cloud" style="width: 16px; margin-right: 8px; text-align: center; color: #60a5fa;"></i> OneDrive View
                         </a>
                     </li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
+                        <a href="{% url 'server_view' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-database" style="width: 16px; margin-right: 8px; text-align: center; color: #fb923c;"></i> Server View
                         </a>
                     </li>
                     {% endif %}
                     <li>
-                        <a href="{% url 'training_page' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-graduation-cap mr-2 w-4 text-center text-purple-400"></i>
-                            Training
+                        <a href="{% url 'training_page' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-graduation-cap" style="width: 16px; margin-right: 8px; text-align: center; color: #a78bfa;"></i> Training
                         </a>
                     </li>
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                     <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
+                        <a href="{% url 'export_sheet' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-file-download" style="width: 16px; margin-right: 8px; text-align: center; color: #34d399;"></i> Export Sheet
                         </a>
                     </li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
+                        <a href="{% url 'analytics_dashboard' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-chart-bar" style="width: 16px; margin-right: 8px; text-align: center; color: #60a5fa;"></i> Inspector Analytics
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'debtors_page' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>
-                            Debtors
+                        <a href="{% url 'debtors_page' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px; background: rgba(255,255,255,0.15);">
+                            <i class="fas fa-file-invoice-dollar" style="width: 16px; margin-right: 8px; text-align: center; color: #fbbf24;"></i> Debtors
                         </a>
                     </li>
                     {% endif %}
                     <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
+                        <a href="{% url 'settings' %}" style="display: flex; align-items: center; padding: 6px 10px; color: #f1f5f9; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 6px; margin-bottom: 2px;">
+                            <i class="fas fa-sliders-h" style="width: 16px; margin-right: 8px; text-align: center;"></i> Settings
                         </a>
                     </li>
                 </ul>
             </div>
-            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
-                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+            <div style="padding: 8px; border-top: 1px solid #334155;">
+                <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="flex items-center w-full px-2.5 py-2 text-red-300 hover:bg-red-500 hover:bg-opacity-20 rounded-lg text-sm font-medium transition-all duration-200">
-                        <i class="fas fa-sign-out-alt mr-2 w-4 text-center"></i>
-                        Logout
+                    <button type="submit" style="display: flex; align-items: center; width: 100%; padding: 8px 10px; color: #fca5a5; background: none; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                        <i class="fas fa-sign-out-alt" style="width: 16px; margin-right: 8px; text-align: center;"></i> Logout
                     </button>
                 </form>
             </div>
@@ -253,367 +280,421 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Header -->
-            <div class="mb-6">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-800">
-                            <i class="fas fa-file-invoice-dollar text-amber-500 mr-2"></i>Debtors
-                        </h1>
-                        <p class="text-gray-500 text-sm mt-1">
-                            Outstanding invoices &amp; aging analysis
-                            {% if tenant_name %}<span class="text-primary font-medium"> &middot; {{ tenant_name }}</span>{% endif %}
-                        </p>
+            <div style="max-width: 1600px; margin: 0 auto; padding: 16px;">
+
+                <!-- Logo -->
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Logo" style="max-height: 60px;">
+                </div>
+
+                <!-- Header -->
+                <div class="header">
+                    <h1><i class="fas fa-file-invoice-dollar" style="margin-right: 8px;"></i>Debtors</h1>
+                    <h2>Client payment overview from Xero{% if tenant_name %} &middot; {{ tenant_name }}{% endif %}</h2>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="action-bar">
+                    <a href="{% url 'home' %}" class="action-btn"><i class="fas fa-home"></i> Home</a>
+                    <a href="{% url 'shipment_list' %}" class="action-btn"><i class="fas fa-clipboard-check"></i> Inspections</a>
+                    {% if xero_connected %}
+                    <button onclick="syncInvoices()" id="sync-btn" class="action-btn sync-btn"><i class="fas fa-sync-alt" id="sync-icon"></i> Sync from Xero</button>
+                    {% else %}
+                    <a href="{% url 'xero_connect' %}" class="action-btn" style="background: #dc2626; color: white; border-color: #dc2626;"><i class="fas fa-plug"></i> Connect Xero</a>
+                    {% endif %}
+                    <button onclick="expandAll()" class="action-btn"><i class="fas fa-expand-alt"></i> Expand All</button>
+                    <button onclick="collapseAll()" class="action-btn"><i class="fas fa-compress-alt"></i> Collapse All</button>
+                    {% if last_sync_time %}
+                    <span style="font-size: 11px; color: var(--text-light); margin-left: auto;"><i class="fas fa-clock"></i> Last sync: {{ last_sync_time|date:"d M Y H:i" }}</span>
+                    {% endif %}
+                </div>
+
+                {% if not xero_connected %}
+                <!-- Not Connected -->
+                <div class="card">
+                    <div class="card-body" style="padding: 60px 20px; text-align: center;">
+                        <i class="fas fa-plug" style="font-size: 48px; color: #d1d5db; margin-bottom: 16px;"></i>
+                        <h3 style="font-size: 16px; font-weight: 600; color: var(--text-light); margin-bottom: 8px;">Xero Not Connected</h3>
+                        <p style="color: #9ca3af; font-size: 13px; margin-bottom: 16px;">Connect your Xero account to view debtor information and invoices.</p>
+                        <a href="{% url 'xero_connect' %}" class="action-btn sync-btn" style="font-size: 14px; padding: 10px 24px;"><i class="fas fa-link"></i> Connect to Xero</a>
                     </div>
-                    <div class="flex items-center gap-3">
-                        {% if last_sync_time %}
-                        <span class="text-xs text-gray-400">
-                            <i class="fas fa-sync-alt mr-1"></i>Last sync: {{ last_sync_time|date:"d M Y H:i" }}
-                        </span>
-                        {% endif %}
-                        {% if xero_connected %}
-                        <button onclick="syncInvoices()" id="sync-btn" class="sync-btn">
-                            <i class="fas fa-sync-alt" id="sync-icon"></i> Sync from Xero
-                        </button>
+                </div>
+                {% else %}
+
+                <!-- Summary Stats -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Invoiced</div>
+                        <div class="stat-value">R {{ grand_invoiced|floatformat:2|intcomma }}</div>
+                        <div style="font-size: 11px; color: var(--text-light); margin-top: 4px;">{{ client_count }} client{{ client_count|pluralize }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Paid</div>
+                        <div class="stat-value" style="color: #16a34a;">R {{ grand_paid|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Outstanding</div>
+                        <div class="stat-value" style="color: #ea580c;">R {{ grand_outstanding|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Overdue</div>
+                        <div class="stat-value" style="color: #dc2626;">R {{ grand_overdue|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+
+                <!-- Filter Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fas fa-filter" style="color: var(--primary);"></i> Filters</div>
+                    </div>
+                    <form method="get" class="filter-form">
+                        <div class="filter-field">
+                            <label>Client Search</label>
+                            <input type="text" name="q" value="{{ search_q }}" placeholder="Search client name...">
+                        </div>
+                        <div class="filter-field">
+                            <label>Status</label>
+                            <select name="status">
+                                <option value="">All</option>
+                                <option value="outstanding" {% if filter_status == 'outstanding' %}selected{% endif %}>Outstanding</option>
+                                <option value="paid" {% if filter_status == 'paid' %}selected{% endif %}>Fully Paid</option>
+                            </select>
+                        </div>
+                        <div class="filter-field">
+                            <label>Aging</label>
+                            <select name="aging">
+                                <option value="">All</option>
+                                <option value="current" {% if filter_bucket == 'current' %}selected{% endif %}>Current</option>
+                                <option value="1_30" {% if filter_bucket == '1_30' %}selected{% endif %}>1-30 Days</option>
+                                <option value="31_60" {% if filter_bucket == '31_60' %}selected{% endif %}>31-60 Days</option>
+                                <option value="61_90" {% if filter_bucket == '61_90' %}selected{% endif %}>61-90 Days</option>
+                                <option value="91_120" {% if filter_bucket == '91_120' %}selected{% endif %}>91-120 Days</option>
+                                <option value="120_plus" {% if filter_bucket == '120_plus' %}selected{% endif %}>120+ Days</option>
+                            </select>
+                        </div>
+                        <div class="filter-field" style="justify-content: flex-end;">
+                            <label>&nbsp;</label>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="submit" class="action-btn active"><i class="fas fa-search"></i> Apply</button>
+                                <a href="{% url 'debtors_page' %}" class="action-btn"><i class="fas fa-times"></i> Clear</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Debtors Table Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-users" style="color: var(--primary);"></i>
+                            Debtors List
+                            <span style="font-size: 11px; font-weight: 400; color: var(--text-light);">({{ client_count }} client{{ client_count|pluralize }})</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if clients %}
+
+                        <!-- Mobile Card View -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden" style="padding: 12px;">
+                            {% for client in clients %}
+                            <div class="mobile-card">
+                                <div class="mobile-card-header" onclick="toggleMobileDetail('m-{{ forloop.counter }}')" style="cursor: pointer;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div style="font-weight: 700; font-size: 14px;">{{ client.contact_name }}</div>
+                                            <div style="font-size: 11px; opacity: 0.85;">{{ client.invoice_count }} invoice{{ client.invoice_count|pluralize }} &middot; {{ client.outstanding_count }} outstanding</div>
+                                        </div>
+                                        <i class="fas fa-chevron-down mobile-expand-icon" id="m-icon-{{ forloop.counter }}" style="transition: transform 0.2s;"></i>
+                                    </div>
+                                </div>
+                                <div class="mobile-card-body">
+                                    <div class="mobile-kv"><span style="color: var(--text-light);">Total Invoiced</span><span style="font-weight: 700;">R {{ client.total_invoiced|floatformat:2|intcomma }}</span></div>
+                                    <div class="mobile-kv"><span style="color: var(--text-light);">Paid</span><span style="font-weight: 700; color: #16a34a;">R {{ client.total_paid|floatformat:2|intcomma }}</span></div>
+                                    <div class="mobile-kv"><span style="color: var(--text-light);">Outstanding</span><span style="font-weight: 700; color: #ea580c;">R {{ client.total_outstanding|floatformat:2|intcomma }}</span></div>
+                                    <div class="mobile-kv"><span style="color: var(--text-light);">Overdue</span><span style="font-weight: 700; color: #dc2626;">R {{ client.overdue_amount|floatformat:2|intcomma }}</span></div>
+                                    <div class="mobile-kv">
+                                        <span style="color: var(--text-light);">Aging</span>
+                                        <span>
+                                            {% if client.worst_bucket == 'Current' %}<span class="badge badge-green">Current</span>
+                                            {% elif client.worst_bucket == '1-30' %}<span class="badge badge-amber">1-30d</span>
+                                            {% elif client.worst_bucket == '31-60' %}<span class="badge badge-orange">31-60d</span>
+                                            {% elif client.worst_bucket == '61-90' %}<span class="badge badge-red">61-90d</span>
+                                            {% elif client.worst_bucket == '91-120' %}<span class="badge badge-dark-red">91-120d</span>
+                                            {% else %}<span class="badge badge-dark-red">120+d</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="mobile-card-detail" id="m-{{ forloop.counter }}">
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-light); text-transform: uppercase; margin-bottom: 6px;">Invoices</div>
+                                    {% for inv in client.invoices %}
+                                    <div style="background: white; border-radius: 6px; padding: 8px; margin-bottom: 6px; border: 1px solid #eee;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;">
+                                            <span style="color: var(--primary);">{{ inv.invoice_number|default:"—" }}</span>
+                                            <span>
+                                                {% if inv.status == 'PAID' %}<span class="badge badge-green">PAID</span>
+                                                {% elif inv.status == 'AUTHORISED' %}<span class="badge badge-amber">{{ inv.status }}</span>
+                                                {% else %}<span class="badge badge-gray">{{ inv.status }}</span>{% endif %}
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px;">
+                                            <span style="color: var(--text-light);">Due: {{ inv.due_date|date:"d M Y"|default:"—" }}</span>
+                                            <span style="font-weight: 700;">R {{ inv.total|floatformat:2|intcomma }}</span>
+                                        </div>
+                                        {% if inv.status != 'PAID' and inv.amount_due > 0 %}
+                                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px;">
+                                            <span style="color: var(--text-light);">Amount Due:</span>
+                                            <span style="font-weight: 700; color: #dc2626;">R {{ inv.amount_due|floatformat:2|intcomma }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if inv.days_outstanding > 0 %}
+                                        <div style="font-size: 10px; color: #dc2626; margin-top: 2px;">{{ inv.days_outstanding }} days overdue</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Desktop Table View -->
+                        <div class="hidden lg:block overflow-x-auto">
+                            <table id="debtorsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30px;"></th>
+                                        <th>Client</th>
+                                        <th style="text-align: center;">Invoices</th>
+                                        <th style="text-align: right;">Total Invoiced</th>
+                                        <th style="text-align: right;">Paid</th>
+                                        <th style="text-align: right;">Outstanding</th>
+                                        <th style="text-align: right;">Overdue</th>
+                                        <th style="text-align: center;">Current</th>
+                                        <th style="text-align: center;">1-30d</th>
+                                        <th style="text-align: center;">31-60d</th>
+                                        <th style="text-align: center;">61-90d</th>
+                                        <th style="text-align: center;">91-120d</th>
+                                        <th style="text-align: center;">120+d</th>
+                                        <th style="text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for client in clients %}
+                                    <!-- Group Row -->
+                                    <tr class="group-row" data-group-id="client-{{ forloop.counter }}" onclick="toggleGroup(event, 'client-{{ forloop.counter }}')">
+                                        <td style="text-align: center;">
+                                            <button class="expand-btn" style="background: none; border: none; cursor: pointer; color: var(--primary); font-size: 12px; padding: 2px;">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </td>
+                                        <td style="font-weight: 700; color: var(--text);">
+                                            <i class="fas fa-building" style="color: var(--primary); margin-right: 6px; font-size: 11px;"></i>{{ client.contact_name }}
+                                            <span style="font-size: 10px; color: var(--text-light); font-weight: 400; margin-left: 4px;">({{ client.outstanding_count }} outstanding, {{ client.paid_count }} paid)</span>
+                                        </td>
+                                        <td style="text-align: center; font-weight: 600;">{{ client.invoice_count }}</td>
+                                        <td style="text-align: right; font-weight: 600;">R {{ client.total_invoiced|floatformat:2|intcomma }}</td>
+                                        <td style="text-align: right; font-weight: 700; color: #16a34a;">R {{ client.total_paid|floatformat:2|intcomma }}</td>
+                                        <td style="text-align: right; font-weight: 700; color: {% if client.total_outstanding > 0 %}#ea580c{% else %}#16a34a{% endif %};">
+                                            R {{ client.total_outstanding|floatformat:2|intcomma }}
+                                        </td>
+                                        <td style="text-align: right; font-weight: 700; color: {% if client.overdue_amount > 0 %}#dc2626{% else %}var(--text-light){% endif %};">
+                                            R {{ client.overdue_amount|floatformat:2|intcomma }}
+                                        </td>
+                                        <!-- Aging columns -->
+                                        <td style="text-align: center;">
+                                            {% if client.aging.current > 0 %}<span class="badge badge-green">R {{ client.aging.current|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.aging.1_30 > 0 %}<span class="badge badge-amber">R {{ client.aging.1_30|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.aging.31_60 > 0 %}<span class="badge badge-orange">R {{ client.aging.31_60|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.aging.61_90 > 0 %}<span class="badge badge-red">R {{ client.aging.61_90|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.aging.91_120 > 0 %}<span class="badge badge-dark-red">R {{ client.aging.91_120|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.aging.120_plus > 0 %}<span class="badge badge-dark-red">R {{ client.aging.120_plus|floatformat:0|intcomma }}</span>{% else %}<span style="color: #d1d5db;">—</span>{% endif %}
+                                        </td>
+                                        <td style="text-align: center;">
+                                            {% if client.total_outstanding == 0 %}
+                                                <span class="badge badge-green"><i class="fas fa-check"></i> Paid</span>
+                                            {% elif client.worst_bucket == 'Current' %}
+                                                <span class="badge badge-green">Current</span>
+                                            {% elif client.worst_bucket == '1-30' %}
+                                                <span class="badge badge-amber">1-30d Late</span>
+                                            {% elif client.worst_bucket == '31-60' %}
+                                                <span class="badge badge-orange">31-60d Late</span>
+                                            {% elif client.worst_bucket == '61-90' %}
+                                                <span class="badge badge-red">61-90d Late</span>
+                                            {% elif client.worst_bucket == '91-120' %}
+                                                <span class="badge badge-dark-red">91-120d Late</span>
+                                            {% else %}
+                                                <span class="badge badge-dark-red">120+d Late</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <!-- Detail Row (hidden) -->
+                                    <tr class="detail-row" id="detail-client-{{ forloop.counter }}" style="display: none;">
+                                        <td colspan="14" class="detail-cell" style="padding: 0;">
+                                            <div style="background: #f8fafc; padding: 8px 12px;">
+                                                <!-- Detail Header -->
+                                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                                    <div style="font-size: 12px; font-weight: 700; color: var(--text);">
+                                                        <i class="fas fa-file-invoice" style="color: var(--primary); margin-right: 4px;"></i>
+                                                        Invoices for {{ client.contact_name }}
+                                                    </div>
+                                                </div>
+                                                <!-- Invoice Headers -->
+                                                <div style="display: flex; gap: 8px; padding: 4px 12px; font-size: 10px; font-weight: 700; color: var(--text-light); text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">
+                                                    <div style="flex: 0 0 120px;">Invoice #</div>
+                                                    <div style="flex: 0 0 120px;">Reference</div>
+                                                    <div style="flex: 0 0 100px;">Date</div>
+                                                    <div style="flex: 0 0 100px;">Due Date</div>
+                                                    <div style="flex: 0 0 110px; text-align: right;">Total</div>
+                                                    <div style="flex: 0 0 110px; text-align: right;">Paid</div>
+                                                    <div style="flex: 0 0 110px; text-align: right;">Amount Due</div>
+                                                    <div style="flex: 0 0 70px; text-align: center;">Days</div>
+                                                    <div style="flex: 0 0 90px; text-align: center;">Status</div>
+                                                </div>
+                                                <!-- Invoice Rows -->
+                                                {% for inv in client.invoices %}
+                                                <div class="inv-row" style="{% if inv.status == 'PAID' %}opacity: 0.6;{% endif %}">
+                                                    <div style="flex: 0 0 120px; font-family: 'Courier New', monospace; font-weight: 600; color: var(--primary); font-size: 11px;">{{ inv.invoice_number|default:"—" }}</div>
+                                                    <div style="flex: 0 0 120px; color: var(--text-light); font-size: 11px;">{{ inv.reference|default:"—" }}</div>
+                                                    <div style="flex: 0 0 100px; font-size: 11px;">{{ inv.date|date:"d M Y"|default:"—" }}</div>
+                                                    <div style="flex: 0 0 100px; font-size: 11px; {% if inv.due_date and inv.due_date < today and inv.status != 'PAID' %}color: #dc2626; font-weight: 700;{% endif %}">{{ inv.due_date|date:"d M Y"|default:"—" }}</div>
+                                                    <div style="flex: 0 0 110px; text-align: right; font-size: 11px; font-weight: 600;">R {{ inv.total|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 110px; text-align: right; font-size: 11px; font-weight: 600; color: #16a34a;">R {{ inv.amount_paid|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 110px; text-align: right; font-size: 11px; font-weight: 700; color: {% if inv.amount_due > 0 %}#dc2626{% else %}#16a34a{% endif %};">R {{ inv.amount_due|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 70px; text-align: center;">
+                                                        {% if inv.status != 'PAID' and inv.days_outstanding > 0 %}
+                                                            {% if inv.days_outstanding <= 30 %}<span class="badge badge-amber">{{ inv.days_outstanding }}d</span>
+                                                            {% elif inv.days_outstanding <= 60 %}<span class="badge badge-orange">{{ inv.days_outstanding }}d</span>
+                                                            {% elif inv.days_outstanding <= 90 %}<span class="badge badge-red">{{ inv.days_outstanding }}d</span>
+                                                            {% else %}<span class="badge badge-dark-red">{{ inv.days_outstanding }}d</span>
+                                                            {% endif %}
+                                                        {% elif inv.status == 'PAID' %}
+                                                            <span style="color: #d1d5db;">—</span>
+                                                        {% else %}
+                                                            <span class="badge badge-green">Current</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div style="flex: 0 0 90px; text-align: center;">
+                                                        {% if inv.status == 'PAID' %}<span class="badge badge-green"><i class="fas fa-check" style="font-size: 8px; margin-right: 2px;"></i> PAID</span>
+                                                        {% elif inv.status == 'AUTHORISED' %}<span class="badge badge-amber">AUTHORISED</span>
+                                                        {% elif inv.status == 'SUBMITTED' %}<span class="badge badge-gray">SUBMITTED</span>
+                                                        {% elif inv.status == 'DRAFT' %}<span class="badge badge-gray">DRAFT</span>
+                                                        {% else %}<span class="badge badge-gray">{{ inv.status }}</span>{% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                                <!-- Client Total Row -->
+                                                <div style="display: flex; gap: 8px; padding: 8px 12px; font-size: 11px; font-weight: 800; border-top: 2px solid var(--primary); background: var(--primary-light);">
+                                                    <div style="flex: 0 0 120px; color: var(--text);">TOTAL</div>
+                                                    <div style="flex: 0 0 120px;"></div>
+                                                    <div style="flex: 0 0 100px;"></div>
+                                                    <div style="flex: 0 0 100px;"></div>
+                                                    <div style="flex: 0 0 110px; text-align: right;">R {{ client.total_invoiced|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 110px; text-align: right; color: #16a34a;">R {{ client.total_paid|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 110px; text-align: right; color: {% if client.total_outstanding > 0 %}#dc2626{% else %}#16a34a{% endif %};">R {{ client.total_outstanding|floatformat:2|intcomma }}</div>
+                                                    <div style="flex: 0 0 70px;"></div>
+                                                    <div style="flex: 0 0 90px;"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                         {% else %}
-                        <a href="{% url 'xero_connect' %}" class="sync-btn" style="background: #dc2626;">
-                            <i class="fas fa-plug"></i> Connect Xero
-                        </a>
+                        <div style="text-align: center; padding: 40px 20px;">
+                            <i class="fas fa-check-circle" style="font-size: 40px; color: #22c55e; margin-bottom: 12px;"></i>
+                            <p style="font-weight: 600; color: var(--text); font-size: 14px;">No debtors found</p>
+                            <p style="color: var(--text-light); font-size: 12px; margin-top: 4px;">
+                                {% if search_q or filter_status or filter_bucket %}Try changing your filters{% else %}Sync invoices from Xero to get started{% endif %}
+                            </p>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
-            </div>
 
-            {% if not xero_connected %}
-            <!-- Not Connected State -->
-            <div class="stat-card text-center py-12">
-                <i class="fas fa-plug text-5xl text-gray-300 mb-4"></i>
-                <h3 class="text-lg font-semibold text-gray-600 mb-2">Xero Not Connected</h3>
-                <p class="text-gray-400 mb-4">Connect your Xero account to view debtor information.</p>
-                <a href="{% url 'xero_connect' %}" class="sync-btn" style="background: #007890;">
-                    <i class="fas fa-link"></i> Connect to Xero
-                </a>
-            </div>
-            {% else %}
-
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="stat-card">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Outstanding</p>
-                            <p class="text-2xl font-bold text-gray-800 mt-1">R {{ total_outstanding|floatformat:2|intcomma }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-coins text-amber-600 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">{{ total_invoices }} outstanding invoice{{ total_invoices|pluralize }}</p>
-                </div>
-                <div class="stat-card">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Overdue</p>
-                            <p class="text-2xl font-bold text-red-600 mt-1">R {{ total_overdue|floatformat:2|intcomma }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">Past due date</p>
-                </div>
-                <div class="stat-card">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Paid</p>
-                            <p class="text-2xl font-bold text-green-600 mt-1">R {{ total_paid|floatformat:2|intcomma }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-check-circle text-green-600 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">From all invoices</p>
-                </div>
-                <div class="stat-card">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Debtors</p>
-                            <p class="text-2xl font-bold text-gray-800 mt-1">{{ debtor_summary|length }}</p>
-                        </div>
-                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-users text-blue-600 text-xl"></i>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-2">With outstanding balances</p>
-                </div>
-            </div>
-
-            <!-- Aging Analysis Bar -->
-            <div class="stat-card mb-6">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3">
-                    <i class="fas fa-chart-bar text-primary mr-1"></i> Aging Analysis
-                </h3>
-                {% if total_outstanding > 0 %}
-                <div class="aging-bar mb-3">
-                    {% if aging.current.total > 0 %}
-                    <div style="width: {% widthratio aging.current.total total_outstanding 100 %}%; background: #22c55e;" title="Current: R {{ aging.current.total|floatformat:2 }}">
-                        {% widthratio aging.current.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                    {% if aging.1_30.total > 0 %}
-                    <div style="width: {% widthratio aging.1_30.total total_outstanding 100 %}%; background: #eab308;" title="1-30 days: R {{ aging.1_30.total|floatformat:2 }}">
-                        {% widthratio aging.1_30.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                    {% if aging.31_60.total > 0 %}
-                    <div style="width: {% widthratio aging.31_60.total total_outstanding 100 %}%; background: #f97316;" title="31-60 days: R {{ aging.31_60.total|floatformat:2 }}">
-                        {% widthratio aging.31_60.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                    {% if aging.61_90.total > 0 %}
-                    <div style="width: {% widthratio aging.61_90.total total_outstanding 100 %}%; background: #ef4444;" title="61-90 days: R {{ aging.61_90.total|floatformat:2 }}">
-                        {% widthratio aging.61_90.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                    {% if aging.91_120.total > 0 %}
-                    <div style="width: {% widthratio aging.91_120.total total_outstanding 100 %}%; background: #dc2626;" title="91-120 days: R {{ aging.91_120.total|floatformat:2 }}">
-                        {% widthratio aging.91_120.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                    {% if aging.120_plus.total > 0 %}
-                    <div style="width: {% widthratio aging.120_plus.total total_outstanding 100 %}%; background: #991b1b;" title="120+ days: R {{ aging.120_plus.total|floatformat:2 }}">
-                        {% widthratio aging.120_plus.total total_outstanding 100 %}%
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="flex flex-wrap gap-4 text-xs">
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#22c55e"></span> Current: R {{ aging.current.total|floatformat:2|intcomma }} ({{ aging.current.invoices|length }})</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#eab308"></span> 1-30d: R {{ aging.1_30.total|floatformat:2|intcomma }} ({{ aging.1_30.invoices|length }})</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#f97316"></span> 31-60d: R {{ aging.31_60.total|floatformat:2|intcomma }} ({{ aging.31_60.invoices|length }})</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#ef4444"></span> 61-90d: R {{ aging.61_90.total|floatformat:2|intcomma }} ({{ aging.61_90.invoices|length }})</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#dc2626"></span> 91-120d: R {{ aging.91_120.total|floatformat:2|intcomma }} ({{ aging.91_120.invoices|length }})</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#991b1b"></span> 120+d: R {{ aging.120_plus.total|floatformat:2|intcomma }} ({{ aging.120_plus.invoices|length }})</span>
-                </div>
-                {% else %}
-                <p class="text-gray-400 text-sm text-center py-4">No outstanding invoices</p>
                 {% endif %}
             </div>
-
-            <!-- Debtor Summary by Client -->
-            {% if debtor_summary %}
-            <div class="stat-card mb-6">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3">
-                    <i class="fas fa-users text-blue-500 mr-1"></i> Debtor Summary by Client
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-gray-200">
-                                <th class="text-left py-2 px-3 text-gray-500 font-semibold text-xs uppercase">Client</th>
-                                <th class="text-center py-2 px-3 text-gray-500 font-semibold text-xs uppercase">Invoices</th>
-                                <th class="text-right py-2 px-3 text-gray-500 font-semibold text-xs uppercase">Amount Due</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for debtor in debtor_summary %}
-                            <tr class="debtor-row border-b border-gray-100 cursor-pointer" onclick="filterByClient('{{ debtor.contact_name|escapejs }}')">
-                                <td class="py-2.5 px-3 font-medium text-gray-700">
-                                    <i class="fas fa-building text-gray-400 mr-1.5"></i>{{ debtor.contact_name|default:"Unknown" }}
-                                </td>
-                                <td class="py-2.5 px-3 text-center">
-                                    <span class="badge badge-current">{{ debtor.invoice_count }}</span>
-                                </td>
-                                <td class="py-2.5 px-3 text-right font-semibold text-gray-800">
-                                    R {{ debtor.total_due|floatformat:2|intcomma }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Invoice Filters -->
-            <div class="flex flex-wrap items-center gap-2 mb-4">
-                <span class="text-xs font-semibold text-gray-500 uppercase">Filter:</span>
-                <button class="filter-btn active" onclick="filterInvoices('all', this)">All ({{ total_invoices }})</button>
-                <button class="filter-btn" onclick="filterInvoices('current', this)">Current ({{ aging.current.invoices|length }})</button>
-                <button class="filter-btn" onclick="filterInvoices('1_30', this)">1-30 days ({{ aging.1_30.invoices|length }})</button>
-                <button class="filter-btn" onclick="filterInvoices('31_60', this)">31-60 days ({{ aging.31_60.invoices|length }})</button>
-                <button class="filter-btn" onclick="filterInvoices('61_90', this)">61-90 days ({{ aging.61_90.invoices|length }})</button>
-                <button class="filter-btn" onclick="filterInvoices('91_120', this)">91-120 days ({{ aging.91_120.invoices|length }})</button>
-                <button class="filter-btn" onclick="filterInvoices('120_plus', this)">120+ days ({{ aging.120_plus.invoices|length }})</button>
-            </div>
-
-            <!-- Outstanding Invoices Table -->
-            <div class="stat-card">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3">
-                    <i class="fas fa-list text-primary mr-1"></i> Outstanding Invoices
-                    <span id="filter-label" class="text-xs font-normal text-gray-400 ml-2"></span>
-                </h3>
-                {% if outstanding_invoices %}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm" id="invoices-table">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Invoice #</th>
-                                <th class="text-left py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Client</th>
-                                <th class="text-left py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase hidden sm:table-cell">Reference</th>
-                                <th class="text-center py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Date</th>
-                                <th class="text-center py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Due Date</th>
-                                <th class="text-right py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Total</th>
-                                <th class="text-right py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Amount Due</th>
-                                <th class="text-center py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Days</th>
-                                <th class="text-center py-2.5 px-3 text-gray-500 font-semibold text-xs uppercase">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for inv in outstanding_invoices %}
-                            <tr class="border-b border-gray-100 hover:bg-gray-50 invoice-row"
-                                data-bucket="{{ inv.aging_bucket|slugify }}"
-                                data-client="{{ inv.contact_name|escapejs }}"
-                                data-days="{{ inv.days_outstanding }}">
-                                <td class="py-2.5 px-3 font-mono text-xs font-semibold text-primary">{{ inv.invoice_number }}</td>
-                                <td class="py-2.5 px-3 text-gray-700 font-medium">{{ inv.contact_name|default:"—" }}</td>
-                                <td class="py-2.5 px-3 text-gray-500 hidden sm:table-cell">{{ inv.reference|default:"—" }}</td>
-                                <td class="py-2.5 px-3 text-center text-gray-500">{{ inv.date|date:"d M Y"|default:"—" }}</td>
-                                <td class="py-2.5 px-3 text-center {% if inv.due_date and inv.due_date < today %}text-red-600 font-semibold{% else %}text-gray-500{% endif %}">
-                                    {{ inv.due_date|date:"d M Y"|default:"—" }}
-                                </td>
-                                <td class="py-2.5 px-3 text-right text-gray-600">R {{ inv.total|floatformat:2|intcomma }}</td>
-                                <td class="py-2.5 px-3 text-right font-bold text-gray-800">R {{ inv.amount_due|floatformat:2|intcomma }}</td>
-                                <td class="py-2.5 px-3 text-center">
-                                    {% if inv.days_outstanding == 0 %}
-                                    <span class="badge badge-current">Current</span>
-                                    {% elif inv.days_outstanding <= 30 %}
-                                    <span class="badge badge-warning">{{ inv.days_outstanding }}d</span>
-                                    {% elif inv.days_outstanding <= 60 %}
-                                    <span class="badge" style="background:#fff7ed;color:#9a3412;">{{ inv.days_outstanding }}d</span>
-                                    {% elif inv.days_outstanding <= 90 %}
-                                    <span class="badge badge-danger">{{ inv.days_outstanding }}d</span>
-                                    {% else %}
-                                    <span class="badge badge-overdue">{{ inv.days_outstanding }}d</span>
-                                    {% endif %}
-                                </td>
-                                <td class="py-2.5 px-3 text-center">
-                                    <span class="badge {% if inv.status == 'AUTHORISED' %}badge-warning{% else %}badge-current{% endif %}">
-                                        {{ inv.status }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-8">
-                    <i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i>
-                    <p class="text-gray-500 font-medium">No outstanding invoices!</p>
-                    <p class="text-gray-400 text-xs mt-1">All invoices have been paid.</p>
-                </div>
-                {% endif %}
-            </div>
-
-            {% endif %}
         </div>
     </div>
 
     <script>
-        // Mobile menu toggle
+        // Sidebar mobile toggle
         const menuBtn = document.getElementById('mobile-menu-btn');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         if (menuBtn) {
             menuBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('-translate-x-full');
-                overlay.style.display = sidebar.classList.contains('-translate-x-full') ? 'none' : 'block';
+                sidebar.classList.toggle('show');
+                overlay.style.display = sidebar.classList.contains('show') ? 'block' : 'none';
             });
         }
         if (overlay) {
             overlay.addEventListener('click', () => {
-                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.remove('show');
                 overlay.style.display = 'none';
             });
         }
 
-        // Filter invoices by aging bucket
-        function filterInvoices(bucket, btn) {
-            const rows = document.querySelectorAll('.invoice-row');
-            const bucketMap = {
-                'current': 'current',
-                '1_30': '1-30',
-                '31_60': '31-60',
-                '61_90': '61-90',
-                '91_120': '91-120',
-                '120_plus': '120',
-            };
+        // Expand/Collapse rows (same pattern as inspection_records)
+        function toggleGroup(e, groupId) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            const detailRow = document.getElementById('detail-' + groupId);
+            if (!detailRow) return;
 
-            rows.forEach(row => {
-                if (bucket === 'all') {
-                    row.style.display = '';
-                } else {
-                    const rowBucket = row.getAttribute('data-bucket');
-                    const days = parseInt(row.getAttribute('data-days'));
-                    let show = false;
+            const groupRow = document.querySelector('tr[data-group-id="' + groupId + '"]');
+            const expandBtn = groupRow ? groupRow.querySelector('.expand-btn') : null;
+            const icon = expandBtn ? expandBtn.querySelector('i') : null;
+            const isHidden = detailRow.style.display === 'none' || detailRow.style.display === '';
 
-                    if (bucket === 'current') show = days <= 0;
-                    else if (bucket === '1_30') show = days >= 1 && days <= 30;
-                    else if (bucket === '31_60') show = days >= 31 && days <= 60;
-                    else if (bucket === '61_90') show = days >= 61 && days <= 90;
-                    else if (bucket === '91_120') show = days >= 91 && days <= 120;
-                    else if (bucket === '120_plus') show = days > 120;
-
-                    row.style.display = show ? '' : 'none';
-                }
-            });
-
-            // Update active button
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-
-            // Update label
-            const label = document.getElementById('filter-label');
-            if (label) {
-                label.textContent = bucket === 'all' ? '' : `Showing: ${bucket.replace('_', '-')} days`;
+            if (isHidden) {
+                detailRow.style.display = 'table-row';
+                if (icon) { icon.classList.remove('fa-chevron-right'); icon.classList.add('fa-chevron-down'); }
+            } else {
+                detailRow.style.display = 'none';
+                if (icon) { icon.classList.remove('fa-chevron-down'); icon.classList.add('fa-chevron-right'); }
             }
         }
 
-        // Filter by client name
-        function filterByClient(clientName) {
-            const rows = document.querySelectorAll('.invoice-row');
-            let allVisible = true;
-
-            rows.forEach(row => {
-                if (row.style.display === 'none' && row.getAttribute('data-client') !== clientName) {
-                    allVisible = false;
-                }
+        function expandAll() {
+            document.querySelectorAll('.detail-row').forEach(row => { row.style.display = 'table-row'; });
+            document.querySelectorAll('.expand-btn i').forEach(icon => {
+                icon.classList.remove('fa-chevron-right'); icon.classList.add('fa-chevron-down');
             });
+        }
 
-            rows.forEach(row => {
-                const rowClient = row.getAttribute('data-client');
-                if (allVisible || rows[0].style.display === '') {
-                    // Filter to this client
-                    row.style.display = rowClient === clientName ? '' : 'none';
-                } else {
-                    // Show all (toggle off)
-                    row.style.display = '';
-                }
+        function collapseAll() {
+            document.querySelectorAll('.detail-row').forEach(row => { row.style.display = 'none'; });
+            document.querySelectorAll('.expand-btn i').forEach(icon => {
+                icon.classList.remove('fa-chevron-down'); icon.classList.add('fa-chevron-right');
             });
+        }
 
-            // Reset filter buttons
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            const label = document.getElementById('filter-label');
-            if (label) {
-                const anyHidden = Array.from(rows).some(r => r.style.display === 'none');
-                label.textContent = anyHidden ? `Filtered: ${clientName}` : '';
-                if (!anyHidden) {
-                    document.querySelector('.filter-btn').classList.add('active');
-                }
+        // Mobile expand
+        function toggleMobileDetail(id) {
+            const detail = document.getElementById(id);
+            const icon = document.getElementById('m-icon-' + id.replace('m-', ''));
+            if (!detail) return;
+            if (detail.style.display === 'none' || detail.style.display === '') {
+                detail.style.display = 'block';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            } else {
+                detail.style.display = 'none';
+                if (icon) icon.style.transform = '';
             }
         }
 
-        // Sync invoices from Xero
+        // Sync invoices
         function syncInvoices() {
             const btn = document.getElementById('sync-btn');
             const icon = document.getElementById('sync-icon');
@@ -633,13 +714,16 @@
                 if (data.status === 'success') {
                     btn.innerHTML = '<i class="fas fa-check"></i> Synced ' + data.synced + ' invoices';
                     btn.style.background = '#22c55e';
+                    btn.style.borderColor = '#22c55e';
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    btn.innerHTML = '<i class="fas fa-times"></i> Error';
+                    btn.innerHTML = '<i class="fas fa-times"></i> Error: ' + (data.message || 'Unknown');
                     btn.style.background = '#ef4444';
+                    btn.style.borderColor = '#ef4444';
                     setTimeout(() => {
                         btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync from Xero';
-                        btn.style.background = '#007890';
+                        btn.style.background = 'var(--primary)';
+                        btn.style.borderColor = 'var(--primary)';
                         btn.disabled = false;
                     }, 3000);
                 }
@@ -647,9 +731,11 @@
             .catch(err => {
                 btn.innerHTML = '<i class="fas fa-times"></i> Failed';
                 btn.style.background = '#ef4444';
+                btn.style.borderColor = '#ef4444';
                 setTimeout(() => {
                     btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync from Xero';
-                    btn.style.background = '#007890';
+                    btn.style.background = 'var(--primary)';
+                    btn.style.borderColor = 'var(--primary)';
                     btn.disabled = false;
                 }, 3000);
             });

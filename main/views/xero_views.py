@@ -164,7 +164,7 @@ def xero_invoices_list(request):
 
 @login_required
 def debtors_page(request):
-    """Debtors page - shows outstanding invoices from Xero with aging analysis."""
+    """Debtors page - shows clients with paid/outstanding/overdue from Xero invoices."""
     if request.user.role not in ('admin', 'super_admin', 'developer'):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden('Permission denied')
@@ -174,59 +174,113 @@ def debtors_page(request):
     token = XeroToken.objects.first()
     tenant_name = token.tenant_name if token else ''
 
-    # Get all ACCREC (sales) invoices
-    all_invoices = XeroInvoice.objects.filter(invoice_type='ACCREC')
-    outstanding_invoices = all_invoices.filter(
-        status__in=['AUTHORISED', 'SUBMITTED']
-    ).order_by('due_date')
-
-    # Aging buckets
     today = date.today()
-    aging = {
-        'current': {'invoices': [], 'total': Decimal('0')},
-        '1_30': {'invoices': [], 'total': Decimal('0')},
-        '31_60': {'invoices': [], 'total': Decimal('0')},
-        '61_90': {'invoices': [], 'total': Decimal('0')},
-        '91_120': {'invoices': [], 'total': Decimal('0')},
-        '120_plus': {'invoices': [], 'total': Decimal('0')},
-    }
 
-    for inv in outstanding_invoices:
-        days = inv.days_outstanding
-        if days <= 0:
-            bucket = 'current'
-        elif days <= 30:
-            bucket = '1_30'
-        elif days <= 60:
-            bucket = '31_60'
-        elif days <= 90:
-            bucket = '61_90'
-        elif days <= 120:
-            bucket = '91_120'
+    # Get all ACCREC (sales) invoices - exclude VOIDED and DELETED
+    all_invoices = XeroInvoice.objects.filter(
+        invoice_type='ACCREC'
+    ).exclude(status__in=['VOIDED', 'DELETED'])
+
+    # Build client-level data: group invoices by contact_name
+    client_map = {}
+    for inv in all_invoices:
+        name = inv.contact_name or 'Unknown'
+        if name not in client_map:
+            client_map[name] = {
+                'contact_name': name,
+                'contact_id': inv.contact_id,
+                'invoices': [],
+                'total_invoiced': Decimal('0'),
+                'total_paid': Decimal('0'),
+                'total_outstanding': Decimal('0'),
+                'overdue_amount': Decimal('0'),
+                'oldest_overdue_days': 0,
+                'aging': {
+                    'current': Decimal('0'),
+                    '1_30': Decimal('0'),
+                    '31_60': Decimal('0'),
+                    '61_90': Decimal('0'),
+                    '91_120': Decimal('0'),
+                    '120_plus': Decimal('0'),
+                },
+                'invoice_count': 0,
+                'outstanding_count': 0,
+                'paid_count': 0,
+            }
+
+        c = client_map[name]
+        c['invoices'].append(inv)
+        c['invoice_count'] += 1
+        c['total_invoiced'] += inv.total
+
+        if inv.status == 'PAID':
+            c['total_paid'] += inv.amount_paid
+            c['paid_count'] += 1
+        elif inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'):
+            c['total_outstanding'] += inv.amount_due
+            c['outstanding_count'] += 1
+
+            # Aging bucket
+            days = inv.days_outstanding
+            if days <= 0:
+                c['aging']['current'] += inv.amount_due
+            elif days <= 30:
+                c['aging']['1_30'] += inv.amount_due
+            elif days <= 60:
+                c['aging']['31_60'] += inv.amount_due
+            elif days <= 90:
+                c['aging']['61_90'] += inv.amount_due
+            elif days <= 120:
+                c['aging']['91_120'] += inv.amount_due
+            else:
+                c['aging']['120_plus'] += inv.amount_due
+
+            # Overdue tracking
+            if inv.due_date and inv.due_date < today:
+                c['overdue_amount'] += inv.amount_due
+                c['oldest_overdue_days'] = max(c['oldest_overdue_days'], days)
+
+    # Determine worst aging bucket per client
+    for name, c in client_map.items():
+        if c['aging']['120_plus'] > 0:
+            c['worst_bucket'] = '120+'
+        elif c['aging']['91_120'] > 0:
+            c['worst_bucket'] = '91-120'
+        elif c['aging']['61_90'] > 0:
+            c['worst_bucket'] = '61-90'
+        elif c['aging']['31_60'] > 0:
+            c['worst_bucket'] = '31-60'
+        elif c['aging']['1_30'] > 0:
+            c['worst_bucket'] = '1-30'
         else:
-            bucket = '120_plus'
-        aging[bucket]['invoices'].append(inv)
-        aging[bucket]['total'] += inv.amount_due
+            c['worst_bucket'] = 'Current'
 
-    # Summary stats
-    total_outstanding = outstanding_invoices.aggregate(
-        total=Sum('amount_due')
-    )['total'] or Decimal('0')
-    total_overdue = sum(
-        inv.amount_due for inv in outstanding_invoices
-        if inv.due_date and inv.due_date < today
-    )
-    total_invoices = outstanding_invoices.count()
-    paid_invoices = all_invoices.filter(status='PAID')
-    total_paid = paid_invoices.aggregate(
-        total=Sum('amount_paid')
-    )['total'] or Decimal('0')
+        # Sort invoices by due_date
+        c['invoices'].sort(key=lambda x: x.due_date or date.min)
 
-    # Debtor breakdown by contact
-    debtor_summary = outstanding_invoices.values('contact_name').annotate(
-        total_due=Sum('amount_due'),
-        invoice_count=Count('id'),
-    ).order_by('-total_due')
+    # Sort clients by outstanding amount descending
+    clients = sorted(client_map.values(), key=lambda x: x['total_outstanding'], reverse=True)
+
+    # Apply filter if provided
+    filter_bucket = request.GET.get('aging', '')
+    filter_status = request.GET.get('status', '')
+    search_q = request.GET.get('q', '').strip()
+
+    if search_q:
+        clients = [c for c in clients if search_q.lower() in c['contact_name'].lower()]
+    if filter_status == 'outstanding':
+        clients = [c for c in clients if c['total_outstanding'] > 0]
+    elif filter_status == 'paid':
+        clients = [c for c in clients if c['total_outstanding'] == 0 and c['total_paid'] > 0]
+    if filter_bucket:
+        bucket_key = filter_bucket.replace('-', '_').replace('+', '_plus')
+        clients = [c for c in clients if c['aging'].get(bucket_key, 0) > 0]
+
+    # Grand totals
+    grand_invoiced = sum(c['total_invoiced'] for c in clients)
+    grand_paid = sum(c['total_paid'] for c in clients)
+    grand_outstanding = sum(c['total_outstanding'] for c in clients)
+    grand_overdue = sum(c['overdue_amount'] for c in clients)
 
     # Last sync time
     last_sync = all_invoices.order_by('-synced_at').first()
@@ -235,14 +289,16 @@ def debtors_page(request):
     context = {
         'xero_connected': xero_connected,
         'tenant_name': tenant_name,
-        'outstanding_invoices': outstanding_invoices,
-        'aging': aging,
-        'total_outstanding': total_outstanding,
-        'total_overdue': total_overdue,
-        'total_invoices': total_invoices,
-        'total_paid': total_paid,
-        'debtor_summary': debtor_summary,
+        'clients': clients,
+        'grand_invoiced': grand_invoiced,
+        'grand_paid': grand_paid,
+        'grand_outstanding': grand_outstanding,
+        'grand_overdue': grand_overdue,
+        'client_count': len(clients),
         'last_sync_time': last_sync_time,
         'today': today,
+        'filter_bucket': filter_bucket,
+        'filter_status': filter_status,
+        'search_q': search_q,
     }
     return render(request, 'main/debtors.html', context)
