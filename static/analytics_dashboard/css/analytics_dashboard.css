@@ -1518,3 +1518,661 @@ body.bg-loaded::before {
     }
     #main-content { padding: 70px 8px 16px; }
 }
+
+/* ================================================================
+   LARGE SCREENS (1440px+) — wider layouts, bigger fonts
+   ================================================================ */
+@media (min-width: 1440px) {
+    #main-content {
+        padding: 36px 40px 48px;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1.25rem;
+    }
+
+    .kpi-value {
+        font-size: 2.5rem;
+    }
+
+    .kpi-label {
+        font-size: 0.85rem;
+    }
+
+    .kpi-card {
+        padding: 1.5rem;
+    }
+
+    .dashboard-grid-2col {
+        gap: 1.5rem;
+    }
+
+    .dashboard-grid-3col {
+        gap: 1.5rem;
+    }
+
+    .card-body {
+        padding: 24px;
+    }
+
+    .card-header {
+        padding: 20px 24px;
+    }
+
+    .card-title {
+        font-size: 1.15rem;
+    }
+
+    .inspections-table th {
+        font-size: 0.85rem;
+        padding: 0.8rem 1rem;
+    }
+
+    .inspections-table td {
+        padding: 0.7rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2.25rem;
+    }
+
+    .stat-card p {
+        font-size: 0.85rem;
+    }
+
+    .efficiency-value {
+        font-size: 1.5rem;
+    }
+
+    .efficiency-label {
+        font-size: 0.75rem;
+    }
+
+    .compliance-bar-track {
+        height: 30px;
+    }
+
+    .compliance-bar-label {
+        font-size: 0.9rem;
+        width: 100px;
+    }
+
+    .compliance-bar-pct {
+        font-size: 0.8rem;
+    }
+
+    .filter-group label {
+        font-size: 0.8rem;
+    }
+
+    .filter-group .form-control {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+}
+
+/* ================================================================
+   EXTRA LARGE SCREENS (1920px+) — Full HD monitors & large TVs
+   ================================================================ */
+@media (min-width: 1920px) {
+    #main-content {
+        padding: 48px 60px 60px;
+    }
+
+    .kpi-grid {
+        gap: 1.5rem;
+    }
+
+    .kpi-value {
+        font-size: 3rem;
+    }
+
+    .kpi-label {
+        font-size: 0.95rem;
+    }
+
+    .kpi-card {
+        padding: 2rem;
+    }
+
+    .kpi-card-secondary .kpi-value {
+        font-size: 2rem !important;
+    }
+
+    .kpi-icon {
+        font-size: 1.5rem;
+    }
+
+    .card-body {
+        padding: 32px;
+    }
+
+    .card-header {
+        padding: 24px 32px;
+    }
+
+    .card-title {
+        font-size: 1.3rem;
+    }
+
+    .dashboard-grid-2col {
+        gap: 2rem;
+    }
+
+    .dashboard-grid-3col {
+        gap: 2rem;
+    }
+
+    .inspections-table th {
+        font-size: 0.95rem;
+        padding: 1rem 1.25rem;
+    }
+
+    .inspections-table td {
+        padding: 0.85rem 1.25rem;
+        font-size: 1rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2.75rem;
+    }
+
+    .stat-card p {
+        font-size: 0.95rem;
+    }
+
+    .stat-card {
+        padding: 24px;
+    }
+
+    .efficiency-grid {
+        gap: 1rem;
+    }
+
+    .efficiency-tile {
+        padding: 1.25rem;
+    }
+
+    .efficiency-value {
+        font-size: 1.75rem;
+    }
+
+    .efficiency-label {
+        font-size: 0.85rem;
+    }
+
+    .compliance-bar-track {
+        height: 36px;
+    }
+
+    .compliance-bar-label {
+        font-size: 1rem;
+        width: 120px;
+    }
+
+    .compliance-bar-pct {
+        font-size: 0.85rem;
+    }
+
+    .compliance-bar-count {
+        font-size: 0.9rem;
+        width: 80px;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+
+    .btn-sm {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    .filter-group label {
+        font-size: 0.85rem;
+    }
+
+    .filter-group .form-control {
+        padding: 10px 14px;
+        font-size: 1rem;
+    }
+
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
+
+    .commodity-badge {
+        font-size: 0.8rem;
+        padding: 3px 10px;
+    }
+
+    /* Wider sidebar for large screens */
+    #sidebar {
+        width: 280px;
+    }
+
+    #main-content {
+        margin-left: 280px;
+    }
+
+    .tab-btn, .sidebar-nav .nav-link {
+        font-size: 0.95rem;
+        padding: 9px 14px;
+    }
+
+    .sidebar-company-name {
+        font-size: 0.9rem;
+    }
+
+    .sidebar-section-label {
+        font-size: 0.7rem;
+    }
+}
+
+/* ================================================================
+   4K / ULTRA LARGE SCREENS (2560px+) — 70" TVs, 4K monitors
+   ================================================================ */
+@media (min-width: 2560px) {
+    :root {
+        --spacing: 10px;
+    }
+
+    #main-content {
+        padding: 64px 80px 80px;
+    }
+
+    #sidebar {
+        width: 320px;
+    }
+
+    #main-content {
+        margin-left: 320px;
+    }
+
+    .sidebar-header img {
+        max-height: 80px;
+    }
+
+    .sidebar-company-name {
+        font-size: 1rem;
+    }
+
+    .sidebar-section-label {
+        font-size: 0.8rem;
+        padding: 14px 16px 6px;
+    }
+
+    .tab-btn, .sidebar-nav .nav-link {
+        font-size: 1.05rem;
+        padding: 12px 16px;
+        min-height: 44px;
+    }
+
+    .tab-btn i, .sidebar-nav .nav-link i {
+        width: 22px;
+        font-size: 1rem;
+    }
+
+    .logout-btn {
+        font-size: 1rem;
+        padding: 14px;
+    }
+
+    .kpi-grid {
+        gap: 2rem;
+    }
+
+    .kpi-value {
+        font-size: 4rem;
+    }
+
+    .kpi-label {
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+    }
+
+    .kpi-card {
+        padding: 2.5rem;
+        border-radius: 10px;
+    }
+
+    .kpi-card-secondary .kpi-value {
+        font-size: 2.5rem !important;
+    }
+
+    .kpi-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .card {
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    .card-body {
+        padding: 40px;
+    }
+
+    .card-header {
+        padding: 28px 40px;
+    }
+
+    .card-title {
+        font-size: 1.5rem;
+    }
+
+    .dashboard-grid-2col {
+        gap: 2.5rem;
+    }
+
+    .dashboard-grid-3col {
+        gap: 2.5rem;
+    }
+
+    .inspections-table th {
+        font-size: 1.1rem;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .inspections-table td {
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    .stat-card {
+        padding: 32px;
+        border-radius: 10px;
+    }
+
+    .stat-card h3 {
+        font-size: 3.5rem;
+    }
+
+    .stat-card p {
+        font-size: 1.1rem;
+    }
+
+    .stats-grid {
+        gap: 24px;
+    }
+
+    .efficiency-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .efficiency-tile {
+        padding: 1.5rem;
+        border-radius: 10px;
+    }
+
+    .efficiency-value {
+        font-size: 2.25rem;
+    }
+
+    .efficiency-label {
+        font-size: 1rem;
+        margin-top: 0.25rem;
+    }
+
+    .compliance-bar-row {
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .compliance-bar-track {
+        height: 44px;
+        border-radius: 22px;
+    }
+
+    .compliance-bar-fill {
+        border-radius: 22px;
+    }
+
+    .compliance-bar-label {
+        font-size: 1.15rem;
+        width: 140px;
+    }
+
+    .compliance-bar-pct {
+        font-size: 1rem;
+    }
+
+    .compliance-bar-count {
+        font-size: 1.05rem;
+        width: 100px;
+    }
+
+    .btn {
+        padding: 16px 28px;
+        font-size: 1.15rem;
+        border-radius: 8px;
+    }
+
+    .btn-sm {
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+
+    .filter-bar {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .filter-bar-inner {
+        gap: 1.25rem;
+    }
+
+    .filter-group label {
+        font-size: 0.95rem;
+    }
+
+    .filter-group .form-control {
+        padding: 12px 16px;
+        font-size: 1.1rem;
+        border-radius: 8px;
+    }
+
+    .filter-actions .btn {
+        padding: 12px 24px;
+    }
+
+    .status-badge {
+        font-size: 0.95rem;
+        padding: 4px 14px;
+        border-radius: 14px;
+    }
+
+    .commodity-badge {
+        font-size: 0.95rem;
+        padding: 4px 14px;
+        border-radius: 14px;
+    }
+
+    .table-pagination button {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+    }
+
+    .table-page-info {
+        font-size: 0.95rem;
+    }
+
+    .no-data i {
+        font-size: 5rem;
+    }
+
+    .no-data h3 {
+        font-size: 1.75rem;
+    }
+
+    .no-data p {
+        font-size: 1.15rem;
+    }
+
+    .header h1 {
+        font-size: 2.5rem;
+    }
+
+    .header h2 {
+        font-size: 1.4rem;
+    }
+
+    .notification-bell-float {
+        width: 56px;
+        height: 56px;
+    }
+
+    .notification-bell-float i {
+        font-size: 24px;
+    }
+
+    .notification-bell-badge {
+        width: 26px;
+        height: 26px;
+        font-size: 14px;
+    }
+}
+
+/* ================================================================
+   TRUE 4K (3840px+) — massive screens
+   ================================================================ */
+@media (min-width: 3840px) {
+    #main-content {
+        padding: 80px 120px 100px;
+    }
+
+    #sidebar {
+        width: 400px;
+    }
+
+    #main-content {
+        margin-left: 400px;
+    }
+
+    .sidebar-header img {
+        max-height: 100px;
+    }
+
+    .sidebar-company-name {
+        font-size: 1.3rem;
+    }
+
+    .tab-btn, .sidebar-nav .nav-link {
+        font-size: 1.3rem;
+        padding: 16px 20px;
+        min-height: 56px;
+    }
+
+    .tab-btn i, .sidebar-nav .nav-link i {
+        width: 28px;
+        font-size: 1.2rem;
+    }
+
+    .sidebar-section-label {
+        font-size: 1rem;
+        padding: 18px 20px 8px;
+    }
+
+    .logout-btn {
+        font-size: 1.2rem;
+        padding: 18px;
+    }
+
+    .kpi-value {
+        font-size: 5.5rem;
+    }
+
+    .kpi-label {
+        font-size: 1.4rem;
+    }
+
+    .kpi-card {
+        padding: 3.5rem;
+    }
+
+    .kpi-card-secondary .kpi-value {
+        font-size: 3.5rem !important;
+    }
+
+    .kpi-icon {
+        font-size: 2.5rem;
+    }
+
+    .card-body {
+        padding: 56px;
+    }
+
+    .card-header {
+        padding: 36px 56px;
+    }
+
+    .card-title {
+        font-size: 2rem;
+    }
+
+    .inspections-table th {
+        font-size: 1.4rem;
+        padding: 1.5rem 2rem;
+    }
+
+    .inspections-table td {
+        padding: 1.25rem 2rem;
+        font-size: 1.35rem;
+    }
+
+    .stat-card h3 {
+        font-size: 5rem;
+    }
+
+    .stat-card p {
+        font-size: 1.4rem;
+    }
+
+    .efficiency-value {
+        font-size: 3rem;
+    }
+
+    .efficiency-label {
+        font-size: 1.3rem;
+    }
+
+    .compliance-bar-track {
+        height: 56px;
+    }
+
+    .compliance-bar-label {
+        font-size: 1.5rem;
+        width: 180px;
+    }
+
+    .compliance-bar-pct {
+        font-size: 1.3rem;
+    }
+
+    .btn {
+        padding: 20px 36px;
+        font-size: 1.4rem;
+    }
+
+    .filter-group .form-control {
+        padding: 16px 20px;
+        font-size: 1.35rem;
+    }
+
+    .filter-group label {
+        font-size: 1.2rem;
+    }
+
+    .header h1 {
+        font-size: 3.5rem;
+    }
+
+    .header h2 {
+        font-size: 2rem;
+    }
+}
