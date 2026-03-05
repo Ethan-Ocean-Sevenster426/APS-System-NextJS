@@ -15593,12 +15593,14 @@ def send_group_documents(request):
             'POULTRY': 'Poultry Meat (Consolidated Document: R.946 of 27 March 1992, R.988 of 25 July 1997, and R.471 of 22 April 2016)',
         }
 
-        # Get distinct commodities from the inspections
+        # Get distinct commodities from the inspections (dedupe by uppercase key)
         distinct_commodities = group_inspections.values_list('commodity', flat=True).distinct()
+        seen_commodities = set()
         commodity_lines = ''
         for commodity in distinct_commodities:
-            if commodity:
-                label = commodity_regulations.get(commodity.upper(), commodity)
+            if commodity and commodity.strip().upper() not in seen_commodities:
+                seen_commodities.add(commodity.strip().upper())
+                label = commodity_regulations.get(commodity.strip().upper(), commodity)
                 commodity_lines += f'<li style="margin-bottom: 6px;">{label}</li>'
 
         # Build dynamic document category display names
