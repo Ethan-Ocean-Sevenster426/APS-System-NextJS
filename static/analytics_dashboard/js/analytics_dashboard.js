@@ -620,6 +620,8 @@ function applyFinancialPeriod() {
         byInspector[name]++;
     });
 
+    console.log('[Period Filter] value:', val, '| fromStr:', fromStr, '| toStr:', toStr, '| total dates:', allDates.length, '| matched inspectors:', Object.keys(byInspector).length, '| matches:', JSON.stringify(byInspector));
+
     // Scale from full financials proportionally based on inspection count ratio
     var fullFinancials = cfg.inspectorFinancials || [];
     var result = [];
