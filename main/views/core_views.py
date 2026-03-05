@@ -2227,7 +2227,7 @@ def shipment_list(request):
 
     # PERFORMANCE FIX: Include page number and filters in cache key so each page/filter combo is cached separately
     page_number = request.GET.get('page', 1)
-    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status'])
+    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter'])
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
@@ -2452,6 +2452,8 @@ def shipment_list(request):
         inspection_count=Count('id'),  # Essential: number of inspections in group
         has_sent_inspections=Count('id', filter=Q(is_sent=True)),  # Essential: for sent status filtering
         has_unsent_inspections=Count('id', filter=Q(is_sent=False)),  # Essential: for sent status filtering
+        has_approved=Count('id', filter=Q(approved_status='APPROVED')),  # For approved status filtering
+        has_pending=Count('id', filter=Q(approved_status__in=[None, '', 'PENDING'])),  # For approved status filtering
     ).order_by('-date_of_inspection', 'client_name')  # Default: newest first
 
     # FILTER GROUPS BY SENT STATUS: Apply sent status filter to groups, not individual inspections
@@ -2465,6 +2467,14 @@ def shipment_list(request):
             groups_queryset = groups_queryset.filter(has_unsent_inspections__gt=0)
             groups_queryset = groups_queryset.order_by('date_of_inspection', 'client_name')
     
+    # FILTER GROUPS BY APPROVED STATUS
+    approved_status_filter = request.GET.get('approved_status_filter')
+    if approved_status_filter:
+        if approved_status_filter == 'APPROVED':
+            groups_queryset = groups_queryset.filter(has_approved__gt=0)
+        elif approved_status_filter == 'PENDING':
+            groups_queryset = groups_queryset.filter(has_pending__gt=0, has_approved=0)
+
     # FILTER GROUPS BY RFI STATUS: DISABLED - Show all inspections regardless of RFI status
     # User requested to remove filtering so all inspections show up, even without files
     # rfi_status = request.GET.get('rfi_status')

@@ -535,6 +535,14 @@
                                             Non-Compliant Only</option>
                                     </select>
                                 </div>
+                                <div class="filter-field">
+                                    <label class="form-label">Approved Status</label>
+                                    <select class="form-control" name="approved_status_filter">
+                                        <option value="">All</option>
+                                        <option value="APPROVED" {% if request.GET.approved_status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
+                                        <option value="PENDING" {% if request.GET.approved_status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+                                    </select>
+                                </div>
                                 <!-- Lab Form Status filter removed - show all inspections regardless of lab forms -->
                                 <div class="filter-field">
                                     <label class="form-label">File Status</label>
