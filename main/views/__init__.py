@@ -95,6 +95,8 @@ from .xero_views import (
     xero_status,
     xero_sync_invoices,
     xero_invoices_list,
+    debtors_page,
+    debtors_export_excel,
 )
 
 # All available views

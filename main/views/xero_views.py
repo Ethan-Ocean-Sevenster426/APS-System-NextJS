@@ -3,10 +3,11 @@ Xero Accounting Integration Views
 OAuth2 connect/callback, invoice sync, and status endpoints.
 """
 import logging
+import io
 from datetime import timedelta, date
 from decimal import Decimal
 from django.shortcuts import redirect, render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -392,3 +393,253 @@ def debtors_page(request):
         'sort_by': sort_by,
     }
     return render(request, 'main/debtors.html', context)
+
+
+@login_required
+def debtors_export_excel(request):
+    """Export debtors data to Excel with all current filters applied."""
+    if request.user.role not in ('admin', 'super_admin', 'developer'):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden('Permission denied')
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    today = date.today()
+
+    # Get all ACCREC invoices - exclude VOIDED and DELETED
+    all_invoices = XeroInvoice.objects.filter(
+        invoice_type='ACCREC'
+    ).exclude(status__in=['VOIDED', 'DELETED'])
+
+    # Build client-level data (same logic as debtors_page)
+    client_map = {}
+    for inv in all_invoices:
+        name = inv.contact_name or 'Unknown'
+        if name not in client_map:
+            client_map[name] = {
+                'contact_name': name,
+                'invoices': [],
+                'total_invoiced': Decimal('0'),
+                'total_paid': Decimal('0'),
+                'total_outstanding': Decimal('0'),
+                'overdue_amount': Decimal('0'),
+                'oldest_overdue_days': 0,
+                'aging': {
+                    'current': Decimal('0'), '1_30': Decimal('0'),
+                    '31_60': Decimal('0'), '61_90': Decimal('0'),
+                    '91_120': Decimal('0'), '120_plus': Decimal('0'),
+                },
+                'invoice_count': 0, 'outstanding_count': 0, 'paid_count': 0,
+            }
+        c = client_map[name]
+        c['invoices'].append(inv)
+        c['invoice_count'] += 1
+        c['total_invoiced'] += inv.total
+        if inv.status == 'PAID':
+            c['total_paid'] += inv.amount_paid
+            c['paid_count'] += 1
+        elif inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'):
+            c['total_outstanding'] += inv.amount_due
+            c['outstanding_count'] += 1
+            days = inv.days_outstanding
+            if days <= 0:
+                c['aging']['current'] += inv.amount_due
+            elif days <= 30:
+                c['aging']['1_30'] += inv.amount_due
+            elif days <= 60:
+                c['aging']['31_60'] += inv.amount_due
+            elif days <= 90:
+                c['aging']['61_90'] += inv.amount_due
+            elif days <= 120:
+                c['aging']['91_120'] += inv.amount_due
+            else:
+                c['aging']['120_plus'] += inv.amount_due
+            if inv.due_date and inv.due_date < today:
+                c['overdue_amount'] += inv.amount_due
+                c['oldest_overdue_days'] = max(c['oldest_overdue_days'], days)
+
+    for name, c in client_map.items():
+        c['invoices'].sort(key=lambda x: x.due_date or date.min)
+
+    # Apply same filters as debtors_page
+    filter_bucket = request.GET.get('aging', '')
+    filter_status = request.GET.get('status', '')
+    search_q = request.GET.get('q', '').strip()
+    filter_inv_status = request.GET.get('inv_status', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to = request.GET.get('date_to', '')
+    filter_due_from = request.GET.get('due_from', '')
+    filter_due_to = request.GET.get('due_to', '')
+    sort_by = request.GET.get('sort', '')
+
+    date_from = date_to = due_from = due_to = None
+    try:
+        if filter_date_from: date_from = date.fromisoformat(filter_date_from)
+        if filter_date_to: date_to = date.fromisoformat(filter_date_to)
+        if filter_due_from: due_from = date.fromisoformat(filter_due_from)
+        if filter_due_to: due_to = date.fromisoformat(filter_due_to)
+    except (ValueError, TypeError):
+        pass
+
+    if filter_inv_status or date_from or date_to or due_from or due_to:
+        for name, c in client_map.items():
+            filtered = c['invoices']
+            if filter_inv_status:
+                filtered = [inv for inv in filtered if inv.status == filter_inv_status.upper()]
+            if date_from:
+                filtered = [inv for inv in filtered if inv.date and inv.date >= date_from]
+            if date_to:
+                filtered = [inv for inv in filtered if inv.date and inv.date <= date_to]
+            if due_from:
+                filtered = [inv for inv in filtered if inv.due_date and inv.due_date >= due_from]
+            if due_to:
+                filtered = [inv for inv in filtered if inv.due_date and inv.due_date <= due_to]
+            c['invoices'] = filtered
+            c['total_invoiced'] = sum(inv.total for inv in filtered)
+            c['total_paid'] = sum(inv.amount_paid for inv in filtered if inv.status == 'PAID')
+            c['total_outstanding'] = sum(inv.amount_due for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'))
+            c['overdue_amount'] = sum(inv.amount_due for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT') and inv.due_date and inv.due_date < today)
+            c['invoice_count'] = len(filtered)
+            c['outstanding_count'] = len([inv for inv in filtered if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT')])
+            c['paid_count'] = len([inv for inv in filtered if inv.status == 'PAID'])
+            c['aging'] = {'current': Decimal('0'), '1_30': Decimal('0'), '31_60': Decimal('0'), '61_90': Decimal('0'), '91_120': Decimal('0'), '120_plus': Decimal('0')}
+            for inv in filtered:
+                if inv.status in ('AUTHORISED', 'SUBMITTED', 'DRAFT'):
+                    days = inv.days_outstanding
+                    if days <= 0: c['aging']['current'] += inv.amount_due
+                    elif days <= 30: c['aging']['1_30'] += inv.amount_due
+                    elif days <= 60: c['aging']['31_60'] += inv.amount_due
+                    elif days <= 90: c['aging']['61_90'] += inv.amount_due
+                    elif days <= 120: c['aging']['91_120'] += inv.amount_due
+                    else: c['aging']['120_plus'] += inv.amount_due
+        clients = sorted([c for c in client_map.values() if c['invoice_count'] > 0], key=lambda x: x['total_outstanding'], reverse=True)
+    else:
+        clients = sorted(client_map.values(), key=lambda x: x['total_outstanding'], reverse=True)
+
+    if search_q:
+        clients = [c for c in clients if search_q.lower() in c['contact_name'].lower()]
+    if filter_status == 'outstanding':
+        clients = [c for c in clients if c['total_outstanding'] > 0]
+    elif filter_status == 'paid':
+        clients = [c for c in clients if c['total_outstanding'] == 0 and c['total_paid'] > 0]
+    if filter_bucket:
+        bucket_key = filter_bucket.replace('-', '_').replace('+', '_plus')
+        clients = [c for c in clients if c['aging'].get(bucket_key, 0) > 0]
+
+    if sort_by == 'name_asc': clients.sort(key=lambda x: x['contact_name'].lower())
+    elif sort_by == 'name_desc': clients.sort(key=lambda x: x['contact_name'].lower(), reverse=True)
+    elif sort_by == 'outstanding_asc': clients.sort(key=lambda x: x['total_outstanding'])
+    elif sort_by == 'outstanding_desc': clients.sort(key=lambda x: x['total_outstanding'], reverse=True)
+    elif sort_by == 'overdue_desc': clients.sort(key=lambda x: x['overdue_amount'], reverse=True)
+    elif sort_by == 'oldest': clients.sort(key=lambda x: x['oldest_overdue_days'], reverse=True)
+
+    # Build Excel workbook
+    wb = openpyxl.Workbook()
+
+    # --- Sheet 1: Summary ---
+    ws = wb.active
+    ws.title = 'Debtors Summary'
+
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='007890', end_color='007890', fill_type='solid')
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    money_fmt = '#,##0.00'
+
+    summary_headers = ['Client', 'Invoices', 'Outstanding', 'Total Invoiced', 'Total Paid',
+                        'Overdue', 'Current', '1-30 Days', '31-60 Days', '61-90 Days',
+                        '91-120 Days', '120+ Days']
+    for col_idx, header in enumerate(summary_headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    for row_idx, client in enumerate(clients, 2):
+        vals = [
+            client['contact_name'], client['outstanding_count'],
+            float(client['total_outstanding']), float(client['total_invoiced']),
+            float(client['total_paid']), float(client['overdue_amount']),
+            float(client['aging']['current']), float(client['aging']['1_30']),
+            float(client['aging']['31_60']), float(client['aging']['61_90']),
+            float(client['aging']['91_120']), float(client['aging']['120_plus']),
+        ]
+        for col_idx, val in enumerate(vals, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = thin_border
+            if col_idx >= 3:
+                cell.number_format = money_fmt
+                cell.alignment = Alignment(horizontal='right')
+
+    # Totals row
+    total_row = len(clients) + 2
+    ws.cell(row=total_row, column=1, value='TOTALS').font = Font(bold=True)
+    ws.cell(row=total_row, column=2, value=sum(c['outstanding_count'] for c in clients)).font = Font(bold=True)
+    for col_idx, key in enumerate(['total_outstanding', 'total_invoiced', 'total_paid', 'overdue_amount'], 3):
+        cell = ws.cell(row=total_row, column=col_idx, value=float(sum(c[key] for c in clients)))
+        cell.font = Font(bold=True)
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    for col_idx, key in enumerate(['current', '1_30', '31_60', '61_90', '91_120', '120_plus'], 7):
+        cell = ws.cell(row=total_row, column=col_idx, value=float(sum(c['aging'][key] for c in clients)))
+        cell.font = Font(bold=True)
+        cell.number_format = money_fmt
+        cell.border = thin_border
+
+    # Auto-width columns
+    for col_idx in range(1, len(summary_headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = max(len(str(ws.cell(row=r, column=col_idx).value or '')) for r in range(1, total_row + 1))
+        ws.column_dimensions[col_letter].width = min(max(max_len + 2, 12), 35)
+
+    # --- Sheet 2: Invoice Detail ---
+    ws2 = wb.create_sheet('Invoice Detail')
+    detail_headers = ['Client', 'Invoice #', 'Reference', 'Status', 'Invoice Date',
+                      'Due Date', 'Total', 'Amount Paid', 'Amount Due', 'Days Outstanding']
+    for col_idx, header in enumerate(detail_headers, 1):
+        cell = ws2.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    detail_row = 2
+    for client in clients:
+        for inv in client['invoices']:
+            vals = [
+                client['contact_name'], inv.invoice_number or '', inv.reference or '',
+                inv.status, inv.date, inv.due_date,
+                float(inv.total), float(inv.amount_paid), float(inv.amount_due),
+                inv.days_outstanding,
+            ]
+            for col_idx, val in enumerate(vals, 1):
+                cell = ws2.cell(row=detail_row, column=col_idx, value=val)
+                cell.border = thin_border
+                if col_idx in (5, 6) and val:
+                    cell.number_format = 'YYYY-MM-DD'
+                if col_idx in (7, 8, 9):
+                    cell.number_format = money_fmt
+                    cell.alignment = Alignment(horizontal='right')
+            detail_row += 1
+
+    for col_idx in range(1, len(detail_headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = max(len(str(ws2.cell(row=r, column=col_idx).value or '')) for r in range(1, min(detail_row, 50)))
+        ws2.column_dimensions[col_letter].width = min(max(max_len + 2, 12), 35)
+
+    # Write to response
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="Debtors_Report_{today.strftime("%Y%m%d")}.xlsx"'
+    return response

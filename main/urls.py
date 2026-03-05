@@ -32,7 +32,7 @@ from .views.data_views import (
 )
 from .views.xero_views import (
     xero_connect, xero_callback, xero_disconnect, xero_status,
-    xero_sync_invoices, xero_invoices_list, debtors_page,
+    xero_sync_invoices, xero_invoices_list, debtors_page, debtors_export_excel,
 )
 
 urlpatterns = [
@@ -248,4 +248,5 @@ urlpatterns = [
 
     # DEBTORS PAGE
     path('debtors/', debtors_page, name='debtors_page'),
+    path('debtors/export/', debtors_export_excel, name='debtors_export_excel'),
 ]

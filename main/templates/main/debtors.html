@@ -322,6 +322,7 @@
                     {% endif %}
                     <button onclick="expandAll()" class="action-btn"><i class="fas fa-expand-alt"></i> Expand All</button>
                     <button onclick="collapseAll()" class="action-btn"><i class="fas fa-compress-alt"></i> Collapse All</button>
+                    <a href="{% url 'debtors_export_excel' %}?{{ request.GET.urlencode }}" class="action-btn" style="background: #16a34a; color: white; border-color: #16a34a;"><i class="fas fa-file-excel"></i> Export Excel</a>
                     {% if last_sync_time %}
                     <span style="font-size: 11px; color: var(--text-light); margin-left: auto;"><i class="fas fa-clock"></i> Last sync: {{ last_sync_time|date:"d M Y H:i" }}</span>
                     {% endif %}
@@ -365,102 +366,82 @@
                     <div class="card-header">
                         <div class="card-title"><i class="fas fa-filter" style="color: var(--primary);"></i> Filters</div>
                     </div>
-                    <form method="get" class="filter-form">
-                        <!-- Row 1: Search, Status, Aging -->
-                        <div class="filter-field">
-                            <label>Client Search</label>
-                            <input type="text" name="q" value="{{ search_q }}" placeholder="Search client name...">
+                    <form method="get" id="debtorsFilterForm">
+                        <!-- Row 1: Search, Status, Aging, Invoice Status -->
+                        <div class="filter-form">
+                            <div class="filter-field">
+                                <label>Client Search</label>
+                                <input type="text" name="q" value="{{ search_q }}" placeholder="Search client name...">
+                            </div>
+                            <div class="filter-field">
+                                <label>Status</label>
+                                <select name="status">
+                                    <option value="">All</option>
+                                    <option value="outstanding" {% if filter_status == 'outstanding' %}selected{% endif %}>Outstanding</option>
+                                    <option value="paid" {% if filter_status == 'paid' %}selected{% endif %}>Fully Paid</option>
+                                </select>
+                            </div>
+                            <div class="filter-field">
+                                <label>Aging</label>
+                                <select name="aging">
+                                    <option value="">All</option>
+                                    <option value="current" {% if filter_bucket == 'current' %}selected{% endif %}>Current</option>
+                                    <option value="1_30" {% if filter_bucket == '1_30' %}selected{% endif %}>1-30 Days</option>
+                                    <option value="31_60" {% if filter_bucket == '31_60' %}selected{% endif %}>31-60 Days</option>
+                                    <option value="61_90" {% if filter_bucket == '61_90' %}selected{% endif %}>61-90 Days</option>
+                                    <option value="91_120" {% if filter_bucket == '91_120' %}selected{% endif %}>91-120 Days</option>
+                                    <option value="120_plus" {% if filter_bucket == '120_plus' %}selected{% endif %}>120+ Days</option>
+                                </select>
+                            </div>
+                            <div class="filter-field">
+                                <label>Invoice Status</label>
+                                <select name="inv_status">
+                                    <option value="">All</option>
+                                    <option value="DRAFT" {% if filter_inv_status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                                    <option value="SUBMITTED" {% if filter_inv_status == 'SUBMITTED' %}selected{% endif %}>Submitted</option>
+                                    <option value="AUTHORISED" {% if filter_inv_status == 'AUTHORISED' %}selected{% endif %}>Authorised</option>
+                                    <option value="PAID" {% if filter_inv_status == 'PAID' %}selected{% endif %}>Paid</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="filter-field">
-                            <label>Status</label>
-                            <select name="status">
-                                <option value="">All</option>
-                                <option value="outstanding" {% if filter_status == 'outstanding' %}selected{% endif %}>Outstanding</option>
-                                <option value="paid" {% if filter_status == 'paid' %}selected{% endif %}>Fully Paid</option>
-                            </select>
-                        </div>
-                        <div class="filter-field">
-                            <label>Aging</label>
-                            <select name="aging">
-                                <option value="">All</option>
-                                <option value="current" {% if filter_bucket == 'current' %}selected{% endif %}>Current</option>
-                                <option value="1_30" {% if filter_bucket == '1_30' %}selected{% endif %}>1-30 Days</option>
-                                <option value="31_60" {% if filter_bucket == '31_60' %}selected{% endif %}>31-60 Days</option>
-                                <option value="61_90" {% if filter_bucket == '61_90' %}selected{% endif %}>61-90 Days</option>
-                                <option value="91_120" {% if filter_bucket == '91_120' %}selected{% endif %}>91-120 Days</option>
-                                <option value="120_plus" {% if filter_bucket == '120_plus' %}selected{% endif %}>120+ Days</option>
-                            </select>
-                        </div>
-                        <div class="filter-field">
-                            <label>Invoice Status</label>
-                            <select name="inv_status">
-                                <option value="">All</option>
-                                <option value="DRAFT" {% if filter_inv_status == 'DRAFT' %}selected{% endif %}>Draft</option>
-                                <option value="SUBMITTED" {% if filter_inv_status == 'SUBMITTED' %}selected{% endif %}>Submitted</option>
-                                <option value="AUTHORISED" {% if filter_inv_status == 'AUTHORISED' %}selected{% endif %}>Authorised</option>
-                                <option value="PAID" {% if filter_inv_status == 'PAID' %}selected{% endif %}>Paid</option>
-                            </select>
-                        </div>
-                    </form>
-                    <!-- Row 2: Date ranges, Sort, Buttons -->
-                    <form method="get" class="filter-form" style="border-top: 1px solid var(--border); padding-top: 10px;" id="filterForm2">
-                        <!-- Carry hidden fields from row 1 -->
-                        <input type="hidden" name="q" value="{{ search_q }}">
-                        <input type="hidden" name="status" value="{{ filter_status }}">
-                        <input type="hidden" name="aging" value="{{ filter_bucket }}">
-                        <input type="hidden" name="inv_status" value="{{ filter_inv_status }}">
-                        <div class="filter-field">
-                            <label>Invoice Date From</label>
-                            <input type="date" name="date_from" value="{{ filter_date_from }}">
-                        </div>
-                        <div class="filter-field">
-                            <label>Invoice Date To</label>
-                            <input type="date" name="date_to" value="{{ filter_date_to }}">
-                        </div>
-                        <div class="filter-field">
-                            <label>Due Date From</label>
-                            <input type="date" name="due_from" value="{{ filter_due_from }}">
-                        </div>
-                        <div class="filter-field">
-                            <label>Due Date To</label>
-                            <input type="date" name="due_to" value="{{ filter_due_to }}">
-                        </div>
-                        <div class="filter-field">
-                            <label>Sort By</label>
-                            <select name="sort">
-                                <option value="">Outstanding (High-Low)</option>
-                                <option value="outstanding_asc" {% if sort_by == 'outstanding_asc' %}selected{% endif %}>Outstanding (Low-High)</option>
-                                <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Client Name (A-Z)</option>
-                                <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Client Name (Z-A)</option>
-                                <option value="overdue_desc" {% if sort_by == 'overdue_desc' %}selected{% endif %}>Overdue Amount</option>
-                                <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest Overdue</option>
-                            </select>
-                        </div>
-                        <div class="filter-field" style="justify-content: flex-end;">
-                            <label>&nbsp;</label>
-                            <div style="display: flex; gap: 6px;">
-                                <button type="submit" class="action-btn active" onclick="mergeFilters(event)"><i class="fas fa-search"></i> Apply</button>
-                                <a href="{% url 'debtors_page' %}" class="action-btn"><i class="fas fa-times"></i> Clear</a>
+                        <!-- Row 2: Date ranges, Sort, Buttons -->
+                        <div class="filter-form" style="border-top: 1px solid var(--border); padding-top: 10px;">
+                            <div class="filter-field">
+                                <label>Invoice Date From</label>
+                                <input type="date" name="date_from" value="{{ filter_date_from }}">
+                            </div>
+                            <div class="filter-field">
+                                <label>Invoice Date To</label>
+                                <input type="date" name="date_to" value="{{ filter_date_to }}">
+                            </div>
+                            <div class="filter-field">
+                                <label>Due Date From</label>
+                                <input type="date" name="due_from" value="{{ filter_due_from }}">
+                            </div>
+                            <div class="filter-field">
+                                <label>Due Date To</label>
+                                <input type="date" name="due_to" value="{{ filter_due_to }}">
+                            </div>
+                            <div class="filter-field">
+                                <label>Sort By</label>
+                                <select name="sort">
+                                    <option value="">Outstanding (High-Low)</option>
+                                    <option value="outstanding_asc" {% if sort_by == 'outstanding_asc' %}selected{% endif %}>Outstanding (Low-High)</option>
+                                    <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Client Name (A-Z)</option>
+                                    <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Client Name (Z-A)</option>
+                                    <option value="overdue_desc" {% if sort_by == 'overdue_desc' %}selected{% endif %}>Overdue Amount</option>
+                                    <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest Overdue</option>
+                                </select>
+                            </div>
+                            <div class="filter-field" style="justify-content: flex-end;">
+                                <label>&nbsp;</label>
+                                <div style="display: flex; gap: 6px;">
+                                    <button type="submit" class="action-btn active"><i class="fas fa-search"></i> Apply</button>
+                                    <a href="{% url 'debtors_page' %}" class="action-btn"><i class="fas fa-times"></i> Clear</a>
+                                </div>
                             </div>
                         </div>
                     </form>
-                    <script>
-                    function mergeFilters(e) {
-                        e.preventDefault();
-                        const form1 = document.querySelector('.filter-form');
-                        const form2 = document.getElementById('filterForm2');
-                        const params = new URLSearchParams();
-                        // Get row 1 fields (non-hidden)
-                        form1.querySelectorAll('input:not([type=hidden]), select').forEach(el => {
-                            if (el.name && el.value) params.set(el.name, el.value);
-                        });
-                        // Get row 2 fields (non-hidden)
-                        form2.querySelectorAll('input:not([type=hidden]), select').forEach(el => {
-                            if (el.name && el.value) params.set(el.name, el.value);
-                        });
-                        window.location.href = '{% url "debtors_page" %}?' + params.toString();
-                    }
-                    </script>
                 </div>
 
                 <!-- Debtors Table Card -->
