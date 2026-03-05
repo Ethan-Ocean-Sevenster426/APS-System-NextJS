@@ -152,6 +152,12 @@ def save_manual_client_email(request):
                 ClientEmail.objects.get_or_create(client=client, email=email)
             except Exception:
                 pass
+        # Clear client email caches so updated emails show immediately
+        from django.core.cache import cache
+        try:
+            cache.delete_pattern('client_maps_page_*')
+        except (AttributeError, Exception):
+            cache.clear()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -172,21 +178,33 @@ def delete_client_email(request):
         client = Client.objects.filter(client_id__iexact=client_name).first()
         if not client:
             return JsonResponse({'success': False, 'error': 'Client not found'})
+
+        def _clear_email_cache():
+            """Clear client email caches so changes show immediately."""
+            from django.core.cache import cache
+            try:
+                cache.delete_pattern('client_maps_page_*')
+            except (AttributeError, Exception):
+                cache.clear()
+
         # If matches primary email, clear it
         if client.email and client.email.lower() == email.lower():
             client.email = None
             client.save(update_fields=['email'])
+            _clear_email_cache()
             return JsonResponse({'success': True})
         # If matches manual_email, clear it
         if client.manual_email and client.manual_email.lower() == email.lower():
             client.manual_email = None
             client.save(update_fields=['manual_email'])
+            _clear_email_cache()
             return JsonResponse({'success': True})
         # Otherwise try remove from additional emails
         try:
             from ..models import ClientEmail
             deleted, _ = ClientEmail.objects.filter(client=client, email__iexact=email).delete()
             if deleted:
+                _clear_email_cache()
                 return JsonResponse({'success': True})
         except Exception:
             pass
@@ -1502,6 +1520,11 @@ def edit_fsa_inspection(request, pk):
                     cache.delete('filter_options')
                     if inspection.client:
                         cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    # Clear client email caches so updated emails show immediately
+                    try:
+                        cache.delete_pattern('client_maps_page_*')
+                    except (AttributeError, Exception):
+                        cache.clear()
                     # Clear shipment list caches
                     try:
                         if hasattr(cache, 'keys'):
@@ -1554,6 +1577,12 @@ def edit_fsa_inspection(request, pk):
                     cache.delete('filter_options')
                     if inspection.client:
                         cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    # Clear client email caches so updated emails show immediately
+                    try:
+                        cache.delete_pattern('client_maps_page_*')
+                    except (AttributeError, Exception):
+                        cache.clear()
+                    # Clear shipment list caches
                     try:
                         if hasattr(cache, 'keys'):
                             for key in cache.keys('shipment_list_*'):
