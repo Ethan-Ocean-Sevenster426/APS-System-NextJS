@@ -3,12 +3,14 @@ Xero Accounting Integration Views
 OAuth2 connect/callback, invoice sync, and status endpoints.
 """
 import logging
-from datetime import timedelta
-from django.shortcuts import redirect
+from datetime import timedelta, date
+from decimal import Decimal
+from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.db.models import Sum, Q, Count
 
 from ..services import xero_service
 from ..models import XeroToken, XeroInvoice
@@ -158,3 +160,89 @@ def xero_invoices_list(request):
         'total_outstanding': sum(aging_summary.values()),
         'count': len(data),
     })
+
+
+@login_required
+def debtors_page(request):
+    """Debtors page - shows outstanding invoices from Xero with aging analysis."""
+    if request.user.role not in ('admin', 'super_admin', 'developer'):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden('Permission denied')
+
+    # Check Xero connection
+    xero_connected = xero_service.is_connected()
+    token = XeroToken.objects.first()
+    tenant_name = token.tenant_name if token else ''
+
+    # Get all ACCREC (sales) invoices
+    all_invoices = XeroInvoice.objects.filter(invoice_type='ACCREC')
+    outstanding_invoices = all_invoices.filter(
+        status__in=['AUTHORISED', 'SUBMITTED']
+    ).order_by('due_date')
+
+    # Aging buckets
+    today = date.today()
+    aging = {
+        'current': {'invoices': [], 'total': Decimal('0')},
+        '1_30': {'invoices': [], 'total': Decimal('0')},
+        '31_60': {'invoices': [], 'total': Decimal('0')},
+        '61_90': {'invoices': [], 'total': Decimal('0')},
+        '91_120': {'invoices': [], 'total': Decimal('0')},
+        '120_plus': {'invoices': [], 'total': Decimal('0')},
+    }
+
+    for inv in outstanding_invoices:
+        days = inv.days_outstanding
+        if days <= 0:
+            bucket = 'current'
+        elif days <= 30:
+            bucket = '1_30'
+        elif days <= 60:
+            bucket = '31_60'
+        elif days <= 90:
+            bucket = '61_90'
+        elif days <= 120:
+            bucket = '91_120'
+        else:
+            bucket = '120_plus'
+        aging[bucket]['invoices'].append(inv)
+        aging[bucket]['total'] += inv.amount_due
+
+    # Summary stats
+    total_outstanding = outstanding_invoices.aggregate(
+        total=Sum('amount_due')
+    )['total'] or Decimal('0')
+    total_overdue = sum(
+        inv.amount_due for inv in outstanding_invoices
+        if inv.due_date and inv.due_date < today
+    )
+    total_invoices = outstanding_invoices.count()
+    paid_invoices = all_invoices.filter(status='PAID')
+    total_paid = paid_invoices.aggregate(
+        total=Sum('amount_paid')
+    )['total'] or Decimal('0')
+
+    # Debtor breakdown by contact
+    debtor_summary = outstanding_invoices.values('contact_name').annotate(
+        total_due=Sum('amount_due'),
+        invoice_count=Count('id'),
+    ).order_by('-total_due')
+
+    # Last sync time
+    last_sync = all_invoices.order_by('-synced_at').first()
+    last_sync_time = last_sync.synced_at if last_sync else None
+
+    context = {
+        'xero_connected': xero_connected,
+        'tenant_name': tenant_name,
+        'outstanding_invoices': outstanding_invoices,
+        'aging': aging,
+        'total_outstanding': total_outstanding,
+        'total_overdue': total_overdue,
+        'total_invoices': total_invoices,
+        'total_paid': total_paid,
+        'debtor_summary': debtor_summary,
+        'last_sync_time': last_sync_time,
+        'today': today,
+    }
+    return render(request, 'main/debtors.html', context)

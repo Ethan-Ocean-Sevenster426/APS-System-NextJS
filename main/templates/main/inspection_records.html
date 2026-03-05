@@ -279,6 +279,14 @@
                         Settings
                     </a>
                 </li>
+                {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                <li class="nav-item">
+                    <a href="{% url 'debtors_page' %}" class="nav-link">
+                        <i class="fas fa-file-invoice-dollar" style="color: #fbbf24;"></i>
+                        Debtors
+                    </a>
+                </li>
+                {% endif %}
 
                 <!-- Shipment-specific functionality -->
                 {% if request.user.role != 'inspector' and request.user.role != 'lab_technician' %}
