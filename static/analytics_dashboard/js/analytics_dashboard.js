@@ -623,11 +623,13 @@ function applyFinancialPeriod() {
     console.log('[Period Filter] value:', val, '| fromStr:', fromStr, '| toStr:', toStr, '| total dates:', allDates.length, '| matched inspectors:', Object.keys(byInspector).length, '| matches:', JSON.stringify(byInspector));
 
     // Scale from full financials proportionally based on inspection count ratio
+    // Only show inspectors who had inspections in this period
     var fullFinancials = cfg.inspectorFinancials || [];
     var result = [];
     fullFinancials.forEach(function(full) {
         var name = full.inspector_name;
         var partialCount = byInspector[name] || 0;
+        if (partialCount === 0) return; // Skip inspectors with no inspections in this period
         var ratio = partialCount / (full.total_inspections || 1);
         result.push({
             inspector_name: name,
@@ -649,7 +651,15 @@ function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+    if (items.length === 0) {
+        var periodSel = document.getElementById('financialPeriod');
+        var periodLabel = periodSel ? periodSel.options[periodSel.selectedIndex].text : '';
+        var msg = periodLabel && periodLabel !== 'All Time'
+            ? 'No inspections found for <b>' + periodLabel + '</b>. Try a different period.'
+            : 'No financial data';
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">' + msg + '</td></tr>';
+        return;
+    }
 
     // Role-based filtering: inspectors see only their own row
     var userRole = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole) || '';
