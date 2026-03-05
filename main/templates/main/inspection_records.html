@@ -779,7 +779,7 @@
                                             <span class="text-gray-500">Sent Status:</span>
                                             <span
                                                 class="text-xs px-2 py-1 rounded {% if shipment.sent_date %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                                {% if shipment.sent_date %}Sent{% else %}Not Sent{% endif %}
+                                                {% if shipment.sent_date %}Sent: {% if shipment.sent_by %}{{ shipment.sent_by.first_name }} {{ shipment.sent_by.last_name }}{% else %}Unknown{% endif %} - {{ shipment.sent_date|date:"d M Y H:i" }}{% else %}Not Sent{% endif %}
                                             </span>
                                         </div>
                                         <div class="flex justify-between">
@@ -892,8 +892,8 @@
                                             </div>
                                             <div>
                                                 <label class="block text-gray-600 font-medium mb-1">Sent Status</label>
-                                                <span class="text-xs bg-gray-100 px-2 py-1 rounded">
-                                                    {% if shipment.sent_date %}Sent{% else %}Not Sent{% endif %}
+                                                <span class="text-xs px-2 py-1 rounded {% if shipment.sent_date %}bg-green-100 text-green-800{% else %}bg-gray-100{% endif %}">
+                                                    {% if shipment.sent_date %}Sent: {% if shipment.sent_by %}{{ shipment.sent_by.first_name }} {{ shipment.sent_by.last_name }}{% else %}Unknown{% endif %} - {{ shipment.sent_date|date:"d M Y H:i" }}{% else %}Not Sent{% endif %}
                                                 </span>
                                             </div>
                                             {% if shipment.km_traveled %}
@@ -1402,14 +1402,14 @@
                                                 data-client-name="{{ shipment.client_name|escapejs }}"
                                                 data-inspection-date="{{ shipment.date_of_inspection|date:'Y-m-d' }}"
                                                 data-is-sent="{% if shipment.is_sent %}true{% else %}false{% endif %}"
-                                                style="padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;
+                                                style="padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap;
                                                 {% if shipment.is_sent %}background: #10b981; color: white;{% else %}background: #e5e7eb; color: #6b7280;{% endif %}"
-                                                title="{% if shipment.is_sent %}Documents sent{% else %}Send documents to client{% endif %}">
-                                                {% if shipment.is_sent %}Sent{% else %}Send{% endif %}
+                                                title="{% if shipment.is_sent %}Documents sent{% if shipment.sent_by %} by {{ shipment.sent_by.first_name }} {{ shipment.sent_by.last_name }}{% endif %}{% if shipment.sent_date %} at {{ shipment.sent_date|date:'d M Y H:i' }}{% endif %}{% else %}Send documents to client{% endif %}">
+                                                {% if shipment.is_sent %}Sent: {% if shipment.sent_by %}{{ shipment.sent_by.first_name }} {{ shipment.sent_by.last_name }}{% else %}Unknown{% endif %} - {{ shipment.sent_date|date:"d M Y H:i"|default:"" }}{% else %}Send{% endif %}
                                             </button>
                                             {% else %}
-                                            <span style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-block; {% if shipment.is_sent %}background: #dcfce7; color: #166534;{% else %}background: #f3f4f6; color: #6b7280;{% endif %}">
-                                                {% if shipment.is_sent %}Sent{% else %}Not Sent{% endif %}
+                                            <span style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; {% if shipment.is_sent %}background: #dcfce7; color: #166534;{% else %}background: #f3f4f6; color: #6b7280;{% endif %}">
+                                                {% if shipment.is_sent %}Sent: {% if shipment.sent_by %}{{ shipment.sent_by.first_name }} {{ shipment.sent_by.last_name }}{% else %}Unknown{% endif %} - {{ shipment.sent_date|date:"d M Y H:i"|default:"" }}{% else %}Not Sent{% endif %}
                                             </span>
                                             {% endif %}
                                         </td>

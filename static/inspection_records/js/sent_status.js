@@ -46,11 +46,21 @@ function toggleSentStatus(btn) {
     .then(function(data) {
         btn.disabled = false;
         if (data.success) {
-            btn.innerHTML = 'Sent';
+            var sentBy = data.sent_by || '';
+            var sentTime = data.sent_time || '';
+            var label = 'Sent';
+            if (sentBy && sentTime) {
+                label = 'Sent: ' + sentBy + ' - ' + sentTime;
+            } else if (sentBy) {
+                label = 'Sent: ' + sentBy;
+            }
+            btn.innerHTML = label;
             btn.style.background = '#10b981';
             btn.style.color = 'white';
+            btn.style.minWidth = 'auto';
+            btn.style.whiteSpace = 'nowrap';
             btn.setAttribute('data-is-sent', 'true');
-            btn.title = 'Documents sent to ' + (data.recipients || 'client');
+            btn.title = 'Documents sent to ' + (data.recipients || 'client') + ' by ' + sentBy + ' at ' + sentTime;
         } else {
             btn.innerHTML = 'Send';
             btn.style.background = '#e5e7eb';

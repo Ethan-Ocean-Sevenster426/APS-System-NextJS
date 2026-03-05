@@ -15672,11 +15672,17 @@ def send_group_documents(request):
             }
         )
 
+        # Get sender display name
+        sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        sent_time = timezone.now().strftime('%d %b %Y %H:%M')
+
         return JsonResponse({
             'success': True,
             'message': f'Documents sent successfully to {recipient_email}',
             'recipients': recipient_email,
             'documents_sent': len(attachments),
+            'sent_by': sender_name,
+            'sent_time': sent_time,
         })
 
     except Exception as e:
