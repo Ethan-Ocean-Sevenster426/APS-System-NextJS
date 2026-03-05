@@ -15565,8 +15565,8 @@ def send_group_documents(request):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
 
-        # Get client email
-        recipient_email = get_client_email(client_name)
+        # Get client email (pass inspection_group_id for reliable FK lookup)
+        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
 
         if not recipient_email:
             return JsonResponse({
@@ -15730,36 +15730,70 @@ def send_group_documents(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-def get_client_email(client_name):
-    """Get client email address from database (manual override preferred)."""
+def get_client_email(client_name, inspection_group_id=None):
+    """Get client email address from database (manual override preferred).
+
+    Lookup order:
+    1. Via inspection's client FK (most reliable - avoids name mismatch issues)
+    2. By client_id field (iexact)
+    3. By client name field (iexact)
+    4. Normalized name search (strips hyphens, punctuation for fuzzy match)
+    """
+    import re
+
+    def _extract_email(client):
+        """Return first available email from a Client object."""
+        if client.manual_email:
+            return client.manual_email.split(',')[0].strip()
+        if client.email:
+            return client.email.split(',')[0].strip()
+        from ..models import ClientEmail
+        client_email = ClientEmail.objects.filter(client=client).first()
+        if client_email:
+            return client_email.email
+        return None
+
     try:
-        from ..models import Client, ClientEmail
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection
 
-        # Try to find client by business name (client_id field)
+        # 1. Try via inspection's client FK (most reliable)
+        if inspection_group_id:
+            insp = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id,
+                client__isnull=False
+            ).select_related('client').first()
+            if insp and insp.client:
+                email = _extract_email(insp.client)
+                if email:
+                    return email
+
+        # 2. Try by client_id field
         client = Client.objects.filter(client_id__iexact=client_name).first()
-
         if client:
-            if client.manual_email:
-                return client.manual_email
-            if client.email:
-                return client.email
-            # Check ClientEmail table as fallback
-            client_email = ClientEmail.objects.filter(client=client).first()
-            if client_email:
-                return client_email.email
+            email = _extract_email(client)
+            if email:
+                return email
 
-        # Also try matching by client name
+        # 3. Try by name field
         client = Client.objects.filter(name__iexact=client_name).first()
         if client:
-            if client.manual_email:
-                return client.manual_email
-            if client.email:
-                return client.email
-            client_email = ClientEmail.objects.filter(client=client).first()
-            if client_email:
-                return client_email.email
+            email = _extract_email(client)
+            if email:
+                return email
 
-        # If no email found, return None for now
+        # 4. Normalized search (strips hyphens, punctuation - matches page display logic)
+        def _norm(text):
+            cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
+            return re.sub(r"\s+", " ", cleaned).strip().lower()
+
+        norm_name = _norm(client_name)
+        if norm_name:
+            for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
+                if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
+                    email = _extract_email(c)
+                    if email:
+                        return email
+
         return None
 
     except Exception:
