@@ -16,7 +16,10 @@ XERO_TOKEN_URL = 'https://identity.xero.com/connect/token'
 XERO_API_URL = 'https://api.xero.com/api.xro/2.0'
 XERO_CONNECTIONS_URL = 'https://api.xero.com/connections'
 
-XERO_SCOPES = 'openid profile email accounting.transactions.read accounting.contacts.read offline_access'
+# Simplified scopes for uncertified apps
+# accounting.transactions grants full read/write to transactions
+# Avoid .read suffix and openid/profile/email which may not be available
+XERO_SCOPES = 'accounting.transactions offline_access'
 
 
 def get_authorization_url(state='xero_auth'):
