@@ -261,10 +261,10 @@ GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
 GRAPH_CLIENT_SECRET = env('GRAPH_CLIENT_SECRET', default='')
 GRAPH_TENANT_ID = env('GRAPH_TENANT_ID', default='')
 
-# Xero Accounting Integration
-XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='')
-XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='')
-XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='')
+# Xero Accounting Integration (Web App - created March 5, 2026)
+XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='CD1AB8B76E8D43B99547973C9BB25CF0')
+XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='H0uPFSJs2kfwH4aZ17BB6WTDWuYKkzycrOxpYIc2st8KnYEb')
+XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='https://portal-test.fsa-pty.co.za/xero/callback/')
 
 # Legacy SMTP Configuration (Backup)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
