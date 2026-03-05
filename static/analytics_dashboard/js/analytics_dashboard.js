@@ -354,24 +354,54 @@ function loadSalaries() {
 }
 var SAVED_SALARIES = loadSalaries();
 
-// S&T / Guesthouse monthly costs
-function loadSTCosts() {
+// S&T / Guesthouse & other expenses - stored as a log of entries
+function loadExpenseLog() {
     try {
-        var saved = localStorage.getItem('inspector_st_costs');
+        var saved = localStorage.getItem('inspector_expense_log');
         if (saved) return JSON.parse(saved);
     } catch(e) {}
-    return {};
+    return [];
 }
-var SAVED_ST_COSTS = loadSTCosts();
+var EXPENSE_LOG = loadExpenseLog();
 
-function getInspectorST(name) {
+function saveExpenseLog() {
+    localStorage.setItem('inspector_expense_log', JSON.stringify(EXPENSE_LOG));
+}
+
+function getInspectorExpenses(name) {
     if (!name) return 0;
     var lower = name.toLowerCase();
-    for (var n = 0; n < NON_INSPECTORS.length; n++) {
-        if (lower.indexOf(NON_INSPECTORS[n]) !== -1) return 0;
-    }
-    if (SAVED_ST_COSTS[lower] !== undefined) return SAVED_ST_COSTS[lower];
-    return 0;
+    var total = 0;
+    EXPENSE_LOG.forEach(function(entry) {
+        if (entry.inspector.toLowerCase() === lower) {
+            total += parseFloat(entry.amount) || 0;
+        }
+    });
+    return total;
+}
+
+function getInspectorExpenseEntries(name) {
+    if (!name) return [];
+    var lower = name.toLowerCase();
+    return EXPENSE_LOG.filter(function(entry) {
+        return entry.inspector.toLowerCase() === lower;
+    });
+}
+
+function addExpense(inspector, amount, description, date) {
+    EXPENSE_LOG.push({
+        id: Date.now(),
+        inspector: inspector,
+        amount: parseFloat(amount) || 0,
+        description: description || '',
+        date: date || new Date().toISOString().split('T')[0]
+    });
+    saveExpenseLog();
+}
+
+function deleteExpense(id) {
+    EXPENSE_LOG = EXPENSE_LOG.filter(function(e) { return e.id !== id; });
+    saveExpenseLog();
 }
 
 function getInspectorSalary(name) {
@@ -401,7 +431,6 @@ function openSalaryModal() {
         '<thead><tr style="border-bottom:2px solid #e5e7eb;">' +
         '<th style="text-align:left; padding:8px 6px; font-weight:600; color:#374151;">Inspector</th>' +
         '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">Salary (CTC) R</th>' +
-        '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">S&T (Monthly) R</th>' +
         '</tr></thead><tbody>';
     items.forEach(function(item) {
         var name = item.inspector_name || '';
@@ -412,15 +441,10 @@ function openSalaryModal() {
         }
         if (isNonInspector) return;
         var salary = getInspectorSalary(name);
-        var st = getInspectorST(name);
         html += '<tr style="border-bottom:1px solid #f3f4f6;">' +
             '<td style="padding:6px;">' + name + '</td>' +
             '<td style="padding:6px; text-align:right;">' +
             '<input type="number" step="0.01" min="0" value="' + (salary || '') + '" data-inspector="' + lower + '" class="salary-input" ' +
-            'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
-            '</td>' +
-            '<td style="padding:6px; text-align:right;">' +
-            '<input type="number" step="0.01" min="0" value="' + (st || '') + '" data-inspector="' + lower + '" class="st-input" ' +
             'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
             '</td></tr>';
     });
@@ -436,9 +460,7 @@ function closeSalaryModal() {
 
 function saveSalaries() {
     var salaryInputs = document.querySelectorAll('#salaryModalBody .salary-input');
-    var stInputs = document.querySelectorAll('#salaryModalBody .st-input');
     var savedSalaries = loadSalaries();
-    var savedST = loadSTCosts();
     salaryInputs.forEach(function(inp) {
         var key = inp.getAttribute('data-inspector');
         var val = parseFloat(inp.value);
@@ -446,20 +468,87 @@ function saveSalaries() {
             savedSalaries[key] = val;
         }
     });
-    stInputs.forEach(function(inp) {
-        var key = inp.getAttribute('data-inspector');
-        var val = parseFloat(inp.value);
-        if (!isNaN(val) && val >= 0) {
-            savedST[key] = val;
-        }
-    });
     localStorage.setItem('inspector_salaries', JSON.stringify(savedSalaries));
-    localStorage.setItem('inspector_st_costs', JSON.stringify(savedST));
     SAVED_SALARIES = savedSalaries;
-    SAVED_ST_COSTS = savedST;
     renderFinancialTable();
-    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries & S&T saved successfully</span>';
+    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
     setTimeout(function() { closeSalaryModal(); }, 800);
+}
+
+// ================================================================
+// EXPENSE LOG MODAL
+// ================================================================
+function openExpenseModal() {
+    var modal = document.getElementById('expenseModal');
+    if (!modal) return;
+    renderExpenseList();
+    modal.style.display = 'flex';
+}
+
+function closeExpenseModal() {
+    document.getElementById('expenseModal').style.display = 'none';
+}
+
+function renderExpenseList() {
+    var listEl = document.getElementById('expenseList');
+    if (!listEl) return;
+    var entries = EXPENSE_LOG.slice().sort(function(a, b) { return b.id - a.id; });
+
+    if (entries.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">No expenses logged yet. Use the form above to add one.</div>';
+        return;
+    }
+
+    var html = '<table style="width:100%; border-collapse:collapse; font-size:12px;">' +
+        '<thead><tr style="border-bottom:2px solid #e5e7eb;">' +
+        '<th style="text-align:left; padding:6px; font-weight:600;">Date</th>' +
+        '<th style="text-align:left; padding:6px; font-weight:600;">Inspector</th>' +
+        '<th style="text-align:left; padding:6px; font-weight:600;">Description</th>' +
+        '<th style="text-align:right; padding:6px; font-weight:600;">Amount (R)</th>' +
+        '<th style="text-align:center; padding:6px; font-weight:600; width:40px;"></th>' +
+        '</tr></thead><tbody>';
+
+    entries.forEach(function(entry) {
+        html += '<tr style="border-bottom:1px solid #f3f4f6;">' +
+            '<td style="padding:6px; white-space:nowrap;">' + (entry.date || '-') + '</td>' +
+            '<td style="padding:6px;">' + (entry.inspector || '-') + '</td>' +
+            '<td style="padding:6px; color:#6b7280;">' + (entry.description || '-') + '</td>' +
+            '<td style="padding:6px; text-align:right; font-weight:500;">R' + (entry.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+            '<td style="padding:6px; text-align:center;"><button onclick="removeExpense(' + entry.id + ')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash-alt"></i></button></td>' +
+            '</tr>';
+    });
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+}
+
+function submitExpense() {
+    var inspector = document.getElementById('expenseInspector').value;
+    var amount = document.getElementById('expenseAmount').value;
+    var desc = document.getElementById('expenseDesc').value;
+    var date = document.getElementById('expenseDate').value;
+
+    if (!inspector || !amount) {
+        alert('Please select an inspector and enter an amount.');
+        return;
+    }
+
+    addExpense(inspector, amount, desc, date);
+    renderExpenseList();
+    renderFinancialTable();
+
+    // Clear form
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseDesc').value = '';
+    document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('expenseSaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Expense added</span>';
+    setTimeout(function() { document.getElementById('expenseSaveStatus').innerHTML = ''; }, 2000);
+}
+
+function removeExpense(id) {
+    if (!confirm('Delete this expense entry?')) return;
+    deleteExpense(id);
+    renderExpenseList();
+    renderFinancialTable();
 }
 
 // Financial period filter - client-side filter on inspectionsList then recompute financials
@@ -554,7 +643,7 @@ function renderFinancialTable() {
     var tbody = document.getElementById('financialTableBody');
     if (!tbody) return;
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">No financial data</td></tr>'; return; }
 
     // Role-based filtering: inspectors see only their own row
     var userRole = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole) || '';
@@ -568,8 +657,9 @@ function renderFinancialTable() {
     }
 
     var html = '';
-    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, st: 0, totalCost: 0, profit: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, totalCost: 0, profit: 0 };
     var shaded = 'background:rgba(0,120,144,0.06);';
+    var profitShade = 'background:rgba(16,185,129,0.06);';
 
     filteredItems.forEach(function(item) {
         var hrs = parseFloat(item.total_hours || 0);
@@ -580,10 +670,14 @@ function renderFinancialTable() {
         var revS = item.revenue_samples || 0;
         var tot = item.total_revenue || 0;
         var salary = getInspectorSalary(item.inspector_name);
-        var st = getInspectorST(item.inspector_name);
-        var totalCost = salary + st;
+        var expenses = getInspectorExpenses(item.inspector_name);
+        var totalCost = salary + expenses;
         var profit = totalCost ? tot - totalCost : 0;
         var profitColor = profit >= 0 ? '#10b981' : '#ef4444';
+
+        // Profitability metrics
+        var revPerHr = hrs > 0 ? tot / hrs : 0;
+        var costPerHr = hrs > 0 ? totalCost / hrs : 0;
 
         totals.inspections += item.total_inspections || 0;
         totals.hours += hrs;
@@ -594,7 +688,7 @@ function renderFinancialTable() {
         totals.revSamples += revS;
         totals.total += tot;
         totals.salary += salary;
-        totals.st += st;
+        totals.expenses += expenses;
         totals.totalCost += totalCost;
         if (totalCost) totals.profit += profit;
 
@@ -607,15 +701,19 @@ function renderFinancialTable() {
             '<td class="num">' + formatRand(revH) + '</td>' +
             '<td class="num">' + formatRand(revK) + '</td>' +
             '<td class="num">' + formatRand(revS) + '</td>' +
-            '<td class="num">' + formatRand(tot) + '</td>' +
+            '<td class="num" style="font-weight:600;">' + formatRand(tot) + '</td>' +
             '<td class="num" style="' + shaded + '">' + (salary ? formatRand(salary) : '—') + '</td>' +
-            '<td class="num" style="' + shaded + '">' + (st ? formatRand(st) : '—') + '</td>' +
-            '<td class="num" style="' + shaded + '">' + (totalCost ? formatRand(totalCost) : '—') + '</td>' +
-            '<td class="num" style="' + shaded + 'font-weight:700;color:' + profitColor + ';">' + (totalCost ? formatRand(profit) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + '">' + (expenses ? formatRand(expenses) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + 'font-weight:600;">' + (totalCost ? formatRand(totalCost) : '—') + '</td>' +
+            '<td class="num" style="' + profitShade + '">' + (hrs > 0 ? formatRand(revPerHr) : '—') + '</td>' +
+            '<td class="num" style="' + profitShade + '">' + (hrs > 0 ? formatRand(costPerHr) : '—') + '</td>' +
+            '<td class="num" style="' + profitShade + 'font-weight:700;color:' + profitColor + ';">' + (totalCost ? formatRand(profit) : '—') + '</td>' +
         '</tr>';
     });
 
     // Total row
+    var totRevPerHr = totals.hours > 0 ? totals.total / totals.hours : 0;
+    var totCostPerHr = totals.hours > 0 ? totals.totalCost / totals.hours : 0;
     html += '<tr class="total-row">' +
         '<td>Total</td>' +
         '<td class="num">' + totals.inspections + '</td>' +
@@ -625,11 +723,13 @@ function renderFinancialTable() {
         '<td class="num">' + formatRand(totals.revHours) + '</td>' +
         '<td class="num">' + formatRand(totals.revKm) + '</td>' +
         '<td class="num">' + formatRand(totals.revSamples) + '</td>' +
-        '<td class="num">' + formatRand(totals.total) + '</td>' +
+        '<td class="num" style="font-weight:600;">' + formatRand(totals.total) + '</td>' +
         '<td class="num" style="' + shaded + '">' + formatRand(totals.salary) + '</td>' +
-        '<td class="num" style="' + shaded + '">' + formatRand(totals.st) + '</td>' +
-        '<td class="num" style="' + shaded + '">' + formatRand(totals.totalCost) + '</td>' +
-        '<td class="num" style="' + shaded + 'font-weight:700;color:' + (totals.profit >= 0 ? '#10b981' : '#ef4444') + ';">' + formatRand(totals.profit) + '</td>' +
+        '<td class="num" style="' + shaded + '">' + formatRand(totals.expenses) + '</td>' +
+        '<td class="num" style="' + shaded + 'font-weight:600;">' + formatRand(totals.totalCost) + '</td>' +
+        '<td class="num" style="' + profitShade + '">' + formatRand(totRevPerHr) + '</td>' +
+        '<td class="num" style="' + profitShade + '">' + formatRand(totCostPerHr) + '</td>' +
+        '<td class="num" style="' + profitShade + 'font-weight:700;color:' + (totals.profit >= 0 ? '#10b981' : '#ef4444') + ';">' + formatRand(totals.profit) + '</td>' +
     '</tr>';
 
     tbody.innerHTML = html;
