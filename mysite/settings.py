@@ -261,6 +261,11 @@ GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
 GRAPH_CLIENT_SECRET = env('GRAPH_CLIENT_SECRET', default='')
 GRAPH_TENANT_ID = env('GRAPH_TENANT_ID', default='')
 
+# Xero Accounting Integration
+XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='')
+XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='')
+XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='')
+
 # Legacy SMTP Configuration (Backup)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp-mail.outlook.com'

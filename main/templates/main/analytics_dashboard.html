@@ -879,6 +879,40 @@
             </div>
         </div>
 
+        {% if request.user.role != 'inspector' %}
+        <!-- Xero Accounting Integration -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Xero - Outstanding Invoices</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <span id="xeroStatus" style="font-size:11px; padding:4px 10px; border-radius:12px; font-weight:500;"></span>
+                    <button id="xeroConnectBtn" onclick="connectXero()" style="font-size:12px; padding:6px 14px; border:1px solid #13b5ea; border-radius:6px; background:#13b5ea; color:white; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#0e9bcf'" onmouseout="this.style.background='#13b5ea'">
+                        <i class="fas fa-plug"></i> <span id="xeroConnectLabel">Connect to Xero</span>
+                    </button>
+                    <button id="xeroSyncBtn" onclick="syncXeroInvoices()" style="display:none; font-size:12px; padding:6px 14px; border:1px solid #10b981; border-radius:6px; background:#10b981; color:white; font-weight:500; cursor:pointer; display:none; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                        <i class="fas fa-sync-alt"></i> Sync Invoices
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Aging Summary Bars -->
+                <div id="xeroAgingSummary" style="display:none; margin-bottom:16px;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;" id="agingBuckets"></div>
+                </div>
+                <!-- Invoices Table -->
+                <div id="xeroInvoicesTable" style="overflow-x:auto;">
+                    <div style="text-align:center; padding:20px; color:#9ca3af;">
+                        <i class="fas fa-plug" style="font-size:2rem; margin-bottom:8px; display:block;"></i>
+                        Connect to Xero to see outstanding invoices
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Revenue Breakdown Chart -->
         <div class="card">
             <div class="card-header">
@@ -993,6 +1027,180 @@
 </script>
 <!-- Analytics Dashboard JS -->
 <script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260224m"></script>
+
+{% if request.user.role != 'inspector' %}
+<!-- Xero Integration JS -->
+<script>
+var xeroCSRF = '{{ csrf_token }}';
+
+function connectXero() {
+    window.location.href = '/xero/connect/';
+}
+
+function disconnectXero() {
+    if (!confirm('Disconnect from Xero?')) return;
+    fetch('/xero/disconnect/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function() { checkXeroStatus(); })
+    .catch(function(e) { console.error('Xero disconnect error:', e); });
+}
+
+function checkXeroStatus() {
+    fetch('/xero/status/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var statusEl = document.getElementById('xeroStatus');
+        var connectBtn = document.getElementById('xeroConnectBtn');
+        var syncBtn = document.getElementById('xeroSyncBtn');
+        var label = document.getElementById('xeroConnectLabel');
+
+        if (data.connected) {
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> ' + (data.tenant_name || 'Connected');
+            statusEl.style.background = '#dcfce7';
+            statusEl.style.color = '#166534';
+            label.textContent = 'Disconnect';
+            connectBtn.onclick = disconnectXero;
+            connectBtn.style.background = '#6b7280';
+            connectBtn.style.borderColor = '#6b7280';
+            connectBtn.onmouseover = function() { this.style.background='#4b5563'; };
+            connectBtn.onmouseout = function() { this.style.background='#6b7280'; };
+            syncBtn.style.display = 'inline-flex';
+            loadXeroInvoices();
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Not connected';
+            statusEl.style.background = '#fee2e2';
+            statusEl.style.color = '#991b1b';
+            label.textContent = 'Connect to Xero';
+            connectBtn.onclick = connectXero;
+            connectBtn.style.background = '#13b5ea';
+            connectBtn.style.borderColor = '#13b5ea';
+            connectBtn.onmouseover = function() { this.style.background='#0e9bcf'; };
+            connectBtn.onmouseout = function() { this.style.background='#13b5ea'; };
+            syncBtn.style.display = 'none';
+        }
+    })
+    .catch(function(e) { console.error('Xero status check error:', e); });
+}
+
+function syncXeroInvoices() {
+    var btn = document.getElementById('xeroSyncBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+    btn.disabled = true;
+
+    fetch('/xero/sync-invoices/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': xeroCSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Invoices';
+        btn.disabled = false;
+        if (data.status === 'success') {
+            alert('Synced ' + data.synced + ' invoices from Xero.');
+            loadXeroInvoices();
+        } else {
+            alert('Sync error: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(function(e) {
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Invoices';
+        btn.disabled = false;
+        alert('Sync failed: ' + e.message);
+    });
+}
+
+function loadXeroInvoices() {
+    fetch('/xero/invoices/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        renderAgingSummary(data.aging_summary || {});
+        renderXeroInvoicesTable(data.invoices || []);
+    })
+    .catch(function(e) { console.error('Load invoices error:', e); });
+}
+
+function renderAgingSummary(aging) {
+    var container = document.getElementById('agingBuckets');
+    var wrapper = document.getElementById('xeroAgingSummary');
+    if (!container || !wrapper) return;
+
+    var buckets = [
+        { key: 'Current', label: 'Current', color: '#10b981' },
+        { key: '1-30', label: '1-30 Days', color: '#f59e0b' },
+        { key: '31-60', label: '31-60 Days', color: '#f97316' },
+        { key: '61-90', label: '61-90 Days', color: '#ef4444' },
+        { key: '91-120', label: '91-120 Days', color: '#dc2626' },
+        { key: '120+', label: '120+ Days', color: '#991b1b' },
+    ];
+
+    var html = '';
+    buckets.forEach(function(b) {
+        var val = aging[b.key] || 0;
+        html += '<div style="flex:1; min-width:100px; padding:10px 14px; border-radius:8px; background:' + b.color + '15; border:1px solid ' + b.color + '30; text-align:center;">' +
+            '<div style="font-size:10px; font-weight:600; color:' + b.color + '; text-transform:uppercase; margin-bottom:4px;">' + b.label + '</div>' +
+            '<div style="font-size:16px; font-weight:700; color:' + b.color + ';">R' + val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
+            '</div>';
+    });
+
+    container.innerHTML = html;
+    wrapper.style.display = 'block';
+}
+
+function renderXeroInvoicesTable(invoices) {
+    var container = document.getElementById('xeroInvoicesTable');
+    if (!container) return;
+
+    if (invoices.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">No invoices synced yet. Click "Sync Invoices" to pull data from Xero.</div>';
+        return;
+    }
+
+    // Show only outstanding (unpaid) invoices
+    var outstanding = invoices.filter(function(inv) { return inv.status !== 'PAID' && inv.amount_due > 0; });
+
+    if (outstanding.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#10b981;"><i class="fas fa-check-circle" style="font-size:2rem; margin-bottom:8px; display:block;"></i>All invoices are paid!</div>';
+        return;
+    }
+
+    var html = '<table class="inspections-table" style="font-size:10.5px;">' +
+        '<thead><tr>' +
+        '<th>Invoice #</th><th>Client</th><th>Reference</th><th class="num">Total</th>' +
+        '<th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Due Date</th>' +
+        '<th class="num">Days Overdue</th><th>Status</th>' +
+        '</tr></thead><tbody>';
+
+    outstanding.sort(function(a, b) { return b.days_outstanding - a.days_outstanding; });
+
+    outstanding.forEach(function(inv) {
+        var daysColor = inv.days_outstanding > 120 ? '#991b1b' :
+                        inv.days_outstanding > 90 ? '#dc2626' :
+                        inv.days_outstanding > 60 ? '#ef4444' :
+                        inv.days_outstanding > 30 ? '#f97316' :
+                        inv.days_outstanding > 0 ? '#f59e0b' : '#10b981';
+
+        html += '<tr>' +
+            '<td>' + (inv.invoice_number || '-') + '</td>' +
+            '<td>' + (inv.contact_name || '-') + '</td>' +
+            '<td style="color:#6b7280;">' + (inv.reference || '-') + '</td>' +
+            '<td class="num">R' + inv.total.toLocaleString(undefined, {minimumFractionDigits:2}) + '</td>' +
+            '<td class="num" style="color:#10b981;">R' + inv.amount_paid.toLocaleString(undefined, {minimumFractionDigits:2}) + '</td>' +
+            '<td class="num" style="font-weight:600; color:#ef4444;">R' + inv.amount_due.toLocaleString(undefined, {minimumFractionDigits:2}) + '</td>' +
+            '<td class="num">' + (inv.due_date || '-') + '</td>' +
+            '<td class="num" style="font-weight:700; color:' + daysColor + ';">' + inv.days_outstanding + ' days</td>' +
+            '<td><span style="font-size:9px; padding:2px 6px; border-radius:4px; font-weight:600; background:#fef3c7; color:#92400e;">' + inv.status + '</span></td>' +
+            '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Check Xero status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(checkXeroStatus, 1000);
+});
+</script>
+{% endif %}
 
 <!-- PDF Export Loading Overlay -->
 <div id="pdfExportOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">

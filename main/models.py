@@ -1230,3 +1230,95 @@ class Ticket(models.Model):
     def __str__(self):
         return f"#{self.id} - {self.title}"
 
+
+# =============================================================================
+# XERO INTEGRATION MODELS
+# =============================================================================
+class XeroToken(models.Model):
+    """Stores Xero OAuth2 tokens for the connected organisation."""
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    expires_at = models.DateTimeField()
+    tenant_id = models.CharField(max_length=255, blank=True, default='')
+    tenant_name = models.CharField(max_length=255, blank=True, default='')
+    token_type = models.CharField(max_length=50, default='Bearer')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Xero Token'
+
+    def __str__(self):
+        return f"Xero: {self.tenant_name or 'Unknown'} (expires {self.expires_at})"
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() >= self.expires_at
+
+
+class XeroInvoice(models.Model):
+    """Tracks invoices synced from Xero for aging/outstanding reports."""
+    INVOICE_STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),
+        ('SUBMITTED', 'Submitted'),
+        ('AUTHORISED', 'Authorised'),
+        ('PAID', 'Paid'),
+        ('VOIDED', 'Voided'),
+        ('DELETED', 'Deleted'),
+    ]
+
+    xero_invoice_id = models.CharField(max_length=255, unique=True)
+    invoice_number = models.CharField(max_length=255, blank=True, default='')
+    contact_name = models.CharField(max_length=255, blank=True, default='')
+    contact_id = models.CharField(max_length=255, blank=True, default='')
+    reference = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=20, choices=INVOICE_STATUS_CHOICES, default='DRAFT')
+    invoice_type = models.CharField(max_length=20, default='ACCREC')  # ACCREC = sales invoice
+    currency_code = models.CharField(max_length=10, default='ZAR')
+    sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    fully_paid_on_date = models.DateField(null=True, blank=True)
+    url = models.URLField(max_length=500, blank=True, default='')
+    synced_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Xero Invoice'
+        ordering = ['-due_date']
+        indexes = [
+            models.Index(fields=['status'], name='idx_xero_inv_status'),
+            models.Index(fields=['due_date'], name='idx_xero_inv_due'),
+            models.Index(fields=['contact_name'], name='idx_xero_inv_contact'),
+        ]
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.contact_name} ({self.status})"
+
+    @property
+    def days_outstanding(self):
+        if self.status == 'PAID' or not self.due_date:
+            return 0
+        from datetime import date
+        delta = date.today() - self.due_date
+        return max(delta.days, 0)
+
+    @property
+    def aging_bucket(self):
+        days = self.days_outstanding
+        if days <= 0:
+            return 'Current'
+        elif days <= 30:
+            return '1-30'
+        elif days <= 60:
+            return '31-60'
+        elif days <= 90:
+            return '61-90'
+        elif days <= 120:
+            return '91-120'
+        return '120+'
+

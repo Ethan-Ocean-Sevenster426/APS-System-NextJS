@@ -30,6 +30,10 @@ from .views.core_views import (
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
 )
+from .views.xero_views import (
+    xero_connect, xero_callback, xero_disconnect, xero_status,
+    xero_sync_invoices, xero_invoices_list,
+)
 
 urlpatterns = [
 # =============================================================================
@@ -231,4 +235,14 @@ urlpatterns = [
     # TRAINING PAGE
     # =============================================================================
     path('training/', training_page, name='training_page'),
+
+    # =============================================================================
+    # XERO ACCOUNTING INTEGRATION
+    # =============================================================================
+    path('xero/connect/', xero_connect, name='xero_connect'),
+    path('xero/callback/', xero_callback, name='xero_callback'),
+    path('xero/disconnect/', xero_disconnect, name='xero_disconnect'),
+    path('xero/status/', xero_status, name='xero_status'),
+    path('xero/sync-invoices/', xero_sync_invoices, name='xero_sync_invoices'),
+    path('xero/invoices/', xero_invoices_list, name='xero_invoices_list'),
 ]

@@ -87,6 +87,16 @@ from .data_views import (
     remote_sqlserver_data_view,
 )
 
+# Xero integration views
+from .xero_views import (
+    xero_connect,
+    xero_callback,
+    xero_disconnect,
+    xero_status,
+    xero_sync_invoices,
+    xero_invoices_list,
+)
+
 # All available views
 __all__ = [
     # Authentication views
