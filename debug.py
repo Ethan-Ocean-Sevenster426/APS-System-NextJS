@@ -1,17 +1,25 @@
 """
-Debug script to diagnose why the Send button doesn't work on inspection_records page.
-Run on server: cd /var/inspection-system && source venv/bin/activate && python3 debug.py
+Full end-to-end debug of the Send button flow.
+Simulates exactly what happens when a user clicks Send on the inspection_records page.
+
+Run: cd /var/inspection-system && source venv/bin/activate && python3 debug.py
 """
 import os
 import sys
+import json
+import traceback
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 sys.path.insert(0, os.path.dirname(__file__))
+
+import django
+django.setup()
 
 GREEN = '\033[92m'
 RED = '\033[91m'
 YELLOW = '\033[93m'
 CYAN = '\033[96m'
+BOLD = '\033[1m'
 RESET = '\033[0m'
 
 def ok(msg):
@@ -26,311 +34,385 @@ def warn(msg):
 def info(msg):
     print(f"  {CYAN}INFO{RESET} {msg}")
 
-
-# =========================================================================
-# 1. CHECK STATIC FILES
-# =========================================================================
-print(f"\n{'='*60}")
-print(f" 1. STATIC FILES CHECK")
-print(f"{'='*60}")
-
-# Check source JS file
-src_js = os.path.join(os.path.dirname(__file__), 'static', 'inspection_records', 'js', 'sent_status.js')
-if os.path.exists(src_js):
-    with open(src_js, 'r') as f:
-        content = f.read()
-    ok(f"Source JS exists: {src_js}")
-    if 'Sent status JS loaded' in content:
-        ok("Source JS has debug logging")
-    else:
-        fail("Source JS is MISSING debug logging - old version!")
-    if 'toggleSentStatus' in content:
-        ok("Source JS has toggleSentStatus function")
-    else:
-        fail("Source JS is MISSING toggleSentStatus!")
-    info(f"First 100 chars: {content[:100]}")
-else:
-    fail(f"Source JS NOT FOUND: {src_js}")
-
-# Check collected static JS file
-collected_js = os.path.join(os.path.dirname(__file__), 'staticfiles', 'inspection_records', 'js', 'sent_status.js')
-if os.path.exists(collected_js):
-    with open(collected_js, 'r') as f:
-        content = f.read()
-    ok(f"Collected JS exists: {collected_js}")
-    if 'Sent status JS loaded' in content:
-        ok("Collected JS has debug logging")
-    else:
-        fail("Collected JS is MISSING debug logging - collectstatic needed!")
-    if 'toggleSentStatus' in content:
-        ok("Collected JS has toggleSentStatus function")
-    else:
-        fail("Collected JS is MISSING toggleSentStatus!")
-    info(f"First 100 chars: {content[:100]}")
-
-    # Compare source vs collected
-    with open(src_js, 'r') as f:
-        src_content = f.read()
-    if src_content == content:
-        ok("Source and collected JS are IDENTICAL")
-    else:
-        fail("Source and collected JS are DIFFERENT - run collectstatic!")
-else:
-    fail(f"Collected JS NOT FOUND: {collected_js} - run collectstatic!")
-
-# Check template for script tag
-print(f"\n{'='*60}")
-print(f" 2. TEMPLATE CHECK")
-print(f"{'='*60}")
-
-template_path = os.path.join(os.path.dirname(__file__), 'main', 'templates', 'main', 'inspection_records.html')
-if os.path.exists(template_path):
-    with open(template_path, 'r') as f:
-        template = f.read()
-    ok(f"Template exists")
-
-    if 'sent_status.js' in template:
-        # Find the script tag line
-        for i, line in enumerate(template.split('\n'), 1):
-            if 'sent_status.js' in line:
-                info(f"Script tag at line {i}: {line.strip()}")
-    else:
-        fail("Template does NOT include sent_status.js!")
-
-    # Check for onclick handler
-    if 'toggleSentStatus' in template:
-        count = template.count('toggleSentStatus')
-        ok(f"Template references toggleSentStatus {count} time(s)")
-    else:
-        fail("Template does NOT reference toggleSentStatus!")
-
-    # Check CSRF token setup
-    if 'window.DJANGO_CSRF' in template:
-        ok("Template sets window.DJANGO_CSRF")
-    else:
-        warn("Template does NOT set window.DJANGO_CSRF")
-
-    if 'csrfmiddlewaretoken' in template:
-        ok("Template has csrfmiddlewaretoken hidden input")
-    else:
-        warn("Template missing csrfmiddlewaretoken hidden input")
-else:
-    fail(f"Template NOT FOUND: {template_path}")
+def header(num, title):
+    print(f"\n{BOLD}{'='*60}")
+    print(f" {num}. {title}")
+    print(f"{'='*60}{RESET}")
 
 
-# =========================================================================
-# 3. DJANGO SETUP & URL CHECK
-# =========================================================================
-print(f"\n{'='*60}")
-print(f" 3. DJANGO URL & VIEW CHECK")
-print(f"{'='*60}")
-
-try:
-    import django
-    django.setup()
-    ok("Django setup successful")
-except Exception as e:
-    fail(f"Django setup failed: {e}")
-    sys.exit(1)
-
-from django.urls import reverse, resolve
 from django.conf import settings
-
-# Check if the send-documents URL exists
-try:
-    url = reverse('send_group_documents')
-    ok(f"URL 'send_group_documents' resolves to: {url}")
-except Exception:
-    try:
-        url = reverse('send-documents')
-        ok(f"URL 'send-documents' resolves to: {url}")
-    except Exception:
-        warn("Could not reverse 'send_group_documents' or 'send-documents' by name")
-        # Try to find it manually
-        from django.urls import get_resolver
-        resolver = get_resolver()
-        found = False
-        for pattern in resolver.url_patterns:
-            if hasattr(pattern, 'url_patterns'):
-                for sub in pattern.url_patterns:
-                    pat_str = str(sub.pattern)
-                    if 'send' in pat_str.lower() and 'document' in pat_str.lower():
-                        info(f"Found URL pattern: {pat_str} -> {sub.callback}")
-                        found = True
-            else:
-                pat_str = str(pattern.pattern)
-                if 'send' in pat_str.lower():
-                    info(f"Found URL pattern: {pat_str} -> {pattern.callback}")
-                    found = True
-        if not found:
-            fail("No send-documents URL pattern found!")
-
-# Try resolving the actual URL path
-try:
-    match = resolve('/inspections/send-documents/')
-    ok(f"Path '/inspections/send-documents/' resolves to: {match.func.__name__}")
-except Exception as e:
-    fail(f"Path '/inspections/send-documents/' does NOT resolve: {e}")
-    # Try without trailing slash
-    try:
-        match = resolve('/inspections/send-documents')
-        ok(f"Path '/inspections/send-documents' (no slash) resolves to: {match.func.__name__}")
-    except Exception as e2:
-        fail(f"Path '/inspections/send-documents' also fails: {e2}")
-    # List all inspection URLs
-    info("Listing all URLs containing 'inspect' or 'send':")
-    from django.urls import get_resolver
-    resolver = get_resolver()
-    for pattern in resolver.url_patterns:
-        if hasattr(pattern, 'url_patterns'):
-            prefix = str(pattern.pattern)
-            for sub in pattern.url_patterns:
-                full = prefix + str(sub.pattern)
-                if 'inspect' in full.lower() or 'send' in full.lower():
-                    info(f"  {full}")
-        else:
-            pat_str = str(pattern.pattern)
-            if 'inspect' in pat_str.lower() or 'send' in pat_str.lower():
-                info(f"  {pat_str}")
-
+from main.models import FoodSafetyAgencyInspection, Client, ClientEmail
 
 # =========================================================================
-# 4. EMAIL BACKEND CHECK
+header(1, "FIND ALL INSPECTIONS THAT APPEAR ON THE PAGE")
 # =========================================================================
-print(f"\n{'='*60}")
-print(f" 4. EMAIL BACKEND CHECK")
-print(f"{'='*60}")
 
-info(f"EMAIL_BACKEND: {settings.EMAIL_BACKEND}")
+# Get all inspections grouped like the page does
+all_inspections = FoodSafetyAgencyInspection.objects.all().order_by('-date_of_inspection')[:50]
+info(f"Total inspections in DB: {FoodSafetyAgencyInspection.objects.count()}")
+info(f"Checking latest 50 inspections")
 
-graph_id = getattr(settings, 'GRAPH_CLIENT_ID', None)
-graph_secret = getattr(settings, 'GRAPH_CLIENT_SECRET', None)
-graph_tenant = getattr(settings, 'GRAPH_TENANT_ID', None)
-
-if graph_id:
-    ok(f"GRAPH_CLIENT_ID set: {graph_id[:8]}...")
-else:
-    fail("GRAPH_CLIENT_ID not set!")
-
-if graph_secret:
-    ok(f"GRAPH_CLIENT_SECRET set: {graph_secret[:8]}...")
-else:
-    fail("GRAPH_CLIENT_SECRET not set!")
-
-if graph_tenant:
-    ok(f"GRAPH_TENANT_ID set: {graph_tenant[:8]}...")
-else:
-    fail("GRAPH_TENANT_ID not set!")
-
-# Test token acquisition
-if all([graph_id, graph_secret, graph_tenant]):
-    info("Testing Graph API token acquisition...")
-    try:
-        import requests
-        token_url = f"https://login.microsoftonline.com/{graph_tenant}/oauth2/v2.0/token"
-        token_data = {
-            'grant_type': 'client_credentials',
-            'client_id': graph_id,
-            'client_secret': graph_secret,
-            'scope': 'https://graph.microsoft.com/.default'
+# Group by client+date (like the page does)
+groups = {}
+for insp in all_inspections:
+    key = f"{insp.client_name}|{insp.date_of_inspection}"
+    if key not in groups:
+        groups[key] = {
+            'client_name': insp.client_name,
+            'date': str(insp.date_of_inspection),
+            'inspection_group_id': insp.inspection_group_id or '',
+            'is_sent': insp.is_sent,
+            'inspections': [],
         }
-        response = requests.post(token_url, data=token_data, timeout=15)
-        if response.status_code == 200:
-            ok("Graph API token acquired successfully")
-        else:
-            fail(f"Graph API token failed: {response.status_code} - {response.text[:200]}")
-    except Exception as e:
-        fail(f"Graph API token request error: {e}")
+    groups[key]['inspections'].append(insp)
 
+info(f"Found {len(groups)} unique client+date groups")
 
 # =========================================================================
-# 5. STATIC FILES SETTINGS
+header(2, "TEST EACH GROUP - FULL SEND SIMULATION")
 # =========================================================================
-print(f"\n{'='*60}")
-print(f" 5. STATIC FILES SETTINGS")
-print(f"{'='*60}")
 
-info(f"STATIC_URL: {settings.STATIC_URL}")
-info(f"STATIC_ROOT: {settings.STATIC_ROOT}")
-info(f"STATICFILES_DIRS: {getattr(settings, 'STATICFILES_DIRS', 'NOT SET')}")
-info(f"DEBUG: {settings.DEBUG}")
+from main.views.core_views import get_client_email, get_inspection_files_local
 
-# Check if nginx might be serving stale files
-nginx_conf_paths = ['/etc/nginx/sites-enabled/default', '/etc/nginx/sites-enabled/inspection-system',
-                     '/etc/nginx/conf.d/default.conf', '/etc/nginx/nginx.conf']
-print(f"\n{'='*60}")
-print(f" 6. NGINX CONFIG CHECK")
-print(f"{'='*60}")
+test_results = []
 
-for conf_path in nginx_conf_paths:
-    if os.path.exists(conf_path):
-        with open(conf_path, 'r') as f:
-            nginx_content = f.read()
-        info(f"Found nginx config: {conf_path}")
-        # Look for static file serving and caching
-        for i, line in enumerate(nginx_content.split('\n'), 1):
-            stripped = line.strip()
-            if any(kw in stripped.lower() for kw in ['static', 'expires', 'cache', 'location', 'alias', 'root']):
-                if stripped and not stripped.startswith('#'):
-                    info(f"  Line {i}: {stripped}")
+for key, group in list(groups.items())[:25]:  # Test first 25 groups
+    client_name = group['client_name']
+    inspection_date = group['date']
+    inspection_group_id = group['inspection_group_id']
+    num_inspections = len(group['inspections'])
 
+    print(f"\n  {BOLD}--- {client_name} ({inspection_date}) ---{RESET}")
+    info(f"inspection_group_id: '{inspection_group_id}'")
+    info(f"Inspections in group: {num_inspections}")
+    info(f"is_sent: {group['is_sent']}")
 
-# =========================================================================
-# 7. TEST get_client_email FUNCTION
-# =========================================================================
-print(f"\n{'='*60}")
-print(f" 7. get_client_email FUNCTION CHECK")
-print(f"{'='*60}")
+    issues = []
 
-try:
-    from main.views.core_views import get_client_email
-    ok("get_client_email imported successfully")
-
-    # Test with a known client
-    from main.models import Client
-    first_client = Client.objects.first()
-    if first_client:
-        name = first_client.name or first_client.client_id
-        info(f"Testing with first client: '{name}'")
-        email = get_client_email(name)
+    # Step 1: Email lookup
+    try:
+        email = get_client_email(client_name, inspection_group_id=inspection_group_id)
         if email:
-            ok(f"get_client_email('{name}') = '{email}'")
+            ok(f"Email: {email}")
         else:
-            warn(f"get_client_email('{name}') returned None (client may have no email)")
-except Exception as e:
-    fail(f"get_client_email error: {e}")
+            fail(f"No email found!")
+            issues.append("NO_EMAIL")
+    except Exception as e:
+        fail(f"Email lookup crashed: {e}")
+        issues.append(f"EMAIL_CRASH: {e}")
+
+    # Step 2: File lookup
+    try:
+        files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
+        total_files = sum(len(v) for v in files_by_category.items() if isinstance(v, list))
+        # Count properly
+        file_count = 0
+        file_details = []
+        for cat, file_list in files_by_category.items():
+            if file_list:
+                file_count += len(file_list)
+                for f in file_list:
+                    rel_path = f.get('relative_path', '')
+                    if rel_path:
+                        full_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                        exists = os.path.isfile(full_path)
+                        size = os.path.getsize(full_path) if exists else 0
+                        file_details.append(f"{cat}/{f.get('name', '?')} ({'EXISTS' if exists else 'MISSING'}, {size}b)")
+                    else:
+                        file_details.append(f"{cat}/{f.get('name', '?')} (no relative_path)")
+
+        if file_count > 0:
+            ok(f"Files found: {file_count}")
+            for fd in file_details:
+                info(f"  {fd}")
+        else:
+            warn(f"No files found (email will still send, just no attachments)")
+    except Exception as e:
+        fail(f"File lookup crashed: {e}")
+        traceback.print_exc()
+        issues.append(f"FILE_CRASH: {e}")
+
+    # Step 3: Check what the button data attributes would be
+    first_insp = group['inspections'][0]
+    # Simulate group_id generation (from template)
+    fallback_group_id = f"{client_name}-{inspection_date}"
+    info(f"Button data-group-id would be: '{fallback_group_id}'")
+    info(f"Button data-inspection-group-id would be: '{inspection_group_id}'")
+
+    # Step 4: Simulate the date parsing that send_group_documents does
+    try:
+        from datetime import datetime
+        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
+        ok(f"Date parses OK: {date_obj.date()}")
+    except Exception as e:
+        fail(f"Date parse failed: {e}")
+        issues.append(f"DATE_PARSE: {e}")
+
+    # Step 5: Check inspection query (what the view does)
+    try:
+        if inspection_group_id:
+            qs = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
+        else:
+            qs = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj.date()
+            )
+        qs_count = qs.count()
+        if qs_count > 0:
+            ok(f"View query finds {qs_count} inspection(s)")
+        else:
+            fail(f"View query finds 0 inspections!")
+            issues.append("NO_INSPECTIONS_IN_QUERY")
+    except Exception as e:
+        fail(f"View query crashed: {e}")
+        issues.append(f"QUERY_CRASH: {e}")
+
+    test_results.append({
+        'client': client_name,
+        'date': inspection_date,
+        'email': email if 'email' in dir() else None,
+        'issues': issues,
+    })
 
 
 # =========================================================================
-# 8. CHECK send_group_documents VIEW
+header(3, "SIMULATE ACTUAL HTTP POST (without sending email)")
 # =========================================================================
-print(f"\n{'='*60}")
-print(f" 8. send_group_documents VIEW CHECK")
-print(f"{'='*60}")
+
+info("Simulating the exact POST request the browser makes...")
+
+# Pick a test client - use TEST FULL FLOW CLIENT if exists, otherwise first non-sent
+test_group = None
+for key, group in groups.items():
+    if 'TEST FULL FLOW' in group['client_name'].upper():
+        test_group = group
+        break
+if not test_group:
+    for key, group in groups.items():
+        if not group['is_sent']:
+            test_group = group
+            break
+if not test_group and groups:
+    test_group = list(groups.values())[0]
+
+if test_group:
+    client_name = test_group['client_name']
+    inspection_date = test_group['date']
+    inspection_group_id = test_group['inspection_group_id']
+
+    info(f"Test client: {client_name}")
+    info(f"Test date: {inspection_date}")
+    info(f"Test inspection_group_id: {inspection_group_id}")
+
+    # Build exact payload browser sends
+    payload = {
+        'group_id': f"{client_name}-{inspection_date}",
+        'inspection_group_id': inspection_group_id,
+        'client_name': client_name,
+        'inspection_date': inspection_date,
+    }
+    info(f"Payload: {json.dumps(payload)}")
+
+    # Now walk through send_group_documents logic step by step
+    print(f"\n  {BOLD}Walking through send_group_documents logic:{RESET}")
+
+    # Step A: get files
+    try:
+        files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
+        attachments = []
+        documents_found = []
+        for category, file_list in files_by_category.items():
+            for file_info in file_list:
+                rel_path = file_info.get('relative_path', '')
+                if rel_path:
+                    full_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                    if os.path.isfile(full_path):
+                        attachments.append(full_path)
+                        documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+        ok(f"Step A - Files: {len(attachments)} attachments")
+        for d in documents_found:
+            info(f"  Attachment: {d}")
+    except Exception as e:
+        fail(f"Step A - Files crashed: {e}")
+        traceback.print_exc()
+
+    # Step B: get email
+    try:
+        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+        if recipient_email:
+            ok(f"Step B - Email: {recipient_email}")
+        else:
+            fail(f"Step B - No email found! View would return error here.")
+    except Exception as e:
+        fail(f"Step B - Email lookup crashed: {e}")
+        traceback.print_exc()
+
+    # Step C: date parsing
+    try:
+        from datetime import datetime
+        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
+        ok(f"Step C - Date parsed: {date_obj.date()}")
+    except Exception as e:
+        fail(f"Step C - Date parse failed: {e}")
+
+    # Step D: query inspections
+    try:
+        if inspection_group_id:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
+        else:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj.date()
+            )
+        ok(f"Step D - Query: {group_inspections.count()} inspections")
+    except Exception as e:
+        fail(f"Step D - Query crashed: {e}")
+        traceback.print_exc()
+
+    # Step E: commodities
+    try:
+        distinct_commodities = group_inspections.values_list('commodity', flat=True).distinct()
+        commodities = [c for c in distinct_commodities if c]
+        ok(f"Step E - Commodities: {commodities}")
+    except Exception as e:
+        fail(f"Step E - Commodities crashed: {e}")
+
+    # Step F: build email (don't actually send)
+    try:
+        from datetime import datetime as dt_parser
+        formatted_date = dt_parser.strptime(inspection_date, '%Y-%m-%d').strftime('%d %B %Y')
+        subject = f'FSA Inspection Report – {client_name} – {formatted_date}'
+        ok(f"Step F - Subject: {subject}")
+
+        from django.core.mail import EmailMessage
+        email = EmailMessage(
+            subject=subject,
+            body='<p>Test</p>',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email] if recipient_email else ['test@test.com'],
+        )
+        email.content_subtype = 'html'
+        for file_path in attachments:
+            email.attach_file(file_path)
+        ok(f"Step F - Email object created: to={email.to}, {len(email.attachments)} attachments")
+    except Exception as e:
+        fail(f"Step F - Email build crashed: {e}")
+        traceback.print_exc()
+
+    # Step G: Test actual sending to ethan
+    print(f"\n  {BOLD}Step G - ACTUALLY SEND test email to ethan.sevenster@eclick.co.za:{RESET}")
+    try:
+        test_email = EmailMessage(
+            subject=f'[DEBUG TEST] {subject}',
+            body=f'<p>Debug test for: {client_name} on {inspection_date}</p><p>Attachments: {len(attachments)}</p><p>Recipient would be: {recipient_email}</p>',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=['ethan.sevenster@eclick.co.za'],
+        )
+        test_email.content_subtype = 'html'
+        # Attach files if any
+        for file_path in attachments:
+            test_email.attach_file(file_path)
+        result = test_email.send()
+        if result:
+            ok(f"Email SENT to ethan.sevenster@eclick.co.za (result={result}, {len(attachments)} attachments)")
+        else:
+            fail(f"email.send() returned {result}")
+    except Exception as e:
+        fail(f"Email send crashed: {e}")
+        traceback.print_exc()
+
+else:
+    fail("No test group found!")
+
+
+# =========================================================================
+header(4, "TEST THE ACTUAL URL WITH Django Test Client")
+# =========================================================================
+
+info("Simulating browser POST to /inspections/send-documents/ ...")
 
 try:
-    from main.views.core_views import send_group_documents
-    ok("send_group_documents view imported successfully")
+    from django.test import RequestFactory, Client as DjangoClient
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
 
-    # Check it accepts POST
-    import inspect
-    source = inspect.getsource(send_group_documents)
-    if 'require_POST' in source or 'request.method' in source or 'POST' in source:
-        ok("View handles POST requests")
-    if 'get_client_email' in source:
-        ok("View calls get_client_email")
-    if 'inspection_group_id' in source:
-        ok("View uses inspection_group_id parameter")
-    if 'JsonResponse' in source:
-        ok("View returns JsonResponse")
-    info(f"View source length: {len(source)} chars")
+    # Get an admin user
+    admin_user = User.objects.filter(role__in=['admin', 'super_admin', 'developer']).first()
+    if not admin_user:
+        admin_user = User.objects.first()
+
+    if admin_user:
+        info(f"Using user: {admin_user.username} (role: {getattr(admin_user, 'role', 'unknown')})")
+
+        client = DjangoClient()
+        client.force_login(admin_user)
+
+        if test_group:
+            payload = {
+                'group_id': f"{test_group['client_name']}-{test_group['date']}",
+                'inspection_group_id': test_group['inspection_group_id'],
+                'client_name': test_group['client_name'],
+                'inspection_date': test_group['date'],
+            }
+
+            info(f"POST /inspections/send-documents/ with: {json.dumps(payload)}")
+
+            response = client.post(
+                '/inspections/send-documents/',
+                data=json.dumps(payload),
+                content_type='application/json',
+            )
+
+            info(f"Response status: {response.status_code}")
+            try:
+                resp_data = json.loads(response.content)
+                info(f"Response body: {json.dumps(resp_data, indent=2)}")
+                if resp_data.get('success'):
+                    ok(f"VIEW RETURNED SUCCESS! Email sent to {resp_data.get('recipients')}")
+                else:
+                    fail(f"VIEW RETURNED ERROR: {resp_data.get('error')}")
+            except Exception:
+                info(f"Response content: {response.content[:500]}")
+    else:
+        fail("No user found in database!")
+
 except Exception as e:
-    fail(f"send_group_documents error: {e}")
+    fail(f"Django test client simulation crashed: {e}")
+    traceback.print_exc()
 
 
 # =========================================================================
-# SUMMARY
+header(5, "CHECK GUNICORN LOGS FOR RECENT SEND ATTEMPTS")
 # =========================================================================
-print(f"\n{'='*60}")
-print(f" DONE - Review results above for any FAIL items")
-print(f"{'='*60}\n")
+
+import subprocess
+try:
+    result = subprocess.run(
+        ['journalctl', '-u', 'gunicorn', '--no-pager', '-n', '100', '--output=cat'],
+        capture_output=True, text=True, timeout=10
+    )
+    lines = result.stdout.strip().split('\n')
+    send_lines = [l for l in lines if 'send' in l.lower() or 'SEND' in l or 'send-documents' in l or 'error' in l.lower() or 'Error' in l or 'traceback' in l.lower()]
+    if send_lines:
+        info(f"Found {len(send_lines)} relevant log lines:")
+        for line in send_lines[-20:]:  # Last 20
+            print(f"    {line}")
+    else:
+        warn("No send-related lines in recent gunicorn logs")
+except Exception as e:
+    warn(f"Could not read gunicorn logs: {e}")
+
+
+# =========================================================================
+header(6, "SUMMARY")
+# =========================================================================
+
+issues_found = [r for r in test_results if r['issues']]
+if issues_found:
+    fail(f"{len(issues_found)} groups have issues:")
+    for r in issues_found:
+        print(f"    {RED}{r['client']}{RESET} ({r['date']}): {', '.join(r['issues'])}")
+else:
+    ok(f"All {len(test_results)} groups passed basic checks")
+
+print(f"\n{'='*60}\n")
