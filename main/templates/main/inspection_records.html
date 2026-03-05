@@ -1412,7 +1412,7 @@
                                             {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
                                             <button type="button"
                                                 class="sent-toggle-btn"
-                                                onclick="event.stopPropagation(); toggleSentStatus(this);"
+                                                onclick="event.stopPropagation(); console.log('SEND BTN CLICKED'); if(typeof toggleSentStatus==='function'){toggleSentStatus(this);}else{alert('toggleSentStatus not loaded! Check JS file.');}"
                                                 data-group-id="{{ fallback_group_id }}"
                                                 data-inspection-group-id="{{ shipment.inspection_group_id|default:'' }}"
                                                 data-client-name="{{ shipment.client_name|escapejs }}"
@@ -1883,7 +1883,7 @@
             <link rel="stylesheet" href="{% static 'inspection_records/css/inspection_table.css' %}?v=20260212">
 
             <!-- Load sent status functionality from external file -->
-            <script src="{% static 'inspection_records/js/sent_status.js' %}?v=20260305-fix"></script>
+            <script src="{% static 'inspection_records/js/sent_status.js' %}?v=20260305-v3"></script>
             <!-- Load clean upload functions -->
             <script src="{% static 'inspection_records/js/upload_functions.js'%}?v=20260125-V1"></script>
             <!-- Load bought sample functionality -->
