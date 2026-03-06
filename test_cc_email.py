@@ -25,15 +25,16 @@ client_email = 'anthony.penzes@moc-pty.com'  # Simulated client (your email for 
 manager_email = 'simphiwe.mathenjwa@afsq.co.za'
 inspector_email = 'ethan.sevenster@eclick.co.za'  # Simulated inspector
 
-cc_list = [manager_email, inspector_email]
+to_list = [client_email, manager_email]
+cc_list = [inspector_email]
 
 print(f"\n{'='*60}")
-print(f" TEST: Send email with CC (inspector + manager)")
+print(f" TEST: Send email with manager as TO + inspector as CC")
 print(f"{'='*60}")
 print(f"  {CYAN}EMAIL_BACKEND:{RESET} {settings.EMAIL_BACKEND}")
 print(f"  {CYAN}DEFAULT_FROM_EMAIL:{RESET} {getattr(settings, 'DEFAULT_FROM_EMAIL', 'NOT SET')}")
 print(f"  {CYAN}TO (client):{RESET} {client_email}")
-print(f"  {CYAN}CC (manager):{RESET} {manager_email}")
+print(f"  {CYAN}TO (manager):{RESET} {manager_email}")
 print(f"  {CYAN}CC (inspector):{RESET} {inspector_email}")
 
 html_body = """
@@ -53,10 +54,10 @@ html_body = """
 
 try:
     email = EmailMessage(
-        subject='FSA Test - CC Email Flow v2 (Inspector + Manager)',
+        subject='FSA Test v3 - Manager as TO recipient',
         body=html_body,
         from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'foodsafetyagency.aps@afsq.co.za'),
-        to=[client_email],
+        to=to_list,
         cc=cc_list,
         reply_to=[getattr(settings, 'DEFAULT_FROM_EMAIL', 'foodsafetyagency.aps@afsq.co.za')],
     )
@@ -71,7 +72,7 @@ try:
         print(f"  {GREEN}SUCCESS{RESET} Email sent! (result={result})")
         print(f"\n  {YELLOW}Check inboxes:{RESET}")
         print(f"    - {client_email} (TO)")
-        print(f"    - {manager_email} (CC)")
+        print(f"    - {manager_email} (TO)")
         print(f"    - {inspector_email} (CC)")
     else:
         print(f"  {RED}FAILED{RESET} email.send() returned {result}")
