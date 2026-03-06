@@ -15598,14 +15598,17 @@ def send_group_documents(request):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
 
-        # Get client email (pass inspection_group_id for reliable FK lookup)
-        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+        # Get ALL client emails (client record + additional emails on inspection/group)
+        all_client_emails = get_all_client_emails(client_name, inspection_group_id=inspection_group_id)
 
-        if not recipient_email:
+        if not all_client_emails:
             return JsonResponse({
                 'success': False,
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
+
+        # First email is primary recipient, rest go in TO as well
+        recipient_email = all_client_emails[0]
 
         # Get commodities inspected for this group
         from ..models import FoodSafetyAgencyInspection
@@ -15736,13 +15739,15 @@ def send_group_documents(request):
 
         # Dedupe and remove any that match the main recipient
         cc_emails = list(set(e.lower().strip() for e in cc_emails if e))
-        cc_emails = [e for e in cc_emails if e != recipient_email.lower().strip()]
+        # Remove any CC that's already in the TO list
+        to_emails_lower = set(e.lower().strip() for e in all_client_emails)
+        cc_emails = [e for e in cc_emails if e not in to_emails_lower]
 
         email = EmailMessage(
             subject=subject,
             body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[recipient_email],
+            to=all_client_emails,
             cc=cc_emails if cc_emails else None,
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
@@ -15753,7 +15758,7 @@ def send_group_documents(request):
 
         email.send()
 
-        all_recipients = [recipient_email] + cc_emails
+        all_recipients = all_client_emails + cc_emails
 
         # Mark inspections as sent (reuse group_inspections queryset from above)
         group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
@@ -15766,7 +15771,7 @@ def send_group_documents(request):
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name} to {recipient_email} (CC: {", ".join(cc_emails)})',
+            description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(all_client_emails)} (CC: {", ".join(cc_emails)})',
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
@@ -15957,6 +15962,99 @@ def get_client_email(client_name, inspection_group_id=None):
     except Exception as e:
         _log.error(f"[EMAIL LOOKUP] Exception: {e}")
         return None
+
+
+def get_all_client_emails(client_name, inspection_group_id=None):
+    """Get ALL email addresses for a client: client record emails + additional emails on inspection/group.
+    Returns a deduplicated list of all valid emails, or empty list if none found.
+    """
+    import re
+    import logging
+    _log = logging.getLogger(__name__)
+
+    emails = set()
+
+    def _add_emails_from_field(value):
+        """Extract all emails from a field that may contain comma-separated values."""
+        if not value:
+            return
+        for part in str(value).split(','):
+            e = part.strip().lower()
+            if e and '@' in e:
+                emails.add(e)
+
+    try:
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
+
+        _log.info(f"[EMAIL ALL] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
+
+        # 1. Get emails from inspection's client FK
+        if inspection_group_id:
+            insp = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id,
+                client__isnull=False
+            ).select_related('client').first()
+            if insp and insp.client:
+                _add_emails_from_field(insp.client.manual_email)
+                _add_emails_from_field(insp.client.email)
+                # Also check ClientEmail table
+                from ..models import ClientEmail
+                for ce in ClientEmail.objects.filter(client=insp.client):
+                    _add_emails_from_field(ce.email)
+
+            # 2. Get additional_email from inspections in this group
+            for ae in FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).distinct():
+                _add_emails_from_field(ae)
+
+            # 3. Get additional_email from InspectionGroup
+            try:
+                group = InspectionGroup.objects.filter(id=inspection_group_id).first()
+                if group:
+                    _add_emails_from_field(group.additional_email)
+                    if group.client:
+                        _add_emails_from_field(group.client.manual_email)
+                        _add_emails_from_field(group.client.email)
+            except Exception:
+                pass
+
+        # 4. Search by client name if we still have no emails
+        if not emails:
+            # Try exact name match, then fuzzy
+            from ..models import Client
+            for lookup in [
+                Client.objects.filter(client_id__iexact=client_name),
+                Client.objects.filter(name__iexact=client_name),
+                Client.objects.filter(name__icontains=client_name) if client_name and len(client_name) > 3 else Client.objects.none(),
+            ]:
+                client = lookup.first()
+                if client:
+                    _add_emails_from_field(client.manual_email)
+                    _add_emails_from_field(client.email)
+                    if emails:
+                        break
+
+            # Word-based fuzzy match as last resort
+            if not emails and client_name and len(client_name) > 3:
+                words = [w for w in client_name.lower().split() if len(w) > 2]
+                if words:
+                    from django.db.models import Q
+                    q = Q()
+                    for word in words[:3]:
+                        q &= Q(name__icontains=word)
+                    client = Client.objects.filter(q).first()
+                    if client:
+                        _add_emails_from_field(client.manual_email)
+                        _add_emails_from_field(client.email)
+
+        result = sorted(emails)
+        _log.info(f"[EMAIL ALL] Found {len(result)} emails: {result}")
+        return result
+
+    except Exception as e:
+        _log.error(f"[EMAIL ALL] Exception: {e}")
+        return list(emails) if emails else []
 
 
 @login_required
