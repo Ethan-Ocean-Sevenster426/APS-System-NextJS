@@ -16013,6 +16013,7 @@ def get_client_email(client_name, inspection_group_id=None):
     _log = logging.getLogger(__name__)
 
     _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
 
     def _extract_email(client):
         """Return first available valid email from a Client object."""
@@ -16021,7 +16022,7 @@ def get_client_email(client_name, inspection_group_id=None):
             if field and str(field).strip():
                 for part in re.split(r'[,;/\s]+', str(field)):
                     e = part.strip().strip('"').strip("'")
-                    if _valid_email_re.match(e):
+                    if _valid_email_re.match(e) and not _bad_domain_re.search(e):
                         return e
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
@@ -16163,8 +16164,12 @@ def get_all_client_emails(client_name, inspection_group_id=None):
     _log = logging.getLogger(__name__)
 
     _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
 
     emails = set()
+
+    def _is_valid(e):
+        return bool(_valid_email_re.match(e)) and not _bad_domain_re.search(e)
 
     def _add_emails_from_field(value):
         """Extract all emails from a field that may contain comma/semicolon/slash/space-separated values."""
@@ -16173,7 +16178,7 @@ def get_all_client_emails(client_name, inspection_group_id=None):
         import re
         for part in re.split(r'[,;/\s]+', str(value)):
             e = part.strip().strip('"').strip("'").lower()
-            if e and _valid_email_re.match(e):
+            if e and _is_valid(e):
                 emails.add(e)
             elif e and '@' in e:
                 _log.warning(f"[EMAIL ALL] Skipping malformed email: '{e}'")
