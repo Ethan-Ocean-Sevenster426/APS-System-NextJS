@@ -152,14 +152,14 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Test server PostgreSQL database (dev branch)
+# Production PostgreSQL database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inspection_system',
-        'USER': 'inspection_user',
-        'PASSWORD': 'InspectionTest2026',
-        'HOST': '82.25.97.159',
+        'NAME': 'v4_worksheet_prod',
+        'USER': 'v4_prod_user',
+        'PASSWORD': 'V4ProdSecure2026',
+        'HOST': '167.88.43.168',
         'PORT': '5432',
     },
 }
