@@ -1,5 +1,5 @@
 """
-Multi-method test: Try every approach to deliver email to simphiwe.mathenjwa@afsq.co.za
+Test: Multiple methods to deliver email to Simphiwe from shared inbox only.
 Run on server: cd /var/www/v4-Worksheet-demo && source venv/bin/activate && python test_cc_email.py
 """
 import os
@@ -21,6 +21,7 @@ CYAN = '\033[96m'
 YELLOW = '\033[93m'
 RESET = '\033[0m'
 
+SHARED = 'foodsafetyagency.aps@afsq.co.za'
 TARGET = 'simphiwe.mathenjwa@afsq.co.za'
 
 tenant_id = settings.GRAPH_TENANT_ID
@@ -39,119 +40,72 @@ token_resp = requests.post(token_url, data=token_data, timeout=30)
 token_resp.raise_for_status()
 access_token = token_resp.json()['access_token']
 
+headers = {
+    'Authorization': f'Bearer {access_token}',
+    'Content-Type': 'application/json'
+}
+graph_url = f"https://graph.microsoft.com/v1.0/users/{SHARED}/sendMail"
 
-def send_test(test_num, from_addr, to_addr, subject, body_type, body_content, use_bcc=False, importance="Normal"):
-    """Send a single test email via Graph API."""
+
+def send_test(test_num, subject, body_type, body_content, use_bcc=False, importance="Normal"):
     print(f"\n  {CYAN}TEST {test_num}:{RESET} {subject}")
-    print(f"    FROM: {from_addr} | TO: {to_addr} | Type: {body_type} | Importance: {importance}")
-    if use_bcc:
-        print(f"    (Using BCC instead of TO)")
+    print(f"    FROM: {SHARED} → TO: {TARGET} | {body_type} | Importance: {importance} | BCC: {use_bcc}")
 
     email_data = {
         "message": {
             "subject": subject,
-            "body": {
-                "contentType": body_type,
-                "content": body_content
-            },
+            "body": {"contentType": body_type, "content": body_content},
             "importance": importance,
-            "from": {
-                "emailAddress": {"address": from_addr}
-            }
+            "from": {"emailAddress": {"address": SHARED}}
         },
         "saveToSentItems": "true"
     }
 
     if use_bcc:
-        email_data["message"]["bccRecipients"] = [{"emailAddress": {"address": to_addr}}]
-        email_data["message"]["toRecipients"] = [{"emailAddress": {"address": from_addr}}]
+        email_data["message"]["bccRecipients"] = [{"emailAddress": {"address": TARGET}}]
+        email_data["message"]["toRecipients"] = [{"emailAddress": {"address": SHARED}}]
     else:
-        email_data["message"]["toRecipients"] = [{"emailAddress": {"address": to_addr}}]
-
-    graph_url = f"https://graph.microsoft.com/v1.0/users/{from_addr}/sendMail"
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
+        email_data["message"]["toRecipients"] = [{"emailAddress": {"address": TARGET}}]
 
     try:
         resp = requests.post(graph_url, headers=headers, json=email_data, timeout=30)
         if resp.status_code == 202:
             print(f"    {GREEN}SENT{RESET} (HTTP 202)")
-            return True
         else:
             print(f"    {RED}FAILED{RESET} HTTP {resp.status_code}: {resp.text[:200]}")
-            return False
     except Exception as e:
         print(f"    {RED}ERROR{RESET} {e}")
-        return False
 
 
 print(f"\n{'='*60}")
-print(f" MULTI-METHOD EMAIL TEST → {TARGET}")
+print(f" SHARED INBOX TESTS → {TARGET}")
+print(f" FROM: {SHARED}")
 print(f"{'='*60}")
 print(f"  {GREEN}Token obtained{RESET}")
 
-# ── Test 1: Shared inbox → Simphiwe (plain text, not HTML)
-send_test(1,
-    'foodsafetyagency.aps@afsq.co.za', TARGET,
-    'Test 1 - Plain text from shared inbox',
-    'Text',
-    'Good day Simphiwe, this is a plain text test from the shared inbox. If you see this, plain text emails work. Kind Regards, FSA System.'
-)
+# Test 1: Plain text TO
+send_test(1, 'Simphiwe Test 1 - Plain text TO', 'Text',
+    'Good day Simphiwe, plain text test from the shared inbox. Kind Regards, FSA.')
 time.sleep(2)
 
-# ── Test 2: Shared inbox → Simphiwe (HTML, high importance)
-send_test(2,
-    'foodsafetyagency.aps@afsq.co.za', TARGET,
-    'Test 2 - HTML high importance from shared inbox',
-    'HTML',
-    '<p>Good day Simphiwe, this is an HTML test with HIGH importance from the shared inbox.</p>',
-    importance="High"
-)
+# Test 2: HTML TO with high importance
+send_test(2, 'Simphiwe Test 2 - HTML high importance TO', 'HTML',
+    '<p>Good day Simphiwe, HTML test with HIGH importance from the shared inbox.</p>',
+    importance="High")
 time.sleep(2)
 
-# ── Test 3: Anthony fsa-pty → Simphiwe (plain text)
-send_test(3,
-    'anthony.penzes@fsa-pty.co.za', TARGET,
-    'Test 3 - Plain text from Anthony fsa-pty',
-    'Text',
-    'Good day Simphiwe, this is a plain text test from anthony.penzes@fsa-pty.co.za. Kind Regards, Anthony.'
-)
+# Test 3: Plain text BCC
+send_test(3, 'Simphiwe Test 3 - Plain text BCC', 'Text',
+    'Good day Simphiwe, BCC delivery test from the shared inbox.',
+    use_bcc=True)
 time.sleep(2)
 
-# ── Test 4: Anthony afsq → Simphiwe (plain text)
-send_test(4,
-    'anthony.penzes@afsq.co.za', TARGET,
-    'Test 4 - Plain text from Anthony afsq',
-    'Text',
-    'Good day Simphiwe, this is a plain text test from anthony.penzes@afsq.co.za. Kind Regards, Anthony.'
-)
-time.sleep(2)
-
-# ── Test 5: Shared inbox → Simphiwe via BCC (hidden recipient)
-send_test(5,
-    'foodsafetyagency.aps@afsq.co.za', TARGET,
-    'Test 5 - BCC from shared inbox',
-    'Text',
-    'Good day, this is a BCC delivery test from the shared inbox.',
-    use_bcc=True
-)
-time.sleep(2)
-
-# ── Test 6: Anthony fsa-pty → Simphiwe via BCC
-send_test(6,
-    'anthony.penzes@fsa-pty.co.za', TARGET,
-    'Test 6 - BCC from Anthony fsa-pty',
-    'Text',
-    'Good day Simphiwe, this is a BCC delivery test from anthony.penzes@fsa-pty.co.za.',
-    use_bcc=True
-)
+# Test 4: HTML BCC with high importance
+send_test(4, 'Simphiwe Test 4 - HTML BCC high importance', 'HTML',
+    '<p>Good day Simphiwe, HTML BCC test with HIGH importance from the shared inbox.</p>',
+    use_bcc=True, importance="High")
 
 print(f"\n{'='*60}")
-print(f"  {YELLOW}6 tests sent. Ask Simphiwe to check:{RESET}")
-print(f"    1. Inbox")
-print(f"    2. Junk/Spam folder")
-print(f"    3. Quarantine (admin may need to check)")
-print(f"    4. Clutter folder")
+print(f"  {YELLOW}4 tests sent (all from shared inbox only).{RESET}")
+print(f"  {YELLOW}Ask Simphiwe to check: Inbox, Junk, Spam, Clutter, Quarantine{RESET}")
 print(f"{'='*60}\n")
