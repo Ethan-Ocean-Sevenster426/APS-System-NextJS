@@ -2,7 +2,7 @@
 """Find all invalid emails in the database and list the associated inspections."""
 import os, sys, re, django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'worksheet_project.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
