@@ -2601,14 +2601,14 @@ def shipment_list(request):
                     # Collect all emails for this client
                     emails = []
                     if _c.email:
-                        # Split comma-separated emails in the primary field
-                        for _e in _c.email.split(','):
-                            _e = _e.strip()
+                        # Split on comma, semicolon, slash, or space
+                        for _e in re.split(r'[,;/\s]+', str(_c.email)):
+                            _e = _e.strip().strip('"').strip("'")
                             if _e:
                                 emails.append({'email': _e, 'type': 'primary', 'removable': True})
                     if _c.manual_email:
-                        for _e in _c.manual_email.split(','):
-                            _e = _e.strip()
+                        for _e in re.split(r'[,;/\s]+', str(_c.manual_email)):
+                            _e = _e.strip().strip('"').strip("'")
                             if _e:
                                 emails.append({'email': _e, 'type': 'manual', 'removable': True})
                     
