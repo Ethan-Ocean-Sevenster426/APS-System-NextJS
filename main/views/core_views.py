@@ -286,9 +286,14 @@ def user_login(request):
             username = request.POST.get('username', '').strip()
             password = request.POST.get('password', '').strip()
 
-            # Debug print
-            print(f"Login attempt - Username: {username}")
-            print(f"Password length: {len(password) if password else 0}")
+            # Case-insensitive username lookup (MySQL was case-insensitive, PostgreSQL is not)
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                actual_user = User.objects.get(username__iexact=username)
+                username = actual_user.username
+            except User.DoesNotExist:
+                pass
 
             user = authenticate(request, username=username, password=password)
             print(f"Authentication result: {user}")

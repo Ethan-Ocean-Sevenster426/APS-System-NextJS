@@ -159,7 +159,7 @@ DATABASES = {
         'NAME': 'v4_worksheet_prod',
         'USER': 'v4_prod_user',
         'PASSWORD': 'V4ProdSecure2026',
-        'HOST': 'localhost',
+        'HOST': os.environ.get('DB_HOST', '167.88.43.168'),
         'PORT': '5432',
     },
 }
