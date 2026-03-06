@@ -162,16 +162,30 @@ class GraphEmailBackend(BaseEmailBackend):
 
         try:
             response = requests.post(graph_url, headers=headers, json=email_data, timeout=30)
-            response.raise_for_status()
 
-            logger.info(f"Successfully sent email to {', '.join(message.to)}")
-            if message.cc:
-                logger.info(f"CC recipients: {', '.join(message.cc)}")
-            logger.info(f"Subject: {message.subject}")
-            return True
+            if response.status_code == 202:
+                logger.info(f"Successfully sent email to {', '.join(message.to)}")
+                if message.cc:
+                    logger.info(f"CC recipients: {', '.join(message.cc)}")
+                logger.info(f"Subject: {message.subject}")
+                return True
+            else:
+                # Log detailed error info before raising
+                error_body = response.text[:1000]
+                logger.error(f"[GRAPH SEND FAIL] HTTP {response.status_code} for TO={message.to}, CC={message.cc}")
+                logger.error(f"[GRAPH SEND FAIL] Response: {error_body}")
+                logger.error(f"[GRAPH SEND FAIL] Attachments: {len(message.attachments)} files")
+                try:
+                    err_json = response.json()
+                    err_code = err_json.get('error', {}).get('code', 'Unknown')
+                    err_msg = err_json.get('error', {}).get('message', 'Unknown')
+                    logger.error(f"[GRAPH SEND FAIL] Error code: {err_code}, message: {err_msg}")
+                except Exception:
+                    pass
+                response.raise_for_status()
 
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP Error sending email: {e.response.status_code} - {e.response.text}")
+            logger.error(f"HTTP Error sending email: {e.response.status_code} - {e.response.text[:500]}")
             if not self.fail_silently:
                 raise
             return False
