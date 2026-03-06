@@ -45,7 +45,7 @@
         }
     </script>
     <!-- Analytics Dashboard Styles -->
-    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260224m">
+    <link rel="stylesheet" href="{% static 'analytics_dashboard/css/analytics_dashboard.css' %}?v=20260306a">
     <style>
         /* Background image URL must stay inline because it uses a Django static tag */
         :root {
@@ -835,7 +835,7 @@
                     <i class="fas fa-money-bill-wave"></i>
                     <span>Revenue Per Inspector</span>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
+                <div class="financial-actions">
                     <select id="financialPeriod" onchange="applyFinancialPeriod()" style="font-size:11px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; cursor:pointer; min-width:130px;">
                         <option value="all">All Time</option>
                         <option value="daily">Today</option>
@@ -856,25 +856,25 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="card-body" style="padding: 0; overflow-x: auto;">
-                <table class="inspections-table" id="financialTable" style="font-size: 10.5px;">
+            <div class="card-body financial-table-wrap">
+                <table class="inspections-table" id="financialTable">
                     <thead>
                         <tr>
-                            <th style="min-width: 110px;">Inspector</th>
-                            <th class="num" style="min-width: 70px;">Inspections</th>
-                            <th class="num" style="min-width: 65px;">Billable Hrs</th>
-                            <th class="num" style="min-width: 60px;">KM</th>
-                            <th class="num" style="min-width: 65px;">On-Site Hrs</th>
-                            <th class="num" style="min-width: 75px;">Rev (Hours)</th>
-                            <th class="num" style="min-width: 70px;">Rev (KM)</th>
-                            <th class="num" style="min-width: 80px;">Rev (Samples)</th>
-                            <th class="num" style="min-width: 85px;">Total Revenue</th>
-                            <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Salary (CTC)</th>
-                            <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Expenses</th>
-                            <th class="num" style="min-width: 80px; background: rgba(0,120,144,0.1);">Total Cost</th>
-                            <th class="num" style="min-width: 75px; background: rgba(16,185,129,0.1);">Rev/Hr</th>
-                            <th class="num" style="min-width: 75px; background: rgba(16,185,129,0.1);">Cost/Hr</th>
-                            <th class="num" style="min-width: 80px; background: rgba(16,185,129,0.1);">Profit</th>
+                            <th class="fin-col-inspector">Inspector</th>
+                            <th class="num">Inspections</th>
+                            <th class="num">Billable Hrs</th>
+                            <th class="num">KM</th>
+                            <th class="num">On-Site Hrs</th>
+                            <th class="num">Rev (Hours)</th>
+                            <th class="num">Rev (KM)</th>
+                            <th class="num">Rev (Samples)</th>
+                            <th class="num">Total Revenue</th>
+                            <th class="num fin-col-cost">Salary (CTC)</th>
+                            <th class="num fin-col-cost">Expenses</th>
+                            <th class="num fin-col-cost">Total Cost</th>
+                            <th class="num fin-col-profit">Rev/Hr</th>
+                            <th class="num fin-col-profit">Cost/Hr</th>
+                            <th class="num fin-col-profit">Profit</th>
                         </tr>
                     </thead>
                     <tbody id="financialTableBody">
@@ -892,7 +892,7 @@
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Xero - Outstanding Invoices</span>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
+                <div class="financial-actions">
                     <span id="xeroStatus" style="font-size:11px; padding:4px 10px; border-radius:12px; font-weight:500;"></span>
                     <button id="xeroConnectBtn" onclick="connectXero()" style="font-size:12px; padding:6px 14px; border:1px solid #13b5ea; border-radius:6px; background:#13b5ea; color:white; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#0e9bcf'" onmouseout="this.style.background='#13b5ea'">
                         <i class="fas fa-plug"></i> <span id="xeroConnectLabel">Connect to Xero</span>
@@ -938,7 +938,7 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Inspector Comparison</span>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;">
+                <div class="financial-actions">
                     <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
                         <option value="total_revenue">Total Revenue</option>
                         <option value="revenue_hours">Revenue (Hours)</option>
@@ -1296,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <!-- Add Expense Form -->
         <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; background:#fffbeb;">
-            <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+            <div class="expense-form-row" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
                 <div style="flex:1; min-width:140px;">
                     <label style="font-size:11px; font-weight:600; color:#374151; display:block; margin-bottom:4px;">Inspector</label>
                     <select id="expenseInspector" style="width:100%; padding:6px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:12px;">

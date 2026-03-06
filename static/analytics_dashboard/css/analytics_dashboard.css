@@ -1520,659 +1520,605 @@ body.bg-loaded::before {
 }
 
 /* ================================================================
-   LARGE SCREENS (1440px+) — wider layouts, bigger fonts
+   RESPONSIVE SCALING — uses clamp() for smooth proportional sizing
+   across all screen widths from 1440px up to 4K+
    ================================================================ */
+
+/* 1440px+ : gentle bump */
 @media (min-width: 1440px) {
     #main-content {
-        padding: 36px 40px 48px;
+        padding: 32px 32px 40px;
     }
 
     .kpi-grid {
         grid-template-columns: repeat(5, 1fr);
-        gap: 1.25rem;
+        gap: 1.1rem;
     }
 
-    .kpi-value {
-        font-size: 2.5rem;
-    }
+    .kpi-value { font-size: 2.2rem; }
+    .kpi-label { font-size: 0.82rem; }
 
-    .kpi-label {
-        font-size: 0.85rem;
-    }
-
-    .kpi-card {
-        padding: 1.5rem;
-    }
-
-    .dashboard-grid-2col {
-        gap: 1.5rem;
-    }
-
-    .dashboard-grid-3col {
-        gap: 1.5rem;
-    }
-
-    .card-body {
-        padding: 24px;
-    }
-
-    .card-header {
-        padding: 20px 24px;
-    }
-
-    .card-title {
-        font-size: 1.15rem;
-    }
-
-    .inspections-table th {
-        font-size: 0.85rem;
-        padding: 0.8rem 1rem;
-    }
-
-    .inspections-table td {
-        padding: 0.7rem 1rem;
-        font-size: 0.9rem;
-    }
-
-    .stat-card h3 {
-        font-size: 2.25rem;
-    }
-
-    .stat-card p {
-        font-size: 0.85rem;
-    }
-
-    .efficiency-value {
-        font-size: 1.5rem;
-    }
-
-    .efficiency-label {
-        font-size: 0.75rem;
-    }
-
-    .compliance-bar-track {
-        height: 30px;
-    }
-
-    .compliance-bar-label {
-        font-size: 0.9rem;
-        width: 100px;
-    }
-
-    .compliance-bar-pct {
-        font-size: 0.8rem;
-    }
-
-    .filter-group label {
-        font-size: 0.8rem;
-    }
-
-    .filter-group .form-control {
-        padding: 8px 12px;
-        font-size: 0.9rem;
-    }
+    .card-title { font-size: 1.05rem; }
 }
 
-/* ================================================================
-   EXTRA LARGE SCREENS (1920px+) — Full HD monitors & large TVs
-   ================================================================ */
+/* 1920px+ : Full HD — modest increase */
 @media (min-width: 1920px) {
     #main-content {
-        padding: 48px 60px 60px;
+        padding: 36px 40px 48px;
     }
 
-    .kpi-grid {
-        gap: 1.5rem;
-    }
+    .kpi-value { font-size: 2.5rem; }
+    .kpi-label { font-size: 0.9rem; }
+    .kpi-card { padding: 1.5rem; }
 
-    .kpi-value {
-        font-size: 3rem;
-    }
+    .card-body { padding: 24px; }
+    .card-header { padding: 18px 24px; }
+    .card-title { font-size: 1.15rem; }
 
-    .kpi-label {
-        font-size: 0.95rem;
-    }
+    .inspections-table th { font-size: 0.85rem; padding: 0.65rem 0.8rem; }
+    .inspections-table td { font-size: 0.85rem; padding: 0.55rem 0.8rem; }
 
-    .kpi-card {
-        padding: 2rem;
-    }
+    .stat-card h3 { font-size: 2.25rem; }
+    .stat-card p  { font-size: 0.85rem; }
 
-    .kpi-card-secondary .kpi-value {
-        font-size: 2rem !important;
-    }
+    .efficiency-value { font-size: 1.5rem; }
 
-    .kpi-icon {
-        font-size: 1.5rem;
-    }
-
-    .card-body {
-        padding: 32px;
-    }
-
-    .card-header {
-        padding: 24px 32px;
-    }
-
-    .card-title {
-        font-size: 1.3rem;
-    }
-
-    .dashboard-grid-2col {
-        gap: 2rem;
-    }
-
-    .dashboard-grid-3col {
-        gap: 2rem;
-    }
-
-    .inspections-table th {
-        font-size: 0.95rem;
-        padding: 1rem 1.25rem;
-    }
-
-    .inspections-table td {
-        padding: 0.85rem 1.25rem;
-        font-size: 1rem;
-    }
-
-    .stat-card h3 {
-        font-size: 2.75rem;
-    }
-
-    .stat-card p {
-        font-size: 0.95rem;
-    }
-
-    .stat-card {
-        padding: 24px;
-    }
-
-    .efficiency-grid {
-        gap: 1rem;
-    }
-
-    .efficiency-tile {
-        padding: 1.25rem;
-    }
-
-    .efficiency-value {
-        font-size: 1.75rem;
-    }
-
-    .efficiency-label {
-        font-size: 0.85rem;
-    }
-
-    .compliance-bar-track {
-        height: 36px;
-    }
-
-    .compliance-bar-label {
-        font-size: 1rem;
-        width: 120px;
-    }
-
-    .compliance-bar-pct {
-        font-size: 0.85rem;
-    }
-
-    .compliance-bar-count {
-        font-size: 0.9rem;
-        width: 80px;
-    }
-
-    .btn {
-        padding: 12px 20px;
-        font-size: 1rem;
-    }
-
-    .btn-sm {
-        padding: 8px 16px;
-        font-size: 0.85rem;
-    }
-
-    .filter-group label {
-        font-size: 0.85rem;
-    }
-
-    .filter-group .form-control {
-        padding: 10px 14px;
-        font-size: 1rem;
-    }
-
-    .status-badge {
-        font-size: 0.8rem;
-        padding: 3px 10px;
-    }
-
-    .commodity-badge {
-        font-size: 0.8rem;
-        padding: 3px 10px;
-    }
-
-    /* Wider sidebar for large screens */
-    #sidebar {
-        width: 280px;
-    }
-
-    #main-content {
-        margin-left: 280px;
-    }
-
-    .tab-btn, .sidebar-nav .nav-link {
-        font-size: 0.95rem;
-        padding: 9px 14px;
-    }
-
-    .sidebar-company-name {
-        font-size: 0.9rem;
-    }
-
-    .sidebar-section-label {
-        font-size: 0.7rem;
-    }
+    .compliance-bar-track { height: 28px; }
+    .compliance-bar-label { font-size: 0.9rem; }
 }
 
-/* ================================================================
-   4K / ULTRA LARGE SCREENS (2560px+) — 70" TVs, 4K monitors
-   ================================================================ */
+/* 2560px+ : QHD / large monitors */
 @media (min-width: 2560px) {
-    :root {
-        --spacing: 10px;
+    #sidebar { width: 280px; }
+    #main-content { margin-left: 280px; padding: 44px 52px 56px; }
+
+    .sidebar-header img { max-height: 70px; }
+    .sidebar-company-name { font-size: 0.9rem; }
+    .tab-btn, .sidebar-nav .nav-link { font-size: 0.95rem; padding: 10px 14px; }
+    .logout-btn { font-size: 0.95rem; padding: 12px; }
+
+    .kpi-value { font-size: 3rem; }
+    .kpi-label { font-size: 1rem; }
+    .kpi-card { padding: 1.75rem; }
+
+    .card-body { padding: 28px; }
+    .card-header { padding: 20px 28px; }
+    .card-title { font-size: 1.25rem; }
+
+    .inspections-table th { font-size: 0.95rem; padding: 0.75rem 1rem; }
+    .inspections-table td { font-size: 0.95rem; padding: 0.65rem 1rem; }
+
+    .stat-card h3 { font-size: 2.75rem; }
+    .stat-card p  { font-size: 0.95rem; }
+    .stat-card { padding: 24px; }
+
+    .efficiency-value { font-size: 1.75rem; }
+    .efficiency-label { font-size: 0.85rem; }
+
+    .compliance-bar-track { height: 32px; }
+    .compliance-bar-label { font-size: 1rem; width: 120px; }
+    .compliance-bar-pct { font-size: 0.9rem; }
+
+    .filter-group label { font-size: 0.85rem; }
+    .filter-group .form-control { font-size: 0.95rem; padding: 10px 14px; }
+
+    .header h1 { font-size: 2rem; }
+    .header h2 { font-size: 1.15rem; }
+
+    .no-data i  { font-size: 4rem; }
+    .no-data h3 { font-size: 1.5rem; }
+    .no-data p  { font-size: 1rem; }
+}
+
+/* 3840px+ : 4K / 70" TVs */
+@media (min-width: 3840px) {
+    #sidebar { width: 320px; }
+    #main-content { margin-left: 320px; padding: 56px 72px 72px; }
+
+    .sidebar-header img { max-height: 85px; }
+    .sidebar-company-name { font-size: 1.1rem; }
+    .tab-btn, .sidebar-nav .nav-link { font-size: 1.1rem; padding: 12px 16px; min-height: 44px; }
+    .tab-btn i, .sidebar-nav .nav-link i { width: 22px; font-size: 1rem; }
+    .sidebar-section-label { font-size: 0.85rem; }
+    .logout-btn { font-size: 1.05rem; padding: 14px; }
+
+    .kpi-value { font-size: 3.5rem; }
+    .kpi-label { font-size: 1.15rem; }
+    .kpi-card { padding: 2.25rem; border-radius: 10px; }
+    .kpi-card-secondary .kpi-value { font-size: 2.25rem !important; }
+    .kpi-icon { font-size: 1.75rem; }
+
+    .card { border-radius: 10px; }
+    .card-body { padding: 36px; }
+    .card-header { padding: 24px 36px; }
+    .card-title { font-size: 1.4rem; }
+
+    .dashboard-grid-2col { gap: 2rem; }
+    .dashboard-grid-3col { gap: 2rem; }
+
+    .inspections-table th { font-size: 1.1rem; padding: 0.9rem 1.2rem; }
+    .inspections-table td { font-size: 1.05rem; padding: 0.8rem 1.2rem; }
+
+    .stat-card { padding: 28px; border-radius: 10px; }
+    .stat-card h3 { font-size: 3.25rem; }
+    .stat-card p  { font-size: 1.1rem; }
+
+    .efficiency-value { font-size: 2.25rem; }
+    .efficiency-label { font-size: 1rem; }
+
+    .compliance-bar-track { height: 40px; border-radius: 20px; }
+    .compliance-bar-fill  { border-radius: 20px; }
+    .compliance-bar-label { font-size: 1.15rem; width: 150px; }
+    .compliance-bar-pct   { font-size: 1rem; }
+
+    .btn { padding: 14px 24px; font-size: 1.1rem; }
+    .btn-sm { padding: 10px 18px; font-size: 0.95rem; }
+
+    .filter-group label { font-size: 0.95rem; }
+    .filter-group .form-control { font-size: 1.05rem; padding: 12px 16px; }
+
+    .status-badge, .commodity-badge { font-size: 0.9rem; padding: 4px 12px; }
+
+    .header h1 { font-size: 2.5rem; }
+    .header h2 { font-size: 1.35rem; }
+
+    .no-data i  { font-size: 4.5rem; }
+    .no-data h3 { font-size: 1.65rem; }
+    .no-data p  { font-size: 1.1rem; }
+}
+/* ================================================================
+   FINANCIAL PANEL — RESPONSIVE STYLES
+   ================================================================ */
+
+/* Financial card header actions row */
+.financial-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.financial-actions select,
+.financial-actions button {
+    white-space: nowrap;
+}
+
+/* Financial table wrapper – always allow horizontal scroll */
+.financial-table-wrap {
+    padding: 0 !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* Touch-friendly scroll hint on mobile (fade on right edge) */
+.financial-table-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.6));
+    display: none;
+}
+
+/* Xero aging buckets responsive */
+#agingBuckets {
+    flex-wrap: wrap !important;
+}
+
+/* Xero invoices table wrapper responsive */
+#xeroInvoicesTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Revenue / comparison chart containers */
+#panel-financial .card-body canvas {
+    max-width: 100%;
+}
+
+/* Inspector trend metric dropdown in financial panel */
+#panel-financial .card-header select {
+    max-width: 100%;
+}
+
+/* ---- Tablet (≤1024px) ---- */
+@media (max-width: 1024px) {
+    /* Financial card header: stack title & actions */
+    #panel-financial .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
 
-    #main-content {
-        padding: 64px 80px 80px;
+    .financial-actions {
+        width: 100%;
+        flex-wrap: wrap;
     }
 
-    #sidebar {
-        width: 320px;
+    .financial-actions select {
+        flex: 1 1 130px;
     }
 
-    #main-content {
-        margin-left: 320px;
+    .financial-actions button {
+        flex: 0 1 auto;
     }
 
-    .sidebar-header img {
-        max-height: 80px;
-    }
-
-    .sidebar-company-name {
-        font-size: 1rem;
-    }
-
-    .sidebar-section-label {
-        font-size: 0.8rem;
-        padding: 14px 16px 6px;
-    }
-
-    .tab-btn, .sidebar-nav .nav-link {
-        font-size: 1.05rem;
-        padding: 12px 16px;
-        min-height: 44px;
-    }
-
-    .tab-btn i, .sidebar-nav .nav-link i {
-        width: 22px;
-        font-size: 1rem;
-    }
-
-    .logout-btn {
-        font-size: 1rem;
-        padding: 14px;
-    }
-
-    .kpi-grid {
-        gap: 2rem;
-    }
-
-    .kpi-value {
-        font-size: 4rem;
-    }
-
-    .kpi-label {
-        font-size: 1.1rem;
-        margin-top: 0.5rem;
-    }
-
-    .kpi-card {
-        padding: 2.5rem;
-        border-radius: 10px;
-    }
-
-    .kpi-card-secondary .kpi-value {
-        font-size: 2.5rem !important;
-    }
-
-    .kpi-icon {
-        font-size: 2rem;
-        margin-bottom: 8px;
-    }
-
-    .card {
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
-
-    .card-body {
-        padding: 40px;
-    }
-
-    .card-header {
-        padding: 28px 40px;
-    }
-
-    .card-title {
-        font-size: 1.5rem;
-    }
-
-    .dashboard-grid-2col {
-        gap: 2.5rem;
-    }
-
-    .dashboard-grid-3col {
-        gap: 2.5rem;
-    }
-
-    .inspections-table th {
-        font-size: 1.1rem;
-        padding: 1.2rem 1.5rem;
-    }
-
-    .inspections-table td {
-        padding: 1rem 1.5rem;
-        font-size: 1.1rem;
-    }
-
-    .stat-card {
-        padding: 32px;
-        border-radius: 10px;
-    }
-
-    .stat-card h3 {
-        font-size: 3.5rem;
-    }
-
-    .stat-card p {
-        font-size: 1.1rem;
-    }
-
-    .stats-grid {
-        gap: 24px;
-    }
-
-    .efficiency-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .efficiency-tile {
-        padding: 1.5rem;
-        border-radius: 10px;
-    }
-
-    .efficiency-value {
-        font-size: 2.25rem;
-    }
-
-    .efficiency-label {
-        font-size: 1rem;
-        margin-top: 0.25rem;
-    }
-
-    .compliance-bar-row {
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .compliance-bar-track {
-        height: 44px;
-        border-radius: 22px;
-    }
-
-    .compliance-bar-fill {
-        border-radius: 22px;
-    }
-
-    .compliance-bar-label {
-        font-size: 1.15rem;
-        width: 140px;
-    }
-
-    .compliance-bar-pct {
-        font-size: 1rem;
-    }
-
-    .compliance-bar-count {
-        font-size: 1.05rem;
-        width: 100px;
-    }
-
-    .btn {
-        padding: 16px 28px;
-        font-size: 1.15rem;
-        border-radius: 8px;
-    }
-
-    .btn-sm {
-        padding: 10px 20px;
-        font-size: 1rem;
-    }
-
-    .filter-bar {
-        padding: 1.25rem 1.5rem;
-    }
-
-    .filter-bar-inner {
-        gap: 1.25rem;
-    }
-
-    .filter-group label {
-        font-size: 0.95rem;
-    }
-
-    .filter-group .form-control {
-        padding: 12px 16px;
-        font-size: 1.1rem;
-        border-radius: 8px;
-    }
-
-    .filter-actions .btn {
-        padding: 12px 24px;
-    }
-
-    .status-badge {
-        font-size: 0.95rem;
-        padding: 4px 14px;
-        border-radius: 14px;
-    }
-
-    .commodity-badge {
-        font-size: 0.95rem;
-        padding: 4px 14px;
-        border-radius: 14px;
-    }
-
-    .table-pagination button {
-        padding: 8px 16px;
-        font-size: 0.95rem;
-    }
-
-    .table-page-info {
-        font-size: 0.95rem;
-    }
-
-    .no-data i {
-        font-size: 5rem;
-    }
-
-    .no-data h3 {
-        font-size: 1.75rem;
-    }
-
-    .no-data p {
-        font-size: 1.15rem;
-    }
-
-    .header h1 {
-        font-size: 2.5rem;
-    }
-
-    .header h2 {
-        font-size: 1.4rem;
-    }
-
-    .notification-bell-float {
-        width: 56px;
-        height: 56px;
-    }
-
-    .notification-bell-float i {
-        font-size: 24px;
-    }
-
-    .notification-bell-badge {
-        width: 26px;
-        height: 26px;
-        font-size: 14px;
+    /* Chart heights reduced for smaller viewports */
+    #panel-financial .card-body[style*="height: 320px"],
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 280px !important;
     }
 }
 
-/* ================================================================
-   TRUE 4K (3840px+) — massive screens
-   ================================================================ */
+/* ---- Small tablet / large phone (≤768px) ---- */
+@media (max-width: 768px) {
+    /* Financial table: smaller font, tighter cells */
+    #financialTable {
+        font-size: 9.5px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.35rem 0.4rem !important;
+        min-width: 55px !important;
+    }
+
+    #financialTable th:first-child,
+    #financialTable td:first-child {
+        min-width: 90px !important;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: var(--card-bg);
+    }
+
+    #financialTable thead th:first-child {
+        background: var(--primary-light);
+        z-index: 3;
+    }
+
+    /* Aging buckets: 2 per row on tablets */
+    #agingBuckets > div {
+        min-width: calc(50% - 4px) !important;
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    /* Chart heights on tablet */
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 260px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 300px !important;
+    }
+
+    /* Xero card header buttons */
+    #panel-financial #xeroConnectBtn,
+    #panel-financial #xeroSyncBtn {
+        font-size: 11px !important;
+        padding: 5px 10px !important;
+    }
+}
+
+/* ---- Mobile (≤560px) ---- */
+@media (max-width: 560px) {
+    /* Financial actions: full-width stacked on mobile */
+    .financial-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .financial-actions select {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .financial-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Financial table: even tighter */
+    #financialTable {
+        font-size: 8.5px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.3rem 0.3rem !important;
+        min-width: 48px !important;
+    }
+
+    #financialTable th:first-child,
+    #financialTable td:first-child {
+        min-width: 75px !important;
+    }
+
+    /* Xero invoices table */
+    #xeroInvoicesTable .inspections-table {
+        font-size: 9px !important;
+    }
+
+    #xeroInvoicesTable .inspections-table th,
+    #xeroInvoicesTable .inspections-table td {
+        padding: 0.3rem 0.35rem !important;
+    }
+
+    /* Aging buckets: stack on small phones */
+    #agingBuckets > div {
+        min-width: calc(50% - 4px) !important;
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    /* Chart containers */
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 220px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 260px !important;
+    }
+
+    /* Inspector comparison metric dropdown full width */
+    #inspectorTrendMetric {
+        width: 100% !important;
+        min-width: auto !important;
+    }
+}
+
+/* ---- Extra small mobile (≤400px) ---- */
+@media (max-width: 400px) {
+    #panel-financial .card-header {
+        padding: 10px 12px;
+    }
+
+    #panel-financial .card-body {
+        padding: 8px;
+    }
+
+    /* Financial table: minimum viable */
+    #financialTable {
+        font-size: 7.5px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.2rem 0.2rem !important;
+        min-width: 42px !important;
+    }
+
+    #financialTable th:first-child,
+    #financialTable td:first-child {
+        min-width: 65px !important;
+    }
+
+    /* Aging buckets: single column */
+    #agingBuckets {
+        flex-direction: column !important;
+    }
+
+    #agingBuckets > div {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    /* Xero invoices table tighter */
+    #xeroInvoicesTable .inspections-table {
+        font-size: 8px !important;
+    }
+
+    /* Charts even shorter */
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 200px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 220px !important;
+    }
+
+    /* Xero status badge smaller */
+    #xeroStatus {
+        font-size: 9px !important;
+        padding: 3px 6px !important;
+    }
+
+    /* Xero buttons compact */
+    #panel-financial #xeroConnectBtn,
+    #panel-financial #xeroSyncBtn {
+        font-size: 10px !important;
+        padding: 4px 8px !important;
+    }
+}
+
+/* ---- Modals: responsive for all screen sizes ---- */
+/* Salary Modal */
+#salaryModal > div {
+    max-width: 540px;
+    width: 90% !important;
+    max-height: 80vh;
+}
+
+/* Expense Modal */
+#expenseModal > div {
+    max-width: 680px;
+    width: 92% !important;
+    max-height: 85vh;
+}
+
+/* Targets Modal */
+#targetsModal > div {
+    max-width: 480px;
+    width: 90% !important;
+}
+
+@media (max-width: 560px) {
+    #salaryModal > div,
+    #expenseModal > div,
+    #targetsModal > div {
+        width: 96% !important;
+        max-height: 90vh;
+        border-radius: 8px !important;
+    }
+
+    /* Stack expense form fields vertically on mobile */
+    .expense-form-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .expense-form-row > div {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .expense-form-row > button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Targets modal: single column on small screens */
+    #targetsModal > div > div:nth-child(2) > div:nth-child(2) {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ---- Large screens: financial table fills space ---- */
+
+/* Financial table base: fill container, default font size */
+#financialTable {
+    width: 100%;
+    table-layout: auto;
+    font-size: 10.5px;
+}
+
+/* Column background highlights */
+#financialTable .fin-col-cost  { background: rgba(0,120,144,0.1); }
+#financialTable .fin-col-profit { background: rgba(16,185,129,0.1); }
+
+/* Inspector column gets a little more room */
+#financialTable .fin-col-inspector { min-width: 100px; }
+
+@media (min-width: 1440px) {
+    #financialTable {
+        font-size: 11.5px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.55rem 0.65rem !important;
+    }
+
+    /* Override inline min-widths so columns distribute evenly */
+    #financialTable th,
+    #financialTable td {
+        min-width: 0 !important;
+    }
+
+    /* Financial header buttons scale up slightly */
+    .financial-actions select,
+    .financial-actions button {
+        font-size: 12px !important;
+        padding: 7px 12px !important;
+    }
+}
+
+@media (min-width: 1920px) {
+    #financialTable {
+        font-size: 13px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.65rem 0.8rem !important;
+    }
+
+    .financial-actions select,
+    .financial-actions button {
+        font-size: 13px !important;
+        padding: 8px 16px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 400px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 460px !important;
+    }
+}
+
+@media (min-width: 2560px) {
+    #financialTable {
+        font-size: 15px !important;
+    }
+
+    #financialTable th,
+    #financialTable td {
+        padding: 0.8rem 1rem !important;
+    }
+
+    .financial-actions select,
+    .financial-actions button {
+        font-size: 14px !important;
+        padding: 9px 18px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 480px !important;
+    }
+
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 540px !important;
+    }
+}
+
 @media (min-width: 3840px) {
-    #main-content {
-        padding: 80px 120px 100px;
+    #financialTable {
+        font-size: 17px !important;
     }
 
-    #sidebar {
-        width: 400px;
+    #financialTable th,
+    #financialTable td {
+        padding: 1rem 1.3rem !important;
     }
 
-    #main-content {
-        margin-left: 400px;
+    .financial-actions select,
+    .financial-actions button {
+        font-size: 16px !important;
+        padding: 11px 22px !important;
     }
 
-    .sidebar-header img {
-        max-height: 100px;
+    #panel-financial .card-body[style*="height: 320px"] {
+        height: 560px !important;
     }
 
-    .sidebar-company-name {
-        font-size: 1.3rem;
+    #panel-financial .card-body[style*="height: 380px"] {
+        height: 640px !important;
+    }
+}
+
+/* Dark mode support for sticky first column */
+[data-theme="dark"] #financialTable th:first-child,
+[data-theme="dark"] #financialTable td:first-child {
+    background: var(--card-bg);
+}
+
+[data-theme="dark"] #financialTable thead th:first-child {
+    background: var(--primary-light);
+}
+
+/* Scroll hint for financial table on touch devices */
+@media (pointer: coarse) {
+    .financial-table-wrap {
+        position: relative;
     }
 
-    .tab-btn, .sidebar-nav .nav-link {
-        font-size: 1.3rem;
-        padding: 16px 20px;
-        min-height: 56px;
-    }
-
-    .tab-btn i, .sidebar-nav .nav-link i {
-        width: 28px;
-        font-size: 1.2rem;
-    }
-
-    .sidebar-section-label {
-        font-size: 1rem;
-        padding: 18px 20px 8px;
-    }
-
-    .logout-btn {
-        font-size: 1.2rem;
-        padding: 18px;
-    }
-
-    .kpi-value {
-        font-size: 5.5rem;
-    }
-
-    .kpi-label {
-        font-size: 1.4rem;
-    }
-
-    .kpi-card {
-        padding: 3.5rem;
-    }
-
-    .kpi-card-secondary .kpi-value {
-        font-size: 3.5rem !important;
-    }
-
-    .kpi-icon {
-        font-size: 2.5rem;
-    }
-
-    .card-body {
-        padding: 56px;
-    }
-
-    .card-header {
-        padding: 36px 56px;
-    }
-
-    .card-title {
-        font-size: 2rem;
-    }
-
-    .inspections-table th {
-        font-size: 1.4rem;
-        padding: 1.5rem 2rem;
-    }
-
-    .inspections-table td {
-        padding: 1.25rem 2rem;
-        font-size: 1.35rem;
-    }
-
-    .stat-card h3 {
-        font-size: 5rem;
-    }
-
-    .stat-card p {
-        font-size: 1.4rem;
-    }
-
-    .efficiency-value {
-        font-size: 3rem;
-    }
-
-    .efficiency-label {
-        font-size: 1.3rem;
-    }
-
-    .compliance-bar-track {
-        height: 56px;
-    }
-
-    .compliance-bar-label {
-        font-size: 1.5rem;
-        width: 180px;
-    }
-
-    .compliance-bar-pct {
-        font-size: 1.3rem;
-    }
-
-    .btn {
-        padding: 20px 36px;
-        font-size: 1.4rem;
-    }
-
-    .filter-group .form-control {
-        padding: 16px 20px;
-        font-size: 1.35rem;
-    }
-
-    .filter-group label {
-        font-size: 1.2rem;
-    }
-
-    .header h1 {
-        font-size: 3.5rem;
-    }
-
-    .header h2 {
-        font-size: 2rem;
+    .financial-table-wrap::after {
+        display: block;
     }
 }
