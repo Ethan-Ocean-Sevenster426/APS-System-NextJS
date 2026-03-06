@@ -43,10 +43,15 @@ from .core_views import (
     analytics_dashboard,
     export_analytics,
     
-    # Google Sheets integration views
-    client_allocation,
+    # Client allocation views
     client_allocation_sheet,
+    add_client_allocation,
+    edit_client_allocation,
+    delete_client_allocation,
+    export_client_allocations,
     sync_client_allocations,
+    get_dropdown_options,
+    delete_dropdown_option,
     refresh_clients,
     refresh_inspections,
     google_oauth_callback,
@@ -80,6 +85,18 @@ from .core_views import (
 from .data_views import (
     export_shipments,
     remote_sqlserver_data_view,
+)
+
+# Xero integration views
+from .xero_views import (
+    xero_connect,
+    xero_callback,
+    xero_disconnect,
+    xero_status,
+    xero_sync_invoices,
+    xero_invoices_list,
+    debtors_page,
+    debtors_export_excel,
 )
 
 # All available views
@@ -124,10 +141,15 @@ __all__ = [
     'analytics_dashboard',
     'export_analytics',
     
-    # Google Sheets integration views
-    'client_allocation',
+    # Client allocation views
     'client_allocation_sheet',
+    'add_client_allocation',
+    'edit_client_allocation',
+    'delete_client_allocation',
+    'export_client_allocations',
     'sync_client_allocations',
+    'get_dropdown_options',
+    'delete_dropdown_option',
     'refresh_clients',
     'refresh_inspections',
     'google_oauth_callback',

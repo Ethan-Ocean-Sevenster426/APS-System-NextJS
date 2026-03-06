@@ -9,26 +9,30 @@ from .views.core_views import (
     get_inspection_data, process_document_links, download_compliance_documents,
     process_all_compliance_documents, start_compliance_document_download,
     get_inspection_files, download_inspection_file, download_all_inspection_files, get_zip_contents,
-    send_group_documents, sync_client_emails_from_sheets, save_manual_client_email,
+    send_group_documents, save_manual_client_email,
     delete_client_email, start_compliance_background, stop_compliance_background,
     compliance_background_status, start_compliance_linking, pause_compliance_linking,
     reset_compliance_progress, compliance_linking_status, process_compliance_batch,
     first_50_compliance_links, fetch_and_store_first_50_compliance_docs,
     list_any_50_drive_files, fetch_store_any_50_drive_files, drive_any10_page,
-    download_first_10_compliance_by_commodity, scheduled_sync_service_status,
-    start_scheduled_sync_service, stop_scheduled_sync_service, run_manual_sync,
+    download_first_10_compliance_by_commodity,
     save_system_settings, get_system_settings, start_daily_compliance_sync, stop_daily_compliance_sync, daily_compliance_sync_status, performance_monitor, server_directory_tree, server_status,
     check_compliance_documents_batch, populate_six_month_files, pull_six_month_data_from_google_drive, get_client_all_files, get_page_clients_files, get_page_clients_file_status, update_sent_status, client_autocomplete_api, onedrive_callback, inspector_dashboard, analytics_dashboard,
     scheduled_backup_service_status, start_scheduled_backup_service, stop_scheduled_backup_service, run_manual_backup,
     master_service_control_status, start_all_services, stop_all_services,
     onedrive_service_status, start_onedrive_service, stop_onedrive_service, test_onedrive_connection,
-    reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, export_client_allocations, add_client_allocation, edit_client_allocation,
-    get_dropdown_options, delete_dropdown_option, delete_client_allocation, send_password_reset_email,
+    reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, send_password_reset_email,
+    analytics_dashboard_api,
+    get_inspector_targets, update_inspector_targets,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
     mark_all_notifications_read, delete_notification, training_page
 )
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
+)
+from .views.xero_views import (
+    xero_connect, xero_callback, xero_disconnect, xero_status,
+    xero_sync_invoices, xero_invoices_list, debtors_page, debtors_export_excel,
 )
 
 urlpatterns = [
@@ -48,14 +52,24 @@ urlpatterns = [
 
     path('dashboard/', views.dashboard, name='dashboard'),
     path('inspector-dashboard/', views.inspector_dashboard, name='inspector_dashboard'),
-    path('analytics-dashboard/', views.analytics_dashboard, name='analytics_dashboard'),    
+    path('analytics-dashboard/', views.analytics_dashboard, name='analytics_dashboard'),
+    path('api/analytics-dashboard/', analytics_dashboard_api, name='analytics_dashboard_api'),
+    path('api/inspector-targets/get/', get_inspector_targets, name='get_inspector_targets'),
+    path('api/inspector-targets/update/', update_inspector_targets, name='update_inspector_targets'),
     # =============================================================================
     # CLIENT MANAGEMENT URLS
     # =============================================================================
-    path('clients/', views.client_list, name='client_list'),
+    path('clients/', views.client_allocation_sheet, name='client_allocation_sheet'),
     path('clients/add/', views.add_client, name='add_client'),
     path('clients/edit/<int:pk>/', views.edit_client, name='edit_client'),
     path('clients/delete/<int:pk>/', views.delete_client, name='delete_client'),
+    path('clients/allocation/add/', views.add_client_allocation, name='add_client_allocation'),
+    path('clients/allocation/edit/', views.edit_client_allocation, name='edit_client_allocation'),
+    path('clients/allocation/delete/', views.delete_client_allocation, name='delete_client_allocation'),
+    path('clients/allocation/export/', views.export_client_allocations, name='export_client_allocations'),
+    path('clients/allocation/sync/', views.sync_client_allocations, name='sync_client_allocations'),
+    path('clients/allocation/dropdown-options/', views.get_dropdown_options, name='get_dropdown_options'),
+    path('clients/allocation/dropdown-options/delete/', views.delete_dropdown_option, name='delete_dropdown_option'),
     path('api/clients/autocomplete/', client_autocomplete_api, name='client_autocomplete_api'),
     
     # =============================================================================
@@ -101,8 +115,6 @@ urlpatterns = [
     path('update-lab/', views.update_lab, name='update_lab'),
     path('update-product-name/', views.update_product_name, name='update_product_name'),
     path('update-product-class/', views.update_product_class, name='update_product_class'),
-    path('analytics-dashboard/', analytics_dashboard, name='analytics_dashboard'),
-    path('inspector-dashboard/', inspector_dashboard, name='inspector_dashboard'),
     path('export-analytics/<str:format_type>/', views.export_analytics, name='export_analytics'),
     path('export-shipments/', export_shipments, name='export_shipments'),
 
@@ -113,25 +125,12 @@ urlpatterns = [
     path('page-clients-files/', get_page_clients_files, name='get_page_clients_files'),
     path('page-clients-status/', get_page_clients_file_status, name='get_page_clients_file_status'),
     
-    # =============================================================================
-    # GOOGLE SHEETS INTEGRATION URLS
-    # =============================================================================
-    path('client-allocation-sheet/', views.client_allocation_sheet, name='client_allocation_sheet'),
-    path('client-allocation-sheet/sync/', views.sync_client_allocations, name='sync_client_allocations'),
-    path('client-allocation-sheet/export/', export_client_allocations, name='export_client_allocations'),
-    path('client-allocation-sheet/add/', add_client_allocation, name='add_client_allocation'),
-    path('client-allocation-sheet/edit/', edit_client_allocation, name='edit_client_allocation'),
-    path('client-allocation-sheet/delete/', delete_client_allocation, name='delete_client_allocation'),
-    path('client-allocation-sheet/get-dropdown-options/', get_dropdown_options, name='get_dropdown_options'),
-    path('client-allocation-sheet/delete-dropdown-option/', delete_dropdown_option, name='delete_dropdown_option'),
-    path('client-allocation/sync-emails/', sync_client_emails_from_sheets, name='sync_client_emails'),
     path('client/save-manual-email/', save_manual_client_email, name='save_manual_client_email'),
     path('client/delete-email/', delete_client_email, name='delete_client_email'),
     path('refresh-clients/', refresh_clients, name='refresh_clients'),
     path('refresh-inspections/', refresh_inspections, name='refresh_inspections'),
-    path('check-sync-status/', check_sync_status, name='check_sync_status'),
     path('refresh-shipments/', refresh_shipments, name='refresh_shipments'),
-    path('google-sheets/oauth2callback/', views.google_oauth_callback, name='google_oauth_callback'),
+    path('check-sync-status/', check_sync_status, name='check_sync_status'),
     path('onedrive/callback/', onedrive_callback, name='onedrive_callback'),
     path('settings/', settings_view, name='settings'),
     path('inspector-settings/', inspector_settings_view, name='inspector_settings'),
@@ -187,13 +186,6 @@ urlpatterns = [
     
 
     
-    # =============================================================================
-    # SCHEDULED SYNC SERVICE URLS
-    # =============================================================================
-    path('scheduled-sync/status/', scheduled_sync_service_status, name='scheduled_sync_service_status'),
-    path('scheduled-sync/start/', start_scheduled_sync_service, name='start_scheduled_sync_service'),
-    path('scheduled-sync/stop/', stop_scheduled_sync_service, name='stop_scheduled_sync_service'),
-    path('scheduled-sync/manual/', run_manual_sync, name='run_manual_sync'),
     
     # =============================================================================
     # SYSTEM SETTINGS URLS
@@ -243,4 +235,18 @@ urlpatterns = [
     # TRAINING PAGE
     # =============================================================================
     path('training/', training_page, name='training_page'),
+
+    # =============================================================================
+    # XERO ACCOUNTING INTEGRATION
+    # =============================================================================
+    path('xero/connect/', xero_connect, name='xero_connect'),
+    path('xero/callback/', xero_callback, name='xero_callback'),
+    path('xero/disconnect/', xero_disconnect, name='xero_disconnect'),
+    path('xero/status/', xero_status, name='xero_status'),
+    path('xero/sync-invoices/', xero_sync_invoices, name='xero_sync_invoices'),
+    path('xero/invoices/', xero_invoices_list, name='xero_invoices_list'),
+
+    # DEBTORS PAGE
+    path('debtors/', debtors_page, name='debtors_page'),
+    path('debtors/export/', debtors_export_excel, name='debtors_export_excel'),
 ]

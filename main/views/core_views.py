@@ -2,7 +2,7 @@ import json
 import re as _re
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from ..models import FoodSafetyAgencyInspection
 
 
@@ -152,6 +152,12 @@ def save_manual_client_email(request):
                 ClientEmail.objects.get_or_create(client=client, email=email)
             except Exception:
                 pass
+        # Clear client email caches so updated emails show immediately
+        from django.core.cache import cache
+        try:
+            cache.delete_pattern('client_maps_page_*')
+        except (AttributeError, Exception):
+            cache.clear()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -172,21 +178,33 @@ def delete_client_email(request):
         client = Client.objects.filter(client_id__iexact=client_name).first()
         if not client:
             return JsonResponse({'success': False, 'error': 'Client not found'})
+
+        def _clear_email_cache():
+            """Clear client email caches so changes show immediately."""
+            from django.core.cache import cache
+            try:
+                cache.delete_pattern('client_maps_page_*')
+            except (AttributeError, Exception):
+                cache.clear()
+
         # If matches primary email, clear it
         if client.email and client.email.lower() == email.lower():
             client.email = None
             client.save(update_fields=['email'])
+            _clear_email_cache()
             return JsonResponse({'success': True})
         # If matches manual_email, clear it
         if client.manual_email and client.manual_email.lower() == email.lower():
             client.manual_email = None
             client.save(update_fields=['manual_email'])
+            _clear_email_cache()
             return JsonResponse({'success': True})
         # Otherwise try remove from additional emails
         try:
             from ..models import ClientEmail
             deleted, _ = ClientEmail.objects.filter(client=client, email__iexact=email).delete()
             if deleted:
+                _clear_email_cache()
                 return JsonResponse({'success': True})
         except Exception:
             pass
@@ -195,7 +213,6 @@ def delete_client_email(request):
         return JsonResponse({'success': False, 'error': str(e)})
 from .data_views import remote_sqlserver_data_view
 from .utils import apply_filters, clear_messages
-from ..services.google_drive_service import GoogleDriveService
 
 
 # Global flag to track OneDrive operations during batch processing
@@ -269,9 +286,14 @@ def user_login(request):
             username = request.POST.get('username', '').strip()
             password = request.POST.get('password', '').strip()
 
-            # Debug print
-            print(f"Login attempt - Username: {username}")
-            print(f"Password length: {len(password) if password else 0}")
+            # Case-insensitive username lookup (MySQL was case-insensitive, PostgreSQL is not)
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                actual_user = User.objects.get(username__iexact=username)
+                username = actual_user.username
+            except User.DoesNotExist:
+                pass
 
             user = authenticate(request, username=username, password=password)
             print(f"Authentication result: {user}")
@@ -782,17 +804,18 @@ def add_fsa_inspection(request):
         form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES)
         if form.is_valid():
             try:
+              with transaction.atomic():
                 # Validate required fields
                 missing = []
                 if not form.cleaned_data.get('client_name', '').strip():
                     missing.append('Client Name')
                 if not form.cleaned_data.get('town', '').strip():
                     missing.append('Town')
-                if not request.POST.get('corporate_group', '').strip():
+                if not form.cleaned_data.get('corporate_group', '').strip():
                     missing.append('Corporate Group')
-                if not request.POST.get('group_type', '').strip():
+                if not form.cleaned_data.get('group_type', '').strip():
                     missing.append('Group Type')
-                if not request.POST.get('facility_type', '').strip():
+                if not form.cleaned_data.get('facility_type', '').strip():
                     missing.append('Facility Type')
                 if not form.cleaned_data.get('commodity', '').strip():
                     missing.append('Commodity Type')
@@ -805,7 +828,9 @@ def add_fsa_inspection(request):
                 products_data_json = request.POST.get('products_data', '[]')
                 try:
                     products_data = json.loads(products_data_json)
-                except json.JSONDecodeError:
+                    if not isinstance(products_data, list):
+                        products_data = []
+                except (json.JSONDecodeError, ValueError, TypeError):
                     products_data = []
 
                 # If no products data, fall back to commodity selections
@@ -885,28 +910,28 @@ def add_fsa_inspection(request):
                         date_of_inspection=form.cleaned_data.get('date_of_inspection'),
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         town=form.cleaned_data.get('town', ''),
-                        facility_type=request.POST.get('facility_type', ''),
-                        group_type=request.POST.get('group_type', ''),
-                        corporate_group=request.POST.get('corporate_group', ''),
-                        additional_email=request.POST.get('additional_email', ''),
+                        facility_type=form.cleaned_data.get('facility_type', ''),
+                        group_type=form.cleaned_data.get('group_type', ''),
+                        corporate_group=form.cleaned_data.get('corporate_group', ''),
+                        additional_email=form.cleaned_data.get('additional_email', ''),
                         comment=form.cleaned_data.get('comment', ''),
-                        km_traveled=float(request.POST.get('km_traveled', 0) or 0),
-                        hours=float(request.POST.get('hours', 0) or 0),
+                        km_traveled=float(form.cleaned_data.get('km_traveled', 0) or 0),
+                        hours=float(form.cleaned_data.get('hours', 0) or 0),
                         travel_start_time=request.POST.get('travel_start_time') or None,
                         travel_end_time=request.POST.get('travel_end_time') or None,
                         is_manual=True,
                     )
 
-                # Generate account code once for the entire group
-                group_account_code = generate_unique_internal_account_code(
-                    client_name=form.cleaned_data.get('client_name'),
-                    date_of_inspection=form.cleaned_data.get('date_of_inspection'),
-                    facility_type=request.POST.get('facility_type', ''),
-                    group_type=request.POST.get('group_type', ''),
-                    commodity='',
-                    corporate_group=request.POST.get('corporate_group', ''),
-                    client_id=temp_client.id if temp_client else None,
-                )
+                    # Generate internal account code for the group
+                    group_account_code = generate_unique_internal_account_code(
+                        client_name=form.cleaned_data.get('client_name'),
+                        date_of_inspection=form.cleaned_data.get('date_of_inspection'),
+                        facility_type=form.cleaned_data.get('facility_type', ''),
+                        group_type=form.cleaned_data.get('group_type', ''),
+                        commodity='',  # Not used in code generation anymore
+                        corporate_group=form.cleaned_data.get('corporate_group', ''),
+                        client_id=temp_client.id if temp_client else None,
+                    )
 
                 for sequence_num, product_info in enumerate(products_data, start=1):
                     # Convert checkbox boolean to value (True -> 1.0, False -> None)
@@ -923,7 +948,7 @@ def add_fsa_inspection(request):
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         # Use product-specific sample data (checkboxes)
                         is_sample_taken=bool(product_info.get('is_sample_taken', False)),
-                        needs_retest=form.cleaned_data.get('needs_retest', 'NO'),
+                        needs_retest=product_info.get('needs_retest', 'NO'),
                         fat=bool(product_info.get('fat', False)),
                         protein=bool(product_info.get('protein', False)),
                         calcium=bool(product_info.get('calcium', False)),
@@ -933,15 +958,15 @@ def add_fsa_inspection(request):
                         town=form.cleaned_data.get('town', ''),
                         km_traveled=float(product_info.get('km_traveled', 0) or 0),
                         hours=float(product_info.get('hours', 0) or 0),
-                        additional_email=request.POST.get('additional_email', ''),
+                        additional_email=form.cleaned_data.get('additional_email', ''),
                         comment=form.cleaned_data.get('comment', ''),
                         is_manual=True,
                         inspected=bool(form.cleaned_data.get('inspected', True)),
                         follow_up=bool(form.cleaned_data.get('follow_up', False)),
                         dispensation_application=bool(form.cleaned_data.get('dispensation_application', False)),
-                        corporate_group=request.POST.get('corporate_group', ''),
-                        group_type=request.POST.get('group_type', ''),
-                        facility_type=request.POST.get('facility_type', ''),
+                        corporate_group=form.cleaned_data.get('corporate_group', ''),
+                        group_type=form.cleaned_data.get('group_type', ''),
+                        facility_type=form.cleaned_data.get('facility_type', ''),
                     )
 
                     # Generate unique negative remote_id for manual entries
@@ -960,7 +985,7 @@ def add_fsa_inspection(request):
                     # Assign sequence number (1, 2, 3, etc.) to track individual inspections within the group
                     inspection.inspection_sequence = sequence_num
 
-                    # Assign the group's account code to every inspection
+                    # Assign the group's internal account code to each inspection
                     inspection.internal_account_code = group_account_code
 
                     inspection.save()
@@ -1011,6 +1036,10 @@ def add_fsa_inspection(request):
                     cache.delete(cache_key)
                     cache.delete(f"{cache_key}_timestamp")
 
+                # Invalidate client data cache so new client appears in dropdowns
+                from django.core.cache import cache as _fc
+                _fc.delete('add_inspection_form_data')
+
                 # Build success message with commodity counts
                 from collections import Counter
                 commodity_counts = Counter(p.get('commodity', '') for p in products_data)
@@ -1034,43 +1063,78 @@ def add_fsa_inspection(request):
         full_name = request.user.get_full_name()
         default_inspector = full_name if full_name else request.user.username
 
-    # Get clients for dropdown with their associated towns
-    # Client is already imported at top of file
-    clients_qs = Client.objects.all().order_by('name')
+    # Get clients, towns, and corporate groups for the form
+    # PERFORMANCE: Cached for 10 minutes to avoid 4800+ queries on every page load
+    from django.core.cache import cache
 
-    # Build clients list with town data from most recent inspection
-    clients_with_towns = []
-    for client in clients_qs:
-        # Get most recent town for this client
-        town = FoodSafetyAgencyInspection.objects.filter(
-            client_name__iexact=client.name
-        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+    cache_key = 'add_inspection_form_data'
+    cached_form_data = cache.get(cache_key)
 
-        clients_with_towns.append({
-            'name': client.name,
-            'client_id': client.client_id,
-            'internal_account_code': client.internal_account_code or '',
-            'email': client.email or '',
-            'town': town or '',
-            'corporate_group': client.corporate_group or '',
-            'group_type': client.group_type or '',
-            'facility_type': client.facility_type or ''
-        })
+    if cached_form_data:
+        clients_with_towns = cached_form_data['clients']
+        towns_list = cached_form_data['towns']
+        all_groups = cached_form_data['groups']
+    else:
+        # Build town lookup: one query using DISTINCT ON (PostgreSQL)
+        town_lookup = dict(
+            FoodSafetyAgencyInspection.objects.exclude(
+                town__isnull=True
+            ).exclude(town='').order_by(
+                'client_name', '-date_of_inspection'
+            ).distinct('client_name').values_list('client_name', 'town')
+        )
 
-    # Get unique towns from existing inspections
-    towns = FoodSafetyAgencyInspection.objects.exclude(
-        town__isnull=True
-    ).exclude(
-        town=''
-    ).values_list('town', flat=True).distinct().order_by('town')
+        # Get all clients in one query
+        clients_with_towns = [
+            {
+                'name': c.name,
+                'client_id': c.client_id,
+                'internal_account_code': c.internal_account_code or '',
+                'email': c.email or '',
+                'town': town_lookup.get(c.name, ''),
+                'corporate_group': c.corporate_group or '',
+                'group_type': c.group_type or '',
+                'facility_type': c.facility_type or '',
+            }
+            for c in Client.objects.all().order_by('name')
+        ]
+
+        # Get unique towns
+        towns_list = list(FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
+
+        # Get corporate groups
+        default_corporate_groups = [
+            'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
+            'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
+            'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
+            'Jwayelani', 'Usave',
+        ]
+        db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
+            corporate_group__isnull=True
+        ).exclude(corporate_group='').exclude(
+            corporate_group__in=['Not Applicable', 'Other']
+        ).values_list('corporate_group', flat=True).distinct())
+        all_groups = list(default_corporate_groups)
+        extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
+        all_groups.extend(extra_groups)
+
+        # Cache for 10 minutes
+        cache.set(cache_key, {
+            'clients': clients_with_towns,
+            'towns': towns_list,
+            'groups': all_groups,
+        }, 600)
 
     context = {
         'form': form,
         'action': 'Add',
         'default_inspector': default_inspector,
         'clients': clients_with_towns,
-        'towns': list(towns),
+        'towns': towns_list,
         'commodity_counts': {'POULTRY': 0, 'RAW': 0, 'PMP': 0, 'EGGS': 0},
+        'corporate_groups': all_groups,
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -1176,9 +1240,15 @@ def edit_fsa_inspection(request, pk):
         products_data_json = request.POST.get('products_data', '[]')
         try:
             products_data = json.loads(products_data_json)
+            if not isinstance(products_data, list):
+                print(f"[EDIT FORM ERROR] products_data is not a list: {type(products_data)}")
+                messages.error(request, "Invalid product data format. Please try again.")
+                return redirect('edit_fsa_inspection', pk=pk)
             print(f"[EDIT FORM DEBUG] Products data: {products_data}")
-        except:
-            products_data = []
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            print(f"[EDIT FORM ERROR] Failed to parse products_data JSON: {e}")
+            messages.error(request, "Failed to process product data. Please try again.")
+            return redirect('edit_fsa_inspection', pk=pk)
 
         # Validate that every product has a product_name
         for i, p in enumerate(products_data):
@@ -1196,13 +1266,10 @@ def edit_fsa_inspection(request, pk):
                 )
                 print(f"[EDIT FORM DEBUG] Found {related_inspections.count()} related inspections in group #{inspection.inspection_group.id}")
             else:
-                # No parent group - find all inspections for this client/date
-                # This shouldn't happen with the new system, but keep as fallback
-                related_inspections = FoodSafetyAgencyInspection.objects.filter(
-                    client_name=inspection.client_name,
-                    date_of_inspection=inspection.date_of_inspection
-                )
-                print(f"[EDIT FORM DEBUG] WARNING: Inspection {pk} has no parent group!")
+                # No parent group - only update this single inspection to avoid
+                # accidentally modifying unrelated inspections for the same client/date
+                related_inspections = FoodSafetyAgencyInspection.objects.filter(pk=inspection.pk)
+                print(f"[EDIT FORM DEBUG] WARNING: Inspection {pk} has no parent group! Only updating this single inspection.")
 
             # Group products_data by commodity (keep as lists to preserve duplicates)
             from collections import defaultdict
@@ -1267,9 +1334,12 @@ def edit_fsa_inspection(request, pk):
                         print(f"[EDIT FORM DEBUG] Inspection {rel_insp.id} ({commodity}) will be deleted (commodity removed)")
 
             # Now update the main inspection with common fields from form
+            # Save internal_account_code BEFORE form binding (form.is_valid() clears it)
+            original_account_code = inspection.internal_account_code
             form = FoodSafetyAgencyInspectionForm(request.POST, request.FILES, instance=inspection)
             if form.is_valid():
                 try:
+                  with transaction.atomic():
                     # Preserve upload tracking fields before saving
                     original_rfi_date = inspection.rfi_uploaded_date
                     original_rfi_by = inspection.rfi_uploaded_by
@@ -1287,7 +1357,8 @@ def edit_fsa_inspection(request, pk):
                     # Save the main inspection
                     inspection = form.save()
 
-                    # Restore upload tracking fields (don't let form overwrite them)
+                    # Restore fields that form.save() would overwrite
+                    inspection.internal_account_code = original_account_code
                     inspection.rfi_uploaded_date = original_rfi_date
                     inspection.rfi_uploaded_by = original_rfi_by
                     inspection.invoice_uploaded_date = original_invoice_date
@@ -1337,6 +1408,9 @@ def edit_fsa_inspection(request, pk):
                             rel_insp.group_type = inspection.group_type
                             rel_insp.facility_type = inspection.facility_type
                             rel_insp.town = inspection.town
+                            rel_insp.client_name = inspection.client_name
+                            rel_insp.inspector_name = inspection.inspector_name
+                            rel_insp.client = inspection.client
                             rel_insp.save()
                             print(f"[EDIT FORM DEBUG] Saved inspection {rel_insp.id} ({rel_insp.commodity}): {rel_insp.product_name}")
                         else:
@@ -1417,7 +1491,7 @@ def edit_fsa_inspection(request, pk):
                                 corporate_group=inspection.corporate_group,
                                 group_type=inspection.group_type,
                                 facility_type=inspection.facility_type,
-                                internal_account_code=None,  # No longer needed!
+                                internal_account_code=inspection.internal_account_code,  # Inherit from group
                                 is_manual=True,
                                 # Propagate RFI/Invoice stamps from existing group inspections
                                 rfi_uploaded_date=rfi_source.rfi_uploaded_date if rfi_source else None,
@@ -1444,9 +1518,29 @@ def edit_fsa_inspection(request, pk):
                     # Users should manage files (upload/delete) through the "View Files" button in shipment list
                     # This prevents confusion and ensures files are managed in one centralized location
 
-                    # Clear page cache so updated data shows immediately
+                    # Clear relevant caches so updated data shows immediately
                     from django.core.cache import cache
-                    cache.clear()
+                    cache.delete('page_clients_status_cache')
+                    cache.delete('inspection_files_cache')
+                    cache.delete('filter_options')
+                    if inspection.client:
+                        cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    # Clear client email caches so updated emails show immediately
+                    try:
+                        cache.delete_pattern('client_maps_page_*')
+                    except (AttributeError, Exception):
+                        cache.clear()
+                    # Clear shipment list caches
+                    try:
+                        if hasattr(cache, 'keys'):
+                            for key in cache.keys('shipment_list_*'):
+                                cache.delete(key)
+                        else:
+                            for page in range(1, 20):
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}_")
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}")
+                    except Exception:
+                        pass
 
                     messages.success(request, f"Inspection group for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
@@ -1481,9 +1575,29 @@ def edit_fsa_inspection(request, pk):
                         parent_group.travel_end_time = request.POST.get('travel_end_time') or parent_group.travel_end_time
                         parent_group.save()
 
-                    # Clear page cache so updated data shows immediately
+                    # Clear relevant caches so updated data shows immediately
                     from django.core.cache import cache
-                    cache.clear()
+                    cache.delete('page_clients_status_cache')
+                    cache.delete('inspection_files_cache')
+                    cache.delete('filter_options')
+                    if inspection.client:
+                        cache.delete(f"docs_files:{inspection.client.id}:{inspection.id}")
+                    # Clear client email caches so updated emails show immediately
+                    try:
+                        cache.delete_pattern('client_maps_page_*')
+                    except (AttributeError, Exception):
+                        cache.clear()
+                    # Clear shipment list caches
+                    try:
+                        if hasattr(cache, 'keys'):
+                            for key in cache.keys('shipment_list_*'):
+                                cache.delete(key)
+                        else:
+                            for page in range(1, 20):
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}_")
+                                cache.delete(f"shipment_list_{request.user.id}_{request.user.role}_page_{page}")
+                    except Exception:
+                        pass
 
                     messages.success(request, f"Inspection for {inspection.client_name} updated successfully!")
                     return redirect('shipment_list')
@@ -1531,33 +1645,45 @@ def edit_fsa_inspection(request, pk):
                 print(f"DEBUG: Could not auto-populate classification fields from client: {e}")
 
     # Get all clients for autocomplete with their associated towns
-    clients_qs = Client.objects.all().order_by('name')
+    # PERFORMANCE: Reuse same cached data as add form
+    from django.core.cache import cache as _cache
 
-    # Build clients list with town data from most recent inspection
-    clients_with_towns = []
-    for client in clients_qs:
-        # Get most recent town for this client
-        town = FoodSafetyAgencyInspection.objects.filter(
-            client_name__iexact=client.name
-        ).exclude(town__isnull=True).exclude(town='').order_by('-date_of_inspection').values_list('town', flat=True).first()
+    _cache_key = 'add_inspection_form_data'
+    _cached = _cache.get(_cache_key)
 
-        clients_with_towns.append({
-            'name': client.name,
-            'client_id': client.client_id,
-            'internal_account_code': client.internal_account_code or '',
-            'email': client.email or '',
-            'town': town or '',
-            'corporate_group': client.corporate_group or '',
-            'group_type': client.group_type or '',
-            'facility_type': client.facility_type or ''
-        })
+    if _cached:
+        clients_with_towns = _cached['clients']
+        towns_list = _cached['towns']
+    else:
+        town_lookup = dict(
+            FoodSafetyAgencyInspection.objects.exclude(
+                town__isnull=True
+            ).exclude(town='').order_by(
+                'client_name', '-date_of_inspection'
+            ).distinct('client_name').values_list('client_name', 'town')
+        )
+        clients_with_towns = [
+            {
+                'name': c.name,
+                'client_id': c.client_id,
+                'internal_account_code': c.internal_account_code or '',
+                'email': c.email or '',
+                'town': town_lookup.get(c.name, ''),
+                'corporate_group': c.corporate_group or '',
+                'group_type': c.group_type or '',
+                'facility_type': c.facility_type or '',
+            }
+            for c in Client.objects.all().order_by('name')
+        ]
+        towns_list = list(FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').values_list('town', flat=True).distinct().order_by('town'))
 
-    # Get unique towns from existing inspections
-    towns = FoodSafetyAgencyInspection.objects.exclude(
-        town__isnull=True
-    ).exclude(
-        town=''
-    ).values_list('town', flat=True).distinct().order_by('town')
+        # Cache for 10 minutes
+        _cache.set(_cache_key, {
+            'clients': clients_with_towns,
+            'towns': towns_list,
+        }, 600)
 
     # Only get commodity data for regular inspections, NOT for occurrence reports
     is_occurrence = getattr(inspection, 'is_occurrence_report', False)
@@ -1612,17 +1738,35 @@ def edit_fsa_inspection(request, pk):
         commodity_data = {}
 
     import json
+    # Get all unique corporate groups from database + hardcoded defaults
+    default_corporate_groups = [
+        'Pick n Pay - Franchise', 'Pick n Pay - Corporate', 'Fruit & Veg', 'OK Foods',
+        'Checkers', 'Spar', 'SuperSpar', 'Spar - Northrand', 'Shoprite', 'Massmart',
+        'Chester Butcheries', 'Boxer', 'Food Lovers Market', 'Cambridge', 'Woolworths',
+        'Jwayelani', 'Usave',
+    ]
+    db_groups = list(FoodSafetyAgencyInspection.objects.exclude(
+        corporate_group__isnull=True
+    ).exclude(corporate_group='').exclude(
+        corporate_group__in=['Not Applicable', 'Other']
+    ).values_list('corporate_group', flat=True).distinct())
+    # Merge: defaults first, then any DB-only groups alphabetically
+    all_groups = list(default_corporate_groups)
+    extra_groups = sorted(set(db_groups) - set(default_corporate_groups))
+    all_groups.extend(extra_groups)
+
     context = {
         'form': form,
         'inspection': inspection,
         'action': 'Edit',
         'clients': clients_with_towns,
-        'towns': list(towns),
+        'towns': towns_list,
         'is_occurrence_report': is_occurrence,
         'related_inspections': related_inspections,
         'commodity_counts': commodity_counts,
         'commodity_data': commodity_data,
         'commodity_data_json': json.dumps(commodity_data),  # Pre-serialized JSON for reliable JS parsing
+        'corporate_groups': all_groups,
     }
 
     return render(request, 'main/fsa_inspection_form.html', context)
@@ -2117,7 +2261,7 @@ def shipment_list(request):
 
     # PERFORMANCE FIX: Include page number and filters in cache key so each page/filter combo is cached separately
     page_number = request.GET.get('page', 1)
-    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status'])
+    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter'])
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
@@ -2152,23 +2296,13 @@ def shipment_list(request):
     sixty_days_ago = (dt.now() - timedelta(days=60)).date()
 
     # MINIMAL QUERY - Only essential fields for MAXIMUM SPEED
-    inspections = FoodSafetyAgencyInspection.objects.select_related(
-        'rfi_uploaded_by', 'invoice_uploaded_by', 'sent_by'
-    ).only(
-        # Only critical fields to reduce data transfer
-        'id', 'client_name', 'date_of_inspection', 'inspector_name',
-        'commodity', 'remote_id', 'product_name', 'product_class',
-        'hours', 'km_traveled', 'comment', 'is_sent', 'sent_date',
-        'rfi_uploaded_by_id', 'invoice_uploaded_by_id', 'sent_by_id',
-        # Testing parameters (user-editable)
-        'fat', 'protein', 'calcium', 'dna', 'is_sample_taken', 'bought_sample', 'lab', 'needs_retest',
-        'is_direction_present_for_this_inspection', 'is_manual',
-        # Location and contact
-        'town', 'additional_email', 'internal_account_code'
-    ).filter(
-        # Only show manually created inspections (not synced from SQL Server)
-        is_manual=True
+    # Removed select_related to avoid conflict with .only()
+    inspections = FoodSafetyAgencyInspection.objects.only(
+        # Load ONLY essential fields to reduce data transfer
+        'id', 'client_name', 'date_of_inspection', 'inspector_name', 'inspection_group_id',
+        'commodity', 'remote_id', 'product_name', 'is_sent'
     )
+    # Show ALL inspections (both manual and synced from SQL Server)
     
     # No automatic background fetching - only manual via settings button
     
@@ -2342,22 +2476,18 @@ def shipment_list(request):
     
     # Create the base queryset for groups using new parent-child system
     # Group by inspection_group instead of internal_account_code
+    # PERFORMANCE: Removed 6 unnecessary COUNT aggregations (was 9, now 3)
+    # Only keep essential counts for filtering and display
     groups_queryset = inspections.values(
         'inspection_group',  # NEW: Use parent group ID for grouping
         'client_name',
         'date_of_inspection',
     ).annotate(
-        inspection_count=Count('id'),
-        latest_inspection_id=Max('id'),
-        earliest_inspection_id=Min('id'),
-        max_created_at=Max('created_at'),  # Track when the newest inspection in this group was created
-        has_sent_inspections=Count('id', filter=Q(is_sent=True)),  # Count sent inspections in group
-        has_unsent_inspections=Count('id', filter=Q(is_sent=False)),  # Count unsent inspections in group
-        has_rfi_inspections=Count('id', filter=Q(rfi_uploaded_by__isnull=False)),  # Count inspections with RFI uploaded
-        has_no_rfi_inspections=Count('id', filter=Q(rfi_uploaded_by__isnull=True)),  # Count inspections without RFI uploaded
-        has_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=False)),  # Count inspections with Lab Form uploaded
-        has_no_lab_form_inspections=Count('id', filter=Q(lab_form_uploaded_by__isnull=True)),  # Count inspections without Lab Form uploaded
-        comment=Max('comment')  # Get the comment from the group (all should have the same comment)
+        inspection_count=Count('id'),  # Essential: number of inspections in group
+        has_sent_inspections=Count('id', filter=Q(is_sent=True)),  # Essential: for sent status filtering
+        has_unsent_inspections=Count('id', filter=Q(is_sent=False)),  # Essential: for sent status filtering
+        has_approved=Count('id', filter=Q(approved_status='APPROVED')),  # For approved status filtering
+        has_pending=Count('id', filter=Q(approved_status__in=[None, '', 'PENDING'])),  # For approved status filtering
     ).order_by('-date_of_inspection', 'client_name')  # Default: newest first
 
     # FILTER GROUPS BY SENT STATUS: Apply sent status filter to groups, not individual inspections
@@ -2371,6 +2501,14 @@ def shipment_list(request):
             groups_queryset = groups_queryset.filter(has_unsent_inspections__gt=0)
             groups_queryset = groups_queryset.order_by('date_of_inspection', 'client_name')
     
+    # FILTER GROUPS BY APPROVED STATUS
+    approved_status_filter = request.GET.get('approved_status_filter')
+    if approved_status_filter:
+        if approved_status_filter == 'APPROVED':
+            groups_queryset = groups_queryset.filter(has_approved__gt=0)
+        elif approved_status_filter == 'PENDING':
+            groups_queryset = groups_queryset.filter(has_pending__gt=0, has_approved=0)
+
     # FILTER GROUPS BY RFI STATUS: DISABLED - Show all inspections regardless of RFI status
     # User requested to remove filtering so all inspections show up, even without files
     # rfi_status = request.GET.get('rfi_status')
@@ -2586,7 +2724,7 @@ def shipment_list(request):
     
     # Helper function to check files for a single group (fast version for page load)
     def check_group_files(client_name, inspection_date):
-        """Check if files exist for this group - optimized for speed
+        """Check if files exist for this group - optimized for speed with caching
 
         Checks NEW structure first: MEDIA_ROOT/docs/{client_id}/{inspection_id}/{category}/
         Falls back to LEGACY structure: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/...
@@ -2594,6 +2732,12 @@ def shipment_list(request):
         import re
         from django.conf import settings
         from main.models import FoodSafetyAgencyInspection
+
+        # PERFORMANCE: Cache file checks for 10 minutes to avoid repeated filesystem operations
+        cache_key = f"file_check_{client_name}_{inspection_date}"
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return cached_result
 
         try:
             has_rfi = has_invoice = has_lab = has_lab_form = has_compliance = has_composition = has_occurrence = False
@@ -2713,7 +2857,7 @@ def shipment_list(request):
 
             print(f"[FILE CHECK] {client_name}: RFI={has_rfi}, Invoice={has_invoice}, Lab={has_lab}, Lab_Form={has_lab_form}, Compliance={has_compliance}, Composition={has_composition}, Occurrence={has_occurrence}")
 
-            return {
+            result = {
                 'has_rfi': has_rfi,
                 'has_invoice': has_invoice,
                 'has_lab': has_lab,
@@ -2723,9 +2867,13 @@ def shipment_list(request):
                 'has_occurrence': has_occurrence,
                 'file_status': file_status
             }
+
+            # Cache result for 10 minutes (600 seconds)
+            cache.set(cache_key, result, 600)
+            return result
         except Exception as e:
             print(f"[FILE CHECK ERROR] {client_name} on {inspection_date}: {e}")
-            return {
+            error_result = {
                 'has_rfi': False,
                 'has_invoice': False,
                 'has_lab': False,
@@ -2735,6 +2883,9 @@ def shipment_list(request):
                 'has_occurrence': False,
                 'file_status': 'no_files'
             }
+            # Cache error result for 2 minutes (shorter to allow retry)
+            cache.set(cache_key, error_result, 120)
+            return error_result
 
     # Process grouped inspections efficiently - ONLY CREATE REPRESENTATIVE OBJECTS
     grouped_inspections = []
@@ -3978,7 +4129,7 @@ def upload_document(request):
             type_part = f"-{type_label}" if type_label else ""
             filename = f"FSA-{clean_client}{commodity_tag}{type_part}-{formatted_date}{file_extension}"
             print(f"[FILE NAMING] {document_type} -> {filename} (client: {real_client_name})")
-            
+
             # Log the filename for debugging
             print(f"Generated filename: {filename}")
             file_path = os.path.join(document_dir, filename)
@@ -3993,7 +4144,6 @@ def upload_document(request):
                     counter += 1
 
             # SINGLE-FILE ENFORCEMENT: Delete existing files for document types that only allow one file
-            # Only 'other' and 'compliance' can have multiple files
             if document_type in single_file_types:
                 # Delete all existing files in this document folder before saving the new one
                 try:
@@ -4032,30 +4182,32 @@ def upload_document(request):
                 # Parse group_id to get client_name and date
                 parts = group_id.split('_')
                 if len(parts) >= 2:
-                    # Convert underscores back to spaces for client name matching
-                    client_name_from_group = '_'.join(parts[:-1]).replace('_', ' ')
+                    client_name_from_group = '_'.join(parts[:-1])
                     date_str = parts[-1]
-                    
+
                     # Convert date string to date object
                     if len(date_str) == 8:
                         try:
                             date_obj = datetime.strptime(date_str, '%Y%m%d').date()
-                            
-                            # Find all inspections for this client and date using exact matching
-                            
+
                             print(f"DEBUG: Parsing group_id: {group_id}")
                             print(f"DEBUG: Client name from group: {client_name_from_group}")
                             print(f"DEBUG: Date object: {date_obj}")
-                            
+
                             # Get all inspections for this date
                             candidate_inspections = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_obj)
                             print(f"DEBUG: Found {candidate_inspections.count()} inspections for date {date_obj}")
-                            
-                            # Use exact client name matching (much more efficient)
-                            # Convert to list to avoid MySQL subquery limitation
-                            matching_inspections = list(candidate_inspections.filter(
-                                client_name=client_name_from_group
-                            ).values_list('id', flat=True))
+
+                            # Use normalized matching to handle special characters
+                            # (apostrophes, hyphens, periods etc. in client names)
+                            def _normalize(n):
+                                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
+
+                            raw_key = _normalize(client_name_from_group)
+                            matching_inspections = [
+                                ins.id for ins in candidate_inspections
+                                if _normalize(ins.client_name) == raw_key
+                            ]
                             
                             print(f"DEBUG: Found {len(matching_inspections)} matching inspections for '{client_name_from_group}'")
                             
@@ -4104,7 +4256,7 @@ def upload_document(request):
                                     print(f"DEBUG: Received product_compliance_status from POST: '{product_compliance_status}'")
 
                                     if product_compliance_status in ['compliant', 'non-compliant']:
-                                        is_compliant = 1 if product_compliance_status == 'compliant' else 0
+                                        is_compliant = True if product_compliance_status == 'compliant' else False
                                         print(f"DEBUG: Setting is_product_compliant to {is_compliant} ({'True' if is_compliant else 'False'})")
 
                                         compliance_sql = f"""
@@ -4871,13 +5023,6 @@ def list_client_folder_files(request):
         for category in ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other', 'coa']:
             if category not in files_list:
                 files_list[category] = []
-
-        # Debug: log file counts per category
-        total_files = sum(len(v) for v in files_list.values())
-        print(f"[LIST-FILES] Returning {total_files} total files for {client_name} on {inspection_date}")
-        for cat, flist in files_list.items():
-            if flist:
-                print(f"[LIST-FILES]   {cat}: {len(flist)} file(s) -> {[f.get('name', '?') for f in flist]}")
 
         return JsonResponse({
             'success': True,
@@ -7973,216 +8118,84 @@ def home(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     
-    # Get summary statistics from the correct models
-    total_clients = Client.objects.count()
-    total_inspections = FoodSafetyAgencyInspection.objects.count()
-    
-    # Get recent inspections from FoodSafetyAgencyInspection
-    recent_inspections = FoodSafetyAgencyInspection.objects.order_by('-created_at')[:5]
-    
-    # Get inspections by inspector from FoodSafetyAgencyInspection
-    inspector_stats = FoodSafetyAgencyInspection.objects.values('inspector_name').annotate(
-        count=models.Count('id')
-    ).order_by('-count')[:5]
-    
-    # Get system status
-    def check_database_status():
-        """Check PostgreSQL database connectivity"""
+    # PERFORMANCE: Cache all expensive home page data for 5 minutes
+    from django.core.cache import cache
+
+    home_data = cache.get('home_page_data')
+    if not home_data:
+        # Counts
+        total_clients = Client.objects.count()
+        total_inspections = FoodSafetyAgencyInspection.objects.count()
+
+        # Recent inspections - only fetch needed fields
+        recent_inspections = list(
+            FoodSafetyAgencyInspection.objects.only(
+                'id', 'client_name', 'date_of_inspection', 'inspector_name', 'created_at'
+            ).order_by('-created_at')[:5]
+        )
+
+        # Inspector stats
+        inspector_stats = list(
+            FoodSafetyAgencyInspection.objects.values('inspector_name').annotate(
+                count=models.Count('id')
+            ).order_by('-count')[:5]
+        )
+
+        # Recent activities
+        try:
+            from ..models import SystemLog
+            recent_activities = list(SystemLog.objects.select_related('user').order_by('-timestamp')[:5])
+        except Exception:
+            recent_activities = []
+
+        home_data = {
+            'total_clients': total_clients,
+            'total_inspections': total_inspections,
+            'recent_inspections': recent_inspections,
+            'inspector_stats': inspector_stats,
+            'recent_activities': recent_activities,
+        }
+        cache.set('home_page_data', home_data, 300)  # 5 min cache
+
+    # System status checks - cached separately (5 min each)
+    postgresql_online = cache.get('status_postgresql')
+    if postgresql_online is None:
         try:
             from django.db import connection
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
-                result = cursor.fetchone()
-                return True if result else False
+                postgresql_online = bool(cursor.fetchone())
         except Exception:
-            return False
-    
-    def check_sql_server_status():
-        """Check SQL Server database connectivity using pymssql - NO ODBC DRIVERS NEEDED!"""
-        try:
-            # Test SQL Server connection using pymssql
-            import pymssql
+            postgresql_online = False
+        cache.set('status_postgresql', postgresql_online, 300)
 
-            conn = pymssql.connect(
-                server='102.67.140.12',
-                port=1053,
-                user='FSAUser2',
-                password='password',
-                database='AFS',
-                timeout=5
-            )
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            return True if result else False
-        except Exception as e:
-            print(f"SQL Server status check failed: {e}")
-            return False
-    
-    def check_google_sheets_status():
-        """Check Google Sheets API connectivity with automatic token refresh"""
-        try:
-            from ..services.google_sheets_service import GoogleSheetsService
-
-            service = GoogleSheetsService()
-            is_connected, message = service.check_connection_status()
-
-            if is_connected:
-                print(f"[OK] Google Sheets: {message}")
-                return True
-            else:
-                print(f"[ERROR] Google Sheets: {message}")
-                return False
-
-        except Exception as e:
-            print(f"[ERROR] Google Sheets status check failed: {e}")
-            return False
-    
-    
-    def get_last_sync_status():
-        """Get last sync status from scheduled sync service"""
-        try:
-            # First, try to get the actual sync service status
-            from ..services.scheduled_sync_service import scheduled_sync_service
-            if scheduled_sync_service and scheduled_sync_service.is_running:
-                # Get the most recent sync time from all sync types
-                last_sync_times = scheduled_sync_service.last_sync_times
-                most_recent = None
-
-                for sync_type, last_sync in last_sync_times.items():
-                    if last_sync:
-                        if most_recent is None or last_sync > most_recent:
-                            most_recent = last_sync
-
-                if most_recent:
-                    now = datetime.now()
-                    time_diff = now - most_recent
-
-                    if time_diff.total_seconds() < 60:  # Less than 1 minute
-                        return "Just now"
-                    elif time_diff.total_seconds() < 3600:  # Less than 1 hour
-                        minutes = int(time_diff.total_seconds() / 60)
-                        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
-                    elif time_diff.total_seconds() < 86400:  # Less than 1 day
-                        hours = int(time_diff.total_seconds() / 3600)
-                        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                    else:
-                        days = int(time_diff.total_seconds() / 86400)
-                        return f"{days} day{'s' if days > 1 else ''} ago"
-
-            # Fallback: Check when last inspection was created
-            latest_inspection = FoodSafetyAgencyInspection.objects.order_by('-created_at').first()
-            if latest_inspection:
-                now = timezone.now()
-                created_at = latest_inspection.created_at
-
-                # Handle timezone-aware datetime comparison
-                if timezone.is_aware(created_at) and not timezone.is_aware(now):
-                    now = timezone.make_aware(now)
-                elif not timezone.is_aware(created_at) and timezone.is_aware(now):
-                    created_at = timezone.make_aware(created_at)
-
-                time_diff = now - created_at
-                if time_diff.total_seconds() < 3600:  # Less than 1 hour
-                    return "Just now"
-                elif time_diff.total_seconds() < 86400:  # Less than 1 day
-                    hours = int(time_diff.total_seconds() / 3600)
-                    return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                else:
-                    days = int(time_diff.total_seconds() / 86400)
-                    return f"{days} day{'s' if days > 1 else ''} ago"
-            else:
-                return "Service not running"
-        except Exception as e:
-            # Fallback to inspection created_at if service check fails
-            try:
-                latest_inspection = FoodSafetyAgencyInspection.objects.order_by('-created_at').first()
-                if latest_inspection:
-                    now = timezone.now()
-                    created_at = latest_inspection.created_at
-
-                    if timezone.is_aware(created_at) and not timezone.is_aware(now):
-                        now = timezone.make_aware(now)
-                    elif not timezone.is_aware(created_at) and timezone.is_aware(now):
-                        created_at = timezone.make_aware(created_at)
-
-                    time_diff = now - created_at
-                    if time_diff.total_seconds() < 86400:
-                        hours = int(time_diff.total_seconds() / 3600)
-                        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-                    else:
-                        days = int(time_diff.total_seconds() / 86400)
-                        return f"{days} day{'s' if days > 1 else ''} ago"
-            except Exception:
-                pass
-            return "Unknown"
-    
-    # Check system status with caching to avoid performance issues
-    from django.core.cache import cache
-    
-    # Cache status checks for 30 seconds to avoid repeated expensive checks
-    postgresql_online = cache.get('status_postgresql')
-    if postgresql_online is None:
-        postgresql_online = check_database_status()
-        cache.set('status_postgresql', postgresql_online, 30)
-    
     sql_server_online = cache.get('status_sql_server')
     if sql_server_online is None:
-        sql_server_online = check_sql_server_status()
-        cache.set('status_sql_server', sql_server_online, 30)
-    
-    # Check if we should force refresh the Google Sheets status
-    force_refresh = request.GET.get('refresh_status') == 'true'
-    
-    google_sheets_online = cache.get('status_google_sheets')
-    if google_sheets_online is None or force_refresh:
-        if force_refresh:
-            cache.delete('status_google_sheets')
-        google_sheets_online = check_google_sheets_status()
-        cache.set('status_google_sheets', google_sheets_online, 30)
-    
-    last_sync = get_last_sync_status()
-
-    # Check if scheduled sync service is running
-    def check_sync_service_status():
-        """Check if the scheduled sync service is running"""
         try:
-            from ..services.scheduled_sync_service import scheduled_sync_service
-            if scheduled_sync_service and scheduled_sync_service.is_running:
-                return True
-            return False
+            import pymssql
+            conn = pymssql.connect(
+                server='102.67.140.12', port=1053,
+                user='FSAUser2', password='password',
+                database='AFS', timeout=3
+            )
+            conn.cursor().execute("SELECT 1")
+            conn.close()
+            sql_server_online = True
         except Exception:
-            return False
-
-    sync_service_running = check_sync_service_status()
-
-    # Get recent activities from SystemLog
-    def get_recent_activities():
-        try:
-            from ..models import SystemLog
-            activities = SystemLog.objects.select_related('user').order_by('-timestamp')[:5]
-            return activities
-        except Exception:
-            return []
-    
-    recent_activities = get_recent_activities()
+            sql_server_online = False
+        cache.set('status_sql_server', sql_server_online, 300)
 
     context = {
-        'total_clients': total_clients,
-        'total_inspections': total_inspections,
-        'recent_inspections': recent_inspections,
-        'inspector_stats': inspector_stats,
+        'total_clients': home_data['total_clients'],
+        'total_inspections': home_data['total_inspections'],
+        'recent_inspections': home_data['recent_inspections'],
+        'inspector_stats': home_data['inspector_stats'],
         'settings': settings,
         'system_status': {
             'postgresql_online': postgresql_online,
             'sql_server_online': sql_server_online,
-            'google_sheets_online': google_sheets_online,
-            'sync_service_running': sync_service_running,
-            'last_sync': last_sync
         },
-        'recent_activities': recent_activities
+        'recent_activities': home_data['recent_activities'],
     }
     
     return render(request, 'main/home.html', context)
@@ -8194,11 +8207,11 @@ def inspector_dashboard(request):
     # Only allow inspectors and inspector managers to access this dashboard
     if request.user.role not in ('inspector', 'inspector_manager'):
         return redirect('analytics_dashboard')
-
+    
     from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectorMapping
     from django.db.models import Count, Q
     from datetime import datetime, timedelta, date
-
+    
     # Resolve inspector_id via mapping (handles cases where source has 'Unknown' names)
     inspector_name = request.user.get_full_name() or request.user.username
     inspector_id = None
@@ -8391,17 +8404,37 @@ def analytics_dashboard(request):
     if request.user.role == 'admin':
         return redirect('home')
     
-    # Redirect inspectors to their specific dashboard
-    if request.user.role in ('inspector', 'inspector_manager'):
+    # Redirect inspector_managers to their specific dashboard (inspectors can view financial panel)
+    if request.user.role == 'inspector_manager':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection
-    from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget
+    from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField, DecimalField, Value, F
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, date
     import json
     from django.core.serializers.json import DjangoJSONEncoder
-    
+
+    # Get system settings for theme
+    try:
+        system_settings = Settings.objects.first()
+        if not system_settings:
+            system_settings = Settings.objects.create()
+        settings = type('Settings', (), {'dark_mode': system_settings.dark_mode})()
+    except Exception:
+        settings = type('Settings', (), {'dark_mode': False})()
+
+    # Load per-inspector targets
+    inspector_targets_data = {}
+    try:
+        for t in InspectorTarget.objects.all():
+            inspector_targets_data[t.inspector_name] = {
+                'eggs': t.eggs, 'poultry': t.poultry, 'raw': t.raw, 'pmp': t.pmp,
+                'raw_samples': t.raw_samples, 'pmp_samples': t.pmp_samples, 'total_samples': t.total_samples,
+            }
+    except Exception:
+        pass
+
     # Date ranges for analysis
     now = datetime.now()
     thirty_days_ago = now - timedelta(days=30)
@@ -8514,7 +8547,10 @@ def analytics_dashboard(request):
             client['risk_score'] = 100
     
     # === COMMODITY ANALYSIS ===
-    commodity_analysis = FoodSafetyAgencyInspection.objects.values('commodity').annotate(
+    # Exclude occurrence reports from commodity-based analysis
+    commodity_analysis = FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
         total_inspections=Count('id'),
         compliant_inspections=Count('id', filter=Q(approved_status='APPROVED')),
         avg_hours=Avg('hours'),
@@ -8638,6 +8674,322 @@ def analytics_dashboard(request):
         if client['compliance_rate'] < 70 and client['total_inspections'] >= 3
     ]
     
+    # === COMPLIANCE BY COMMODITY ===
+    # Exclude occurrence reports (they don't have commodities)
+    compliance_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+    ).order_by('commodity'))
+    for item in compliance_by_commodity:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # === SAMPLES BY COMMODITY ===
+    # Exclude occurrence reports from commodity-based analysis
+    samples_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        is_sample_taken=True
+    ).values('commodity').annotate(count=Count('id')).order_by('commodity'))
+
+    # === FACILITY TYPE DISTRIBUTION ===
+    facility_type_distribution = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(facility_type__isnull=True) | Q(facility_type='')
+    ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
+
+    # === COMMODITY COMPLIANCE TRENDS (DAILY) ===
+    from django.db.models.functions import TruncDate
+    from django.db.models import Case, When, FloatField
+
+    # Calculate daily compliance percentage per commodity
+    daily_compliance = FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=now - timedelta(days=30)
+    ).annotate(
+        month=TruncDate('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        approved=Count('id', filter=Q(approved_status='APPROVED'))
+    )
+
+    # Calculate compliance rate as percentage
+    monthly_commodity_trends = []
+    for item in daily_compliance:
+        total = item['total']
+        approved = item['approved']
+        compliance_rate = round((approved / total * 100) if total > 0 else 0, 1)
+        monthly_commodity_trends.append({
+            'month': item['month'],
+            'commodity': item['commodity'],
+            'compliance_rate': compliance_rate,
+            'total': total,
+            'approved': approved
+        })
+
+    # === MONTHLY COMPLIANCE TREND PER COMMODITY ===
+    # Use weekly trends for more granular data points
+    monthly_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).exclude(
+        date_of_inspection__isnull=True
+    ).annotate(
+        month=TruncWeek('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('month', 'commodity'))
+
+    for item in monthly_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # === DAILY COMPLIANCE TREND PER COMMODITY ===
+    daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).exclude(
+        date_of_inspection__isnull=True
+    ).annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('day', 'commodity'))
+
+    for item in daily_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
+    # === TIME ALLOCATION (hours per inspector) ===
+    time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(hours__isnull=True) | Q(hours=0)
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours')
+    ).order_by('-total_hours')[:15])
+
+    # === INSPECTIONS LIST (for table) ===
+    inspections_list_qs = FoodSafetyAgencyInspection.objects.order_by('-date_of_inspection').values(
+        'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
+        'facility_type', 'is_sample_taken', 'approved_status', 'town'
+    )[:200]
+    inspections_list = list(inspections_list_qs)
+
+    # === DAYS WORKED ===
+    days_worked = FoodSafetyAgencyInspection.objects.exclude(
+        date_of_inspection__isnull=True
+    ).values('date_of_inspection').distinct().count()
+
+    # === INSPECTOR METRICS ===
+    # Occurrence reports count per inspector
+    occurrence_reports = list(FoodSafetyAgencyInspection.objects.filter(
+        is_occurrence_report=True
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        count=Count('id')
+    ).order_by('-count'))
+
+    total_occurrence_reports = FoodSafetyAgencyInspection.objects.filter(is_occurrence_report=True).count()
+
+    # Directions (non-compliance findings) per inspector
+    directions_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total=Count('id'),
+        directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
+        non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
+    ).order_by('-total'))
+
+    for item in directions_per_inspector:
+        item['direction_rate'] = round((item['directions'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # Travel & distance per inspector
+    travel_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        inspection_count=Count('id'),
+        avg_km=Avg('km_traveled'),
+    ).order_by('-total_km'))
+
+    # Inspections per commodity per inspector (efficiency matrix)
+    inspector_commodity_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).values('inspector_name', 'commodity').annotate(
+        count=Count('id')
+    ).order_by('inspector_name', 'commodity'))
+
+    # Per-inspector per-commodity sample counts for target tracking
+    inspector_sample_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        is_sample_taken=True
+    ).values('inspector_name', 'commodity').annotate(
+        count=Count('id')
+    ).order_by('inspector_name', 'commodity'))
+
+    # Approval status breakdown per inspector
+    approval_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total=Count('id'),
+        approved=Count('id', filter=Q(approved_status='APPROVED')),
+        pending=Count('id', filter=Q(approved_status='PENDING')),
+    ).order_by('-total'))
+
+    for item in approval_per_inspector:
+        item['approval_rate'] = round((item['approved'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # === MONTHLY TREND DATA ===
+    from django.db.models.functions import TruncMonth as _TruncMonth
+    # Monthly occurrence reports
+    monthly_occurrence_trend = list(FoodSafetyAgencyInspection.objects.filter(
+        is_occurrence_report=True
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=_TruncMonth('date_of_inspection')
+    ).values('month').annotate(count=Count('id')).order_by('month'))
+
+    # Monthly total travel distance
+    monthly_travel_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+    ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
+        total_km=Sum('km_traveled')
+    ).order_by('month'))
+
+    # Monthly avg days to send documents
+    _doc_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(sent_by__isnull=True):
+        _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _doc_by_month:
+            _doc_by_month[_mk] = {'total': 0, 'count': 0}
+        _doc_by_month[_mk]['total'] += _delta
+        _doc_by_month[_mk]['count'] += 1
+    monthly_doc_send_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
+
+    # Monthly avg days to upload invoice
+    _inv_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(invoice_uploaded_by__isnull=True):
+        _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _inv_by_month:
+            _inv_by_month[_mk] = {'total': 0, 'count': 0}
+        _inv_by_month[_mk]['total'] += _delta
+        _inv_by_month[_mk]['count'] += 1
+    monthly_invoice_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
+
+    # Monthly inspections count (for trend)
+    monthly_inspections_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        date_of_inspection__isnull=True
+    ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
+    # Weekly inspector performance trend
+    monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(date_of_inspection__isnull=True).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).annotate(
+        day=TruncWeek('date_of_inspection')
+    ).values('day', 'inspector_name').annotate(
+        count=Count('id'),
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        samples=Count('id', filter=Q(is_sample_taken=True)),
+    ).order_by('day', 'inspector_name'))
+
+    # Monthly avg days from sample to COA upload
+    _coa_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False
+    ).exclude(Q(commodity__isnull=True) | Q(commodity='')):
+        _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _coa_by_month:
+            _coa_by_month[_mk] = {'total': 0, 'count': 0}
+        _coa_by_month[_mk]['total'] += _delta
+        _coa_by_month[_mk]['count'] += 1
+    monthly_coa_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
+
+    # Monthly avg days to approval
+    _appr_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.filter(
+        approved_status='APPROVED', date_of_inspection__isnull=False
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+        _ref = _insp.approved_date or _insp.updated_at
+        if _ref is None:
+            continue
+        _delta = (_ref.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _appr_by_month:
+            _appr_by_month[_mk] = {'total': 0, 'count': 0}
+        _appr_by_month[_mk]['total'] += _delta
+        _appr_by_month[_mk]['count'] += 1
+    monthly_approval_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
+
+    # Monthly total travel hours
+    _travel_hrs_by_month = {}
+    for _insp in FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
+        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    ):
+        _start = _insp['inspection_group__travel_start_time']
+        _end = _insp['inspection_group__travel_end_time']
+        if not (_start and _end):
+            continue
+        _start_dt = datetime.combine(datetime.today(), _start)
+        _end_dt = datetime.combine(datetime.today(), _end)
+        if _end_dt < _start_dt:
+            _end_dt += timedelta(days=1)
+        _dur = (_end_dt - _start_dt).total_seconds() / 3600
+        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
+    monthly_travel_hours_trend = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
+
+    # === FILTER OPTIONS ===
+    all_years = sorted(set(
+        d.year for d in FoodSafetyAgencyInspection.objects.exclude(
+            date_of_inspection__isnull=True
+        ).values_list('date_of_inspection', flat=True).distinct()
+    ))
+    all_inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
+    all_commodities = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).values_list('commodity', flat=True).distinct().order_by('commodity'))
+
+    filter_options = {
+        'years': all_years,
+        'inspectors': all_inspectors,
+        'commodities': all_commodities
+    }
+
     # === EXPORT DATA PREPARATION ===
     export_data = {
         'summary': {
@@ -8688,6 +9040,246 @@ def analytics_dashboard(request):
         count=Count('id')
     ).order_by('-count')[:10]
     
+    # === FINANCIAL / REVENUE DATA ===
+    # Get fee rates (fallback to defaults if not configured)
+    fee_rates = {}
+    try:
+        for fee in InspectionFee.objects.all():
+            fee_rates[fee.fee_code] = float(fee.rate)
+    except Exception:
+        pass
+    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
+    km_rate = fee_rates.get('inspection_km_rate', 0)
+    sample_rate = fee_rates.get('sample_collection', 0)
+
+    # Calculate inspection time (travel start to travel end time) per inspector
+    # Note: Using travel_start_time and travel_end_time from InspectionGroup
+    from datetime import datetime, timedelta
+    inspection_times = {}
+    inspections_with_times = FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+
+    for insp in inspections_with_times:
+        inspector = insp['inspector_name']
+        start = insp['inspection_group__travel_start_time']
+        end = insp['inspection_group__travel_end_time']
+
+        # Calculate duration in hours
+        if start and end:
+            # Convert time to datetime for calculation
+            start_dt = datetime.combine(datetime.today(), start)
+            end_dt = datetime.combine(datetime.today(), end)
+
+            # Handle cases where end time is before start time (crosses midnight)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+
+            duration = (end_dt - start_dt).total_seconds() / 3600  # Convert to hours
+
+            if inspector not in inspection_times:
+                inspection_times[inspector] = 0
+            inspection_times[inspector] += duration
+
+    # Calculate revenue per inspector
+    inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+        total_samples=Count('id', filter=Q(is_sample_taken=True)),
+        total_bought_sample=Sum('bought_sample'),
+    ).order_by('-total_inspections')
+
+    inspector_financials = []
+    total_revenue = 0
+    for item in inspector_financials_qs:
+        hrs = float(item['total_hours'] or 0)
+        km = float(item['total_km'] or 0)
+        samples = item['total_samples'] or 0
+        inspection_time = inspection_times.get(item['inspector_name'], 0)
+
+        rev_hours = round(hrs * hourly_rate, 2)
+        rev_km = round(km * km_rate, 2)
+        rev_samples = round(samples * sample_rate, 2)
+        tot = round(rev_hours + rev_km + rev_samples, 2)
+        total_revenue += tot
+        inspector_financials.append({
+            'inspector_name': item['inspector_name'],
+            'total_inspections': item['total_inspections'],
+            'total_hours': hrs,
+            'total_km': km,
+            'inspection_time': round(inspection_time, 1),
+            'revenue_hours': rev_hours,
+            'revenue_km': rev_km,
+            'revenue_samples': rev_samples,
+            'total_revenue': tot,
+        })
+
+    # Lightweight date+inspector list for client-side period filtering
+    inspection_dates_list = list(
+        FoodSafetyAgencyInspection.objects.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(date_of_inspection__isnull=True).values_list(
+            'date_of_inspection', 'inspector_name'
+        )
+    )
+    # Convert to simple list of [date_str, inspector_name]
+    inspection_dates_for_js = [
+        [d.isoformat(), n] for d, n in inspection_dates_list
+    ]
+
+    financial_summary = {
+        'total_revenue': round(total_revenue, 2),
+        'hourly_rate': hourly_rate,
+        'km_rate': km_rate,
+        'sample_rate': sample_rate,
+    }
+
+    # === PHASE 2: TIME-BASED ANALYTICS ===
+
+    # 1. Avg days to send supporting documents (per admin user)
+    doc_send_time = []
+    doc_send_qs = FoodSafetyAgencyInspection.objects.filter(
+        is_sent=True,
+        sent_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(sent_by__isnull=True)
+    ).select_related('sent_by')
+
+    doc_send_by_user = {}
+    for insp in doc_send_qs:
+        delta = (insp.sent_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.sent_by.first_name} {insp.sent_by.last_name}".strip() or insp.sent_by.username
+        if name not in doc_send_by_user:
+            doc_send_by_user[name] = {'total_days': 0, 'count': 0}
+        doc_send_by_user[name]['total_days'] += delta
+        doc_send_by_user[name]['count'] += 1
+
+    for name, data in sorted(doc_send_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        doc_send_time.append({
+            'name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 2. Avg days to upload invoices (per admin user)
+    invoice_upload_time = []
+    invoice_qs = FoodSafetyAgencyInspection.objects.filter(
+        invoice_uploaded_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(invoice_uploaded_by__isnull=True)
+    ).select_related('invoice_uploaded_by')
+
+    invoice_by_user = {}
+    for insp in invoice_qs:
+        delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.invoice_uploaded_by.first_name} {insp.invoice_uploaded_by.last_name}".strip() or insp.invoice_uploaded_by.username
+        if name not in invoice_by_user:
+            invoice_by_user[name] = {'total_days': 0, 'count': 0}
+        invoice_by_user[name]['total_days'] += delta
+        invoice_by_user[name]['count'] += 1
+
+    for name, data in sorted(invoice_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        invoice_upload_time.append({
+            'name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 3. Avg days from sample to COA upload (per commodity)
+    coa_analysis_time = []
+    coa_qs = FoodSafetyAgencyInspection.objects.filter(
+        is_sample_taken=True,
+        coa_uploaded_date__isnull=False,
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    )
+
+    coa_by_commodity = {}
+    for insp in coa_qs:
+        delta = (insp.coa_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        comm = insp.commodity
+        if comm not in coa_by_commodity:
+            coa_by_commodity[comm] = {'total_days': 0, 'count': 0}
+        coa_by_commodity[comm]['total_days'] += delta
+        coa_by_commodity[comm]['count'] += 1
+
+    for comm, data in sorted(coa_by_commodity.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        coa_analysis_time.append({
+            'commodity': comm,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 4. Avg days to approval (per inspector)
+    # Uses approved_date if set, falls back to updated_at for historical records
+    approval_time = []
+    approval_qs = FoodSafetyAgencyInspection.objects.filter(
+        approved_status='APPROVED',
+        date_of_inspection__isnull=False,
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    )
+
+    approval_by_inspector = {}
+    for insp in approval_qs:
+        ref_date = insp.approved_date or insp.updated_at
+        if ref_date is None:
+            continue
+        delta = (ref_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = insp.inspector_name
+        if name not in approval_by_inspector:
+            approval_by_inspector[name] = {'total_days': 0, 'count': 0}
+        approval_by_inspector[name]['total_days'] += delta
+        approval_by_inspector[name]['count'] += 1
+
+    for name, data in sorted(approval_by_inspector.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        approval_time.append({
+            'inspector_name': name,
+            'avg_days': round(data['total_days'] / data['count'], 1) if data['count'] > 0 else 0,
+            'count': data['count'],
+        })
+
+    # 5. Travel time per inspector (from InspectionGroup travel_start/end)
+    # Reuses inspection_times dict already computed above
+    travel_time_per_inspector = sorted(
+        [{'inspector_name': name, 'total_hours': round(hours, 1)} for name, hours in inspection_times.items() if hours > 0],
+        key=lambda x: x['total_hours'],
+        reverse=True,
+    )
+
+    # Prepare server-side rendered lists with percentage for bar widths
+    def _add_pct(items, key):
+        if not items:
+            return []
+        max_val = max(i[key] for i in items) or 1
+        for i in items:
+            i['pct'] = round((i[key] / max_val) * 100)
+        return items
+
+    _add_pct(doc_send_time, 'avg_days')
+    _add_pct(invoice_upload_time, 'avg_days')
+    _add_pct(coa_analysis_time, 'avg_days')
+    _add_pct(approval_time, 'avg_days')
+    _add_pct(travel_time_per_inspector, 'total_hours')
+
     # === CONTEXT PREPARATION ===
     # Ensure all data is properly JSON-encoded and handle None values
     def safe_json_dumps(data, default=None):
@@ -8745,9 +9337,630 @@ def analytics_dashboard(request):
         
         # Export data
         'export_data': safe_json_dumps(export_data, {}),
+
+        # New Power BI dashboard data
+        'compliance_by_commodity': safe_json_dumps(compliance_by_commodity, []),
+        'samples_by_commodity': safe_json_dumps(samples_by_commodity, []),
+        'facility_type_distribution': safe_json_dumps(facility_type_distribution, []),
+        'monthly_commodity_trends': safe_json_dumps(monthly_commodity_trends, []),
+        'monthly_compliance_trend': safe_json_dumps(monthly_compliance_trend, []),
+        'daily_compliance_trend': safe_json_dumps(daily_compliance_trend, []),
+        'time_allocation': safe_json_dumps(time_allocation, []),
+        'inspections_list': safe_json_dumps(inspections_list, []),
+        'days_worked': days_worked or 0,
+        'filter_options': safe_json_dumps(filter_options, {'years': [], 'inspectors': [], 'commodities': []}),
+
+        # Inspector metrics
+        'occurrence_reports': safe_json_dumps(occurrence_reports, []),
+        'total_occurrence_reports': total_occurrence_reports or 0,
+        'directions_per_inspector': safe_json_dumps(directions_per_inspector, []),
+        'travel_per_inspector': safe_json_dumps(travel_per_inspector, []),
+        'inspector_commodity_matrix': safe_json_dumps(inspector_commodity_matrix, []),
+        'inspector_sample_matrix': safe_json_dumps(inspector_sample_matrix, []),
+        'approval_per_inspector': safe_json_dumps(approval_per_inspector, []),
+
+        # Monthly trends
+        'monthly_occurrence_trend': safe_json_dumps(monthly_occurrence_trend, []),
+        'monthly_travel_trend': safe_json_dumps(monthly_travel_trend, []),
+        'monthly_doc_send_trend': safe_json_dumps(monthly_doc_send_trend, []),
+        'monthly_invoice_trend': safe_json_dumps(monthly_invoice_trend, []),
+        'monthly_inspections_trend': safe_json_dumps(monthly_inspections_trend, []),
+        'monthly_coa_trend': safe_json_dumps(monthly_coa_trend, []),
+        'monthly_approval_trend': safe_json_dumps(monthly_approval_trend, []),
+        'monthly_travel_hours_trend': safe_json_dumps(monthly_travel_hours_trend, []),
+        'monthly_inspector_trend': safe_json_dumps(monthly_inspector_trend, []),
+
+        # Financial / Revenue data
+        'inspector_financials': safe_json_dumps(inspector_financials, []),
+        'financial_summary': safe_json_dumps(financial_summary, {}),
+        'inspection_dates_list': safe_json_dumps(inspection_dates_for_js, []),
+
+        # Per-inspector targets
+        'inspector_targets_data': safe_json_dumps(inspector_targets_data, {}),
+
+        # Phase 2: Time-based analytics (JSON for JS charts + API)
+        'doc_send_time': safe_json_dumps(doc_send_time, []),
+        'invoice_upload_time': safe_json_dumps(invoice_upload_time, []),
+        'coa_analysis_time': safe_json_dumps(coa_analysis_time, []),
+        'approval_time': safe_json_dumps(approval_time, []),
+        'travel_time_per_inspector': safe_json_dumps(travel_time_per_inspector, []),
+
+        # Phase 2: Plain lists for server-side template rendering
+        'doc_send_time_list': doc_send_time,
+        'invoice_upload_time_list': invoice_upload_time,
+        'coa_analysis_time_list': coa_analysis_time,
+        'approval_time_list': approval_time,
+        'travel_time_list': travel_time_per_inspector[:15],
+
+        # Theme settings
+        'settings': settings,
     }
-    
+
     return render(request, 'main/analytics_dashboard.html', context)
+
+
+@login_required(login_url='login')
+def analytics_dashboard_api(request):
+    """API endpoint for filtered analytics dashboard data."""
+    from ..models import FoodSafetyAgencyInspection
+    from django.db.models import Count, Q, Avg, Sum
+    from django.db.models.functions import TruncMonth, TruncDay
+    from datetime import datetime, timedelta
+    from django.core.serializers.json import DjangoJSONEncoder
+
+    # Block non-authorized roles
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Get filter params
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    inspector = request.GET.get('inspector')
+    commodity = request.GET.get('commodity')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    # Base queryset
+    qs = FoodSafetyAgencyInspection.objects.all()
+
+    # Apply filters
+    if date_from:
+        qs = qs.filter(date_of_inspection__gte=date_from)
+    if date_to:
+        qs = qs.filter(date_of_inspection__lte=date_to)
+    if year and year != 'all':
+        qs = qs.filter(date_of_inspection__year=int(year))
+    if month and month != 'all':
+        qs = qs.filter(date_of_inspection__month=int(month))
+    if inspector and inspector != 'all':
+        qs = qs.filter(inspector_name=inspector)
+    if commodity and commodity != 'all':
+        qs = qs.filter(commodity=commodity)
+
+    # Total inspections
+    total_inspections = qs.count()
+
+    # Compliance
+    compliance_stats = qs.aggregate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+    )
+    compliance_rate = round((compliance_stats['compliant'] / compliance_stats['total']) * 100, 1) if compliance_stats['total'] > 0 else 0
+
+    # Active inspectors
+    active_inspectors = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').distinct().count()
+
+    # Days worked
+    days_worked = qs.exclude(date_of_inspection__isnull=True).values('date_of_inspection').distinct().count()
+
+    # Hours
+    hours_data = qs.exclude(Q(hours__isnull=True) | Q(hours=0)).aggregate(
+        total_hours=Sum('hours'),
+        avg_hours=Avg('hours')
+    )
+
+    # Compliance by commodity (exclude occurrence reports)
+    compliance_by_commodity = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+    ).order_by('commodity'))
+    for item in compliance_by_commodity:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
+    # Commodity analysis (exclude occurrence reports)
+    commodity_analysis = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).values('commodity').annotate(
+        total_inspections=Count('id')
+    ).order_by('-total_inspections'))
+
+    # Samples by commodity (exclude occurrence reports)
+    samples_by_commodity = list(qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(is_sample_taken=True).values('commodity').annotate(
+        count=Count('id')
+    ).order_by('commodity'))
+
+    # Facility type distribution
+    facility_type_distribution = list(qs.exclude(
+        Q(facility_type__isnull=True) | Q(facility_type='')
+    ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
+
+    # Monthly commodity trends
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    trends_qs = qs.exclude(
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(trends_qs.annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
+
+    # Monthly compliance trend per commodity
+    monthly_compliance_trend = list(qs.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('month', 'commodity'))
+    for item in monthly_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
+    # Daily compliance trend per commodity (last 30 days)
+    from django.db.models.functions import TruncDay
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    daily_compliance_trend = list(qs.exclude(
+        Q(commodity__isnull=True) | Q(commodity='')
+    ).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        day=TruncDay('date_of_inspection')
+    ).values('day', 'commodity').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('day', 'commodity'))
+    for item in daily_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+
+    # Time allocation
+    time_allocation = list(qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
+        total_hours=Sum('hours')
+    ).order_by('-total_hours')[:15])
+
+    # Inspections list
+    inspections_list = list(qs.order_by('-date_of_inspection').values(
+        'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
+        'facility_type', 'is_sample_taken', 'approved_status', 'town'
+    )[:200])
+
+    # Inspector performance
+    inspector_performance = list(qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        non_compliant=Count('id', filter=Q(approved_status='PENDING')),
+    ).order_by('-total_inspections')[:15])
+
+    # Inspector trend: use user's date range if set, otherwise default to last 30 days
+    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
+    _inspector_trend_base = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(date_of_inspection__isnull=True)
+    if not _has_date_filter:
+        _inspector_trend_base = _inspector_trend_base.filter(date_of_inspection__gte=thirty_days_ago)
+    _inspector_trend_qs = _inspector_trend_base.annotate(
+        day=TruncWeek('date_of_inspection')
+    ).values('day', 'inspector_name').annotate(
+        count=Count('id'),
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        samples=Count('id', filter=Q(is_sample_taken=True)),
+    ).order_by('day', 'inspector_name')
+
+    data = {
+        'totalInspections': total_inspections,
+        'complianceRate': compliance_rate,
+        'activeInspectors': active_inspectors,
+        'daysWorked': days_worked,
+        'totalHours': float(hours_data['total_hours'] or 0),
+        'avgHours': float(hours_data['avg_hours'] or 0),
+        'complianceByCommodity': compliance_by_commodity,
+        'commodityAnalysis': commodity_analysis,
+        'samplesByCommodity': samples_by_commodity,
+        'facilityTypeDistribution': facility_type_distribution,
+        'monthlyCommodityTrends': monthly_commodity_trends,
+        'monthlyComplianceTrend': monthly_compliance_trend,
+        'dailyComplianceTrend': daily_compliance_trend,
+        'timeAllocation': time_allocation,
+        'inspectionsList': inspections_list,
+        'inspectorPerformance': inspector_performance,
+        # Inspector metrics
+        'occurrenceReports': list(qs.filter(is_occurrence_report=True).exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(count=Count('id')).order_by('-count')),
+        'totalOccurrenceReports': qs.filter(is_occurrence_report=True).count(),
+        'directionsPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total=Count('id'),
+            directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
+            non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
+        ).order_by('-total')),
+        'travelPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+            inspection_count=Count('id'), avg_km=Avg('km_traveled'),
+        ).order_by('-total_km')),
+        'inspectorCommodityMatrix': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
+            'inspector_name', 'commodity'
+        ).annotate(count=Count('id')).order_by('inspector_name', 'commodity')),
+        'inspectorSampleMatrix': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).exclude(Q(commodity__isnull=True) | Q(commodity='')).filter(
+            is_sample_taken=True
+        ).values('inspector_name', 'commodity').annotate(
+            count=Count('id')
+        ).order_by('inspector_name', 'commodity')),
+        'approvalPerInspector': list(qs.exclude(
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        ).values('inspector_name').annotate(
+            total=Count('id'),
+            approved=Count('id', filter=Q(approved_status='APPROVED')),
+            pending=Count('id', filter=Q(approved_status='PENDING')),
+        ).order_by('-total')),
+        'monthlyInspectorTrend': list(_inspector_trend_qs),
+    }
+
+    # === FINANCIAL / REVENUE DATA (filtered) ===
+    from ..models import InspectionFee
+    fee_rates = {}
+    try:
+        for fee in InspectionFee.objects.all():
+            fee_rates[fee.fee_code] = float(fee.rate)
+    except Exception:
+        pass
+    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
+    km_rate = fee_rates.get('inspection_km_rate', 0)
+    sample_rate = fee_rates.get('sample_collection', 0)
+
+    # Calculate inspection time (travel start to end) per inspector for filtered qs
+    inspection_times = {}
+    travel_insp_qs = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values(
+        'inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time'
+    )
+    for _row in travel_insp_qs:
+        _start = _row['inspection_group__travel_start_time']
+        _end = _row['inspection_group__travel_end_time']
+        if _start and _end:
+            _start_dt = datetime.combine(datetime.today(), _start)
+            _end_dt = datetime.combine(datetime.today(), _end)
+            if _end_dt < _start_dt:
+                _end_dt += timedelta(days=1)
+            _dur = (_end_dt - _start_dt).total_seconds() / 3600
+            inspector = _row['inspector_name']
+            inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
+
+    inspector_financials_qs = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+        total_samples=Count('id', filter=Q(is_sample_taken=True)),
+        total_bought_sample=Sum('bought_sample'),
+    ).order_by('-total_inspections')
+
+    inspector_financials = []
+    total_revenue = 0
+    for item in inspector_financials_qs:
+        hrs = float(item['total_hours'] or 0)
+        km = float(item['total_km'] or 0)
+        samples = item['total_samples'] or 0
+        inspection_time = inspection_times.get(item['inspector_name'], 0)
+
+        rev_hours = round(hrs * hourly_rate, 2)
+        rev_km = round(km * km_rate, 2)
+        rev_samples = round(samples * sample_rate, 2)
+        tot = round(rev_hours + rev_km + rev_samples, 2)
+        total_revenue += tot
+        inspector_financials.append({
+            'inspector_name': item['inspector_name'],
+            'total_inspections': item['total_inspections'],
+            'total_hours': hrs,
+            'total_km': km,
+            'inspection_time': round(inspection_time, 1),
+            'revenue_hours': rev_hours,
+            'revenue_km': rev_km,
+            'revenue_samples': rev_samples,
+            'total_revenue': tot,
+        })
+
+    data['inspectorFinancials'] = inspector_financials
+    data['financialSummary'] = {
+        'total_revenue': round(total_revenue, 2),
+        'hourly_rate': hourly_rate,
+        'km_rate': km_rate,
+        'sample_rate': sample_rate,
+    }
+
+    # Phase 2: Time-based analytics (filtered)
+
+    # 1. Doc send time
+    doc_send_time = []
+    doc_send_filtered = qs.filter(
+        is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(sent_by__isnull=True).select_related('sent_by')
+    doc_send_by_user = {}
+    for insp in doc_send_filtered:
+        delta = (insp.sent_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.sent_by.first_name} {insp.sent_by.last_name}".strip() or insp.sent_by.username
+        if name not in doc_send_by_user:
+            doc_send_by_user[name] = {'total_days': 0, 'count': 0}
+        doc_send_by_user[name]['total_days'] += delta
+        doc_send_by_user[name]['count'] += 1
+    for name, d in sorted(doc_send_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        doc_send_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['docSendTime'] = doc_send_time
+
+    # 2. Invoice upload time
+    invoice_upload_time = []
+    invoice_filtered = qs.filter(
+        invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(invoice_uploaded_by__isnull=True).select_related('invoice_uploaded_by')
+    invoice_by_user = {}
+    for insp in invoice_filtered:
+        delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = f"{insp.invoice_uploaded_by.first_name} {insp.invoice_uploaded_by.last_name}".strip() or insp.invoice_uploaded_by.username
+        if name not in invoice_by_user:
+            invoice_by_user[name] = {'total_days': 0, 'count': 0}
+        invoice_by_user[name]['total_days'] += delta
+        invoice_by_user[name]['count'] += 1
+    for name, d in sorted(invoice_by_user.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        invoice_upload_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['invoiceUploadTime'] = invoice_upload_time
+
+    # 3. COA analysis time
+    coa_analysis_time = []
+    coa_filtered = qs.filter(
+        is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False,
+    ).exclude(Q(commodity__isnull=True) | Q(commodity=''))
+    coa_by_commodity = {}
+    for insp in coa_filtered:
+        delta = (insp.coa_uploaded_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        comm = insp.commodity
+        if comm not in coa_by_commodity:
+            coa_by_commodity[comm] = {'total_days': 0, 'count': 0}
+        coa_by_commodity[comm]['total_days'] += delta
+        coa_by_commodity[comm]['count'] += 1
+    for comm, d in sorted(coa_by_commodity.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        coa_analysis_time.append({'commodity': comm, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['coaAnalysisTime'] = coa_analysis_time
+
+    # 4. Approval time (uses approved_date if set, falls back to updated_at)
+    approval_time = []
+    approval_filtered = qs.filter(
+        approved_status='APPROVED', date_of_inspection__isnull=False,
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown'))
+    approval_by_inspector = {}
+    for insp in approval_filtered:
+        ref_date = insp.approved_date or insp.updated_at
+        if ref_date is None:
+            continue
+        delta = (ref_date.date() - insp.date_of_inspection).days
+        if delta < 0:
+            continue
+        name = insp.inspector_name
+        if name not in approval_by_inspector:
+            approval_by_inspector[name] = {'total_days': 0, 'count': 0}
+        approval_by_inspector[name]['total_days'] += delta
+        approval_by_inspector[name]['count'] += 1
+    for name, d in sorted(approval_by_inspector.items(), key=lambda x: x[1]['total_days'] / max(x[1]['count'], 1)):
+        approval_time.append({'inspector_name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
+    data['approvalTime'] = approval_time
+
+    # 5. Travel time per inspector
+    travel_time_per_inspector = []
+    travel_time_filtered = qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+    tt_dict = {}
+    for insp in travel_time_filtered:
+        start = insp['inspection_group__travel_start_time']
+        end = insp['inspection_group__travel_end_time']
+        if start and end:
+            start_dt = datetime.combine(datetime.today(), start)
+            end_dt = datetime.combine(datetime.today(), end)
+            if end_dt < start_dt:
+                end_dt += timedelta(days=1)
+            duration = (end_dt - start_dt).total_seconds() / 3600
+            name = insp['inspector_name']
+            tt_dict[name] = tt_dict.get(name, 0) + duration
+    travel_time_per_inspector = sorted(
+        [{'inspector_name': n, 'total_hours': round(h, 1)} for n, h in tt_dict.items() if h > 0],
+        key=lambda x: x['total_hours'], reverse=True,
+    )
+    data['travelTimePerInspector'] = travel_time_per_inspector
+
+    # Monthly trends (filtered)
+    from django.db.models.functions import TruncMonth as _TM
+    data['monthlyOccurrenceTrend'] = list(qs.filter(
+        is_occurrence_report=True
+    ).exclude(date_of_inspection__isnull=True).annotate(
+        month=_TM('date_of_inspection')
+    ).values('month').annotate(count=Count('id')).order_by('month'))
+
+    data['monthlyTravelTrend'] = list(qs.exclude(
+        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+        total_km=Sum('km_traveled')
+    ).order_by('month'))
+
+    data['monthlyInspectionsTrend'] = list(qs.exclude(
+        date_of_inspection__isnull=True
+    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
+    _doc_by_month = {}
+    for _insp in qs.filter(is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False).exclude(sent_by__isnull=True):
+        _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _doc_by_month:
+            _doc_by_month[_mk] = {'total': 0, 'count': 0}
+        _doc_by_month[_mk]['total'] += _delta
+        _doc_by_month[_mk]['count'] += 1
+    data['monthlyDocSendTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
+
+    _inv_by_month = {}
+    for _insp in qs.filter(invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(invoice_uploaded_by__isnull=True):
+        _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _inv_by_month:
+            _inv_by_month[_mk] = {'total': 0, 'count': 0}
+        _inv_by_month[_mk]['total'] += _delta
+        _inv_by_month[_mk]['count'] += 1
+    data['monthlyInvoiceTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
+
+    # Monthly avg days from sample to COA upload (filtered)
+    _coa_by_month = {}
+    for _insp in qs.filter(is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(Q(commodity__isnull=True) | Q(commodity='')):
+        _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _coa_by_month:
+            _coa_by_month[_mk] = {'total': 0, 'count': 0}
+        _coa_by_month[_mk]['total'] += _delta
+        _coa_by_month[_mk]['count'] += 1
+    data['monthlyCoaTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
+
+    # Monthly avg days to approval (filtered)
+    _appr_by_month = {}
+    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+        _ref = _insp.approved_date or _insp.updated_at
+        if _ref is None:
+            continue
+        _delta = (_ref.date() - _insp.date_of_inspection).days
+        if _delta < 0:
+            continue
+        _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        if _mk not in _appr_by_month:
+            _appr_by_month[_mk] = {'total': 0, 'count': 0}
+        _appr_by_month[_mk]['total'] += _delta
+        _appr_by_month[_mk]['count'] += 1
+    data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
+
+    # Monthly total travel hours (filtered)
+    _travel_hrs_by_month = {}
+    for _insp in qs.exclude(
+        Q(inspection_group__isnull=True)
+    ).exclude(
+        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
+        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    ):
+        _start = _insp['inspection_group__travel_start_time']
+        _end = _insp['inspection_group__travel_end_time']
+        if not (_start and _end):
+            continue
+        from datetime import datetime as _dt, timedelta as _td
+        _start_dt = _dt.combine(_dt.today(), _start)
+        _end_dt = _dt.combine(_dt.today(), _end)
+        if _end_dt < _start_dt:
+            _end_dt += _td(days=1)
+        _dur = (_end_dt - _start_dt).total_seconds() / 3600
+        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
+    data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
+
+    return JsonResponse(data, encoder=DjangoJSONEncoder)
+
+
+@login_required
+def get_inspector_targets(request):
+    """Return all inspector targets and list of known inspectors."""
+    from ..models import InspectorTarget, FoodSafetyAgencyInspection
+    from django.db.models import Q
+
+    targets = {}
+    for t in InspectorTarget.objects.all():
+        targets[t.inspector_name] = {
+            'eggs': t.eggs, 'poultry': t.poultry, 'raw': t.raw, 'pmp': t.pmp,
+            'raw_samples': t.raw_samples, 'pmp_samples': t.pmp_samples, 'total_samples': t.total_samples,
+        }
+
+    inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
+
+    return JsonResponse({'targets': targets, 'inspectors': inspectors})
+
+
+@login_required
+@require_POST
+def update_inspector_targets(request):
+    """Create or update targets for a specific inspector."""
+    import json
+    from ..models import InspectorTarget
+
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        name = data.get('inspector_name', '').strip()
+        if not name:
+            return JsonResponse({'error': 'Inspector name is required'}, status=400)
+
+        obj, created = InspectorTarget.objects.update_or_create(
+            inspector_name=name,
+            defaults={
+                'eggs': int(data.get('eggs', 51)),
+                'poultry': int(data.get('poultry', 59)),
+                'raw': int(data.get('raw', 63)),
+                'pmp': int(data.get('pmp', 54)),
+                'raw_samples': int(data.get('raw_samples', 58)),
+                'pmp_samples': int(data.get('pmp_samples', 12)),
+                'total_samples': int(data.get('total_samples', 70)),
+                'updated_by': request.user,
+            }
+        )
+        return JsonResponse({'success': True, 'created': created})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @login_required
 def export_analytics(request, format_type):
@@ -9909,57 +11122,55 @@ def update_group_km_traveled(request):
     """Update km_traveled field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            raw_group_id = request.POST.get('group_id')
+            group_id = request.POST.get('group_id')
             km_traveled = request.POST.get('km_traveled')
 
-            clean_gid, ig_pk = _parse_group_id(raw_group_id)
+            # Parse group_id to extract client_name and date_of_inspection
+            # group_id format: "client_name_date_of_inspection"
+            if '_' not in group_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-            # Prefer precise lookup by inspection_group PK
-            if ig_pk:
-                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
-            else:
-                # Fallback: parse group_id to extract client_name and date
-                group_id = clean_gid
-                if '_' not in group_id:
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Invalid group ID format'
-                    })
+            # Split the group_id to get client_name and date
+            parts = group_id.split('_')
+            if len(parts) < 2:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-                parts = group_id.split('_')
-                if len(parts) < 2:
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Invalid group ID format'
-                    })
+            # Reconstruct client_name (may contain underscores) and date
+            date_part = parts[-1]
+            client_name_parts = parts[:-1]
+            client_name = '_'.join(client_name_parts)
 
-                date_part = parts[-1]
-                client_name = '_'.join(parts[:-1])
+            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
+            from datetime import datetime
+            date_of_inspection = None
+            for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                try:
+                    date_of_inspection = datetime.strptime(date_part, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not date_of_inspection:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format in group ID: {date_part}'
+                })
 
-                from datetime import datetime
-                date_of_inspection = None
-                for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                    try:
-                        date_of_inspection = datetime.strptime(date_part, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                if not date_of_inspection:
-                    return JsonResponse({
-                        'success': False,
-                        'error': f'Invalid date format in group ID: {date_part}'
-                    })
+            # Find all inspections in this group using normalized client name
+            def _normalize(n):
+                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
-                import re as _re_local
-                def _normalize(n):
-                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
-
-                raw_key = _normalize(client_name)
-                candidate_qs = FoodSafetyAgencyInspection.objects.filter(
-                    date_of_inspection=date_of_inspection
-                )
-                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+            raw_key = _normalize(client_name)
+            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=date_of_inspection
+            )
+            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
                 return JsonResponse({
@@ -9987,51 +11198,66 @@ def update_group_km_traveled(request):
         'error': 'Invalid request method'
     })
 
+@login_required
 def update_group_comment(request):
     """Update comment field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            raw_group_id = request.POST.get('group_id')
+            group_id = request.POST.get('group_id')
             comment = request.POST.get('comment', '')
 
-            clean_gid, ig_pk = _parse_group_id(raw_group_id)
+            # Parse group_id to extract client_name and date_of_inspection
+            # group_id format: "client_name_date_of_inspection"
+            if '_' not in group_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
+            # Split the group_id to get client_name and date
+            parts = group_id.split('_')
+            if len(parts) < 2:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
+
+            # Reconstruct client_name (may contain underscores) and date
+            date_part = parts[-1]
+            client_name_parts = parts[:-1]
+            client_name = '_'.join(client_name_parts)
+
+            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
+            from datetime import datetime
+            date_of_inspection = None
+            for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                try:
+                    date_of_inspection = datetime.strptime(date_part, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not date_of_inspection:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format in group ID: {date_part}'
+                })
+
+            # Find all inspections in this group using normalized client name
             import logging
             logger = logging.getLogger(__name__)
 
-            if ig_pk:
-                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
-            else:
-                group_id = clean_gid
-                if '_' not in group_id:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            def _normalize(n):
+                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
-                parts = group_id.split('_')
-                if len(parts) < 2:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            raw_key = _normalize(client_name)
 
-                date_part = parts[-1]
-                client_name = '_'.join(parts[:-1])
+            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=date_of_inspection
+            )
 
-                from datetime import datetime
-                date_of_inspection = None
-                for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                    try:
-                        date_of_inspection = datetime.strptime(date_part, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                if not date_of_inspection:
-                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
+            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
 
-                import re as _re_local
-                def _normalize(n):
-                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
-
-                raw_key = _normalize(client_name)
-                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
-                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
                 logger.error(f'[COMMENT] No inspections found for group: {group_id}')
@@ -10065,47 +11291,61 @@ def update_group_hours(request):
     """Update hours field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            raw_group_id = request.POST.get('group_id')
+            group_id = request.POST.get('group_id')
             hours = request.POST.get('hours')
 
-            clean_gid, ig_pk = _parse_group_id(raw_group_id)
+            # Parse group_id to extract client_name and date_of_inspection
+            # group_id format: "client_name_date_of_inspection"
+            if '_' not in group_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-            if ig_pk:
-                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
-            else:
-                group_id = clean_gid
-                if '_' not in group_id:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Split the group_id to get client_name and date
+            parts = group_id.split('_')
+            if len(parts) < 2:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-                parts = group_id.split('_')
-                if len(parts) < 2:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Reconstruct client_name (may contain underscores) and date
+            date_part = parts[-1]
+            client_name_parts = parts[:-1]
+            client_name = '_'.join(client_name_parts)
 
-                date_part = parts[-1]
-                client_name = '_'.join(parts[:-1])
+            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
+            from datetime import datetime
+            date_of_inspection = None
+            for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                try:
+                    date_of_inspection = datetime.strptime(date_part, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not date_of_inspection:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format in group ID: {date_part}'
+                })
 
-                from datetime import datetime
-                date_of_inspection = None
-                for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                    try:
-                        date_of_inspection = datetime.strptime(date_part, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                if not date_of_inspection:
-                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
+            # Find all inspections in this group using normalized client name
+            def _normalize(n):
+                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
-                import re as _re_local
-                def _normalize(n):
-                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
-
-                raw_key = _normalize(client_name)
-                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
-                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+            raw_key = _normalize(client_name)
+            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=date_of_inspection
+            )
+            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No inspections found for group: {group_id}'
+                })
 
             # Update hours for all inspections in the group
             hours_value = float(hours) if hours else None
@@ -10133,47 +11373,61 @@ def update_group_additional_email(request):
     """Update additional_email field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            raw_group_id = request.POST.get('group_id')
+            group_id = request.POST.get('group_id')
             additional_email = request.POST.get('additional_email', '').strip()
 
-            clean_gid, ig_pk = _parse_group_id(raw_group_id)
+            # Parse group_id to extract client_name and date_of_inspection
+            # group_id format: "client_name_date_of_inspection"
+            if '_' not in group_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-            if ig_pk:
-                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
-            else:
-                group_id = clean_gid
-                if '_' not in group_id:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Split the group_id to get client_name and date
+            parts = group_id.split('_')
+            if len(parts) < 2:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-                parts = group_id.split('_')
-                if len(parts) < 2:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Reconstruct client_name (may contain underscores) and date
+            date_part = parts[-1]
+            client_name_parts = parts[:-1]
+            client_name = '_'.join(client_name_parts)
 
-                date_part = parts[-1]
-                client_name = '_'.join(parts[:-1])
+            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
+            from datetime import datetime
+            date_of_inspection = None
+            for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                try:
+                    date_of_inspection = datetime.strptime(date_part, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not date_of_inspection:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format in group ID: {date_part}'
+                })
 
-                from datetime import datetime
-                date_of_inspection = None
-                for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                    try:
-                        date_of_inspection = datetime.strptime(date_part, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                if not date_of_inspection:
-                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
+            # Find all inspections in this group using normalized client name
+            def _normalize(n):
+                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
-                import re as _re_local
-                def _normalize(n):
-                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
-
-                raw_key = _normalize(client_name)
-                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
-                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+            raw_key = _normalize(client_name)
+            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=date_of_inspection
+            )
+            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No inspections found for group: {group_id}'
+                })
 
             # Validate email if provided
             if additional_email:
@@ -10225,51 +11479,66 @@ def update_group_additional_email(request):
     })
 
 
+@login_required
 def update_group_approved(request):
     """Update approved_status field for all inspections in a group"""
     if request.method == 'POST':
         try:
-            raw_group_id = request.POST.get('group_id')
+            group_id = request.POST.get('group_id')
             approved_status = request.POST.get('approved_status')
 
-            clean_gid, ig_pk = _parse_group_id(raw_group_id)
+            # Parse group_id to extract client_name and date_of_inspection
+            # group_id format: "client_name_date_of_inspection"
+            if '_' not in group_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-            if ig_pk:
-                inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=ig_pk)
-            else:
-                group_id = clean_gid
-                if '_' not in group_id:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Split the group_id to get client_name and date
+            parts = group_id.split('_')
+            if len(parts) < 2:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid group ID format'
+                })
 
-                parts = group_id.split('_')
-                if len(parts) < 2:
-                    return JsonResponse({'success': False, 'error': 'Invalid group ID format'})
+            # Reconstruct client_name (may contain underscores) and date
+            date_part = parts[-1]
+            client_name_parts = parts[:-1]
+            client_name = '_'.join(client_name_parts)
 
-                date_part = parts[-1]
-                client_name = '_'.join(parts[:-1])
+            # Convert date string to date object (support YYYY-MM-DD and YYYYMMDD)
+            from datetime import datetime
+            date_of_inspection = None
+            for fmt in ('%Y-%m-%d', '%Y%m%d'):
+                try:
+                    date_of_inspection = datetime.strptime(date_part, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not date_of_inspection:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format in group ID: {date_part}'
+                })
 
-                from datetime import datetime
-                date_of_inspection = None
-                for fmt in ('%Y-%m-%d', '%Y%m%d'):
-                    try:
-                        date_of_inspection = datetime.strptime(date_part, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                if not date_of_inspection:
-                    return JsonResponse({'success': False, 'error': f'Invalid date format in group ID: {date_part}'})
+            # Find all inspections in this group using normalized client name
+            def _normalize(n):
+                return _re.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
 
-                import re as _re_local
-                def _normalize(n):
-                    return _re_local.sub(r'[^a-zA-Z0-9]', '', (n or '')).lower()
-
-                raw_key = _normalize(client_name)
-                candidate_qs = FoodSafetyAgencyInspection.objects.filter(date_of_inspection=date_of_inspection)
-                matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
-                inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
+            raw_key = _normalize(client_name)
+            candidate_qs = FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection=date_of_inspection
+            )
+            matching_ids = [ins.id for ins in candidate_qs if _normalize(ins.client_name) == raw_key]
+            inspections = FoodSafetyAgencyInspection.objects.filter(id__in=matching_ids)
 
             if not inspections.exists():
-                return JsonResponse({'success': False, 'error': f'No inspections found for group: {raw_group_id}'})
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No inspections found for group: {group_id}'
+                })
 
             # Validate approved_status
             valid_statuses = ['PENDING', 'APPROVED']
@@ -10280,7 +11549,19 @@ def update_group_approved(request):
                 })
 
             # Update approved_status for all inspections in the group
-            updated_count = inspections.update(approved_status=approved_status)
+            from django.utils import timezone as _tz
+            if approved_status == 'APPROVED':
+                updated_count = inspections.update(
+                    approved_status=approved_status,
+                    approved_date=_tz.now(),
+                    approved_by=request.user,
+                )
+            else:
+                updated_count = inspections.update(
+                    approved_status=approved_status,
+                    approved_date=None,
+                    approved_by=None,
+                )
 
             return JsonResponse({
                 'success': True,
@@ -11817,9 +13098,7 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                         cat_path = os.path.join(docs_path, category)
                         if os.path.exists(cat_path):
                             try:
-                                all_files_in_dir = os.listdir(cat_path)
-                                print(f"[FILES DEBUG] {category} dir has {len(all_files_in_dir)} items: {all_files_in_dir}")
-                                for filename in all_files_in_dir:
+                                for filename in os.listdir(cat_path):
                                     file_path = os.path.join(cat_path, filename)
                                     if os.path.isfile(file_path):
                                         file_key = f"{filename}_{os.path.getsize(file_path)}"
@@ -11827,9 +13106,6 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                                             file_info = get_file_info(file_path, category)
                                             files_by_category[category].append(file_info)
                                             added_files.add(file_key)
-                                            print(f"[FILES DEBUG] Added {category} file: {filename}")
-                                        else:
-                                            print(f"[FILES DEBUG] SKIPPED duplicate {category} file: {filename} (key={file_key})")
                             except (OSError, PermissionError):
                                 pass
 
@@ -11920,9 +13196,6 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
         # Debug output
         total = sum(len(f) for f in files_by_category.values())
         print(f"[FILES] Found {total} files for {client_name} on {inspection_date}")
-        for cat, flist in files_by_category.items():
-            if flist:
-                print(f"[FILES]   {cat}: {len(flist)} file(s) -> {[f.get('name', '?') for f in flist]}")
 
         return files_by_category
 
@@ -13032,6 +14305,7 @@ def get_page_clients_file_status(request):
 
                 # OPTIMIZATION 1: Database check first (fastest - no file system access)
                 date_obj = datetime.strptime(str(inspection_date), '%Y-%m-%d').date()
+
                 inspections = FoodSafetyAgencyInspection.objects.filter(
                     client_name=client_name,
                     date_of_inspection=date_obj
@@ -13277,14 +14551,14 @@ def get_page_clients_file_status(request):
                                             if has_composition_dir:
                                                 break
 
-                # Check actual file existence on disk AND sync database records
-                # If files exist on disk but database doesn't have uploader info, update database
-                has_rfi = has_rfi_dir
-                has_invoice = has_invoice_dir
-                has_lab = has_lab_dir
-                has_retest = has_retest_dir
-                has_occurrence = has_occurrence_dir
-                has_composition = has_composition_dir
+                # Merge new structure results with legacy directory results
+                # (new structure check already set has_rfi etc. above; OR with legacy results)
+                has_rfi = has_rfi or has_rfi_dir
+                has_invoice = has_invoice or has_invoice_dir
+                has_lab = has_lab or has_lab_dir
+                has_retest = has_retest or has_retest_dir
+                has_occurrence = has_occurrence or has_occurrence_dir
+                has_composition = has_composition or has_composition_dir
 
                 # SYNC DATABASE: Update database records to match actual files on disk
                 if has_rfi or has_invoice or has_lab or has_retest or has_composition:
@@ -13318,7 +14592,7 @@ def get_page_clients_file_status(request):
                         # explicitly uploads a document for that specific product.
                         # Auto-syncing would incorrectly mark ALL products as uploaded when
                         # only one file exists in the folder.
-                has_compliance = has_compliance_dir
+                has_compliance = has_compliance or has_compliance_dir
                 
                 # Determine status for this specific client+date combination
                 # Match sent status logic: only require RFI, Invoice, and Compliance
@@ -13398,7 +14672,7 @@ def download_all_inspection_files(request):
         import os
         import zipfile
         import tempfile
-        from django.http import HttpResponse
+        from django.http import HttpResponse, FileResponse
         from django.conf import settings
         from datetime import datetime
         import re
@@ -13565,175 +14839,237 @@ def download_all_inspection_files(request):
                                     safe_print(f"Found docs file: {filename} in {cat} (inspection {inspection.id})")
 
         if not matching_folders and not docs_files:
-            return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'})
+            return JsonResponse({'success': False, 'error': f'No files found for {client_name}. Searched in {inspection_base} and docs/'}, status=404)
 
-        # Collect all files grouped by category
-        # Each entry: { 'category': [(file_path, filename), ...] }
-        files_by_category = {}
-        added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
-
-        def normalize_category(category):
-            """Map folder names to standard category labels."""
-            cat_lower = category.lower()
-            if cat_lower in ['request for invoice', 'rfi']:
-                return 'RFI'
-            elif cat_lower == 'invoice':
-                return 'Invoice'
-            elif cat_lower in ['lab', 'lab results', 'coa']:
-                return 'COA'
-            elif cat_lower in ['labform', 'lab_form']:
-                return 'Lab_Form'
-            elif cat_lower == 'compliance':
-                return 'Compliance'
-            elif cat_lower == 'composition':
-                return 'Composition'
-            elif cat_lower == 'retest':
-                return 'Retest'
-            elif cat_lower == 'occurrence':
-                return 'Occurrence'
-            elif cat_lower == 'other':
-                return 'Other'
-            return category
-
-        def add_file_to_category(file_path, filename, category):
-            """Add a file to the category bucket after dedup check."""
-            try:
-                if not os.path.exists(file_path):
-                    safe_print(f"Skipping {filename} - file no longer exists")
-                    return False
-
-                stat = os.stat(file_path)
-                file_size = stat.st_size
-                file_modified = stat.st_mtime
-                file_key = f"{filename}_{file_size}_{file_modified}"
-
-                if file_key not in added_files:
-                    norm_cat = normalize_category(category)
-                    if norm_cat not in files_by_category:
-                        files_by_category[norm_cat] = []
-                    files_by_category[norm_cat].append((file_path, filename))
-                    added_files[file_key] = True
-                    safe_print(f"Collected {norm_cat}: {filename} ({file_size} bytes)")
-                    return True
-                else:
-                    safe_print(f"Skipped (exact duplicate): {filename}")
-                    return False
-            except Exception as e:
-                safe_print(f"Error collecting file {filename}: {e}")
-                norm_cat = normalize_category(category)
-                if norm_cat not in files_by_category:
-                    files_by_category[norm_cat] = []
-                files_by_category[norm_cat].append((file_path, filename))
-                return True
-
-        # First collect files from docs structure
-        for file_path, category, filename in docs_files:
-            add_file_to_category(file_path, filename, category)
-
-        # Process all matching client folders (legacy structure)
-        for base_path in matching_folders:
-            folder_name = os.path.basename(base_path)
-            safe_print(f"Processing folder: {folder_name} at {base_path}")
-
-            if os.path.exists(base_path):
-                folder_contents = os.listdir(base_path)
-                safe_print(f"Folder contents: {folder_contents}")
-
-            categories = ['Request For Invoice', 'rfi', 'invoice', 'lab results', 'lab', 'retest', 'labform', 'coa', 'composition', 'occurrence', 'other']
-
-            for category in categories:
-                category_path = os.path.join(base_path, category)
-                if os.path.exists(category_path):
-                    safe_print(f"Found {category} folder")
-                    for filename in os.listdir(category_path):
-                        file_path = os.path.join(category_path, filename)
-                        if os.path.isfile(file_path):
-                            if is_file_for_inspection_date(filename, inspection_date):
-                                # Detect lab_form files even in other folders
-                                if '_lab_form_' in filename.lower() or '_labform_' in filename.lower() or 'lab-form' in filename.lower() or '-lab-form' in filename.lower() or category == 'labform':
-                                    add_file_to_category(file_path, filename, 'lab_form')
-                                else:
-                                    add_file_to_category(file_path, filename, category)
-                            else:
-                                safe_print(f"Skipped {category} (wrong date): {filename}")
-                else:
-                    safe_print(f"No {category} folder found")
-
-            # Check for compliance documents (legacy Compliance/commodity subfolders)
-            compliance_base = os.path.join(base_path, 'Compliance')
-            if os.path.exists(compliance_base):
-                safe_print(f"Found Compliance folder: {compliance_base}")
-                for commodity_folder in os.listdir(compliance_base):
-                    commodity_path = os.path.join(compliance_base, commodity_folder)
-                    if os.path.isdir(commodity_path):
-                        for filename in os.listdir(commodity_path):
-                            file_path = os.path.join(commodity_path, filename)
-                            if os.path.isfile(file_path):
-                                if is_file_for_inspection_date(filename, inspection_date):
-                                    add_file_to_category(file_path, filename, 'compliance')
-                                else:
-                                    safe_print(f"   Skipped compliance (wrong date): {filename}")
-
-        total_files = sum(len(files) for files in files_by_category.values())
-        if total_files == 0:
-            return JsonResponse({'success': False, 'error': 'No files found to download'})
-
-        safe_print(f"Collected {total_files} files across {len(files_by_category)} categories: {list(files_by_category.keys())}")
-
-        # Create outer ZIP containing separate category ZIPs
+        # Create temporary ZIP file
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
 
         try:
-            safe_folder_name = re.sub(r'[^a-zA-Z0-9._-]', '_', f"{client_name}_{inspection_date}")
-            safe_folder_name = re.sub(r'_+', '_', safe_folder_name).strip('_')
+            with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                files_added = 0
+                added_files = {}  # Track added files by filename + size + modified time to avoid true duplicates
+                used_arcnames = set()  # Track used archive names for flat structure
 
-            with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as outer_zip:
-                for category_name, file_list in files_by_category.items():
-                    # Create an in-memory ZIP for this category
-                    import io
-                    category_buffer = io.BytesIO()
-                    used_names = set()
+                # Create a single parent folder name for all files
+                safe_folder_name = re.sub(r'[^a-zA-Z0-9._-]', '_', f"{client_name}_{inspection_date}")
+                safe_folder_name = re.sub(r'_+', '_', safe_folder_name).strip('_')
 
-                    with zipfile.ZipFile(category_buffer, 'w', zipfile.ZIP_DEFLATED) as cat_zip:
-                        for file_path, filename in file_list:
-                            try:
-                                # Handle duplicate filenames within category
-                                arc_name = filename
-                                if arc_name in used_names:
-                                    name, ext = os.path.splitext(filename)
-                                    counter = 1
-                                    while f"{name}_{counter}{ext}" in used_names:
-                                        counter += 1
-                                    arc_name = f"{name}_{counter}{ext}"
-                                used_names.add(arc_name)
-                                cat_zip.write(file_path, arc_name)
-                            except Exception as e:
-                                safe_print(f"Error adding {filename} to {category_name} zip: {e}")
+                def get_unique_arcname(base_filename):
+                    """Get a unique filename for flat ZIP structure, adding suffix if needed."""
+                    if base_filename not in used_arcnames:
+                        used_arcnames.add(base_filename)
+                        return f"{safe_folder_name}/{base_filename}"
+                    # Add numeric suffix to make unique
+                    name, ext = os.path.splitext(base_filename)
+                    counter = 1
+                    while f"{name}_{counter}{ext}" in used_arcnames:
+                        counter += 1
+                    unique_name = f"{name}_{counter}{ext}"
+                    used_arcnames.add(unique_name)
+                    return f"{safe_folder_name}/{unique_name}"
 
-                    # Write the category ZIP into the outer ZIP
-                    category_zip_name = f"{safe_folder_name}/{category_name}.zip"
-                    outer_zip.writestr(category_zip_name, category_buffer.getvalue())
-                    safe_print(f"Created {category_name}.zip ({len(file_list)} files, {len(category_buffer.getvalue())} bytes)")
+                # First add files from docs structure
+                for file_path, category, filename in docs_files:
+                    try:
+                        # Verify file still exists before adding (prevent race conditions with deletions)
+                        if not os.path.exists(file_path):
+                            safe_print(f"Skipping {filename} - file no longer exists")
+                            continue
 
-            # Prepare response
+                        file_size = os.path.getsize(file_path)
+                        file_mtime = os.path.getmtime(file_path)
+                        file_key = f"{filename}_{file_size}_{file_mtime}"
+
+                        if file_key not in added_files:
+                            # Add to ZIP with flat structure (all files in root)
+                            zip_path = get_unique_arcname(filename)
+                            zip_file.write(file_path, zip_path)
+                            added_files[file_key] = True
+                            files_added += 1
+                            safe_print(f"Added docs file to ZIP: {zip_path}")
+                    except Exception as e:
+                        safe_print(f"Error adding docs file {filename}: {e}")
+
+                # Process all matching client folders (legacy structure)
+                for base_path in matching_folders:
+                    folder_name = os.path.basename(base_path)
+                    safe_print(f"Processing folder: {folder_name} at {base_path}")
+                    
+                    # Check what's actually in this folder
+                    if os.path.exists(base_path):
+                        folder_contents = os.listdir(base_path)
+                        safe_print(f"Folder contents: {folder_contents}")
+                    
+                    # Define categories to check (using actual folder names)
+                    # Include all document types: RFI, Invoice, Lab Form, COA, Composition, Lab Results, Retest, Occurrence, Other
+                    categories = ['Request For Invoice', 'rfi', 'invoice', 'lab results', 'lab', 'retest', 'labform', 'coa', 'composition', 'occurrence', 'other']
+                    
+                    # Check each category folder
+                    for category in categories:
+                        category_path = os.path.join(base_path, category)
+                        if os.path.exists(category_path):
+                            safe_print(f"Found {category} folder")
+                            for filename in os.listdir(category_path):
+                                file_path = os.path.join(category_path, filename)
+                                if os.path.isfile(file_path):
+                                    # Filter files by inspection date to avoid mixing different dates
+                                    if is_file_for_inspection_date(filename, inspection_date):
+                                        # Extract inspection ID from filename
+                                        inspection_id = None
+                                        id_match = re.match(r'^(\d+)_', filename)
+                                        if id_match:
+                                            inspection_id = id_match.group(1)
+                                        
+                                        # Determine document type from filename and category
+                                        if '_lab_form_' in filename.lower() or '_labform_' in filename.lower() or 'lab-form' in filename.lower() or '-lab-form' in filename.lower() or category == 'labform':
+                                            doc_type = 'Lab Form'
+                                        elif category in ['lab', 'lab results']:
+                                            doc_type = 'Lab'
+                                        elif category in ['Request For Invoice', 'rfi']:
+                                            doc_type = 'RFI'
+                                        elif category == 'invoice':
+                                            doc_type = 'Invoice'
+                                        elif category == 'retest':
+                                            doc_type = 'Retest'
+                                        elif category == 'coa':
+                                            doc_type = 'COA'
+                                        elif category == 'composition':
+                                            doc_type = 'Composition'
+                                        elif category == 'occurrence':
+                                            doc_type = 'Occurrence'
+                                        elif category == 'other':
+                                            doc_type = 'Other'
+                                        else:
+                                            doc_type = category
+                                        
+                                        # Get file stats for duplicate detection
+                                        try:
+                                            # Verify file still exists before adding (prevent race conditions with deletions)
+                                            if not os.path.exists(file_path):
+                                                safe_print(f"Skipping {filename} - file no longer exists")
+                                                continue
+
+                                            stat = os.stat(file_path)
+                                            file_size = stat.st_size
+                                            file_modified = stat.st_mtime
+                                            file_key = f"{filename}_{file_size}_{file_modified}"
+
+                                            # Check if we've already added this exact file (same name, size, and modified time)
+                                            if file_key not in added_files:
+                                                # Flat structure: all files in single folder
+                                                arcname = get_unique_arcname(filename)
+                                                zip_file.write(file_path, arcname)
+                                                added_files[file_key] = arcname
+                                                files_added += 1
+                                                safe_print(f"Added {category}: {arcname} ({file_size} bytes)")
+                                            else:
+                                                safe_print(f"Skipped {category} (exact duplicate): {filename}")
+                                        except Exception as e:
+                                            safe_print(f"Error getting file stats for {file_path}: {e}")
+                                            # If we can't get stats, include the file to be safe
+                                            arcname = get_unique_arcname(filename)
+                                            zip_file.write(file_path, arcname)
+                                            files_added += 1
+                                            safe_print(f"Added {category}: {arcname} (no stats)")
+                                    else:
+                                        safe_print(f"Skipped {category} (wrong date): {filename}")
+                        else:
+                            safe_print(f"No {category} folder found")
+                    
+                    # Check for compliance documents
+                    compliance_base = os.path.join(base_path, 'Compliance')
+                    if os.path.exists(compliance_base):
+                        safe_print(f"Found Compliance folder: {compliance_base}")
+                        compliance_contents = os.listdir(compliance_base)
+                        safe_print(f"Compliance folder contents: {compliance_contents}")
+                        
+                        # Check all commodity subfolders
+                        for commodity_folder in compliance_contents:
+                            commodity_path = os.path.join(compliance_base, commodity_folder)
+                            if os.path.isdir(commodity_path):
+                                safe_print(f"Checking commodity folder: {commodity_folder}")
+                                commodity_files = os.listdir(commodity_path)
+                                safe_print(f"Commodity {commodity_folder} files: {commodity_files}")
+                                
+                                for filename in commodity_files:
+                                    file_path = os.path.join(commodity_path, filename)
+                                    if os.path.isfile(file_path):
+                                        # Filter compliance files by inspection date
+                                        if is_file_for_inspection_date(filename, inspection_date):
+                                            # Get file stats for duplicate detection
+                                            try:
+                                                stat = os.stat(file_path)
+                                                file_size = stat.st_size
+                                                file_modified = stat.st_mtime
+
+                                                # For compliance files, use filename + size for duplicate detection
+                                                file_key = f"{filename}_{file_size}"
+
+                                                # Check if we've already added this exact file (same name and size)
+                                                if file_key not in added_files:
+                                                    # Flat structure: all files in single folder
+                                                    arcname = get_unique_arcname(filename)
+                                                    zip_file.write(file_path, arcname)
+                                                    added_files[file_key] = arcname
+                                                    files_added += 1
+                                                    safe_print(f"   Added compliance: {arcname} ({file_size} bytes)")
+                                                else:
+                                                    safe_print(f"   Skipped compliance (exact duplicate): {filename}")
+                                            except Exception as e:
+                                                safe_print(f"   Error getting file stats for {file_path}: {e}")
+                                                # If we can't get stats, include the file to be safe
+                                                arcname = get_unique_arcname(filename)
+                                                zip_file.write(file_path, arcname)
+                                                files_added += 1
+                                                safe_print(f"   Added compliance: {arcname} (no stats)")
+                                        else:
+                                            safe_print(f"   Skipped compliance (wrong date): {filename}")
+                    else:
+                        safe_print(f"No Compliance folder found at: {compliance_base}")
+                
+                if files_added == 0:
+                    return JsonResponse({'success': False, 'error': 'No files found to download'}, status=404)
+            
+            # Prepare response - stream from disk instead of loading into memory
             zip_filename = f"{client_name}_{inspection_date}_inspection_files.zip"
             zip_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', zip_filename)
 
-            with open(temp_zip.name, 'rb') as zip_file:
-                zip_content = zip_file.read()
+            zip_size = os.path.getsize(temp_zip.name)
+            zip_file_handle = open(temp_zip.name, 'rb')
 
-            response = HttpResponse(zip_content, content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-            response['Content-Length'] = len(zip_content)
+            # FileResponse streams the file in chunks and closes the handle when done
+            response = FileResponse(
+                zip_file_handle,
+                content_type='application/zip',
+                as_attachment=True,
+                filename=zip_filename
+            )
+            response['Content-Length'] = zip_size
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
 
-            safe_print(f"ZIP created successfully: {zip_filename} ({total_files} files in {len(files_by_category)} category zips)")
+            safe_print(f"ZIP created successfully: {zip_filename} ({files_added} files, {zip_size} bytes)")
+
+            # Schedule temp file cleanup after response is sent
+            # FileResponse will close the handle; we delete the file via callback
+            original_close = response.close
+            temp_name = temp_zip.name
+            def cleanup_close():
+                original_close()
+                try:
+                    os.unlink(temp_name)
+                except OSError:
+                    pass
+            response.close = cleanup_close
+
             return response
 
         finally:
-            try:
-                os.unlink(temp_zip.name)
-            except:
-                pass
+            # Cleanup only if response was NOT returned (i.e. error path)
+            if 'response' not in locals():
+                try:
+                    os.unlink(temp_zip.name)
+                except OSError:
+                    pass
                 
     except Exception as e:
         safe_print(f"Error creating ZIP: {e}")
@@ -13753,14 +15089,9 @@ def update_sent_status(request):
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     try:
-        raw_group_id = request.POST.get('group_id')
+        group_id = request.POST.get('group_id')
         sent_status = request.POST.get('sent_status')
         inspection_group_id = request.POST.get('inspection_group_id')  # NEW: Database group ID
-
-        # Strip _g{pk} suffix from group_id
-        group_id, ig_pk = _parse_group_id(raw_group_id)
-        if not inspection_group_id and ig_pk:
-            inspection_group_id = ig_pk
 
         print(f" Group ID: '{group_id}', Status: '{sent_status}', inspection_group_id: '{inspection_group_id}'")
 
@@ -13955,25 +15286,36 @@ def download_inspection_file(request):
         import os
         from django.http import FileResponse, Http404, HttpResponseRedirect
         from django.conf import settings
-        from urllib.parse import unquote
-        
+
         file_param = request.GET.get('file', '')
-        source = request.GET.get('source', 'local')  # 'local' or 'onedrive'
-        
+        source = request.GET.get('source', 'local')
+        action = request.GET.get('action', 'download')
+
+        print(f"[DOWNLOAD DEBUG] ========== DOWNLOAD REQUEST ==========")
+        print(f"[DOWNLOAD DEBUG] file_param: '{file_param}'")
+        print(f"[DOWNLOAD DEBUG] source: '{source}'")
+        print(f"[DOWNLOAD DEBUG] action: '{action}'")
+        print(f"[DOWNLOAD DEBUG] Full query string: {request.META.get('QUERY_STRING', '')}")
+
         if not file_param:
+            print(f"[DOWNLOAD DEBUG] ERROR: No file parameter provided")
             raise Http404("File not specified")
-        
-        # Decode URL-encoded filename
-        relative_path = unquote(file_param)
-        
+
+        # Django's request.GET.get() already URL-decodes the parameter
+        relative_path = file_param
+        print(f"[DOWNLOAD DEBUG] relative_path: '{relative_path}'")
+
         if source == 'onedrive':
-            # Handle OneDrive file download
+            print(f"[DOWNLOAD DEBUG] Routing to OneDrive download")
             return download_onedrive_file(request, relative_path)
         else:
-            # Handle local file download (existing logic)
+            print(f"[DOWNLOAD DEBUG] Routing to local file download")
             return download_local_file(request, relative_path)
-        
+
+    except Http404:
+        raise
     except Exception as e:
+        print(f"[DOWNLOAD DEBUG] EXCEPTION: {type(e).__name__}: {str(e)}")
         raise Http404(f"Error serving file: {str(e)}")
 
 
@@ -14027,81 +15369,114 @@ def download_onedrive_file(request, relative_path):
 
 def download_local_file(request, relative_path):
     """Download file from local media folder."""
+    import os
+    from django.http import FileResponse, Http404
+    from django.conf import settings
+    from urllib.parse import quote
+
+    print(f"[DOWNLOAD DEBUG] === download_local_file ===")
+    print(f"[DOWNLOAD DEBUG] relative_path: '{relative_path}'")
+    print(f"[DOWNLOAD DEBUG] MEDIA_ROOT: '{settings.MEDIA_ROOT}'")
+
+    # Normalize path separators
+    normalized_relative_path = relative_path.replace('\\', '/')
+    print(f"[DOWNLOAD DEBUG] normalized_relative_path: '{normalized_relative_path}'")
+
+    # Security: Ensure file is within allowed directories (inspection/ or docs/)
+    if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
+        print(f"[DOWNLOAD DEBUG] ❌ ACCESS DENIED - path doesn't start with 'inspection/' or 'docs/'")
+        raise Http404("Access denied")
+
+    # Build full file path - normalize path separators for Windows
+    normalized_path = normalized_relative_path.replace('/', os.sep)
+    file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
+    print(f"[DOWNLOAD DEBUG] file_path: '{file_path}'")
+
+    # Additional security: Ensure resolved path is still within MEDIA_ROOT
+    # Check BEFORE touching filesystem to prevent path traversal
+    real_path = os.path.realpath(file_path)
+    media_root_real = os.path.realpath(settings.MEDIA_ROOT)
+    print(f"[DOWNLOAD DEBUG] real_path: '{real_path}'")
+    print(f"[DOWNLOAD DEBUG] media_root_real: '{media_root_real}'")
+    print(f"[DOWNLOAD DEBUG] File exists: {os.path.exists(real_path)}")
+    print(f"[DOWNLOAD DEBUG] Is file: {os.path.isfile(real_path) if os.path.exists(real_path) else 'N/A'}")
+    if not real_path.startswith(media_root_real + os.sep):
+        print(f"[DOWNLOAD DEBUG] ❌ ACCESS DENIED - path traversal check failed")
+        raise Http404("Access denied")
+
+    # Determine content type and filename
+    filename = os.path.basename(file_path)
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    print(f"[DOWNLOAD DEBUG] filename: '{filename}', ext: '{ext}'")
+
+    content_types = {
+        'pdf': 'application/pdf',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'zip': 'application/zip',
+        'txt': 'text/plain',
+        'csv': 'text/csv',
+        'svg': 'image/svg+xml',
+    }
+
+    content_type = content_types.get(ext, 'application/octet-stream')
+    print(f"[DOWNLOAD DEBUG] content_type: '{content_type}'")
+
+    # Check if action is view or download
+    action = request.GET.get('action', 'download')
+    is_download = action != 'view'
+    print(f"[DOWNLOAD DEBUG] action: '{action}', is_download: {is_download}")
+
+    # Open file with proper error handling for race conditions
     try:
-        import os
-        from django.http import FileResponse, Http404
-        from django.conf import settings
-
-        print(f"[DOWNLOAD DEBUG] Download request: {relative_path}")
-
-        # Normalize path separators
-        normalized_relative_path = relative_path.replace('\\', '/')
-
-        # Security: Ensure file is within allowed directories (inspection/ or docs/)
-        if not (normalized_relative_path.startswith('inspection/') or normalized_relative_path.startswith('docs/')):
-            print(f"[DOWNLOAD DEBUG] Download 404: Access denied - path doesn't start with 'inspection/' or 'docs/': {relative_path}")
-            raise Http404("Access denied")
-
-        # Build full file path - normalize path separators for Windows
-        normalized_path = normalized_relative_path.replace('/', os.sep)
-        file_path = os.path.join(settings.MEDIA_ROOT, normalized_path)
-        
-        # Security: Ensure file exists and is within allowed directory
-        if not os.path.exists(file_path):
-            print(f" Download 404: File does not exist: {file_path}")
-            raise Http404(f"File not found: {relative_path}")
-        
-        if not os.path.isfile(file_path):
-            print(f" Download 404: Path is not a file: {file_path}")
-            raise Http404(f"Path is not a file: {relative_path}")
-        
-        # Additional security: Ensure resolved path is still within MEDIA_ROOT
-        real_path = os.path.realpath(file_path)
-        media_root_real = os.path.realpath(settings.MEDIA_ROOT)
-        if not real_path.startswith(media_root_real):
-            raise Http404("Access denied")
-        
-        # Determine content type
-        content_type = 'application/octet-stream'
-        filename = os.path.basename(file_path)
-        ext = filename.split('.')[-1].lower()
-        
-        content_types = {
-            'pdf': 'application/pdf',
-            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'xls': 'application/vnd.ms-excel',
-            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'doc': 'application/msword',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'zip': 'application/zip'
-        }
-        
-        content_type = content_types.get(ext, content_type)
-
-        # Check if action is view or download
-        action = request.GET.get('action', 'download')
-        is_download = action != 'view'
-
-        # Create file response
-        response = FileResponse(
-            open(file_path, 'rb'),
-            content_type=content_type,
-            as_attachment=is_download,
-            filename=filename
-        )
-
-        # Set headers based on action
-        if is_download:
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        file_handle = open(real_path, 'rb')
+        print(f"[DOWNLOAD DEBUG] ✅ File opened successfully")
+    except FileNotFoundError:
+        print(f"[DOWNLOAD DEBUG] ❌ FileNotFoundError: {real_path}")
+        # List the parent directory to help debug
+        parent_dir = os.path.dirname(real_path)
+        if os.path.exists(parent_dir):
+            dir_contents = os.listdir(parent_dir)
+            print(f"[DOWNLOAD DEBUG] Parent dir '{parent_dir}' exists, contents ({len(dir_contents)} items): {dir_contents[:20]}")
         else:
-            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            print(f"[DOWNLOAD DEBUG] Parent dir '{parent_dir}' does NOT exist")
+        raise Http404(f"File not found: {relative_path}")
+    except PermissionError:
+        print(f"[DOWNLOAD DEBUG] ❌ PermissionError: {real_path}")
+        raise Http404("Permission denied")
 
-        return response
-        
-    except Exception as e:
-        raise Http404(f"Error serving file: {str(e)}")
+    # Get file size for Content-Length header
+    file_size = os.fstat(file_handle.fileno()).st_size
+    print(f"[DOWNLOAD DEBUG] ✅ File size: {file_size} bytes")
+
+    # Create file response - FileResponse closes the file handle when done
+    response = FileResponse(
+        file_handle,
+        content_type=content_type,
+        as_attachment=is_download,
+        filename=filename
+    )
+
+    # RFC 5987 encoding for filenames with special characters
+    ascii_filename = filename.encode('ascii', 'ignore').decode('ascii')
+    encoded_filename = quote(filename)
+
+    if is_download:
+        response['Content-Disposition'] = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+    else:
+        response['Content-Disposition'] = f'inline; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+
+    response['Content-Length'] = file_size
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+
+    return response
 
 
 @login_required
@@ -14162,110 +15537,170 @@ def get_zip_contents(request):
 
 @login_required
 def send_group_documents(request):
-    """Send all documents for a grouped inspection via email."""
+    """Send all documents for a grouped inspection via email and mark as sent."""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
-    
+
     try:
         import json
         import os
         from datetime import datetime
         from django.conf import settings
         from django.core.mail import EmailMessage
-        
+        from django.utils import timezone
+
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
+        inspection_group_id = data.get('inspection_group_id', '')
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
-        
-        # Parse date and build folder path
-        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
-        year_folder = date_obj.strftime('%Y')
-        month_folder = date_obj.strftime('%B')
-        
-        # Use original client name for folder structure (folders now use original names)
-        client_folder = client_name or 'Unknown Client'
-        
-        # Base client path
-        client_base_path = os.path.join(
-            settings.MEDIA_ROOT,
-            'inspection',
-            year_folder,
-            month_folder,
-            client_folder
-        )
-        
-        # Collect all available documents
-        document_categories = ['rfi', 'invoice', 'lab', 'retest']
+
+        # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
+        files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
+
         attachments = []
         documents_found = []
-        
-        for category in document_categories:
-            category_path = os.path.join(client_base_path, category)
-            if os.path.exists(category_path):
-                for filename in os.listdir(category_path):
-                    file_path = os.path.join(category_path, filename)
-                    if os.path.isfile(file_path) and filename.lower().endswith('.pdf'):
-                        attachments.append(file_path)
-                        documents_found.append(f"{category.upper()}: {filename}")
-        
-        # Also check compliance documents
-        compliance_path = os.path.join(client_base_path, 'Compliance')
-        if os.path.exists(compliance_path):
-            for commodity in ['RAW', 'PMP', 'POULTRY', 'EGGS']:
-                commodity_path = os.path.join(compliance_path, commodity)
-                if os.path.exists(commodity_path):
-                    for filename in os.listdir(commodity_path):
-                        file_path = os.path.join(commodity_path, filename)
-                        if os.path.isfile(file_path):
-                            attachments.append(file_path)
-                            documents_found.append(f"Compliance/{commodity}: {filename}")
-        
-        if not attachments:
-            return JsonResponse({
-                'success': False,
-                'error': 'No documents found to send. Please upload RFI, Invoice, Lab results, or other documents first.'
-            })
-        
-        # Get client email (you'll need to implement client email lookup)
-        # For now, using a placeholder - you can extend this to get actual client emails
-        recipient_email = get_client_email(client_name)  # Function to implement
-        
+        for category, file_list in files_by_category.items():
+            for file_info in file_list:
+                # Reconstruct full path from relative_path and MEDIA_ROOT
+                rel_path = file_info.get('relative_path', '')
+                if rel_path:
+                    full_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                    if os.path.isfile(full_path):
+                        attachments.append(full_path)
+                        documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+
+        # Get client email (pass inspection_group_id for reliable FK lookup)
+        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+
         if not recipient_email:
             return JsonResponse({
                 'success': False,
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
-        
-        # Create email
-        subject = f'Inspection Documents - {client_name} - {inspection_date}'
-        message = f"""
-Dear {client_name},
 
-Please find attached the inspection documents for the inspection conducted on {inspection_date}.
+        # Get commodities inspected for this group
+        from ..models import FoodSafetyAgencyInspection
+        date_obj = datetime.strptime(inspection_date, '%Y-%m-%d')
+        if inspection_group_id:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=inspection_group_id)
+        else:
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj.date()
+            )
 
-Documents included:
-{chr(10).join('• ' + doc for doc in documents_found)}
+        # Map commodity codes to full regulation descriptions
+        commodity_regulations = {
+            'PMP': 'Processed Meat Products (Regulation R.1283 of 4 October 2019)',
+            'RAW': 'Certain Raw Processed Meat Products (Regulation R.2410 of 26 August 2022)',
+            'EGGS': 'Eggs (Regulation R.345 of 20 March 2020)',
+            'POULTRY': 'Poultry Meat (Consolidated Document: R.946 of 27 March 1992, R.988 of 25 July 1997, and R.471 of 22 April 2016)',
+        }
 
-Best regards,
-Food Safety Agency (Pty) Ltd
-        """.strip()
-        
+        # Get distinct commodities from the inspections (dedupe by uppercase key)
+        distinct_commodities = group_inspections.values_list('commodity', flat=True).distinct()
+        seen_commodities = set()
+        commodity_lines = ''
+        for commodity in distinct_commodities:
+            if commodity and commodity.strip().upper() not in seen_commodities:
+                seen_commodities.add(commodity.strip().upper())
+                label = commodity_regulations.get(commodity.strip().upper(), commodity)
+                commodity_lines += f'<li style="margin-bottom: 6px;">{label}</li>'
+
+        # Build dynamic document category display names
+        category_display = {
+            'rfi': 'Request for Invoice',
+            'invoice': 'Invoice',
+            'lab': 'Lab Results',
+            'lab_form': 'Lab Form',
+            'retest': 'Retest Results',
+            'compliance': 'Compliance Report',
+            'occurrence': 'Occurrence Report',
+            'composition': 'Composition Report',
+            'other': 'Other Documents',
+        }
+        # Collect categories that have actual files attached
+        attached_categories = set()
+        for category, file_list in files_by_category.items():
+            if file_list:
+                attached_categories.add(category)
+
+        documents_lines = ''
+        for cat_key, cat_label in category_display.items():
+            if cat_key in attached_categories:
+                documents_lines += f'<li style="margin-bottom: 6px;">{cat_label}</li>'
+
+        # Create and send email
+        from datetime import datetime as dt_parser
+        try:
+            formatted_date = dt_parser.strptime(inspection_date, '%Y-%m-%d').strftime('%d %B %Y')
+        except (ValueError, TypeError):
+            formatted_date = inspection_date
+        subject = f'FSA Inspection Report – {client_name} – {formatted_date}'
+        html_message = f"""
+<div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
+    <p>Good day,</p>
+
+    <p>We trust this correspondence finds you well.</p>
+
+    <p>Please find attached the official documentation pertaining to the inspection(s) conducted at your facility.</p>
+
+    <p><strong>Commodity Breakdown:</strong></p>
+    <ul style="margin: 0 0 16px 20px; padding: 0;">
+        {commodity_lines}
+    </ul>
+
+    <p><strong>Documents Included:</strong></p>
+    <ul style="margin: 0 0 16px 20px; padding: 0;">
+        {documents_lines}
+    </ul>
+
+    <p><strong>Important Notice:</strong></p>
+    <p style="margin-left: 0;">
+        Where a direction has been issued, a follow-up inspection will be scheduled in accordance with the prescribed rectification timeframe.
+    </p>
+    <p>
+        Please be advised that our fees are duly gazetted, and our appointment has been made by the Minister of Agriculture.
+    </p>
+
+    <p>For any queries regarding the inspection, invoicing, or to provide feedback, kindly contact:</p>
+
+    <p style="margin-bottom: 4px;"><strong>Manager: Agricultural Products Standards</strong><br>
+    Mr. Simphiwe Mathenjwa<br>
+    <a href="mailto:simphiwe.mathenjwa@afsq.co.za">simphiwe.mathenjwa@afsq.co.za</a></p>
+
+    <p style="margin-bottom: 4px;"><strong>Manager: Compliance</strong><br>
+    Ms. Nicole Bergh<br>
+    <a href="mailto:nicole.bergh@afsq.co.za">nicole.bergh@afsq.co.za</a></p>
+
+    <p style="margin-bottom: 4px;"><strong>General Enquiries</strong><br>
+    Email: <a href="mailto:Info@afsq.co.za">Info@afsq.co.za</a><br>
+    Call: (012) 361-1937</p>
+
+    <p>We appreciate your continued cooperation and commitment to regulatory compliance and quality assurance. Please review the attached documentation at your convenience.</p>
+
+    <p>Kind Regards / Vriendelike Groete</p>
+</div>
+"""
+
         email = EmailMessage(
             subject=subject,
-            body=message,
+            body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient_email],
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
-        
-        # Attach all documents
+        email.content_subtype = 'html'
+
         for file_path in attachments:
             email.attach_file(file_path)
-        
-        # Send email
-            email.send()
-        
+
+        email.send()
+
+        # Mark inspections as sent (reuse group_inspections queryset from above)
+        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
+
         # Log the activity
         from ..models import SystemLog
         SystemLog.log_activity(
@@ -14274,7 +15709,7 @@ Food Safety Agency (Pty) Ltd
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name}',
+            description=f'Sent {len(attachments)} documents for {client_name} to {recipient_email}',
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
@@ -14282,33 +15717,92 @@ Food Safety Agency (Pty) Ltd
                 'recipient': recipient_email
             }
         )
-        
+
+        # Get sender display name
+        sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        sent_time = timezone.now().strftime('%d %b %Y %H:%M')
+
         return JsonResponse({
             'success': True,
             'message': f'Documents sent successfully to {recipient_email}',
             'recipients': recipient_email,
             'documents_sent': len(attachments),
-            'email_id': f'inspection_{group_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+            'sent_by': sender_name,
+            'sent_time': sent_time,
         })
-        
+
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-def get_client_email(client_name):
-    """Get client email address from database (manual override preferred)."""
-    try:
-        from ..models import Client
-        
-        # Try to find client by business name (client_id field)
-        client = Client.objects.filter(client_id__iexact=client_name).first()
-        
-        if client:
-            return client.manual_email or client.email
-        
-        # If no email found, return None for now
+def get_client_email(client_name, inspection_group_id=None):
+    """Get client email address from database (manual override preferred).
+
+    Lookup order:
+    1. Via inspection's client FK (most reliable - avoids name mismatch issues)
+    2. By client_id field (iexact)
+    3. By client name field (iexact)
+    4. Normalized name search (strips hyphens, punctuation for fuzzy match)
+    """
+    import re
+
+    def _extract_email(client):
+        """Return first available email from a Client object."""
+        if client.manual_email:
+            return client.manual_email.split(',')[0].strip()
+        if client.email:
+            return client.email.split(',')[0].strip()
+        from ..models import ClientEmail
+        client_email = ClientEmail.objects.filter(client=client).first()
+        if client_email:
+            return client_email.email
         return None
-        
+
+    try:
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection
+
+        # 1. Try via inspection's client FK (most reliable)
+        if inspection_group_id:
+            insp = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id,
+                client__isnull=False
+            ).select_related('client').first()
+            if insp and insp.client:
+                email = _extract_email(insp.client)
+                if email:
+                    return email
+
+        # 2. Try by client_id field
+        client = Client.objects.filter(client_id__iexact=client_name).first()
+        if client:
+            email = _extract_email(client)
+            if email:
+                return email
+
+        # 3. Try by name field
+        client = Client.objects.filter(name__iexact=client_name).first()
+        if client:
+            email = _extract_email(client)
+            if email:
+                return email
+
+        # 4. Normalized search (strips hyphens, punctuation - matches page display logic)
+        def _norm(text):
+            cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
+            return re.sub(r"\s+", " ", cleaned).strip().lower()
+
+        norm_name = _norm(client_name)
+        if norm_name:
+            for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
+                if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
+                    email = _extract_email(c)
+                    if email:
+                        return email
+
+        return None
+
     except Exception:
         return None
 
@@ -15007,7 +16501,6 @@ def download_first_10_compliance_by_commodity(request):
             fast_candidates = drive.search_files_in_folder_by_tokens(folder_id, tokens, request=request, max_items=50)
             for fc in fast_candidates:
                 name = fc.get('name') or ''
-                import re as _re
                 m = _re.match(r'^([A-Za-z]+)-([A-Z]{2}-[A-Z]{3}-[A-Z]{3}-[A-Z]{2,3}-\d+)-(\d{4}-\d{2}-\d{2})', name)
                 if not m:
                     continue
@@ -15193,7 +16686,7 @@ def user_management(request):
                 messages.error(request, "Username already exists.")
             elif User.objects.filter(email=email).exists():
                 messages.error(request, "Email already exists.")
-            elif role in ('inspector', 'inspector_manager') and inspector_id:
+            elif role == 'inspector' and inspector_id:
                 # Check if inspector ID already exists
                 if InspectorMapping.objects.filter(inspector_id=inspector_id).exists():
                     messages.error(request, f"Inspector ID {inspector_id} is already assigned to another inspector.")
@@ -15356,8 +16849,8 @@ def user_management(request):
                         
                         user_to_edit.save()
                         
-                        # Handle inspector ID if role is inspector or inspector_manager
-                        if role in ('inspector', 'inspector_manager') and inspector_id:
+                        # Handle inspector ID if role is inspector
+                        if role == 'inspector' and inspector_id:
                             # Update or create inspector mapping
                             full_name = f"{first_name} {last_name}".strip() or user_to_edit.username
                             mapping, created = InspectorMapping.objects.get_or_create(
@@ -15367,26 +16860,7 @@ def user_management(request):
                             if not created:
                                 mapping.inspector_id = int(inspector_id)
                                 mapping.save()
-
-                        # Handle inspector manager allocations
-                        from main.models import InspectorManagerAllocation
-                        if role == 'inspector_manager':
-                            allocated_inspector_ids = request.POST.getlist('allocated_inspectors')
-                            # Clear existing and set new allocations
-                            InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
-                            for mapping_id in allocated_inspector_ids:
-                                try:
-                                    insp_mapping = InspectorMapping.objects.get(pk=int(mapping_id))
-                                    InspectorManagerAllocation.objects.create(
-                                        manager=user_to_edit,
-                                        inspector_mapping=insp_mapping
-                                    )
-                                except (InspectorMapping.DoesNotExist, ValueError):
-                                    pass
-                        else:
-                            # Clean up allocations if role changed away from inspector_manager
-                            InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
-
+                        
                         messages.success(request, f"User '{user_to_edit.username}' information updated successfully.")
                         
             except User.DoesNotExist:
@@ -15412,7 +16886,7 @@ def user_management(request):
     
     # Add inspector_id to each user object for easy template access
     for user in users:
-        if user.role in ('inspector', 'inspector_manager'):
+        if user.role == 'inspector':
             user.inspector_id = inspector_id_map.get(user.get_full_name() or user.username)
         else:
             user.inspector_id = None
@@ -15424,7 +16898,6 @@ def user_management(request):
         ('financial', 'Financial Administrator'),
         ('lab_technician', 'Lab Technician'),
         ('inspector', 'Inspector'),
-        ('inspector_manager', 'Inspector Manager'),
         ('developer', 'Developer'),  # Hidden role
     ]
     
@@ -15438,21 +16911,11 @@ def user_management(request):
     except Exception:
         settings = type('Settings', (), {'dark_mode': False})()
     
-    # Build manager allocation data for the template
-    from main.models import InspectorManagerAllocation
-    import json
-    manager_allocations = {}
-    for user in users:
-        if user.role == 'inspector_manager':
-            allocated = InspectorManagerAllocation.objects.filter(manager=user).select_related('inspector_mapping')
-            manager_allocations[user.id] = [a.inspector_mapping.id for a in allocated]
-
     context = {
         'users': users,
         'inspector_mappings': inspector_mappings,
         'role_choices': role_choices,
         'settings': settings,
-        'manager_allocations': json.dumps(manager_allocations),
     }
     
     # Ensure CSRF token is properly generated and available
@@ -16083,7 +17546,7 @@ def update_bought_sample(request):
                 return JsonResponse({'success': False, 'error': 'Inspection not found'})
 
             # Check if user has permission to edit this inspection
-            if request.user.role in ('inspector', 'inspector_manager'):
+            if request.user.role == 'inspector':
                 # Get the inspector ID for the current user
                 inspector_id = None
                 try:
@@ -16100,19 +17563,8 @@ def update_bought_sample(request):
                     except InspectorMapping.DoesNotExist:
                         inspector_id = None
 
-                # Build set of allowed inspector IDs and names (own + managed)
-                allowed_ids = set()
-                allowed_names = set()
-                if inspector_id:
-                    allowed_ids.add(inspector_id)
-                if request.user.role == 'inspector_manager':
-                    allowed_ids.update(request.user.get_managed_inspector_ids())
-                    allowed_names.update(n.lower() for n in request.user.get_managed_inspector_names())
-
-                # Check by ID or name
-                id_match = inspection.inspector_id is not None and inspection.inspector_id in allowed_ids
-                name_match = (getattr(inspection, 'inspector_name', '') or '').lower() in allowed_names if allowed_names else False
-                if not (id_match or name_match):
+                # Check if this inspection belongs to the current inspector
+                if not inspector_id or inspection.inspector_id != inspector_id:
                     return JsonResponse({'success': False, 'error': 'You can only edit your own inspections'})
 
             # Update the bought sample value

@@ -59,21 +59,24 @@ CSRF_TRUSTED_ORIGINS = [
     'http://portal.fsa-pty.co.za',
     'https://v4-project.moc-pty.com',
     'http://v4-project.moc-pty.com',
+    'https://portal-test.fsa-pty.co.za',
+    'http://portal-test.fsa-pty.co.za',
 ]
 
 CSRF_FAILURE_VIEW = 'main.views.core_views.csrf_failure'
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', '82.25.97.159', '167.88.43.168', 'v4-project.moc-pty.com'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'portal.fsa-pty.co.za', 'portal-test.fsa-pty.co.za', '82.25.97.159', '167.88.43.168', 'v4-project.moc-pty.com'])
 
 # Application definition
 INSTALLED_APPS = [
+    'whitenoise.runserver_nostatic',  # Must be before staticfiles to override runserver
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'whitenoise.runserver_nostatic',  # Ensures static files work in dev mode too
+    'django.contrib.humanize',
     'main',
 ]
 
@@ -134,18 +137,30 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Production MySQL database
+# Production MySQL database (master branch)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'v4_worksheet',
+#         'USER': 'v4_user',
+#         'PASSWORD': 'V4_Secure@2024!',
+#         'HOST': '167.88.43.168',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#         },
+#     },
+# }
+
+# Production PostgreSQL database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'v4_worksheet',
-        'USER': 'v4_user',
-        'PASSWORD': 'V4_Secure@2024!',
-        'HOST': '167.88.43.168',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'v4_worksheet_prod',
+        'USER': 'v4_prod_user',
+        'PASSWORD': 'V4ProdSecure2026',
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': '5432',
     },
 }
 
@@ -240,12 +255,17 @@ AUTO_ORGANIZE_ZIP_FILES = True  # Automatically organize ZIP files by inspection
 
 # Email Configuration - Using Microsoft Graph API (Same as E-Click project)
 EMAIL_BACKEND = 'main.graph_email_backend.GraphEmailBackend'
-DEFAULT_FROM_EMAIL = 'info@eclick.co.za'
+DEFAULT_FROM_EMAIL = 'foodsafetyagency.aps@afsq.co.za'
 
 # Microsoft Graph API Credentials
 GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
 GRAPH_CLIENT_SECRET = env('GRAPH_CLIENT_SECRET', default='')
 GRAPH_TENANT_ID = env('GRAPH_TENANT_ID', default='')
+
+# Xero Accounting Integration (Web App - created March 5, 2026)
+XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='CD1AB8B76E8D43B99547973C9BB25CF0')
+XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='H0uPFSJs2kfwH4aZ17BB6WTDWuYKkzycrOxpYIc2st8KnYEb')
+XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='https://portal-test.fsa-pty.co.za/xero/callback/')
 
 # Legacy SMTP Configuration (Backup)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

@@ -1,0 +1,110 @@
+// Send inspection documents to client email
+console.log('Sent status JS loaded');
+
+function toggleSentStatus(btn) {
+    console.log('[SEND] toggleSentStatus called');
+    var groupId = btn.getAttribute('data-group-id');
+    var clientName = btn.getAttribute('data-client-name');
+    var inspectionDate = btn.getAttribute('data-inspection-date');
+    var inspectionGroupId = btn.getAttribute('data-inspection-group-id');
+
+    console.log('[SEND] Data:', {groupId: groupId, clientName: clientName, inspectionDate: inspectionDate, inspectionGroupId: inspectionGroupId});
+
+    if (!groupId) {
+        alert('No group ID found.');
+        return;
+    }
+
+    var isSent = btn.getAttribute('data-is-sent') === 'true';
+    if (isSent) {
+        alert('Documents already sent.');
+        return;
+    }
+
+    if (!confirm('Send all inspection documents for ' + clientName + ' to the client email?')) {
+        console.log('[SEND] User cancelled');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = 'Sending...';
+    btn.style.background = '#fbbf24';
+    btn.style.color = '#000';
+
+    // Try multiple sources for CSRF token
+    var csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+    var csrfToken = csrfEl ? csrfEl.value : (window.DJANGO_CSRF || '');
+    console.log('[SEND] CSRF from hidden input:', csrfEl ? 'found' : 'NOT found');
+    console.log('[SEND] CSRF from window.DJANGO_CSRF:', window.DJANGO_CSRF ? 'found' : 'NOT found');
+    if (!csrfToken) {
+        var match = document.cookie.match(/csrftoken=([^;]+)/);
+        csrfToken = match ? match[1] : '';
+        console.log('[SEND] CSRF from cookie:', match ? 'found' : 'NOT found');
+    }
+    if (!csrfToken) {
+        btn.disabled = false;
+        btn.innerHTML = 'Send';
+        btn.style.background = '#e5e7eb';
+        btn.style.color = '#6b7280';
+        alert('CSRF token not found. Please refresh the page and try again.');
+        return;
+    }
+    console.log('[SEND] CSRF token OK, sending fetch to /inspections/send-documents/');
+
+    var payload = {
+        group_id: groupId,
+        inspection_group_id: inspectionGroupId,
+        client_name: clientName,
+        inspection_date: inspectionDate
+    };
+    console.log('[SEND] Payload:', JSON.stringify(payload));
+
+    fetch('/inspections/send-documents/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(function(response) {
+        console.log('[SEND] Response status:', response.status);
+        return response.json();
+    })
+    .then(function(data) {
+        console.log('[SEND] Response data:', JSON.stringify(data));
+        btn.disabled = false;
+        if (data.success) {
+            var sentBy = data.sent_by || '';
+            var sentTime = data.sent_time || '';
+            var label = 'Sent';
+            if (sentBy && sentTime) {
+                label = 'Sent: ' + sentBy + ' - ' + sentTime;
+            } else if (sentBy) {
+                label = 'Sent: ' + sentBy;
+            }
+            btn.innerHTML = label;
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            btn.style.minWidth = 'auto';
+            btn.style.whiteSpace = 'nowrap';
+            btn.setAttribute('data-is-sent', 'true');
+            btn.title = 'Documents sent to ' + (data.recipients || 'client') + ' by ' + sentBy + ' at ' + sentTime;
+        } else {
+            btn.innerHTML = 'Send';
+            btn.style.background = '#e5e7eb';
+            btn.style.color = '#6b7280';
+            alert('Failed to send: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(function(error) {
+        console.error('[SEND] Fetch error:', error);
+        btn.disabled = false;
+        btn.innerHTML = 'Send';
+        btn.style.background = '#e5e7eb';
+        btn.style.color = '#6b7280';
+        alert('Error: ' + error.message);
+    });
+}
+
+window.toggleSentStatus = toggleSentStatus;
