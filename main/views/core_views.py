@@ -15950,7 +15950,18 @@ def send_group_documents(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({'success': False, 'error': str(e)})
+        error_msg = str(e)
+        # Make Graph API errors more user-friendly
+        if '400' in error_msg and 'Bad Request' in error_msg:
+            total_size = sum(os.path.getsize(f) for f in attachments if os.path.isfile(f))
+            size_mb = round(total_size / (1024 * 1024), 1)
+            if total_size > 3 * 1024 * 1024:
+                error_msg = f'Attachments too large ({size_mb}MB). Microsoft Graph API has a 4MB limit. Try sending fewer documents.'
+            else:
+                error_msg = f'Email service rejected the request. Attachments: {size_mb}MB. Please try again or contact support.'
+        elif '401' in error_msg or 'Unauthorized' in error_msg:
+            error_msg = 'Email service authentication failed. Please contact support.'
+        return JsonResponse({'success': False, 'error': error_msg})
 
 
 def get_client_email(client_name, inspection_group_id=None):
@@ -15970,13 +15981,13 @@ def get_client_email(client_name, inspection_group_id=None):
 
     def _extract_email(client):
         """Return first available email from a Client object."""
-        if client.manual_email:
-            return client.manual_email.split(',')[0].strip()
-        if client.email:
-            return client.email.split(',')[0].strip()
+        if client.manual_email and str(client.manual_email).strip() and '@' in str(client.manual_email):
+            return str(client.manual_email).split(',')[0].strip()
+        if client.email and str(client.email).strip() and '@' in str(client.email):
+            return str(client.email).split(',')[0].strip()
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
-        if client_email:
+        if client_email and client_email.email and '@' in str(client_email.email):
             return client_email.email
         return None
 
@@ -16054,6 +16065,46 @@ def get_client_email(client_name, inspection_group_id=None):
                 if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
                     email = _extract_email(c)
                     _log.info(f"[EMAIL LOOKUP] Step 6 (normalized): client={c.name}, email={email}")
+                    if email:
+                        return email
+
+        # 7. Fallback: check additional_email on inspection or group
+        if inspection_group_id:
+            # Check inspection-level additional_email
+            insp_email = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
+            if insp_email:
+                email = insp_email.split(',')[0].strip()
+                if '@' in email:
+                    _log.info(f"[EMAIL LOOKUP] Step 7a (inspection additional_email): {email}")
+                    return email
+
+            # Check group-level additional_email
+            try:
+                group_email = InspectionGroup.objects.filter(
+                    id=inspection_group_id
+                ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
+                if group_email:
+                    email = str(group_email).split(',')[0].strip()
+                    if '@' in email:
+                        _log.info(f"[EMAIL LOOKUP] Step 7b (group additional_email): {email}")
+                        return email
+            except Exception:
+                pass
+
+        # 8. Last resort: find Client by name words (handles cases like "Kekkel en kraai hirbenia" vs "Kekkel En Kraai Hirbenia")
+        if client_name and len(client_name) > 3:
+            words = [w for w in client_name.lower().split() if len(w) > 2]
+            if words:
+                from django.db.models import Q
+                q = Q()
+                for word in words[:3]:  # Use first 3 significant words
+                    q &= Q(name__icontains=word)
+                client = Client.objects.filter(q).first()
+                if client:
+                    email = _extract_email(client)
+                    _log.info(f"[EMAIL LOOKUP] Step 8 (word match): client={client.name}, email={email}")
                     if email:
                         return email
 
