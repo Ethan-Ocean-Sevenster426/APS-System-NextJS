@@ -1,11 +1,10 @@
 """
-Test: Send email directly from anthony.penzes@fsa-pty.co.za to simphiwe.
-No shared inbox - uses Anthony's Graph API account directly.
+Test: Send email directly from anthony.penzes@afsq.co.za to simphiwe + armand.
+No shared inbox - uses Anthony's afsq account directly.
 Run on server: cd /var/www/v4-Worksheet-demo && source venv/bin/activate && python test_cc_email.py
 """
 import os
 import sys
-import json
 import requests
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
@@ -22,17 +21,16 @@ CYAN = '\033[96m'
 YELLOW = '\033[93m'
 RESET = '\033[0m'
 
-# Direct send from Anthony's account to Simphiwe
-from_email = 'anthony.penzes@fsa-pty.co.za'
-to_email = 'simphiwe.mathenjwa@afsq.co.za'
+from_email = 'anthony.penzes@afsq.co.za'
+to_emails = ['simphiwe.mathenjwa@afsq.co.za', 'armand.visagie@afsq.co.za']
 
 print(f"\n{'='*60}")
-print(f" TEST: Direct email from Anthony to Simphiwe")
+print(f" TEST: Direct email from Anthony (afsq) to Simphiwe + Armand")
 print(f"{'='*60}")
 print(f"  {CYAN}FROM:{RESET} {from_email}")
-print(f"  {CYAN}TO:{RESET} {to_email}")
+for t in to_emails:
+    print(f"  {CYAN}TO:{RESET} {t}")
 
-# Get Graph API token
 tenant_id = settings.GRAPH_TENANT_ID
 client_id = settings.GRAPH_CLIENT_ID
 client_secret = settings.GRAPH_CLIENT_SECRET
@@ -53,24 +51,23 @@ try:
     access_token = token_resp.json()['access_token']
     print(f"  {GREEN}Token obtained{RESET}")
 
-    # Build email payload - send directly from Anthony's mailbox
     email_data = {
         "message": {
-            "subject": "FSA Test v4 - Direct from Anthony to Simphiwe",
+            "subject": "FSA Test v5 - Direct from Anthony (afsq) to Simphiwe + Armand",
             "body": {
                 "contentType": "HTML",
                 "content": """
 <div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333;">
-    <p>Good day Simphiwe,</p>
-    <p>This is a <strong>direct test email</strong> sent from anthony.penzes@fsa-pty.co.za to your inbox.</p>
-    <p>No shared inbox involved - this is sent directly via Anthony's Graph API account.</p>
-    <p>If you received this, your mailbox accepts emails from this sender.</p>
+    <p>Good day,</p>
+    <p>This is a <strong>direct test email</strong> sent from anthony.penzes@afsq.co.za.</p>
+    <p>Same domain (afsq.co.za) - no shared inbox involved.</p>
+    <p>If you received this, email delivery within afsq.co.za is working.</p>
     <p>Kind Regards,<br>FSA System Test</p>
 </div>
 """
             },
             "toRecipients": [
-                {"emailAddress": {"address": to_email}}
+                {"emailAddress": {"address": addr}} for addr in to_emails
             ],
             "from": {
                 "emailAddress": {"address": from_email}
@@ -79,19 +76,20 @@ try:
         "saveToSentItems": "true"
     }
 
-    # Send via Graph API using Anthony's mailbox
     graph_url = f"https://graph.microsoft.com/v1.0/users/{from_email}/sendMail"
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json'
     }
 
-    print(f"\n  Sending from {from_email} to {to_email}...")
+    print(f"\n  Sending from {from_email} to {', '.join(to_emails)}...")
     resp = requests.post(graph_url, headers=headers, json=email_data, timeout=30)
 
     if resp.status_code == 202:
         print(f"  {GREEN}SUCCESS{RESET} Email sent! (HTTP {resp.status_code})")
-        print(f"\n  {YELLOW}Ask Simphiwe to check inbox + junk folder{RESET}")
+        print(f"\n  {YELLOW}Check inboxes + junk folders:{RESET}")
+        for t in to_emails:
+            print(f"    - {t}")
     else:
         print(f"  {RED}FAILED{RESET} HTTP {resp.status_code}")
         print(f"  Response: {resp.text}")
