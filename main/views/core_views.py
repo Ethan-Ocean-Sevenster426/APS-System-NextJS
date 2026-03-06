@@ -15847,17 +15847,21 @@ def get_client_email(client_name, inspection_group_id=None):
     import logging
     _log = logging.getLogger(__name__)
 
+    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+
     def _extract_email(client):
-        """Return first available email from a Client object."""
+        """Return first available valid email from a Client object."""
         import re
-        if client.manual_email and str(client.manual_email).strip() and '@' in str(client.manual_email):
-            return re.split(r'[,;]+', str(client.manual_email))[0].strip()
-        if client.email and str(client.email).strip() and '@' in str(client.email):
-            return re.split(r'[,;]+', str(client.email))[0].strip()
+        for field in [client.manual_email, client.email]:
+            if field and str(field).strip():
+                for part in re.split(r'[,;]+', str(field)):
+                    e = part.strip()
+                    if _valid_email_re.match(e):
+                        return e
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
-        if client_email and client_email.email and '@' in str(client_email.email):
-            return client_email.email
+        if client_email and client_email.email and _valid_email_re.match(str(client_email.email).strip()):
+            return client_email.email.strip()
         return None
 
     try:
@@ -15993,6 +15997,8 @@ def get_all_client_emails(client_name, inspection_group_id=None):
     import logging
     _log = logging.getLogger(__name__)
 
+    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+
     emails = set()
 
     def _add_emails_from_field(value):
@@ -16002,8 +16008,10 @@ def get_all_client_emails(client_name, inspection_group_id=None):
         import re
         for part in re.split(r'[,;]+', str(value)):
             e = part.strip().lower()
-            if e and '@' in e:
+            if e and _valid_email_re.match(e):
                 emails.add(e)
+            elif e and '@' not in e:
+                _log.warning(f"[EMAIL ALL] Skipping invalid email: '{e}'")
 
     try:
         from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup

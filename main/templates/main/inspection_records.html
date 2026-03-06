@@ -878,12 +878,20 @@
                                                 {% with all_emails=shipment|get_unique_emails %}
                                                 {% if all_emails %}
                                                     {% for email in all_emails %}
+                                                    {% if email|is_valid_email %}
                                                     <div class="bg-blue-50 p-2 rounded border border-blue-200">
                                                         <span class="text-xs text-blue-700 additional-emails-display"
                                                             style="display: block; word-break: break-word; max-width: 100%;"
                                                             title="{{ email }}"
                                                             data-emails="{{ email }}">{{ email }}</span>
                                                     </div>
+                                                    {% else %}
+                                                    <div class="bg-red-50 p-2 rounded border border-red-200">
+                                                        <span class="text-xs text-red-600"
+                                                            style="display: block; word-break: break-word; max-width: 100%;"
+                                                            title="Invalid email: {{ email }}">⚠️ {{ email }}</span>
+                                                    </div>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 {% else %}
                                                     <span class="text-gray-400 text-xs">No emails</span>
@@ -1402,7 +1410,11 @@
                                             {% with unique_emails=shipment|get_unique_emails %}
                                             {% if unique_emails %}
                                                 {% for email in unique_emails %}
+                                                {% if email|is_valid_email %}
                                                 <div style="white-space: nowrap; font-size: 0.65rem;" title="{{ email }}">{{ email }}</div>
+                                                {% else %}
+                                                <div style="white-space: nowrap; font-size: 0.65rem; color: #dc2626;" title="Invalid email: {{ email }}">⚠️ {{ email }}</div>
+                                                {% endif %}
                                                 {% endfor %}
                                             {% else %}
                                                 <div>-</div>
@@ -1525,7 +1537,11 @@
                                                             {% with unique_emails=shipment|get_unique_emails %}
                                                             {% if unique_emails %}
                                                                 {% for email in unique_emails %}
+                                                                {% if email|is_valid_email %}
                                                                 <div style="font-size: 8px; color: #3b82f6; word-break: break-all;">{{ email }}</div>
+                                                                {% else %}
+                                                                <div style="font-size: 8px; color: #dc2626; word-break: break-all;">⚠️ {{ email }}</div>
+                                                                {% endif %}
                                                                 {% endfor %}
                                                             {% else %}
                                                                 <div style="font-size: 8px; color: #6b7280;">-</div>
