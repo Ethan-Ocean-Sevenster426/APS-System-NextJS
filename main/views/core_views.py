@@ -15736,6 +15736,10 @@ def send_group_documents(request):
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
 
+        import logging
+        _send_log = logging.getLogger(__name__)
+        _send_log.info(f"[SEND DOC] group_id='{group_id}', inspection_group_id='{inspection_group_id}', client_name='{client_name}', inspection_date='{inspection_date}'")
+
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
 
@@ -15954,11 +15958,15 @@ def get_client_email(client_name, inspection_group_id=None):
 
     Lookup order:
     1. Via inspection's client FK (most reliable - avoids name mismatch issues)
-    2. By client_id field (iexact)
-    3. By client name field (iexact)
-    4. Normalized name search (strips hyphens, punctuation for fuzzy match)
+    2. Via InspectionGroup's client FK
+    3. By client_id field (iexact)
+    4. By client name field (iexact)
+    5. By client name (icontains - partial match)
+    6. Normalized name search (strips hyphens, punctuation for fuzzy match)
     """
     import re
+    import logging
+    _log = logging.getLogger(__name__)
 
     def _extract_email(client):
         """Return first available email from a Client object."""
@@ -15973,7 +15981,9 @@ def get_client_email(client_name, inspection_group_id=None):
         return None
 
     try:
-        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
+
+        _log.info(f"[EMAIL LOOKUP] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
 
         # 1. Try via inspection's client FK (most reliable)
         if inspection_group_id:
@@ -15983,24 +15993,57 @@ def get_client_email(client_name, inspection_group_id=None):
             ).select_related('client').first()
             if insp and insp.client:
                 email = _extract_email(insp.client)
+                _log.info(f"[EMAIL LOOKUP] Step 1 (inspection FK): client={insp.client.name}, email={email}")
                 if email:
                     return email
+            else:
+                _log.info(f"[EMAIL LOOKUP] Step 1: No inspection with client FK found for group {inspection_group_id}")
 
-        # 2. Try by client_id field
+            # 2. Try via InspectionGroup's client FK
+            try:
+                group = InspectionGroup.objects.filter(id=inspection_group_id, client__isnull=False).select_related('client').first()
+                if group and group.client:
+                    email = _extract_email(group.client)
+                    _log.info(f"[EMAIL LOOKUP] Step 2 (group FK): client={group.client.name}, email={email}")
+                    if email:
+                        return email
+            except Exception:
+                pass
+
+        # 3. Try by client_id field
         client = Client.objects.filter(client_id__iexact=client_name).first()
         if client:
             email = _extract_email(client)
+            _log.info(f"[EMAIL LOOKUP] Step 3 (client_id match): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 3. Try by name field
+        # 4. Try by name field (exact)
         client = Client.objects.filter(name__iexact=client_name).first()
         if client:
             email = _extract_email(client)
+            _log.info(f"[EMAIL LOOKUP] Step 4 (name exact): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 4. Normalized search (strips hyphens, punctuation - matches page display logic)
+        # 5. Try by name field (contains - partial match)
+        if client_name and len(client_name) > 3:
+            client = Client.objects.filter(name__icontains=client_name).first()
+            if not client:
+                # Try the other way: client name contains the search term
+                for c in Client.objects.filter(email__isnull=False).exclude(email='').only('id', 'name', 'client_id', 'email', 'manual_email'):
+                    if c.name and client_name.lower() in c.name.lower():
+                        email = _extract_email(c)
+                        if email:
+                            _log.info(f"[EMAIL LOOKUP] Step 5b (reverse contains): client={c.name}, email={email}")
+                            return email
+            elif client:
+                email = _extract_email(client)
+                _log.info(f"[EMAIL LOOKUP] Step 5 (name contains): client={client.name}, email={email}")
+                if email:
+                    return email
+
+        # 6. Normalized search (strips hyphens, punctuation - matches page display logic)
         def _norm(text):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
@@ -16010,12 +16053,15 @@ def get_client_email(client_name, inspection_group_id=None):
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
                 if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
                     email = _extract_email(c)
+                    _log.info(f"[EMAIL LOOKUP] Step 6 (normalized): client={c.name}, email={email}")
                     if email:
                         return email
 
+        _log.warning(f"[EMAIL LOOKUP] FAILED - No email found for client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
         return None
 
-    except Exception:
+    except Exception as e:
+        _log.error(f"[EMAIL LOOKUP] Exception: {e}")
         return None
 
 
