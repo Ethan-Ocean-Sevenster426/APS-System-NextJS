@@ -15865,11 +15865,38 @@ def send_group_documents(request):
 </div>
 """
 
+        # Build CC list: inspector who did the inspection + manager email
+        cc_emails = []
+        MANAGER_EMAIL = 'simphiwe.mathenjwa@afsq.co.za'
+        cc_emails.append(MANAGER_EMAIL)
+
+        # Find the inspector's email from User model (match by inspector_name)
+        inspector_name = group_inspections.values_list('inspector_name', flat=True).first()
+        if inspector_name:
+            from django.contrib.auth.models import User as AuthUser
+            # Try matching by full name or username
+            inspector_user = None
+            if ' ' in inspector_name:
+                parts = inspector_name.split()
+                inspector_user = AuthUser.objects.filter(
+                    first_name__iexact=parts[0],
+                    last_name__iexact=parts[-1],
+                ).first()
+            if not inspector_user:
+                inspector_user = AuthUser.objects.filter(username__iexact=inspector_name).first()
+            if inspector_user and inspector_user.email:
+                cc_emails.append(inspector_user.email)
+
+        # Dedupe and remove any that match the main recipient
+        cc_emails = list(set(e.lower().strip() for e in cc_emails if e))
+        cc_emails = [e for e in cc_emails if e != recipient_email.lower().strip()]
+
         email = EmailMessage(
             subject=subject,
             body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient_email],
+            cc=cc_emails if cc_emails else None,
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
         email.content_subtype = 'html'
@@ -15878,6 +15905,8 @@ def send_group_documents(request):
             email.attach_file(file_path)
 
         email.send()
+
+        all_recipients = [recipient_email] + cc_emails
 
         # Mark inspections as sent (reuse group_inspections queryset from above)
         group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
@@ -15890,12 +15919,13 @@ def send_group_documents(request):
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name} to {recipient_email}',
+            description=f'Sent {len(attachments)} documents for {client_name} to {recipient_email} (CC: {", ".join(cc_emails)})',
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
                 'documents_sent': documents_found,
-                'recipient': recipient_email
+                'recipient': recipient_email,
+                'cc': cc_emails
             }
         )
 
@@ -15903,10 +15933,11 @@ def send_group_documents(request):
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
         sent_time = timezone.now().strftime('%d %b %Y %H:%M')
 
+        cc_display = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
         return JsonResponse({
             'success': True,
-            'message': f'Documents sent successfully to {recipient_email}',
-            'recipients': recipient_email,
+            'message': f'Documents sent successfully to {recipient_email}{cc_display}',
+            'recipients': ', '.join(all_recipients),
             'documents_sent': len(attachments),
             'sent_by': sender_name,
             'sent_time': sent_time,
