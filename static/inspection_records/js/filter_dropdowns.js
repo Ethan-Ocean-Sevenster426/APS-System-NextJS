@@ -21,6 +21,16 @@
                                                 dropdown.style.display = 'none';
                                             }
                                         });
+                                        // Restore selected inspectors from URL params
+                                        (function() {
+                                            var params = new URLSearchParams(window.location.search);
+                                            var selectedInspectors = params.getAll('branch');
+                                            selectedInspectors.forEach(function(val) {
+                                                var cb = document.querySelector('.inspector-checkbox[value="' + val + '"]');
+                                                if (cb) cb.checked = true;
+                                            });
+                                            updateInspectorSelectText();
+                                        })();
                                         function updateLabSelectText() {
                                             var checked = document.querySelectorAll('.lab-checkbox:checked');
                                             var textEl = document.getElementById('labSelectText');
