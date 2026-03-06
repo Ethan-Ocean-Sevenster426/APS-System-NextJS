@@ -9638,30 +9638,47 @@ def analytics_dashboard_api(request):
         Q(facility_type__isnull=True) | Q(facility_type='')
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
-    # Monthly commodity trends
-    twelve_months_ago = datetime.now() - timedelta(days=365)
-    trends_qs = qs.exclude(
+    # Commodity Compliance Trends (daily compliance % per commodity, last 30 days)
+    # Matches initial view: daily granularity with compliance_rate field
+    from django.db.models.functions import TruncDate
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    _commodity_trend_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(date_of_inspection__gte=twelve_months_ago)
-    monthly_commodity_trends = list(trends_qs.annotate(
-        month=TruncMonth('date_of_inspection')
-    ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
+    ).filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).annotate(
+        month=TruncDate('date_of_inspection')
+    ).values('month', 'commodity').annotate(
+        total=Count('id'),
+        approved=Count('id', filter=Q(approved_status='APPROVED'))
+    )
+    monthly_commodity_trends = []
+    for item in _commodity_trend_qs:
+        total = item['total']
+        approved = item['approved']
+        compliance_rate = round((approved / total * 100) if total > 0 else 0, 1)
+        monthly_commodity_trends.append({
+            'month': item['month'],
+            'commodity': item['commodity'],
+            'compliance_rate': compliance_rate,
+            'total': total,
+            'approved': approved
+        })
 
-    # Monthly compliance trend per commodity
+    # Weekly compliance trend per commodity (uses TruncWeek for granular data)
+    # Matches initial view: weekly granularity, excludes occurrence reports
     monthly_compliance_trend = list(qs.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).exclude(date_of_inspection__isnull=True).annotate(
-        month=TruncMonth('date_of_inspection')
+        month=TruncWeek('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED'))
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # Daily compliance trend per commodity (last 30 days)
-    from django.db.models.functions import TruncDay
-    thirty_days_ago = datetime.now() - timedelta(days=30)
     daily_compliance_trend = list(qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
