@@ -165,6 +165,8 @@ class GraphEmailBackend(BaseEmailBackend):
             response.raise_for_status()
 
             logger.info(f"Successfully sent email to {', '.join(message.to)}")
+            if message.cc:
+                logger.info(f"CC recipients: {', '.join(message.cc)}")
             logger.info(f"Subject: {message.subject}")
             return True
 

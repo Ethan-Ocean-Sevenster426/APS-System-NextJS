@@ -53,7 +53,7 @@ html_body = """
 
 try:
     email = EmailMessage(
-        subject='FSA Test - CC Email Flow (Inspector + Manager)',
+        subject='FSA Test - CC Email Flow v2 (Inspector + Manager)',
         body=html_body,
         from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'foodsafetyagency.aps@afsq.co.za'),
         to=[client_email],
@@ -62,6 +62,8 @@ try:
     )
     email.content_subtype = 'html'
 
+    print(f"\n  {CYAN}email.to:{RESET} {email.to}")
+    print(f"  {CYAN}email.cc:{RESET} {email.cc}")
     print(f"\n  Sending email...")
     result = email.send()
 
