@@ -2307,7 +2307,8 @@ def shipment_list(request):
     inspections = FoodSafetyAgencyInspection.objects.only(
         # Load ONLY essential fields to reduce data transfer
         'id', 'client_name', 'date_of_inspection', 'inspector_name', 'inspection_group_id',
-        'commodity', 'remote_id', 'product_name', 'is_sent'
+        'commodity', 'remote_id', 'product_name', 'is_sent', 'approved_status',
+        'inspection_group',
     )
     # Show ALL inspections (both manual and synced from SQL Server)
     
@@ -5112,10 +5113,17 @@ def apply_fsa_inspection_filters(request, inspections):
     if inspection_no:
         inspections = inspections.filter(remote_id__icontains=inspection_no)
     
-    # Filter by client name
+    # Filter by client name - search in both directions for fuzzy matching
     client_name = request.GET.get('client')
     if client_name:
-        inspections = inspections.filter(client_name__icontains=client_name)
+        from django.db.models import Q
+        # Match if inspection client_name contains search term OR search term contains inspection client_name
+        # Also match via Client model (name may differ between Client record and inspection record)
+        client_q = Q(client_name__icontains=client_name)
+        # Also find via Client model FK
+        client_q |= Q(client__name__icontains=client_name)
+        client_q |= Q(client__client_id__icontains=client_name)
+        inspections = inspections.filter(client_q)
     
     # Filter by inspector(s) - supports multiple selection
     inspectors = request.GET.getlist('branch')  # Keep same parameter name for template compatibility
