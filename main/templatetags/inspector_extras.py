@@ -17,6 +17,22 @@ def _is_valid_email(email):
     return bool(_EMAIL_RE.match(email.strip()))
 
 
+def _split_email_field(value):
+    """Split an email field on commas, semicolons, slashes, and spaces.
+    Returns only non-empty stripped parts. Handles messy data like:
+    - 'a@b.com/c@d.com'
+    - 'a@b.com c@d.com'
+    - '"a@b.com'
+    - 'Name a@b.com'
+    """
+    if not value:
+        return []
+    # Split on comma, semicolon, slash, or whitespace
+    parts = re.split(r'[,;/\s]+', str(value))
+    # Strip quotes and whitespace, keep non-empty
+    return [p.strip().strip('"').strip("'") for p in parts if p.strip()]
+
+
 @register.filter(name='is_valid_email')
 def is_valid_email(value):
     """Template filter to check if a value is a valid email.
@@ -61,16 +77,14 @@ def get_unique_emails(shipment):
             else:
                 email = getattr(client_email, 'email', '')
             if email:
-                # Split comma/semicolon-separated emails in a single field
-                for e in re.split(r'[,;]+', str(email)):
-                    e = e.strip()
+                # Split on comma/semicolon/slash/space
+                for e in _split_email_field(email):
                     if e:
                         emails_set.add(e)
 
     # Add inspection additional_email
     if additional_email:
-        for email in re.split(r'[,;]+', str(additional_email)):
-            email = email.strip()
+        for email in _split_email_field(additional_email):
             if email:
                 emails_set.add(email)
 
@@ -98,9 +112,8 @@ def get_client_emails(shipment):
             else:
                 raw = getattr(client_email, 'email', '')
             if raw:
-                # Split comma/semicolon-separated emails in a single field
-                for email in re.split(r'[,;]+', str(raw)):
-                    email = email.strip()
+                # Split comma/semicolon/slash/space-separated emails
+                for email in _split_email_field(raw):
                     if email and email.lower() not in seen:
                         seen.add(email.lower())
                         emails.append(email)
@@ -130,16 +143,14 @@ def get_extra_emails(shipment):
             else:
                 raw = getattr(client_email, 'email', '')
             if raw:
-                for email in re.split(r'[,;]+', str(raw)):
-                    email = email.strip()
+                for email in _split_email_field(raw):
                     if email:
                         client_email_set.add(email.lower())
 
     # Filter additional_email to only those NOT in client emails
     extra = []
     if additional_email:
-        for email in re.split(r'[,;]+', str(additional_email)):
-            email = email.strip()
+        for email in _split_email_field(additional_email):
             if email and email.lower() not in client_email_set:
                 extra.append(email)
 

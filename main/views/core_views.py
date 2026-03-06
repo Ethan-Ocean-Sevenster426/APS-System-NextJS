@@ -15854,8 +15854,8 @@ def get_client_email(client_name, inspection_group_id=None):
         import re
         for field in [client.manual_email, client.email]:
             if field and str(field).strip():
-                for part in re.split(r'[,;]+', str(field)):
-                    e = part.strip()
+                for part in re.split(r'[,;/\s]+', str(field)):
+                    e = part.strip().strip('"').strip("'")
                     if _valid_email_re.match(e):
                         return e
         from ..models import ClientEmail
@@ -16002,16 +16002,16 @@ def get_all_client_emails(client_name, inspection_group_id=None):
     emails = set()
 
     def _add_emails_from_field(value):
-        """Extract all emails from a field that may contain comma/semicolon-separated values."""
+        """Extract all emails from a field that may contain comma/semicolon/slash/space-separated values."""
         if not value:
             return
         import re
-        for part in re.split(r'[,;]+', str(value)):
-            e = part.strip().lower()
+        for part in re.split(r'[,;/\s]+', str(value)):
+            e = part.strip().strip('"').strip("'").lower()
             if e and _valid_email_re.match(e):
                 emails.add(e)
-            elif e and '@' not in e:
-                _log.warning(f"[EMAIL ALL] Skipping invalid email: '{e}'")
+            elif e and '@' in e:
+                _log.warning(f"[EMAIL ALL] Skipping malformed email: '{e}'")
 
     try:
         from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
