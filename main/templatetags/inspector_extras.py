@@ -9,12 +9,21 @@ register = template.Library()
 
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
 
+# Common domain typos: .coza → .co.za, .coz → .co.za, etc.
+_BAD_DOMAIN_ENDINGS = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
+
 
 def _is_valid_email(email):
     """Check if a string looks like a valid email address."""
     if not email or not isinstance(email, str):
         return False
-    return bool(_EMAIL_RE.match(email.strip()))
+    e = email.strip()
+    if not _EMAIL_RE.match(e):
+        return False
+    # Catch common SA domain typos like .coza instead of .co.za
+    if _BAD_DOMAIN_ENDINGS.search(e):
+        return False
+    return True
 
 
 def _split_email_field(value):
