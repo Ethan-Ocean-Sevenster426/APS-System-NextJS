@@ -152,14 +152,14 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 #     },
 # }
 
-# Production PostgreSQL database
+# Production PostgreSQL database (local)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'v4_worksheet_prod',
-        'USER': 'v4_prod_user',
-        'PASSWORD': 'V4ProdSecure2026',
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'NAME': 'inspection_system',
+        'USER': 'inspection_user',
+        'PASSWORD': 'InspectionTest2026',
+        'HOST': 'localhost',
         'PORT': '5432',
     },
 }
