@@ -9,7 +9,7 @@ import psycopg2
 import sys
 
 MYSQL = {
-    'host': '167.88.43.168',
+    'host': 'localhost',
     'user': 'v4_user',
     'password': 'V4_Secure@2024!',
     'database': 'v4_worksheet',
@@ -18,7 +18,7 @@ MYSQL = {
 }
 
 PG = {
-    'host': '167.88.43.168',
+    'host': 'localhost',
     'user': 'v4_prod_user',
     'password': 'V4ProdSecure2026',
     'dbname': 'v4_worksheet_prod',
