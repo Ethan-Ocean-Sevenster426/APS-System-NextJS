@@ -2261,7 +2261,14 @@ def shipment_list(request):
 
     # PERFORMANCE FIX: Include page number and filters in cache key so each page/filter combo is cached separately
     page_number = request.GET.get('page', 1)
-    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter'])
+    # Build cache key that handles multi-value params (branch, lab, test_type) correctly
+    _cache_filter_keys = ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter', 'corporate_group', 'group_type', 'lab', 'test_type', 'needs_retest', 'coa_uploaded', 'file_status_filter']
+    _cache_parts = []
+    for k in sorted(_cache_filter_keys):
+        vals = request.GET.getlist(k)
+        if vals:
+            _cache_parts.append(f"{k}_{'|'.join(sorted(vals))}")
+    filter_params = '_'.join(_cache_parts)
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 

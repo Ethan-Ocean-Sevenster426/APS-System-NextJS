@@ -623,7 +623,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <script src="{% static 'inspection_records/js/filter_dropdowns.js' %}?v=20260212"></script>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Needs Retest</label>
@@ -643,6 +642,9 @@
                                 </div>
                             </div>
                             {% endif %}
+
+                            <!-- Load filter dropdown JS for ALL roles (inspector checkboxes, lab, test type) -->
+                            <script src="{% static 'inspection_records/js/filter_dropdowns.js' %}?v=20260306"></script>
 
                             <!-- Action Buttons Row -->
                             <div class="filter-actions">
