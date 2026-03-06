@@ -15797,18 +15797,38 @@ def send_group_documents(request):
 
     except Exception as e:
         import traceback
+        import logging
+        _err_log = logging.getLogger(__name__)
         traceback.print_exc()
         error_msg = str(e)
+
+        # Extract Graph API error details if available
+        graph_error_detail = ''
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                err_json = e.response.json()
+                graph_error_detail = err_json.get('error', {}).get('message', '')
+                graph_code = err_json.get('error', {}).get('code', '')
+                _err_log.error(f"[SEND DOC ERROR] Graph API code={graph_code}, message={graph_error_detail}")
+                _err_log.error(f"[SEND DOC ERROR] TO={all_client_emails if 'all_client_emails' in dir() else 'unknown'}")
+                _err_log.error(f"[SEND DOC ERROR] Attachments={len(attachments) if 'attachments' in dir() else 'unknown'}")
+            except Exception:
+                _err_log.error(f"[SEND DOC ERROR] Raw response: {e.response.text[:500] if e.response else 'no response'}")
+
         # Make Graph API errors more user-friendly
-        if '400' in error_msg and 'Bad Request' in error_msg:
-            total_size = sum(os.path.getsize(f) for f in attachments if os.path.isfile(f))
+        if '400' in error_msg or 'Bad Request' in error_msg:
+            total_size = sum(os.path.getsize(f) for f in attachments if os.path.isfile(f)) if 'attachments' in dir() else 0
             size_mb = round(total_size / (1024 * 1024), 1)
             if total_size > 3 * 1024 * 1024:
                 error_msg = f'Attachments too large ({size_mb}MB). Microsoft Graph API has a 4MB limit. Try sending fewer documents.'
+            elif graph_error_detail:
+                error_msg = f'Email service error: {graph_error_detail}'
             else:
-                error_msg = f'Email service rejected the request. Attachments: {size_mb}MB. Please try again or contact support.'
+                error_msg = f'Email service rejected the request ({size_mb}MB). Please try again or contact support.'
         elif '401' in error_msg or 'Unauthorized' in error_msg:
             error_msg = 'Email service authentication failed. Please contact support.'
+        elif '403' in error_msg or 'Forbidden' in error_msg:
+            error_msg = 'Email service permission denied. The sender mailbox may not have send permissions.'
         return JsonResponse({'success': False, 'error': error_msg})
 
 
