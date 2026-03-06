@@ -159,7 +159,7 @@ DATABASES = {
         'NAME': 'v4_inspection',
         'USER': 'v4_user',
         'PASSWORD': 'V4Inspect2026',
-        'HOST': 'localhost',
+        'HOST': '167.88.43.168',
         'PORT': '5432',
     },
 }
