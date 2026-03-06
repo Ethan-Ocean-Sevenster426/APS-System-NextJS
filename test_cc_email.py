@@ -22,7 +22,7 @@ YELLOW = '\033[93m'
 RESET = '\033[0m'
 
 from_email = 'anthony.penzes@afsq.co.za'
-to_emails = ['simphiwe.mathenjwa@afsq.co.za', 'armand.visagie@afsq.co.za']
+to_emails = ['anthony.penzes@afsq.co.za', 'simphiwe.mathenjwa@afsq.co.za', 'armand.visagie@afsq.co.za']
 
 print(f"\n{'='*60}")
 print(f" TEST: Direct email from Anthony (afsq) to Simphiwe + Armand")
@@ -53,7 +53,7 @@ try:
 
     email_data = {
         "message": {
-            "subject": "FSA Test v5 - Direct from Anthony (afsq) to Simphiwe + Armand",
+            "subject": "FSA Test v6 - Direct from Anthony (afsq) to Anthony + Simphiwe + Armand",
             "body": {
                 "contentType": "HTML",
                 "content": """
