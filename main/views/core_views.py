@@ -15849,10 +15849,11 @@ def get_client_email(client_name, inspection_group_id=None):
 
     def _extract_email(client):
         """Return first available email from a Client object."""
+        import re
         if client.manual_email and str(client.manual_email).strip() and '@' in str(client.manual_email):
-            return str(client.manual_email).split(',')[0].strip()
+            return re.split(r'[,;]+', str(client.manual_email))[0].strip()
         if client.email and str(client.email).strip() and '@' in str(client.email):
-            return str(client.email).split(',')[0].strip()
+            return re.split(r'[,;]+', str(client.email))[0].strip()
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
         if client_email and client_email.email and '@' in str(client_email.email):
@@ -15995,10 +15996,11 @@ def get_all_client_emails(client_name, inspection_group_id=None):
     emails = set()
 
     def _add_emails_from_field(value):
-        """Extract all emails from a field that may contain comma-separated values."""
+        """Extract all emails from a field that may contain comma/semicolon-separated values."""
         if not value:
             return
-        for part in str(value).split(','):
+        import re
+        for part in re.split(r'[,;]+', str(value)):
             e = part.strip().lower()
             if e and '@' in e:
                 emails.add(e)
