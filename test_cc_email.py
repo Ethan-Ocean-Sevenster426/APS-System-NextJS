@@ -82,8 +82,8 @@ for name, gid in failing:
         print(f"  {FAIL} {name} → no emails found")
         all_ok = False
 
-# ── TEST 3: Graph API send to anthony only (no spam) ──
-print(f"\n{CYAN}── TEST 3: Graph API send (to anthony only) ──{RESET}")
+# ── TEST 3: Graph API send to ethan only (no spam) ──
+print(f"\n{CYAN}── TEST 3: Graph API send (to ethan only) ──{RESET}")
 
 tenant_id = settings.GRAPH_TENANT_ID
 client_id = settings.GRAPH_CLIENT_ID
@@ -114,7 +114,6 @@ try:
                 "content": "<p>This test verifies two separate TO recipients work (was failing with semicolons).</p>"
             },
             "toRecipients": [
-                {"emailAddress": {"address": "anthony.penzes@moc-pty.com"}},
                 {"emailAddress": {"address": "ethan.sevenster@eclick.co.za"}}
             ],
             "from": {"emailAddress": {"address": from_email}}
@@ -123,14 +122,14 @@ try:
     }
     resp = requests.post(graph_url, headers=headers, json=email_data, timeout=30)
     if resp.status_code == 202:
-        print(f"  {PASS} Two TO recipients sent OK")
+        print(f"  {PASS} Send to ethan OK")
     else:
         err = resp.json().get('error', {})
         print(f"  {FAIL} HTTP {resp.status_code}: {err.get('code')} - {err.get('message', '')[:100]}")
 
     # 3b: Send with attachment
     email_data['message']['subject'] = 'FSA Test - Attachment send verified'
-    email_data['message']['toRecipients'] = [{"emailAddress": {"address": "anthony.penzes@moc-pty.com"}}]
+    email_data['message']['toRecipients'] = [{"emailAddress": {"address": "ethan.sevenster@eclick.co.za"}}]
     email_data['message']['attachments'] = [{
         "@odata.type": "#microsoft.graph.fileAttachment",
         "name": "test.txt",
@@ -156,7 +155,7 @@ try:
         subject='FSA Test - Production path verified',
         body='<p>This tests the exact same code path as the Send button.</p>',
         from_email=from_email,
-        to=['anthony.penzes@moc-pty.com'],
+        to=['ethan.sevenster@eclick.co.za'],
         reply_to=[from_email],
     )
     email.content_subtype = 'html'
@@ -168,5 +167,5 @@ except Exception as e:
 
 # ── SUMMARY ──
 print(f"\n{'='*70}")
-print(f" TESTS COMPLETE - check anthony.penzes@moc-pty.com for test emails")
+print(f" TESTS COMPLETE - check ethan.sevenster@eclick.co.za for test emails")
 print(f"{'='*70}\n")
