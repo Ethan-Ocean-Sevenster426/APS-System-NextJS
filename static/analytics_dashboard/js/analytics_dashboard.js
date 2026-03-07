@@ -2571,73 +2571,328 @@ async function exportDashboardPDF() {
         return yOff + iH + 4;
     }
 
-    // Place an html2canvas screenshot, splitting across pages if needed.
-    async function addElementCapture(pdf, element, yOff, sectionTitle, chartLabel) {
-        try {
-            // Add chart label above the element
-            if (chartLabel) {
-                if (yOff + 8 > PAGE_BOTTOM) {
-                    drawPageFooter(pdf, '?', '?');
-                    pdf.addPage();
-                    drawPageHeader(pdf, sectionTitle);
-                    yOff = PAGE_TOP;
-                }
-                pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
-                pdf.text(chartLabel, M, yOff + 4);
-                yOff += 7;
-            }
+    // ── Vector-based table / element renderers (no screenshots) ─────────
 
-            var cap = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false });
-            var ar  = cap.width / cap.height;
-            var iW  = CW;
-            var iH  = iW / ar;
-            var available = PAGE_BOTTOM - yOff;
-
-            // Fits on current page
-            if (iH <= available) {
-                pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
-                return yOff + iH + 4;
-            }
-
-            // Taller than page — split across pages
-            if (iH > PAGE_H) {
-                var firstSliceRatio = available / iH;
-                var firstSlicePixH = Math.floor(cap.height * firstSliceRatio);
-                if (firstSlicePixH > 10) {
-                    var sc = document.createElement('canvas');
-                    sc.width = cap.width; sc.height = firstSlicePixH;
-                    sc.getContext('2d').drawImage(cap, 0, 0, cap.width, firstSlicePixH, 0, 0, cap.width, firstSlicePixH);
-                    pdf.addImage(sc.toDataURL('image/png'), 'PNG', M, yOff, iW, available);
-                } else {
-                    firstSlicePixH = 0;
-                }
-                var pixOff = firstSlicePixH;
-                while (pixOff < cap.height) {
-                    drawPageFooter(pdf, '?', '?');
-                    pdf.addPage();
-                    drawPageHeader(pdf, sectionTitle);
-                    var chunkPixH = Math.min(cap.height - pixOff, Math.floor(cap.height * (PAGE_H / iH)));
-                    var sc2 = document.createElement('canvas');
-                    sc2.width = cap.width; sc2.height = chunkPixH;
-                    sc2.getContext('2d').drawImage(cap, 0, pixOff, cap.width, chunkPixH, 0, 0, cap.width, chunkPixH);
-                    var chunkMMH = (chunkPixH / cap.height) * iH;
-                    pdf.addImage(sc2.toDataURL('image/png'), 'PNG', M, PAGE_TOP, iW, chunkMMH);
-                    yOff = PAGE_TOP + chunkMMH + 4;
-                    pixOff += chunkPixH;
-                }
-                return yOff;
-            }
-
-            // Taller than remaining space but fits on one page
+    // Helper: ensure enough space or start a new page
+    function ensureSpace(pdf, yOff, needed, sectionTitle) {
+        if (yOff + needed > PAGE_BOTTOM) {
             drawPageFooter(pdf, '?', '?');
             pdf.addPage();
             drawPageHeader(pdf, sectionTitle);
-            yOff = PAGE_TOP;
-            pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
-            return yOff + iH + 4;
-        } catch (e) {
-            console.warn('html2canvas failed:', e);
-            return yOff;
+            return PAGE_TOP;
+        }
+        return yOff;
+    }
+
+    // ── Compliance Bars (vector-drawn horizontal bar chart) ──────────────
+    function renderComplianceBarsVector(pdf, yOff, sectionTitle) {
+        var items = dashboardData.complianceByCommodity || [];
+        if (items.length === 0) return yOff;
+
+        yOff = ensureSpace(pdf, yOff, 8, sectionTitle);
+        pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+        pdf.text('Compliance Per Commodity', M, yOff + 4);
+        yOff += 8;
+
+        var barH = 7, barGap = 2, labelW = 42, countW = 18;
+        var trackX = M + labelW, trackW = CW - labelW - countW - 2;
+        var commodityColors = { EGG: [245,158,11], EGGS: [245,158,11], POULTRY: [99,102,241], RAW: [239,68,68], PMP: [16,185,129] };
+
+        for (var i = 0; i < items.length; i++) {
+            yOff = ensureSpace(pdf, yOff, barH + barGap, sectionTitle);
+            var item = items[i];
+            var commodity = item.commodity || 'Unknown';
+            var rate = item.compliance_rate || 0;
+            var total = item.total || 0;
+            var color = commodityColors[commodity.toUpperCase()] || C_TEAL;
+
+            // Label
+            pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_DARK);
+            pdf.text(commodity, M, yOff + barH - 2);
+
+            // Track background
+            pdf.setFillColor(235, 238, 242);
+            pdf.roundedRect(trackX, yOff, trackW, barH, 1.5, 1.5, 'F');
+
+            // Fill bar
+            var fillW = Math.max((rate / 100) * trackW, trackW * 0.02);
+            pdf.setFillColor.apply(pdf, color);
+            pdf.roundedRect(trackX, yOff, fillW, barH, 1.5, 1.5, 'F');
+
+            // Percentage text inside bar
+            pdf.setFontSize(6.5); pdf.setTextColor.apply(pdf, C_WHITE);
+            if (fillW > 15) {
+                pdf.text(rate.toFixed(1) + '%', trackX + fillW - 2, yOff + barH - 2, { align: 'right' });
+            } else {
+                pdf.setTextColor.apply(pdf, C_DARK);
+                pdf.text(rate.toFixed(1) + '%', trackX + fillW + 2, yOff + barH - 2);
+            }
+
+            // Count
+            pdf.setFontSize(7); pdf.setTextColor.apply(pdf, C_GREY);
+            pdf.text(String(total), M + CW - 2, yOff + barH - 2, { align: 'right' });
+
+            yOff += barH + barGap;
+        }
+
+        return yOff + 3;
+    }
+
+    // ── Inspector Targets Table (jspdf-autotable) ────────────────────────
+    function renderTargetsTableVector(pdf, yOff, sectionTitle) {
+        var inspectors = getInspectorData();
+        var kmLookup = {}, hoursLookup = {}, inspCountLookup = {};
+        (dashboardData.travelPerInspector || []).forEach(function(item) {
+            kmLookup[item.inspector_name] = item.total_km || 0;
+            hoursLookup[item.inspector_name] = item.total_hours || 0;
+            inspCountLookup[item.inspector_name] = item.inspection_count || 0;
+        });
+        Object.keys(inspCountLookup).forEach(function(name) {
+            if (!inspectors[name]) inspectors[name] = { inspections: {}, samples: {} };
+        });
+        var inspectorNames = Object.keys(inspectors).sort();
+        if (inspectorNames.length === 0) return yOff;
+
+        yOff = ensureSpace(pdf, yOff, 8, sectionTitle);
+        pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+        pdf.text('Quarterly Targets', M, yOff + 4);
+        yOff += 7;
+
+        var head = [['Inspector', 'Total', 'Eggs /' + INSPECTOR_TARGETS.inspections.EGGS, 'Poultry /' + INSPECTOR_TARGETS.inspections.POULTRY,
+                     'RAW /' + INSPECTOR_TARGETS.inspections.RAW, 'PMP /' + INSPECTOR_TARGETS.inspections.PMP,
+                     'RAW Smp /' + INSPECTOR_TARGETS.sampling.RAW, 'PMP Smp /' + INSPECTOR_TARGETS.sampling.PMP,
+                     'Tot Smp /' + SAMPLING_TOTAL_TARGET, 'KM', 'Hours']];
+        var body = [];
+
+        inspectorNames.forEach(function(name) {
+            var d = inspectors[name];
+            var eggs = d.inspections['EGGS'] || d.inspections['EGG'] || 0;
+            var poultry = d.inspections['POULTRY'] || 0;
+            var raw = d.inspections['RAW'] || 0;
+            var pmp = d.inspections['PMP'] || 0;
+            var totalInsp = inspCountLookup[name] || 0;
+            if (!totalInsp) { Object.keys(d.inspections).forEach(function(k) { totalInsp += d.inspections[k] || 0; }); }
+            var km = kmLookup[name] || 0;
+            var hours = hoursLookup[name] || 0;
+            var rawSamples = d.samples['RAW'] || 0;
+            var pmpSamples = d.samples['PMP'] || 0;
+            var totalSamples = 0;
+            Object.keys(d.samples).forEach(function(k) { totalSamples += d.samples[k] || 0; });
+
+            body.push([
+                name, totalInsp, eggs, poultry, raw, pmp,
+                rawSamples, pmpSamples, totalSamples,
+                km ? Math.round(km).toLocaleString() : '-',
+                hours ? parseFloat(hours).toFixed(1) : '-'
+            ]);
+        });
+
+        pdf.autoTable({
+            startY: yOff,
+            head: head,
+            body: body,
+            margin: { left: M, right: M },
+            styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2 },
+            headStyles: { fillColor: C_DARK, textColor: C_WHITE, fontStyle: 'bold', halign: 'center' },
+            columnStyles: {
+                0: { halign: 'left', cellWidth: 35 },
+                1: { halign: 'center', fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index >= 2 && data.column.index <= 8) {
+                    var val = Number(data.cell.raw);
+                    var targets = [INSPECTOR_TARGETS.inspections.EGGS, INSPECTOR_TARGETS.inspections.POULTRY,
+                                   INSPECTOR_TARGETS.inspections.RAW, INSPECTOR_TARGETS.inspections.PMP,
+                                   INSPECTOR_TARGETS.sampling.RAW, INSPECTOR_TARGETS.sampling.PMP, SAMPLING_TOTAL_TARGET];
+                    var target = targets[data.column.index - 2];
+                    if (target && val >= target) {
+                        data.cell.styles.fillColor = [220, 252, 231];
+                        data.cell.styles.textColor = [22, 101, 52];
+                    } else if (target) {
+                        data.cell.styles.fillColor = [254, 226, 226];
+                        data.cell.styles.textColor = [153, 27, 27];
+                    }
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.halign = 'center';
+                    var pct = target > 0 ? Math.round((val / target) * 100) : 0;
+                    data.cell.text = [val + ' (' + pct + '%)'];
+                }
+            },
+            didDrawPage: function(data) {
+                drawPageHeader(pdf, sectionTitle);
+                drawPageFooter(pdf, '?', '?');
+            }
+        });
+
+        return pdf.lastAutoTable.finalY + 4;
+    }
+
+    // ── Efficiency Matrix Table (jspdf-autotable) ────────────────────────
+    function renderMatrixTableVector(pdf, yOff, sectionTitle) {
+        var items = dashboardData.inspectorCommodityMatrix || [];
+        if (items.length === 0) return yOff;
+
+        var kmLookup = {};
+        (dashboardData.travelPerInspector || []).forEach(function(item) {
+            kmLookup[item.inspector_name] = item.total_km || 0;
+        });
+
+        var inspectors = {}, commodities = new Set();
+        items.forEach(function(item) {
+            commodities.add(item.commodity);
+            if (!inspectors[item.inspector_name]) inspectors[item.inspector_name] = {};
+            inspectors[item.inspector_name][item.commodity] = item.count || 0;
+        });
+        var commList = Array.from(commodities).sort();
+
+        yOff = ensureSpace(pdf, yOff, 8, sectionTitle);
+        pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+        pdf.text('Efficiency Matrix', M, yOff + 4);
+        yOff += 7;
+
+        var head = [['Inspector'].concat(commList).concat(['Total', 'KM'])];
+        var body = [];
+        Object.keys(inspectors).sort().forEach(function(name) {
+            var row = [name];
+            var total = 0;
+            commList.forEach(function(c) { var count = inspectors[name][c] || 0; total += count; row.push(count || '-'); });
+            row.push(total);
+            var km = kmLookup[name] || 0;
+            row.push(km ? Math.round(km).toLocaleString() : '-');
+            body.push(row);
+        });
+
+        pdf.autoTable({
+            startY: yOff,
+            head: head,
+            body: body,
+            margin: { left: M, right: M },
+            styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'center' },
+            headStyles: { fillColor: [79, 70, 229], textColor: C_WHITE, fontStyle: 'bold' },
+            columnStyles: { 0: { halign: 'left', cellWidth: 35, fontStyle: 'bold' } },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            didDrawPage: function(data) {
+                drawPageHeader(pdf, sectionTitle);
+                drawPageFooter(pdf, '?', '?');
+            }
+        });
+
+        return pdf.lastAutoTable.finalY + 4;
+    }
+
+    // ── Financial Table (jspdf-autotable) ────────────────────────────────
+    function renderFinancialTableVector(pdf, yOff, sectionTitle) {
+        var items = dashboardData.inspectorFinancials || [];
+        if (items.length === 0) return yOff;
+
+        yOff = ensureSpace(pdf, yOff, 8, sectionTitle);
+        pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+        pdf.text('Revenue Per Inspector', M, yOff + 4);
+        yOff += 7;
+
+        var KM_RATE = 4.50;
+        var head = [['Inspector', 'Insp', 'Hrs', 'KM', 'R/km', 'On-Site', 'Rev(Hrs)', 'Rev(KM)', 'Rev(Smp)', 'Total Rev', 'Salary', 'Expenses', 'Total Cost', 'Rev/Hr', 'Cost/Hr', 'Profit']];
+        var body = [];
+        var totals = { inspections: 0, hours: 0, km: 0, kmCost: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, totalCost: 0, profit: 0 };
+
+        items.forEach(function(item) {
+            var hrs = parseFloat(item.total_hours || 0);
+            var km = parseFloat(item.total_km || 0);
+            var kmCost = km * KM_RATE;
+            var inspTime = parseFloat(item.inspection_time || 0);
+            var revH = item.revenue_hours || 0;
+            var revK = item.revenue_km || 0;
+            var revS = item.revenue_samples || 0;
+            var tot = item.total_revenue || 0;
+            var salary = getInspectorSalary(item.inspector_name);
+            var expenses = getInspectorExpenses(item.inspector_name);
+            var totalCost = salary + expenses;
+            var profit = totalCost ? tot - totalCost : 0;
+
+            totals.inspections += item.total_inspections || 0;
+            totals.hours += hrs; totals.km += km; totals.kmCost += kmCost; totals.inspTime += inspTime;
+            totals.revHours += revH; totals.revKm += revK; totals.revSamples += revS; totals.total += tot;
+            totals.salary += salary; totals.expenses += expenses; totals.totalCost += totalCost;
+            if (totalCost) totals.profit += profit;
+
+            body.push([
+                item.inspector_name || '-',
+                item.total_inspections || 0,
+                hrs.toFixed(1),
+                km ? Math.round(km).toLocaleString() : '-',
+                km ? formatRand(kmCost) : '—',
+                inspTime ? inspTime.toFixed(1) : '-',
+                formatRand(revH), formatRand(revK), formatRand(revS), formatRand(tot),
+                salary ? formatRand(salary) : '—',
+                expenses ? formatRand(expenses) : '—',
+                totalCost ? formatRand(totalCost) : '—',
+                hrs > 0 ? formatRand(tot / hrs) : '—',
+                hrs > 0 ? formatRand(totalCost / hrs) : '—',
+                { content: totalCost ? formatRand(profit) : '—', _profit: profit, _hasCost: !!totalCost }
+            ]);
+        });
+
+        // Total row
+        var totRevPerHr = totals.hours > 0 ? totals.total / totals.hours : 0;
+        var totCostPerHr = totals.hours > 0 ? totals.totalCost / totals.hours : 0;
+        body.push([
+            'TOTAL', totals.inspections, totals.hours.toFixed(1), Math.round(totals.km).toLocaleString(),
+            formatRand(totals.kmCost), totals.inspTime.toFixed(1),
+            formatRand(totals.revHours), formatRand(totals.revKm), formatRand(totals.revSamples), formatRand(totals.total),
+            formatRand(totals.salary), formatRand(totals.expenses), formatRand(totals.totalCost),
+            formatRand(totRevPerHr), formatRand(totCostPerHr),
+            { content: formatRand(totals.profit), _profit: totals.profit, _hasCost: true }
+        ]);
+
+        pdf.autoTable({
+            startY: yOff,
+            head: head,
+            body: body,
+            margin: { left: M, right: M },
+            styles: { fontSize: 5.5, cellPadding: 1.2, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'right', overflow: 'ellipsize' },
+            headStyles: { fillColor: [5, 122, 85], textColor: C_WHITE, fontStyle: 'bold', halign: 'center', fontSize: 5.5 },
+            columnStyles: { 0: { halign: 'left', cellWidth: 30, fontStyle: 'bold' } },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            didParseCell: function(data) {
+                // Style the total row
+                if (data.section === 'body' && data.row.index === body.length - 1) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [226, 232, 240];
+                }
+                // Color profit column
+                if (data.section === 'body' && data.column.index === 15) {
+                    var raw = data.cell.raw;
+                    if (raw && typeof raw === 'object') {
+                        data.cell.text = [raw.content];
+                        if (raw._hasCost) {
+                            data.cell.styles.textColor = raw._profit >= 0 ? [16, 185, 129] : [239, 68, 68];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
+                // Shade cost columns (10,11,12)
+                if (data.section === 'body' && data.column.index >= 10 && data.column.index <= 12 && data.row.index < body.length - 1) {
+                    data.cell.styles.fillColor = data.row.index % 2 === 0 ? [240, 253, 250] : [230, 248, 245];
+                }
+            },
+            didDrawPage: function(data) {
+                drawPageHeader(pdf, sectionTitle);
+                drawPageFooter(pdf, '?', '?');
+            }
+        });
+
+        return pdf.lastAutoTable.finalY + 4;
+    }
+
+    // ── Dispatcher: render a non-chart element by its selector ───────────
+    function renderVectorElement(pdf, selector, yOff, sectionTitle, label) {
+        switch (selector) {
+            case '#complianceBarsContainer': return renderComplianceBarsVector(pdf, yOff, sectionTitle);
+            case '#inspectorTargetsTable':   return renderTargetsTableVector(pdf, yOff, sectionTitle);
+            case '#efficiencyMatrixTable':   return renderMatrixTableVector(pdf, yOff, sectionTitle);
+            case '#financialTable':          return renderFinancialTableVector(pdf, yOff, sectionTitle);
+            default: return yOff;
         }
     }
 
@@ -2923,10 +3178,17 @@ async function exportDashboardPDF() {
                     var inst = chartInstances[chartKey];
                     var can = document.getElementById(chartKey);
                     if (inst && can && can.width > 0 && can.height > 0) {
+                        // Re-render at 2× resolution for crisp PDF output
+                        var origDPR = inst.options.devicePixelRatio;
+                        inst.options.devicePixelRatio = 3;
+                        inst.resize();
                         item.imgData = inst.toBase64Image('image/png', 1.0);
                         item.canvasW = can.width;
                         item.canvasH = can.height;
                         item.srcCanvas = can;
+                        // Restore original DPR
+                        inst.options.devicePixelRatio = origDPR || undefined;
+                        inst.resize();
                         // A chart is "small" if its rendered height on page would be < 90mm
                         var renderedH = CW / (can.width / can.height);
                         item.isSmall = renderedH < 90;
@@ -2941,13 +3203,9 @@ async function exportDashboardPDF() {
             while (ci3 < chartItems.length) {
                 var cur = chartItems[ci3];
 
-                // Tables / element captures — always full width
+                // Tables / non-chart elements — render as vector data
                 if (!cur.isChart) {
-                    var el = document.querySelector(cur.selector);
-                    if (el) {
-                        if (cur.parentCard) el = el.closest('.card') || el;
-                        yOff = await addElementCapture(pdf, el, yOff, grp.title, cur.label);
-                    }
+                    yOff = renderVectorElement(pdf, cur.selector, yOff, grp.title, cur.label);
                     ci3++;
                     continue;
                 }
