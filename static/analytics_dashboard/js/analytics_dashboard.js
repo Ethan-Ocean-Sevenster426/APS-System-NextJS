@@ -2851,80 +2851,122 @@ async function exportDashboardPDF() {
             },
         ];
 
-        // ── Render each section group ─────────────────────────────────────────
+        // ── Helper: inline section banner (no separate page) ──────────────
+        function drawSectionBanner(pdf, yOff, grp, gi) {
+            // Check if we need a new page for the banner
+            if (yOff + 16 > PAGE_BOTTOM) {
+                drawPageFooter(pdf, '?', '?');
+                pdf.addPage();
+                drawPageHeader(pdf, grp.title);
+                yOff = PAGE_TOP;
+            }
+            // Colored banner bar
+            pdf.setFillColor.apply(pdf, grp.color || C_TEAL);
+            pdf.roundedRect(M, yOff, CW, 12, 2, 2, 'F');
+            // Section number
+            pdf.setFillColor.apply(pdf, C_WHITE);
+            pdf.circle(M + 8, yOff + 6, 4, 'F');
+            pdf.setFontSize(10); pdf.setTextColor.apply(pdf, grp.color || C_TEAL);
+            pdf.text(String(gi + 1), M + 8, yOff + 8, { align: 'center' });
+            // Section title
+            pdf.setFontSize(12); pdf.setTextColor.apply(pdf, C_WHITE);
+            pdf.text(grp.title, M + 16, yOff + 7.5);
+            return yOff + 15;
+        }
+
+        // ── Helper: place two small charts side by side ──────────────────────
+        function addTwoChartsRow(pdf, chart1, chart2, yOff, sectionTitle) {
+            var halfW = (CW - 4) / 2;
+            var rowH = 70; // fixed height for paired charts
+            var available = PAGE_BOTTOM - yOff;
+            if (rowH + 10 > available) {
+                drawPageFooter(pdf, '?', '?');
+                pdf.addPage();
+                drawPageHeader(pdf, sectionTitle);
+                yOff = PAGE_TOP;
+            }
+            // Labels
+            pdf.setFontSize(8); pdf.setTextColor.apply(pdf, C_DARK);
+            if (chart1.label) pdf.text(chart1.label, M, yOff + 4);
+            if (chart2 && chart2.label) pdf.text(chart2.label, M + halfW + 4, yOff + 4);
+            yOff += 6;
+            // Chart 1
+            if (chart1.imgData) {
+                pdf.addImage(chart1.imgData, 'PNG', M, yOff, halfW, rowH);
+            }
+            // Chart 2
+            if (chart2 && chart2.imgData) {
+                pdf.addImage(chart2.imgData, 'PNG', M + halfW + 4, yOff, halfW, rowH);
+            }
+            return yOff + rowH + 4;
+        }
+
+        // ── Render each section group (compact: no divider pages) ────────────
         for (var gi = 0; gi < groups.length; gi++) {
             var grp = groups[gi];
             updateProgress('Exporting ' + grp.title + ' (' + (gi + 1) + '/' + groups.length + ')...');
 
-            // Section divider page
-            pdf.addPage();
-            // full-page tinted background
-            pdf.setFillColor(245, 248, 250);
-            pdf.rect(0, 0, PW, PH, 'F');
-            // top accent bar
-            pdf.setFillColor.apply(pdf, grp.color || C_TEAL);
-            pdf.rect(0, 0, PW, 30, 'F');
-            pdf.setFillColor.apply(pdf, C_RED);
-            pdf.rect(0, 28, PW, 3, 'F');
-            // section number circle
-            pdf.setFillColor.apply(pdf, C_WHITE);
-            pdf.circle(M + 15, 15, 9, 'F');
-            pdf.setFontSize(16); pdf.setTextColor.apply(pdf, grp.color || C_TEAL);
-            pdf.text(String(gi + 1), M + 15, 18, { align: 'center' });
-            // section title
-            pdf.setFontSize(20); pdf.setTextColor.apply(pdf, C_WHITE);
-            pdf.text(grp.title, M + 30, 12);
-            pdf.setFontSize(9); pdf.setTextColor(200, 230, 240);
-            pdf.text(grp.icon.toUpperCase(), M + 30, 19);
-            // description box
-            pdf.setFillColor.apply(pdf, C_WHITE);
-            pdf.roundedRect(M, 36, CW, 18, 2, 2, 'F');
-            pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
-            pdf.text('About this section:', M + 4, 44);
-            pdf.setFontSize(8.5); pdf.setTextColor.apply(pdf, C_GREY);
-            var descLines = pdf.splitTextToSize(grp.description, CW - 8);
-            pdf.text(descLines, M + 4, 50);
-            // contents list
-            pdf.setFontSize(8); pdf.setTextColor.apply(pdf, C_DARK);
-            pdf.text('Contents:', M + 4, 62);
-            grp.charts.forEach(function(ch, ci) {
-                pdf.setFillColor.apply(pdf, grp.color || C_TEAL);
-                pdf.circle(M + 6, 67 + ci * 7, 1.5, 'F');
-                pdf.setTextColor.apply(pdf, C_DARK);
-                pdf.text(ch.label, M + 10, 68.2 + ci * 7);
-            });
-            // footer
-            pdf.setFillColor.apply(pdf, C_LIGHT);
-            pdf.rect(0, PH - 8, PW, 8, 'F');
-            pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_GREY);
-            pdf.text('CONFIDENTIAL — Food Safety Agency (Pty) Ltd', M, PH - 3);
-            pdf.text(new Date().toLocaleDateString('en-ZA'), PW - M, PH - 3, { align: 'right' });
-
-            // ── Charts / tables for this section — packed onto as few pages as possible
+            // Start new page for each section
             pdf.addPage();
             drawPageHeader(pdf, grp.title);
             var yOff = PAGE_TOP;
+            yOff = drawSectionBanner(pdf, yOff, grp, gi);
 
+            // Collect chart images for pairing small charts
+            var chartItems = [];
             for (var ci2 = 0; ci2 < grp.charts.length; ci2++) {
                 var ch = grp.charts[ci2];
+                var item = { label: ch.label, isChart: ch.isChart, parentCard: ch.parentCard, selector: ch.selector, imgData: null, canvasW: 0, canvasH: 0, srcCanvas: null, isSmall: false };
 
                 if (ch.isChart) {
                     var chartKey = ch.selector.replace('#', '');
                     var inst = chartInstances[chartKey];
                     var can = document.getElementById(chartKey);
                     if (inst && can && can.width > 0 && can.height > 0) {
-                        yOff = addChartImage(pdf, inst.toBase64Image('image/png', 1.0), can.width, can.height, yOff, grp.title, ch.label, can);
-                    }
-                } else {
-                    var el = document.querySelector(ch.selector);
-                    if (el) {
-                        if (ch.parentCard) el = el.closest('.card') || el;
-                        yOff = await addElementCapture(pdf, el, yOff, grp.title, ch.label);
+                        item.imgData = inst.toBase64Image('image/png', 1.0);
+                        item.canvasW = can.width;
+                        item.canvasH = can.height;
+                        item.srcCanvas = can;
+                        // A chart is "small" if its rendered height on page would be < 90mm
+                        var renderedH = CW / (can.width / can.height);
+                        item.isSmall = renderedH < 90;
                     }
                 }
+                chartItems.push(item);
                 await new Promise(function(r) { setTimeout(r, 60); });
             }
-            // Close the last page of this section
+
+            // Now lay out: pair small charts side-by-side, full-width for large ones and tables
+            var ci3 = 0;
+            while (ci3 < chartItems.length) {
+                var cur = chartItems[ci3];
+
+                // Tables / element captures — always full width
+                if (!cur.isChart) {
+                    var el = document.querySelector(cur.selector);
+                    if (el) {
+                        if (cur.parentCard) el = el.closest('.card') || el;
+                        yOff = await addElementCapture(pdf, el, yOff, grp.title, cur.label);
+                    }
+                    ci3++;
+                    continue;
+                }
+
+                // Small chart — try to pair with next small chart
+                if (cur.isSmall && cur.imgData && ci3 + 1 < chartItems.length && chartItems[ci3 + 1].isSmall && chartItems[ci3 + 1].imgData) {
+                    yOff = addTwoChartsRow(pdf, cur, chartItems[ci3 + 1], yOff, grp.title);
+                    ci3 += 2;
+                    continue;
+                }
+
+                // Large chart or unpaired small chart — full width
+                if (cur.imgData) {
+                    yOff = addChartImage(pdf, cur.imgData, cur.canvasW, cur.canvasH, yOff, grp.title, cur.label, cur.srcCanvas);
+                }
+                ci3++;
+            }
+
+            // Close this section's last page
             drawPageFooter(pdf, '?', '?');
         }
 
