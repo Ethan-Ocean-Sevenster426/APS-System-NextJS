@@ -660,43 +660,17 @@
          ============================================================ -->
     <div id="panel-operations" class="dashboard-panel">
 
-        <!-- Travel Distance + Monthly Travel Trend -->
+        <!-- Monthly Trends Row -->
         <div class="dashboard-grid-2col">
             <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-route"></i>
-                        <span>Travel Distance Per Inspector</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelChart"></canvas>
-                </div>
-            </div>
-            <div class="card" style="align-self: start;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-area"></i>
                         <span>Monthly Travel Distance (km)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 160px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="travelTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Travel Time Per Inspector + Travel Hours Trend -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-car"></i>
-                        <span>Travel Time Per Inspector (Hours)</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelTimeChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -706,9 +680,35 @@
                         <span>Travel Hours Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 260px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="travelHoursTrendChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <!-- Travel Distance Per Inspector (full width) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-route"></i>
+                    <span>Travel Distance Per Inspector</span>
+                </div>
+            </div>
+            <div class="card-body" style="min-height: 300px;">
+                <canvas id="travelChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Travel Time Per Inspector (full width) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-car"></i>
+                    <span>Travel Time Per Inspector (Hours)</span>
+                </div>
+            </div>
+            <div class="card-body" style="min-height: 300px;">
+                <canvas id="travelTimeChart"></canvas>
             </div>
         </div>
     </div>
