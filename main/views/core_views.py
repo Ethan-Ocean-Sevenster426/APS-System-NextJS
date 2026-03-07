@@ -8408,7 +8408,7 @@ def analytics_dashboard(request):
     if request.user.role == 'inspector_manager':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectionGroup, Settings, InspectionFee, InspectorTarget
     from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField, DecimalField, Value, F
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
     from datetime import datetime, timedelta, date
@@ -8564,7 +8564,8 @@ def analytics_dashboard(request):
             commodity['compliance_rate'] = 0
     
     # === GEOGRAPHIC ANALYSIS ===
-    geographic_analysis = FoodSafetyAgencyInspection.objects.exclude(
+    # Use InspectionGroup to avoid double-counting km across multi-commodity inspections
+    geographic_analysis = InspectionGroup.objects.exclude(
         Q(km_traveled__isnull=True) | Q(km_traveled=0)
     ).aggregate(
         avg_distance=Avg('km_traveled'),
@@ -8808,14 +8809,50 @@ def analytics_dashboard(request):
         item['direction_rate'] = round((item['directions'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # Travel & distance per inspector
-    travel_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
+    # Use InspectionGroup to avoid double-counting km/hours across multi-commodity inspections
+    _travel_map = {}
+    for _row in InspectionGroup.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        inspection_count=Count('inspections'),
+        avg_km=Avg('km_traveled'),
+    ):
+        _travel_map[_row['inspector_name']] = {
+            'inspector_name': _row['inspector_name'],
+            'total_km': float(_row['total_km'] or 0),
+            'total_hours': float(_row['total_hours'] or 0),
+            'inspection_count': _row['inspection_count'] or 0,
+            'avg_km': float(_row['avg_km'] or 0),
+        }
+    # Include ungrouped inspections (legacy data without a parent group)
+    for _row in FoodSafetyAgencyInspection.objects.filter(
+        inspection_group__isnull=True
+    ).exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).values('inspector_name').annotate(
         total_km=Sum('km_traveled'),
         total_hours=Sum('hours'),
         inspection_count=Count('id'),
         avg_km=Avg('km_traveled'),
-    ).order_by('-total_km'))
+    ):
+        name = _row['inspector_name']
+        if name in _travel_map:
+            _travel_map[name]['total_km'] += float(_row['total_km'] or 0)
+            _travel_map[name]['total_hours'] += float(_row['total_hours'] or 0)
+            _travel_map[name]['inspection_count'] += _row['inspection_count'] or 0
+        else:
+            _travel_map[name] = {
+                'inspector_name': name,
+                'total_km': float(_row['total_km'] or 0),
+                'total_hours': float(_row['total_hours'] or 0),
+                'inspection_count': _row['inspection_count'] or 0,
+                'avg_km': float(_row['avg_km'] or 0),
+            }
+    for _v in _travel_map.values():
+        _v['avg_km'] = round(_v['total_km'] / max(_v['inspection_count'], 1), 2)
+    travel_per_inspector = sorted(_travel_map.values(), key=lambda x: x['total_km'], reverse=True)
 
     # Inspections per commodity per inspector (efficiency matrix)
     inspector_commodity_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -8858,8 +8895,8 @@ def analytics_dashboard(request):
         month=_TruncMonth('date_of_inspection')
     ).values('month').annotate(count=Count('id')).order_by('month'))
 
-    # Monthly total travel distance
-    monthly_travel_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+    # Monthly total travel distance (from InspectionGroup to avoid double-counting)
+    monthly_travel_trend = list(InspectionGroup.objects.exclude(
         Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
     ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
         total_km=Sum('km_traveled')
@@ -8949,17 +8986,15 @@ def analytics_dashboard(request):
         _appr_by_month[_mk]['count'] += 1
     monthly_approval_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
 
-    # Monthly total travel hours
+    # Monthly total travel hours (from InspectionGroup to avoid double-counting)
     _travel_hrs_by_month = {}
-    for _insp in FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
-        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    for _grp in InspectionGroup.objects.exclude(
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).values(
+        'travel_start_time', 'travel_end_time', 'date_of_inspection'
     ):
-        _start = _insp['inspection_group__travel_start_time']
-        _end = _insp['inspection_group__travel_end_time']
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if not (_start and _end):
             continue
         _start_dt = datetime.combine(datetime.today(), _start)
@@ -8967,7 +9002,7 @@ def analytics_dashboard(request):
         if _end_dt < _start_dt:
             _end_dt += timedelta(days=1)
         _dur = (_end_dt - _start_dt).total_seconds() / 3600
-        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _mk = _grp['date_of_inspection'].strftime('%Y-%m')
         _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
     monthly_travel_hours_trend = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
@@ -9053,45 +9088,66 @@ def analytics_dashboard(request):
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to travel end time) per inspector
-    # Note: Using travel_start_time and travel_end_time from InspectionGroup
+    # Use InspectionGroup directly to avoid double-counting across multi-commodity inspections
     from datetime import datetime, timedelta
     inspection_times = {}
-    inspections_with_times = FoodSafetyAgencyInspection.objects.exclude(
+    for _grp in InspectionGroup.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
+        inspector = _grp['inspector_name']
+        start = _grp['travel_start_time']
+        end = _grp['travel_end_time']
 
-    for insp in inspections_with_times:
-        inspector = insp['inspector_name']
-        start = insp['inspection_group__travel_start_time']
-        end = insp['inspection_group__travel_end_time']
-
-        # Calculate duration in hours
         if start and end:
-            # Convert time to datetime for calculation
             start_dt = datetime.combine(datetime.today(), start)
             end_dt = datetime.combine(datetime.today(), end)
-
-            # Handle cases where end time is before start time (crosses midnight)
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
-
-            duration = (end_dt - start_dt).total_seconds() / 3600  # Convert to hours
+            duration = (end_dt - start_dt).total_seconds() / 3600
 
             if inspector not in inspection_times:
                 inspection_times[inspector] = 0
             inspection_times[inspector] += duration
 
     # Calculate revenue per inspector
+    # Get hours/km from InspectionGroup (group-level) to avoid double-counting
+    _fin_group_data = {}
+    for _row in InspectionGroup.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+    ):
+        _fin_group_data[_row['inspector_name']] = {
+            'total_hours': float(_row['total_hours'] or 0),
+            'total_km': float(_row['total_km'] or 0),
+        }
+    # Also include ungrouped inspections
+    for _row in FoodSafetyAgencyInspection.objects.filter(
+        inspection_group__isnull=True
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+    ):
+        name = _row['inspector_name']
+        if name in _fin_group_data:
+            _fin_group_data[name]['total_hours'] += float(_row['total_hours'] or 0)
+            _fin_group_data[name]['total_km'] += float(_row['total_km'] or 0)
+        else:
+            _fin_group_data[name] = {
+                'total_hours': float(_row['total_hours'] or 0),
+                'total_km': float(_row['total_km'] or 0),
+            }
+
+    # Get inspection counts and sample counts from individual inspections (correct level)
     inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
-        total_hours=Sum('hours'),
-        total_km=Sum('km_traveled'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
     ).order_by('-total_inspections')
@@ -9099,10 +9155,12 @@ def analytics_dashboard(request):
     inspector_financials = []
     total_revenue = 0
     for item in inspector_financials_qs:
-        hrs = float(item['total_hours'] or 0)
-        km = float(item['total_km'] or 0)
+        name = item['inspector_name']
+        group_data = _fin_group_data.get(name, {})
+        hrs = group_data.get('total_hours', 0)
+        km = group_data.get('total_km', 0)
         samples = item['total_samples'] or 0
-        inspection_time = inspection_times.get(item['inspector_name'], 0)
+        inspection_time = inspection_times.get(name, 0)
 
         rev_hours = round(hrs * hourly_rate, 2)
         rev_km = round(km * km_rate, 2)
@@ -9110,7 +9168,7 @@ def analytics_dashboard(request):
         tot = round(rev_hours + rev_km + rev_samples, 2)
         total_revenue += tot
         inspector_financials.append({
-            'inspector_name': item['inspector_name'],
+            'inspector_name': name,
             'total_inspections': item['total_inspections'],
             'total_hours': hrs,
             'total_km': km,
@@ -9402,7 +9460,7 @@ def analytics_dashboard(request):
 @login_required(login_url='login')
 def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
-    from ..models import FoodSafetyAgencyInspection
+    from ..models import FoodSafetyAgencyInspection, InspectionGroup
     from django.db.models import Count, Q, Avg, Sum
     from django.db.models.functions import TruncMonth, TruncDay
     from datetime import datetime, timedelta
@@ -9436,6 +9494,21 @@ def analytics_dashboard_api(request):
         qs = qs.filter(inspector_name=inspector)
     if commodity and commodity != 'all':
         qs = qs.filter(commodity=commodity)
+
+    # Build matching InspectionGroup filter for group-level metrics (km, hours)
+    group_qs = InspectionGroup.objects.all()
+    if date_from:
+        group_qs = group_qs.filter(date_of_inspection__gte=date_from)
+    if date_to:
+        group_qs = group_qs.filter(date_of_inspection__lte=date_to)
+    if year and year != 'all':
+        group_qs = group_qs.filter(date_of_inspection__year=int(year))
+    if month and month != 'all':
+        group_qs = group_qs.filter(date_of_inspection__month=int(month))
+    if inspector and inspector != 'all':
+        group_qs = group_qs.filter(inspector_name=inspector)
+    if commodity and commodity != 'all':
+        group_qs = group_qs.filter(inspections__commodity=commodity).distinct()
 
     # Total inspections
     total_inspections = qs.count()
@@ -9595,12 +9668,17 @@ def analytics_dashboard_api(request):
             directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
             non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
         ).order_by('-total')),
-        'travelPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
-        ).values('inspector_name').annotate(
-            total_km=Sum('km_traveled'), total_hours=Sum('hours'),
-            inspection_count=Count('id'), avg_km=Avg('km_traveled'),
-        ).order_by('-total_km')),
+        'travelPerInspector': [
+            {'inspector_name': r['inspector_name'], 'total_km': float(r['total_km'] or 0),
+             'total_hours': float(r['total_hours'] or 0), 'inspection_count': r['inspection_count'] or 0,
+             'avg_km': float(r['avg_km'] or 0)}
+            for r in group_qs.exclude(
+                Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            ).values('inspector_name').annotate(
+                total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+                inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
+            ).order_by('-total_km')
+        ],
         'inspectorCommodityMatrix': list(qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
@@ -9636,34 +9714,40 @@ def analytics_dashboard_api(request):
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to end) per inspector for filtered qs
+    # Use InspectionGroup directly to avoid double-counting
     inspection_times = {}
-    travel_insp_qs = qs.exclude(
+    for _grp in group_qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).select_related('inspection_group').values(
-        'inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time'
-    )
-    for _row in travel_insp_qs:
-        _start = _row['inspection_group__travel_start_time']
-        _end = _row['inspection_group__travel_end_time']
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if _start and _end:
             _start_dt = datetime.combine(datetime.today(), _start)
             _end_dt = datetime.combine(datetime.today(), _end)
             if _end_dt < _start_dt:
                 _end_dt += timedelta(days=1)
             _dur = (_end_dt - _start_dt).total_seconds() / 3600
-            inspector = _row['inspector_name']
+            inspector = _grp['inspector_name']
             inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
+
+    # Get hours/km from InspectionGroup (group-level) to avoid double-counting
+    _api_fin_group = {}
+    for _row in group_qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours'), total_km=Sum('km_traveled'),
+    ):
+        _api_fin_group[_row['inspector_name']] = {
+            'total_hours': float(_row['total_hours'] or 0),
+            'total_km': float(_row['total_km'] or 0),
+        }
 
     inspector_financials_qs = qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
-        total_hours=Sum('hours'),
-        total_km=Sum('km_traveled'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
     ).order_by('-total_inspections')
@@ -9671,10 +9755,12 @@ def analytics_dashboard_api(request):
     inspector_financials = []
     total_revenue = 0
     for item in inspector_financials_qs:
-        hrs = float(item['total_hours'] or 0)
-        km = float(item['total_km'] or 0)
+        name = item['inspector_name']
+        grp = _api_fin_group.get(name, {})
+        hrs = grp.get('total_hours', 0)
+        km = grp.get('total_km', 0)
         samples = item['total_samples'] or 0
-        inspection_time = inspection_times.get(item['inspector_name'], 0)
+        inspection_time = inspection_times.get(name, 0)
 
         rev_hours = round(hrs * hourly_rate, 2)
         rev_km = round(km * km_rate, 2)
@@ -9682,7 +9768,7 @@ def analytics_dashboard_api(request):
         tot = round(rev_hours + rev_km + rev_samples, 2)
         total_revenue += tot
         inspector_financials.append({
-            'inspector_name': item['inspector_name'],
+            'inspector_name': name,
             'total_inspections': item['total_inspections'],
             'total_hours': hrs,
             'total_km': km,
@@ -9817,11 +9903,14 @@ def analytics_dashboard_api(request):
         month=_TM('date_of_inspection')
     ).values('month').annotate(count=Count('id')).order_by('month'))
 
-    data['monthlyTravelTrend'] = list(qs.exclude(
-        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
-    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
-        total_km=Sum('km_traveled')
-    ).order_by('month'))
+    data['monthlyTravelTrend'] = [
+        {'month': r['month'], 'total_km': float(r['total_km'] or 0)}
+        for r in group_qs.exclude(
+            Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+        ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+            total_km=Sum('km_traveled')
+        ).order_by('month')
+    ]
 
     data['monthlyInspectionsTrend'] = list(qs.exclude(
         date_of_inspection__isnull=True
@@ -9883,16 +9972,15 @@ def analytics_dashboard_api(request):
     data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
 
     # Monthly total travel hours (filtered)
+    # Monthly travel hours (from InspectionGroup to avoid double-counting)
     _travel_hrs_by_month = {}
-    for _insp in qs.exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
-        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    for _grp in group_qs.exclude(
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).values(
+        'travel_start_time', 'travel_end_time', 'date_of_inspection'
     ):
-        _start = _insp['inspection_group__travel_start_time']
-        _end = _insp['inspection_group__travel_end_time']
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if not (_start and _end):
             continue
         from datetime import datetime as _dt, timedelta as _td
@@ -9901,7 +9989,7 @@ def analytics_dashboard_api(request):
         if _end_dt < _start_dt:
             _end_dt += _td(days=1)
         _dur = (_end_dt - _start_dt).total_seconds() / 3600
-        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _mk = _grp['date_of_inspection'].strftime('%Y-%m')
         _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
     data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
