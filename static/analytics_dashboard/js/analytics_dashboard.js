@@ -2500,45 +2500,139 @@ async function exportDashboardPDF() {
     var PAGE_TOP    = 14;       // usable top edge (below header)
     var PAGE_H      = PAGE_BOTTOM - PAGE_TOP;  // 188 mm
 
-    // Place a chart image, starting a new page only when needed.
+    // Place a chart image, splitting across multiple pages if needed.
+    // srcCanvas is the original <canvas> element (used for slicing tall charts).
     // Returns updated yOff.
-    function addChartImage(pdf, imgData, canvasW, canvasH, yOff, sectionTitle) {
+    function addChartImage(pdf, imgData, canvasW, canvasH, yOff, sectionTitle, chartLabel, srcCanvas) {
         var ar = canvasW / canvasH;
         var iW = CW;
         var iH = iW / ar;
-        var available = PAGE_BOTTOM - yOff;
-        // If it won't fit in remaining space and we're not at the top, break page
-        if (iH > available && yOff > PAGE_TOP + 2) {
-            drawPageFooter(pdf, '?', '?');
-            pdf.addPage();
-            drawPageHeader(pdf, sectionTitle);
-            yOff = PAGE_TOP;
-            available = PAGE_H;
+
+        // Add chart label above the chart
+        if (chartLabel) {
+            if (yOff + 8 > PAGE_BOTTOM) {
+                drawPageFooter(pdf, '?', '?');
+                pdf.addPage();
+                drawPageHeader(pdf, sectionTitle);
+                yOff = PAGE_TOP;
+            }
+            pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+            pdf.text(chartLabel, M, yOff + 4);
+            yOff += 7;
         }
-        // Scale to fit available height if still too tall
-        if (iH > available) { iH = available; iW = iH * ar; }
-        if (iW > CW)        { iW = CW;        iH = iW / ar; }
+
+        var available = PAGE_BOTTOM - yOff;
+
+        // If chart fits on current page, just place it
+        if (iH <= available) {
+            pdf.addImage(imgData, 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
+            return yOff + iH + 4;
+        }
+
+        // If chart is taller than one page, split it across pages using canvas slicing
+        if (iH > PAGE_H && srcCanvas) {
+            // First slice: use remaining space on current page
+            var firstSliceRatio = available / iH;
+            var firstSlicePixH = Math.floor(canvasH * firstSliceRatio);
+            if (firstSlicePixH > 10) {
+                var sc = document.createElement('canvas');
+                sc.width = canvasW; sc.height = firstSlicePixH;
+                sc.getContext('2d').drawImage(srcCanvas, 0, 0, canvasW, firstSlicePixH, 0, 0, canvasW, firstSlicePixH);
+                pdf.addImage(sc.toDataURL('image/png'), 'PNG', M, yOff, iW, available);
+            } else {
+                firstSlicePixH = 0;
+            }
+
+            // Remaining slices on new pages
+            var pixOff = firstSlicePixH;
+            var slicePixH = Math.floor(canvasH * (PAGE_H / iH));
+            while (pixOff < canvasH) {
+                drawPageFooter(pdf, '?', '?');
+                pdf.addPage();
+                drawPageHeader(pdf, sectionTitle);
+                var chunkH = Math.min(canvasH - pixOff, slicePixH);
+                var sc2 = document.createElement('canvas');
+                sc2.width = canvasW; sc2.height = chunkH;
+                sc2.getContext('2d').drawImage(srcCanvas, 0, pixOff, canvasW, chunkH, 0, 0, canvasW, chunkH);
+                var chunkMM = (chunkH / canvasH) * iH;
+                pdf.addImage(sc2.toDataURL('image/png'), 'PNG', M, PAGE_TOP, iW, chunkMM);
+                yOff = PAGE_TOP + chunkMM + 4;
+                pixOff += chunkH;
+            }
+            return yOff;
+        }
+
+        // Chart is taller than remaining space but fits on one page — start new page
+        drawPageFooter(pdf, '?', '?');
+        pdf.addPage();
+        drawPageHeader(pdf, sectionTitle);
+        yOff = PAGE_TOP;
         pdf.addImage(imgData, 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
         return yOff + iH + 4;
     }
 
-    // Place an html2canvas screenshot, starting a new page only when needed.
-    async function addElementCapture(pdf, element, yOff, sectionTitle) {
+    // Place an html2canvas screenshot, splitting across pages if needed.
+    async function addElementCapture(pdf, element, yOff, sectionTitle, chartLabel) {
         try {
+            // Add chart label above the element
+            if (chartLabel) {
+                if (yOff + 8 > PAGE_BOTTOM) {
+                    drawPageFooter(pdf, '?', '?');
+                    pdf.addPage();
+                    drawPageHeader(pdf, sectionTitle);
+                    yOff = PAGE_TOP;
+                }
+                pdf.setFontSize(9); pdf.setTextColor.apply(pdf, C_DARK);
+                pdf.text(chartLabel, M, yOff + 4);
+                yOff += 7;
+            }
+
             var cap = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false });
             var ar  = cap.width / cap.height;
             var iW  = CW;
             var iH  = iW / ar;
             var available = PAGE_BOTTOM - yOff;
-            if (iH > available && yOff > PAGE_TOP + 2) {
-                drawPageFooter(pdf, '?', '?');
-                pdf.addPage();
-                drawPageHeader(pdf, sectionTitle);
-                yOff = PAGE_TOP;
-                available = PAGE_H;
+
+            // Fits on current page
+            if (iH <= available) {
+                pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
+                return yOff + iH + 4;
             }
-            if (iH > available) { iH = available; iW = iH * ar; }
-            if (iW > CW)        { iW = CW;        iH = iW / ar; }
+
+            // Taller than page — split across pages
+            if (iH > PAGE_H) {
+                var firstSliceRatio = available / iH;
+                var firstSlicePixH = Math.floor(cap.height * firstSliceRatio);
+                if (firstSlicePixH > 10) {
+                    var sc = document.createElement('canvas');
+                    sc.width = cap.width; sc.height = firstSlicePixH;
+                    sc.getContext('2d').drawImage(cap, 0, 0, cap.width, firstSlicePixH, 0, 0, cap.width, firstSlicePixH);
+                    pdf.addImage(sc.toDataURL('image/png'), 'PNG', M, yOff, iW, available);
+                } else {
+                    firstSlicePixH = 0;
+                }
+                var pixOff = firstSlicePixH;
+                while (pixOff < cap.height) {
+                    drawPageFooter(pdf, '?', '?');
+                    pdf.addPage();
+                    drawPageHeader(pdf, sectionTitle);
+                    var chunkPixH = Math.min(cap.height - pixOff, Math.floor(cap.height * (PAGE_H / iH)));
+                    var sc2 = document.createElement('canvas');
+                    sc2.width = cap.width; sc2.height = chunkPixH;
+                    sc2.getContext('2d').drawImage(cap, 0, pixOff, cap.width, chunkPixH, 0, 0, cap.width, chunkPixH);
+                    var chunkMMH = (chunkPixH / cap.height) * iH;
+                    pdf.addImage(sc2.toDataURL('image/png'), 'PNG', M, PAGE_TOP, iW, chunkMMH);
+                    yOff = PAGE_TOP + chunkMMH + 4;
+                    pixOff += chunkPixH;
+                }
+                return yOff;
+            }
+
+            // Taller than remaining space but fits on one page
+            drawPageFooter(pdf, '?', '?');
+            pdf.addPage();
+            drawPageHeader(pdf, sectionTitle);
+            yOff = PAGE_TOP;
             pdf.addImage(cap.toDataURL('image/png'), 'PNG', M + (CW - iW) / 2, yOff, iW, iH);
             return yOff + iH + 4;
         } catch (e) {
@@ -2819,13 +2913,13 @@ async function exportDashboardPDF() {
                     var inst = chartInstances[chartKey];
                     var can = document.getElementById(chartKey);
                     if (inst && can && can.width > 0 && can.height > 0) {
-                        yOff = addChartImage(pdf, inst.toBase64Image('image/png', 1.0), can.width, can.height, yOff, grp.title);
+                        yOff = addChartImage(pdf, inst.toBase64Image('image/png', 1.0), can.width, can.height, yOff, grp.title, ch.label, can);
                     }
                 } else {
                     var el = document.querySelector(ch.selector);
                     if (el) {
                         if (ch.parentCard) el = el.closest('.card') || el;
-                        yOff = await addElementCapture(pdf, el, yOff, grp.title);
+                        yOff = await addElementCapture(pdf, el, yOff, grp.title, ch.label);
                     }
                 }
                 await new Promise(function(r) { setTimeout(r, 60); });
