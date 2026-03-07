@@ -715,7 +715,7 @@ function renderFinancialTable() {
             '<td class="fin-sticky-col">' + (item.inspector_name || '-') + '</td>' +
             '<td class="num">' + (item.total_inspections || 0) + '</td>' +
             '<td class="num">' + hrs.toFixed(1) + '</td>' +
-            '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>' +
+            '<td class="num">' + (km ? Math.round(km).toLocaleString() : '-') + '</td>' +
             '<td class="num">' + (km ? formatRand(kmCost) : '—') + '</td>' +
             '<td class="num">' + (inspTime ? inspTime.toFixed(1) : '-') + '</td>' +
             '<td class="num">' + formatRand(revH) + '</td>' +
@@ -738,7 +738,7 @@ function renderFinancialTable() {
         '<td class="fin-sticky-col">Total</td>' +
         '<td class="num">' + totals.inspections + '</td>' +
         '<td class="num">' + totals.hours.toFixed(1) + '</td>' +
-        '<td class="num">' + totals.km.toLocaleString(undefined, {maximumFractionDigits: 1}) + '</td>' +
+        '<td class="num">' + Math.round(totals.km).toLocaleString() + '</td>' +
         '<td class="num">' + formatRand(totals.kmCost) + '</td>' +
         '<td class="num">' + totals.inspTime.toFixed(1) + '</td>' +
         '<td class="num">' + formatRand(totals.revHours) + '</td>' +
@@ -2342,7 +2342,7 @@ function renderInspectorComparisonChart() {
                         label: function(ctx) {
                             var v = ctx.parsed.x;
                             if (isRand) return ' ' + formatRand(v);
-                            if (metric === 'total_km') return ' ' + v.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' km';
+                            if (metric === 'total_km') return ' ' + Math.round(v).toLocaleString() + ' km';
                             if (metric === 'total_hours' || metric === 'inspection_time') return ' ' + v.toFixed(1) + ' hrs';
                             return ' ' + v.toLocaleString();
                         }
