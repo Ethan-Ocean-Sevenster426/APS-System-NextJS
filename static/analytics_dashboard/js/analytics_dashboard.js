@@ -2039,8 +2039,14 @@ function renderTravelTimeChart() {
     destroyChart('travelTimeChart');
     var canvas = document.getElementById('travelTimeChart');
     if (!canvas) return;
-    var items = dashboardData.travelTimePerInspector || [];
+    var items = (dashboardData.travelTimePerInspector || []).sort(function(a, b) { return (b.total_hours || 0) - (a.total_hours || 0); });
     if (!items.length) return;
+
+    // Dynamic height so all inspectors fit
+    var barH = 28;
+    var minHeight = items.length * barH + 40;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['travelTimeChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2050,13 +2056,15 @@ function renderTravelTimeChart() {
                 data: items.map(function(d) { return d.total_hours; }),
                 backgroundColor: '#00b7c3',
                 borderRadius: 4,
+                barPercentage: 0.6,
+                categoryPercentage: 0.7,
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
@@ -2261,6 +2269,7 @@ function renderInspectorComparisonChart() {
 
     var metricLabels = {
         'total_revenue': 'Total Revenue',
+        'total_profit': 'Total Profit',
         'revenue_hours': 'Revenue (Hours)',
         'revenue_km': 'Revenue (KM)',
         'revenue_samples': 'Revenue (Samples)',
@@ -2269,16 +2278,36 @@ function renderInspectorComparisonChart() {
         'inspection_time': 'On-Site Hours',
         'total_inspections': 'Inspections',
     };
-    var isRand = metric.indexOf('revenue') !== -1 || metric === 'total_revenue';
+    var isRand = metric.indexOf('revenue') !== -1 || metric === 'total_revenue' || metric === 'total_profit';
+
+    // Compute profit on the fly (revenue - salary - expenses)
+    var enriched = items.map(function(i) {
+        var copy = Object.assign({}, i);
+        var salary = getInspectorSalary(i.inspector_name);
+        var expenses = getInspectorExpenses(i.inspector_name);
+        var totalCost = salary + expenses;
+        copy.total_profit = totalCost ? (i.total_revenue || 0) - totalCost : 0;
+        return copy;
+    });
 
     // Sort by selected metric descending
-    var sorted = items.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
+    var sorted = enriched.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
 
     var labels = sorted.map(function(i) { return i.inspector_name || 'Unknown'; });
     var values = sorted.map(function(i) { return i[metric] || 0; });
 
-    // Assign colors from palette
-    var colors = labels.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
+    // Dynamic height so all inspectors fit with spacing
+    var barH = 32;
+    var minHeight = sorted.length * barH + 40;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
+    // For profit, use green for positive and red for negative
+    var colors;
+    if (metric === 'total_profit') {
+        colors = values.map(function(v) { return v >= 0 ? '#10b981' : '#ef4444'; });
+    } else {
+        colors = labels.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
+    }
 
     chartInstances['inspectorComparisonChart'] = new Chart(canvas, {
         type: 'bar',
@@ -2289,7 +2318,8 @@ function renderInspectorComparisonChart() {
                 data: values,
                 backgroundColor: colors,
                 borderRadius: 4,
-                barPercentage: 0.65,
+                barPercentage: 0.6,
+                categoryPercentage: 0.7,
             }]
         },
         options: {
@@ -2324,7 +2354,7 @@ function renderInspectorComparisonChart() {
                 },
                 y: {
                     grid: { display: false },
-                    ticks: { color: txtColor(), font: { size: 10 } },
+                    ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false },
                 }
             }
         }
