@@ -718,19 +718,8 @@
          ============================================================ -->
     <div id="panel-documents" class="dashboard-panel">
 
-        <!-- Doc Send -->
+        <!-- Monthly Trends (2x2 grid) -->
         <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-paper-plane"></i>
-                        <span>Avg Days to Send Documents</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="docSendChart"></canvas>
-                </div>
-            </div>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -738,23 +727,8 @@
                         <span>Doc Send Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="docSendTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Invoice Upload -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Avg Days to Upload Invoice</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="invoiceUploadChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -764,25 +738,12 @@
                         <span>Invoice Upload Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="invoiceTrendChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- COA Upload -->
         <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-flask"></i>
-                        <span>Avg Days: Sample to COA Upload</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="coaTimeChart"></canvas>
-                </div>
-            </div>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -790,23 +751,8 @@
                         <span>COA Upload Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="coaTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Approval Time -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-hourglass-half"></i>
-                        <span>Avg Days to Approval</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="approvalTimeChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -816,8 +762,58 @@
                         <span>Approval Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 260px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="approvalTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avg Days Bar Charts (full width each) -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Avg Days to Send Documents</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="docSendChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Avg Days to Upload Invoice</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="invoiceUploadChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-flask"></i>
+                        <span>Avg Days: Sample to COA Upload</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="coaTimeChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-hourglass-half"></i>
+                        <span>Avg Days to Approval</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="approvalTimeChart"></canvas>
                 </div>
             </div>
         </div>
