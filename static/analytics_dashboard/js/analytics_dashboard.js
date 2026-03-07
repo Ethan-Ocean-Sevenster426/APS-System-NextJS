@@ -1086,13 +1086,18 @@ function renderTravelChart() {
     destroyChart('travelChart');
     var canvas = document.getElementById('travelChart');
     if (!canvas) return;
-    var items = (dashboardData.travelPerInspector || []).filter(function(i) { return i.total_km && parseFloat(i.total_km) > 0; }).slice(0, 15);
+    var items = (dashboardData.travelPerInspector || []).sort(function(a, b) { return parseFloat(b.total_km || 0) - parseFloat(a.total_km || 0); });
     if (items.length === 0) return;
+
+    // Dynamically size canvas so every inspector gets enough space
+    var barH = 28;
+    var minHeight = items.length * barH + 40;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
 
     chartInstances['travelChart'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'KM', data: items.map(function(i) { return parseFloat(i.total_km || 0); }), backgroundColor: '#00b7c3', borderRadius: 3, barThickness: 14 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
+        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'KM', data: items.map(function(i) { return parseFloat(i.total_km || 0); }), backgroundColor: '#00b7c3', borderRadius: 3, barPercentage: 0.6, categoryPercentage: 0.7 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } } }
     });
 }
 
