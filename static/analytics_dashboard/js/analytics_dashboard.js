@@ -2455,9 +2455,18 @@ async function exportDashboardPDF() {
     var allPanelEls = document.querySelectorAll('.dashboard-panel');
 
     // ── helpers ─────────────────────────────────────────────────────────────
-    var PW = 297, PH = 210, M = 10, CW = 277;   // landscape A4 constants
+    var PW = 297, PH = 210, M = 5, CW = 287;    // landscape A4 — narrow margins for max width
     var C_TEAL = [0, 120, 144], C_RED = [236, 52, 60], C_DARK = [30, 41, 59];
     var C_GREY = [100, 116, 139], C_LIGHT = [241, 245, 249], C_WHITE = [255, 255, 255];
+    // App-matching palette
+    var C_PRIMARY = [0, 120, 144];       // #007890 teal
+    var C_SUCCESS = [16, 185, 129];      // #10b981 green
+    var C_PURPLE  = [124, 58, 237];      // #7c3aed purple
+    var C_DANGER  = [209, 52, 56];       // #d13438 red
+    var C_BLUE    = [0, 120, 212];       // #0078d4 blue
+    var C_GREEN_D = [16, 124, 16];       // #107c10 dark green
+    var C_AMBER   = [245, 158, 11];      // #f59e0b amber
+    var C_CYAN    = [0, 183, 195];       // #00b7c3 cyan
 
 
     // Draw the repeating page header bar (12 mm tall)
@@ -2596,7 +2605,7 @@ async function exportDashboardPDF() {
 
         var barH = 7, barGap = 2, labelW = 42, countW = 18;
         var trackX = M + labelW, trackW = CW - labelW - countW - 2;
-        var commodityColors = { EGG: [245,158,11], EGGS: [245,158,11], POULTRY: [99,102,241], RAW: [239,68,68], PMP: [16,185,129] };
+        var commodityColors = { EGG: C_AMBER, EGGS: C_AMBER, POULTRY: C_GREEN_D, RAW: C_DANGER, PMP: C_BLUE };
 
         for (var i = 0; i < items.length; i++) {
             yOff = ensureSpace(pdf, yOff, barH + barGap, sectionTitle);
@@ -2769,7 +2778,7 @@ async function exportDashboardPDF() {
             body: body,
             margin: { left: M, right: M },
             styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'center' },
-            headStyles: { fillColor: [79, 70, 229], textColor: C_WHITE, fontStyle: 'bold' },
+            headStyles: { fillColor: C_PURPLE, textColor: C_WHITE, fontStyle: 'bold' },
             columnStyles: { 0: { halign: 'left', cellWidth: 35, fontStyle: 'bold' } },
             alternateRowStyles: { fillColor: [248, 250, 252] },
             didDrawPage: function(data) {
@@ -2851,7 +2860,7 @@ async function exportDashboardPDF() {
             body: body,
             margin: { left: M, right: M },
             styles: { fontSize: 5.5, cellPadding: 1.2, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'right', overflow: 'ellipsize' },
-            headStyles: { fillColor: [5, 122, 85], textColor: C_WHITE, fontStyle: 'bold', halign: 'center', fontSize: 5.5 },
+            headStyles: { fillColor: C_GREEN_D, textColor: C_WHITE, fontStyle: 'bold', halign: 'center', fontSize: 5.5 },
             columnStyles: { 0: { halign: 'left', cellWidth: 30, fontStyle: 'bold' } },
             alternateRowStyles: { fillColor: [248, 250, 252] },
             didParseCell: function(data) {
@@ -2960,23 +2969,27 @@ async function exportDashboardPDF() {
             pdf.text('Active filters:  ' + filterSummary, PW / 2, 39, { align: 'center' });
         }
 
-        // ── KPI boxes (row 1) ────────────────────────────────────────────────
-        var boxY = 48, boxH = 26, boxW = 43, gap = 3;
-        var row1start = M + 2;
-        drawKpiBox(pdf, row1start,            boxY, boxW, boxH, (d.totalInspections || 0).toLocaleString(), 'Total Inspections', C_TEAL);
-        drawKpiBox(pdf, row1start + boxW+gap, boxY, boxW, boxH, (d.complianceRate || 0).toFixed(1) + '%',   'Overall Compliance Rate', [16, 132, 90]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*2, boxY, boxW, boxH, d.activeInspectors || 0,                  'Active Inspectors', [79, 70, 229]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, (d.totalOccurrenceReports || 0),          'Occurrence Reports', [220, 38, 38]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, fin.total_revenue ? 'R ' + Number(fin.total_revenue).toLocaleString('en-ZA', {maximumFractionDigits:0}) : '—', 'Total Revenue', [5, 122, 85]);
+        // ── KPI boxes (row 1) — 5 boxes across full width ──────────────────
+        var boxY = 48, boxH = 26, gap = 3;
+        var row1boxes = 5;
+        var boxW = (CW - (row1boxes - 1) * gap) / row1boxes;
+        var row1start = M;
+        drawKpiBox(pdf, row1start,                    boxY, boxW, boxH, (d.totalInspections || 0).toLocaleString(), 'Total Inspections', C_PRIMARY);
+        drawKpiBox(pdf, row1start + (boxW+gap),       boxY, boxW, boxH, (d.complianceRate || 0).toFixed(1) + '%',   'Overall Compliance Rate', C_SUCCESS);
+        drawKpiBox(pdf, row1start + (boxW+gap)*2,     boxY, boxW, boxH, d.activeInspectors || 0,                  'Active Inspectors', C_PURPLE);
+        drawKpiBox(pdf, row1start + (boxW+gap)*3,     boxY, boxW, boxH, (d.totalOccurrenceReports || 0),          'Occurrence Reports', C_DANGER);
+        drawKpiBox(pdf, row1start + (boxW+gap)*4,     boxY, boxW, boxH, fin.total_revenue ? 'R ' + Number(fin.total_revenue).toLocaleString('en-ZA', {maximumFractionDigits:0}) : '—', 'Total Revenue', C_GREEN_D);
 
-        // ── KPI boxes (row 2) ────────────────────────────────────────────────
+        // ── KPI boxes (row 2) — 6 boxes across full width ──────────────────
         boxY = 80;
-        drawKpiBox(pdf, row1start,              boxY, boxW, boxH, totalKm > 0 ? totalKm.toLocaleString() + ' km' : '—',    'Total KM Traveled',      [8, 145, 178]);
-        drawKpiBox(pdf, row1start + boxW+gap,   boxY, boxW, boxH, totalSamples > 0 ? totalSamples.toLocaleString() : '—', 'Total Samples Taken',    [16, 132, 90]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*2, boxY, boxW, boxH, docAvg !== null ? docAvg + ' days' : '—',               'Avg Days — Doc Send',    [124, 58, 237]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*3, boxY, boxW, boxH, invAvg !== null ? invAvg + ' days' : '—',               'Avg Days — Invoice Upload', [217, 119, 6]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*4, boxY, boxW, boxH, coaAvg !== null ? coaAvg + ' days' : '—',               'Avg Days — COA Upload',  [190, 18, 60]);
-        drawKpiBox(pdf, row1start+(boxW+gap)*5, boxY, boxW, boxH, apprAvg !== null ? apprAvg + ' days' : '—',            'Avg Days — Approval',    [15, 118, 110]);
+        var row2boxes = 6;
+        var boxW2 = (CW - (row2boxes - 1) * gap) / row2boxes;
+        drawKpiBox(pdf, row1start,                     boxY, boxW2, boxH, totalKm > 0 ? totalKm.toLocaleString() + ' km' : '—',    'Total KM Traveled',      C_CYAN);
+        drawKpiBox(pdf, row1start + (boxW2+gap),       boxY, boxW2, boxH, totalSamples > 0 ? totalSamples.toLocaleString() : '—', 'Total Samples Taken',    C_SUCCESS);
+        drawKpiBox(pdf, row1start + (boxW2+gap)*2,     boxY, boxW2, boxH, docAvg !== null ? docAvg + ' days' : '—',               'Avg Days — Doc Send',    C_PURPLE);
+        drawKpiBox(pdf, row1start + (boxW2+gap)*3,     boxY, boxW2, boxH, invAvg !== null ? invAvg + ' days' : '—',               'Avg Days — Invoice Upload', C_AMBER);
+        drawKpiBox(pdf, row1start + (boxW2+gap)*4,     boxY, boxW2, boxH, coaAvg !== null ? coaAvg + ' days' : '—',               'Avg Days — COA Upload',  C_DANGER);
+        drawKpiBox(pdf, row1start + (boxW2+gap)*5,     boxY, boxW2, boxH, apprAvg !== null ? apprAvg + ' days' : '—',            'Avg Days — Approval',    C_PRIMARY);
 
         // ── Inspector performance summary table ──────────────────────────────
         var inspPerf = d.inspectorPerformance || [];
@@ -2987,7 +3000,7 @@ async function exportDashboardPDF() {
             pdf.setFillColor.apply(pdf, C_DARK);
             pdf.rect(M, tY, CW, 6, 'F');
             var cols = ['Inspector', 'Inspections', 'Compliance %', 'Directions', 'Occurrences', 'Samples', 'Days'];
-            var colW = [60, 30, 32, 30, 32, 26, 22];
+            var colW = [75, 35, 38, 36, 38, 33, 32];
             var xPos = M;
             pdf.setFontSize(7.5); pdf.setTextColor.apply(pdf, C_WHITE);
             cols.forEach(function(c, ci) {
@@ -3039,7 +3052,7 @@ async function exportDashboardPDF() {
         // ── Define section groups ────────────────────────────────────────────
         var groups = [
             {
-                icon: 'Overview', title: 'Overview', color: C_TEAL,
+                icon: 'Overview', title: 'Overview', color: C_PRIMARY,
                 description: 'High-level KPIs, compliance rates per commodity, and monthly inspection trends.',
                 charts: [
                     { label: 'Compliance Per Commodity', selector: '#complianceBarsContainer', parentCard: true },
@@ -3049,7 +3062,7 @@ async function exportDashboardPDF() {
                 ]
             },
             {
-                icon: 'Inspectors', title: 'Inspector Performance', color: [79, 70, 229],
+                icon: 'Inspectors', title: 'Inspector Performance', color: C_PURPLE,
                 description: 'Individual inspector metrics, radar performance scoring, quarterly targets, and efficiency matrix.',
                 charts: [
                     { label: 'Quarterly Targets',        selector: '#inspectorTargetsTable',  parentCard: true },
@@ -3059,7 +3072,7 @@ async function exportDashboardPDF() {
                 ]
             },
             {
-                icon: 'Compliance', title: 'Compliance Analysis', color: [16, 132, 90],
+                icon: 'Compliance', title: 'Compliance Analysis', color: C_SUCCESS,
                 description: 'Commodity-level compliance trends, samples taken, facility types, time allocation and occurrence reports.',
                 charts: [
                     { label: 'Commodity Compliance Trend',    selector: '#commodityTrendChart',     isChart: true },
@@ -3073,7 +3086,7 @@ async function exportDashboardPDF() {
                 ]
             },
             {
-                icon: 'Operations', title: 'Operations & Travel', color: [8, 145, 178],
+                icon: 'Operations', title: 'Operations & Travel', color: C_CYAN,
                 description: 'Inspector travel distances, travel time breakdown, and monthly travel trends.',
                 charts: [
                     { label: 'Travel Distance Per Inspector', selector: '#travelChart',             isChart: true },
@@ -3083,7 +3096,7 @@ async function exportDashboardPDF() {
                 ]
             },
             {
-                icon: 'Timelines', title: 'Document & Approval Timelines', color: [124, 58, 237],
+                icon: 'Timelines', title: 'Document & Approval Timelines', color: C_PURPLE,
                 description: 'Average turnaround times for document dispatch, invoice upload, COA upload, and final approval.',
                 charts: [
                     { label: 'Avg Days — Doc Send',        selector: '#docSendChart',       isChart: true },
@@ -3097,11 +3110,11 @@ async function exportDashboardPDF() {
                 ]
             },
             {
-                icon: 'Financial', title: 'Financial Summary', color: [5, 122, 85],
+                icon: 'Financial', title: 'Financial Summary', color: C_GREEN_D,
                 description: 'Revenue per inspector, cost breakdown, and overall financial performance.',
                 charts: [
                     { label: 'Revenue Per Inspector',     selector: '#financialTable',      parentCard: true },
-                    { label: 'Revenue & Cost Breakdown',  selector: '#revenueCostChart',    isChart: true },
+                    { label: 'Revenue & Cost Breakdown',  selector: '#revenueCostChart',    isChart: true, fullWidth: true },
                 ]
             },
         ];
@@ -3171,7 +3184,7 @@ async function exportDashboardPDF() {
             var chartItems = [];
             for (var ci2 = 0; ci2 < grp.charts.length; ci2++) {
                 var ch = grp.charts[ci2];
-                var item = { label: ch.label, isChart: ch.isChart, parentCard: ch.parentCard, selector: ch.selector, imgData: null, canvasW: 0, canvasH: 0, srcCanvas: null, isSmall: false };
+                var item = { label: ch.label, isChart: ch.isChart, parentCard: ch.parentCard, selector: ch.selector, imgData: null, canvasW: 0, canvasH: 0, srcCanvas: null, isSmall: false, fullWidth: ch.fullWidth };
 
                 if (ch.isChart) {
                     var chartKey = ch.selector.replace('#', '');
@@ -3210,8 +3223,8 @@ async function exportDashboardPDF() {
                     continue;
                 }
 
-                // Small chart — try to pair with next small chart
-                if (cur.isSmall && cur.imgData && ci3 + 1 < chartItems.length && chartItems[ci3 + 1].isSmall && chartItems[ci3 + 1].imgData) {
+                // Small chart — try to pair with next small chart (skip fullWidth charts)
+                if (cur.isSmall && !cur.fullWidth && cur.imgData && ci3 + 1 < chartItems.length && chartItems[ci3 + 1].isSmall && !chartItems[ci3 + 1].fullWidth && chartItems[ci3 + 1].imgData) {
                     yOff = addTwoChartsRow(pdf, cur, chartItems[ci3 + 1], yOff, grp.title);
                     ci3 += 2;
                     continue;
