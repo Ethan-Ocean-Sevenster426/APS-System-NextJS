@@ -766,6 +766,10 @@ function renderRevenueCostChart() {
     var kmData = items.map(function(i) { return i.revenue_km || 0; });
     var samplesData = items.map(function(i) { return i.revenue_samples || 0; });
 
+    // Dynamic height based on inspector count
+    var minHeight = Math.max(320, items.length * 30 + 60);
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['revenueCostChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -781,7 +785,7 @@ function renderRevenueCostChart() {
             maintainAspectRatio: false,
             plugins: { legend: { labels: { color: txtColor(), padding: 12 } } },
             scales: {
-                x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 } } },
+                x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 }, autoSkip: false } },
                 y: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } }, beginAtZero: true }
             }
         }

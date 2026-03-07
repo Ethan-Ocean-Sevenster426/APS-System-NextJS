@@ -914,42 +914,42 @@
         </div>
         {% endif %}
 
-        <!-- Revenue Breakdown Chart -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Revenue Breakdown Per Inspector</span>
+        <!-- Revenue Breakdown + Inspector Comparison side by side -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Revenue Breakdown Per Inspector</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 320px;">
+                    <canvas id="revenueCostChart"></canvas>
                 </div>
             </div>
-            <div class="card-body" style="height: 320px;">
-                <canvas id="revenueCostChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Inspector Comparison Trend -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Inspector Comparison</span>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Inspector Comparison</span>
+                    </div>
+                    <div class="financial-actions">
+                        <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
+                            <option value="total_revenue">Total Revenue</option>
+                            <option value="total_profit">Total Profit</option>
+                            <option value="revenue_hours">Revenue (Hours)</option>
+                            <option value="revenue_km">Revenue (KM)</option>
+                            <option value="revenue_samples">Revenue (Samples)</option>
+                            <option value="total_hours">Billable Hours</option>
+                            <option value="total_km">KM Traveled</option>
+                            <option value="inspection_time">On-Site Hours</option>
+                            <option value="total_inspections">Inspections</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="financial-actions">
-                    <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
-                        <option value="total_revenue">Total Revenue</option>
-                        <option value="total_profit">Total Profit</option>
-                        <option value="revenue_hours">Revenue (Hours)</option>
-                        <option value="revenue_km">Revenue (KM)</option>
-                        <option value="revenue_samples">Revenue (Samples)</option>
-                        <option value="total_hours">Billable Hours</option>
-                        <option value="total_km">KM Traveled</option>
-                        <option value="inspection_time">On-Site Hours</option>
-                        <option value="total_inspections">Inspections</option>
-                    </select>
+                <div class="card-body" style="min-height: 320px;">
+                    <canvas id="inspectorComparisonChart"></canvas>
                 </div>
-            </div>
-            <div class="card-body" style="height: 380px;">
-                <canvas id="inspectorComparisonChart"></canvas>
             </div>
         </div>
     </div>
