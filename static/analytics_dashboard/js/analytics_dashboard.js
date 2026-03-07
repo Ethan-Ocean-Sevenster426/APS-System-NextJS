@@ -672,14 +672,16 @@ function renderFinancialTable() {
         });
     }
 
+    var KM_RATE = 4.50;
     var html = '';
-    var totals = { inspections: 0, hours: 0, km: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, totalCost: 0, profit: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, kmCost: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, totalCost: 0, profit: 0 };
     var shaded = 'background:rgba(0,120,144,0.06);';
     var profitShade = 'background:rgba(16,185,129,0.06);';
 
     filteredItems.forEach(function(item) {
         var hrs = parseFloat(item.total_hours || 0);
         var km = parseFloat(item.total_km || 0);
+        var kmCost = km * KM_RATE;
         var inspTime = parseFloat(item.inspection_time || 0);
         var revH = item.revenue_hours || 0;
         var revK = item.revenue_km || 0;
@@ -698,6 +700,7 @@ function renderFinancialTable() {
         totals.inspections += item.total_inspections || 0;
         totals.hours += hrs;
         totals.km += km;
+        totals.kmCost += kmCost;
         totals.inspTime += inspTime;
         totals.revHours += revH;
         totals.revKm += revK;
@@ -709,10 +712,11 @@ function renderFinancialTable() {
         if (totalCost) totals.profit += profit;
 
         html += '<tr>' +
-            '<td>' + (item.inspector_name || '-') + '</td>' +
+            '<td class="fin-sticky-col">' + (item.inspector_name || '-') + '</td>' +
             '<td class="num">' + (item.total_inspections || 0) + '</td>' +
             '<td class="num">' + hrs.toFixed(1) + '</td>' +
             '<td class="num">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>' +
+            '<td class="num">' + (km ? formatRand(kmCost) : '—') + '</td>' +
             '<td class="num">' + (inspTime ? inspTime.toFixed(1) : '-') + '</td>' +
             '<td class="num">' + formatRand(revH) + '</td>' +
             '<td class="num">' + formatRand(revK) + '</td>' +
@@ -731,10 +735,11 @@ function renderFinancialTable() {
     var totRevPerHr = totals.hours > 0 ? totals.total / totals.hours : 0;
     var totCostPerHr = totals.hours > 0 ? totals.totalCost / totals.hours : 0;
     html += '<tr class="total-row">' +
-        '<td>Total</td>' +
+        '<td class="fin-sticky-col">Total</td>' +
         '<td class="num">' + totals.inspections + '</td>' +
         '<td class="num">' + totals.hours.toFixed(1) + '</td>' +
         '<td class="num">' + totals.km.toLocaleString(undefined, {maximumFractionDigits: 1}) + '</td>' +
+        '<td class="num">' + formatRand(totals.kmCost) + '</td>' +
         '<td class="num">' + totals.inspTime.toFixed(1) + '</td>' +
         '<td class="num">' + formatRand(totals.revHours) + '</td>' +
         '<td class="num">' + formatRand(totals.revKm) + '</td>' +

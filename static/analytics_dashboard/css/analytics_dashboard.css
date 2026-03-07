@@ -2003,6 +2003,28 @@ body.bg-loaded::before {
 /* Inspector column gets a little more room */
 #financialTable .fin-col-inspector { min-width: 100px; }
 
+/* Sticky first column for horizontal scroll on small screens */
+.fin-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--card-bg, #fff);
+    white-space: nowrap;
+}
+.total-row .fin-sticky-col {
+    background: var(--primary-light);
+}
+[data-theme="dark"] .fin-sticky-col {
+    background: var(--card-bg, #1e293b);
+}
+[data-theme="dark"] .total-row .fin-sticky-col {
+    background: rgba(0, 120, 144, 0.15);
+}
+thead .fin-sticky-col {
+    z-index: 3;
+    background: var(--primary-light);
+}
+
 @media (min-width: 1440px) {
     #financialTable {
         font-size: 11.5px !important;
