@@ -120,27 +120,29 @@ Chart.register({
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             var multiLine = visibleDS.length > 1;
-            var dsCount = visibleDS.length;
+            // 4-way stagger positions: top-left, top-right, bottom-left, bottom-right
+            var staggerPos = [
+                { x: -12, y: -6 },   // above-left
+                { x:  12, y: -6 },   // above-right
+                { x: -12, y:  14 },  // below-left
+                { x:  12, y:  14 },  // below-right
+            ];
             chart.data.datasets.forEach(function(ds, di) {
                 var meta = chart.getDatasetMeta(di);
                 if (meta.hidden) return;
                 var total = ds.data.length;
-                // Decide which points to label
                 var step = 1;
                 if (multiLine && total > 8) {
                     step = Math.max(1, Math.floor(total / 5));
                 }
+                var pos = staggerPos[di % staggerPos.length];
                 meta.data.forEach(function(pt, idx) {
-                    // For long multi-line: show first, last, and every Nth
                     if (multiLine && total > 8 && idx !== 0 && idx !== total - 1 && idx % step !== 0) return;
                     var val = ds.data[idx];
                     if (val == null || typeof val !== 'number') return;
+                    if (val === 0) return; // skip 0% labels to reduce clutter
                     var label = fmtFn ? fmtFn(val) : String(Math.round(val * 10) / 10);
-                    // Stagger labels: alternate above/below, offset by dataset index
-                    var yOff = (di % 2 === 0) ? -4 : 10;
-                    // Slight horizontal offset per dataset to reduce overlap at same x
-                    var xOff = (di - (dsCount - 1) / 2) * 6;
-                    ctx.fillText(label, pt.x + xOff, pt.y + yOff);
+                    ctx.fillText(label, pt.x + pos.x, pt.y + pos.y);
                 });
             });
             ctx.restore();
