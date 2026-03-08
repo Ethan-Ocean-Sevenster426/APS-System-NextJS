@@ -3112,8 +3112,8 @@ async function exportDashboardPDF() {
             { id: 'coaTrendChart', label: 'COA Upload Trend', section: 'Timelines' },
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
-            { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', stackWith: 'inspectorComparisonChart' },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', ownPage: true },
+            { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial', stackWith: 'inspectorComparisonChart' },
             { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
         ];
 
