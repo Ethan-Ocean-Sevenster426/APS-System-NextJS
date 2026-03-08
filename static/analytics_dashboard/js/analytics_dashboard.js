@@ -16,6 +16,41 @@ window.addEventListener('storage', function(e) {
 });
 
 // ================================================================
+// PDF DATA-LABELS PLUGIN  (only active when pdfValueLabels.enabled)
+// ================================================================
+Chart.register({
+    id: 'pdfValueLabels',
+    afterDatasetsDraw: function(chart) {
+        var opts = (chart.options.plugins && chart.options.plugins.pdfValueLabels) || {};
+        if (!opts.enabled) return;
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = '#1e293b';
+        chart.data.datasets.forEach(function(ds, di) {
+            var meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+            meta.data.forEach(function(el, idx) {
+                var val = ds.data[idx];
+                if (val == null || val === 0) return;
+                var fmt = opts.formatter ? opts.formatter(val) : val.toLocaleString();
+                var isHoriz = chart.options.indexAxis === 'y';
+                if (isHoriz) {
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(fmt, el.x + 4, el.y);
+                } else {
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(fmt, el.x, el.y - 2);
+                }
+            });
+        });
+        ctx.restore();
+    }
+});
+
+// ================================================================
 // COMMODITY COLORS
 // ================================================================
 var COMMODITY_COLORS = { 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'POULTRY': '#107c10', 'RAW': '#d13438' };
@@ -2524,10 +2559,23 @@ async function exportDashboardPDF() {
             }
             var origWrapStyle = wrapper ? wrapper.getAttribute('style') : null;
 
+            // Save & enable PDF data labels for bar charts
+            if (!inst.options.plugins) inst.options.plugins = {};
+            var origPdfLabels = inst.options.plugins.pdfValueLabels;
+            var isBar = inst.config.type === 'bar';
+            if (isBar) {
+                var isRandChart = canvasId === 'revenueCostChart' || canvasId === 'inspectorComparisonChart';
+                inst.options.plugins.pdfValueLabels = {
+                    enabled: true,
+                    formatter: isRandChart ? function(v) { return 'R' + Math.round(v).toLocaleString(); } : undefined
+                };
+            }
+
             // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
             if (!inst.options.layout) inst.options.layout = {};
-            inst.options.layout.padding = 0;
+            var isHorizBar = isBar && inst.options.indexAxis === 'y';
+            inst.options.layout.padding = isHorizBar ? { right: 50 } : (isBar ? { top: 14 } : 0);
             if (leg && leg.labels) {
                 leg.labels.padding = 3;
                 if (!leg.labels.font) leg.labels.font = {};
@@ -2561,6 +2609,9 @@ async function exportDashboardPDF() {
                 if (origLegFont !== undefined) leg.labels.font.size = origLegFont;
                 else if (leg.labels.font) delete leg.labels.font.size;
             }
+            // Restore PDF data labels
+            if (origPdfLabels) inst.options.plugins.pdfValueLabels = origPdfLabels;
+            else if (inst.options.plugins.pdfValueLabels) delete inst.options.plugins.pdfValueLabels;
 
             // Restore canvas shape
             if (targetAR && wrapper) {
