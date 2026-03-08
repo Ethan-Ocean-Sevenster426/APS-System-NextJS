@@ -2899,7 +2899,7 @@ async function exportDashboardPDF() {
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
-                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, 42);
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, 33);
             } else {
                 chartY = placeChart(chartY, chartData, ch.label, currentSection);
             }
