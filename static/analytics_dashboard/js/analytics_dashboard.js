@@ -25,6 +25,9 @@ Chart.register({
     afterDatasetsDraw: function(chart) {
         var opts = (chart.options.plugins && chart.options.plugins.pdfValueLabels) || {};
         if (!opts.enabled) return;
+        // Skip grouped bar charts (multiple datasets) — labels overlap
+        var visibleDS = chart.data.datasets.filter(function(_, i) { return !chart.getDatasetMeta(i).hidden; });
+        if (visibleDS.length > 1 && chart.options.indexAxis !== 'y') return;
         var fmtFn = _pdfLabelFormatters[chart.canvas.id];
         var ctx = chart.ctx;
         ctx.save();
