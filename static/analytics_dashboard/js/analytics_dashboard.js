@@ -120,23 +120,27 @@ Chart.register({
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             var multiLine = visibleDS.length > 1;
+            var dsCount = visibleDS.length;
             chart.data.datasets.forEach(function(ds, di) {
                 var meta = chart.getDatasetMeta(di);
                 if (meta.hidden) return;
                 var total = ds.data.length;
-                // For multi-line: show first, last, and evenly spaced points
+                // Decide which points to label
                 var step = 1;
-                if (multiLine && total > 6) {
-                    step = Math.max(1, Math.floor(total / 5)); // ~5-6 labels per line
+                if (multiLine && total > 8) {
+                    step = Math.max(1, Math.floor(total / 5));
                 }
                 meta.data.forEach(function(pt, idx) {
-                    if (multiLine && total > 6 && idx !== 0 && idx !== total - 1 && idx % step !== 0) return;
+                    // For long multi-line: show first, last, and every Nth
+                    if (multiLine && total > 8 && idx !== 0 && idx !== total - 1 && idx % step !== 0) return;
                     var val = ds.data[idx];
                     if (val == null || typeof val !== 'number') return;
                     var label = fmtFn ? fmtFn(val) : String(Math.round(val * 10) / 10);
-                    // Alternate label position above/below to reduce overlap
+                    // Stagger labels: alternate above/below, offset by dataset index
                     var yOff = (di % 2 === 0) ? -4 : 10;
-                    ctx.fillText(label, pt.x, pt.y + yOff);
+                    // Slight horizontal offset per dataset to reduce overlap at same x
+                    var xOff = (di - (dsCount - 1) / 2) * 6;
+                    ctx.fillText(label, pt.x + xOff, pt.y + yOff);
                 });
             });
             ctx.restore();
