@@ -8703,12 +8703,12 @@ def analytics_dashboard(request):
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # === SAMPLES BY COMMODITY ===
-    # Exclude occurrence reports from commodity-based analysis
+    # Show all commodities with their sample count (including 0)
     samples_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        is_sample_taken=True
-    ).values('commodity').annotate(count=Count('id')).order_by('commodity'))
+    ).values('commodity').annotate(
+        count=Count('id', filter=Q(is_sample_taken=True))
+    ).order_by('commodity'))
 
     # === FACILITY TYPE DISTRIBUTION ===
     facility_type_distribution = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -9581,11 +9581,11 @@ def analytics_dashboard_api(request):
         total_inspections=Count('id')
     ).order_by('-total_inspections'))
 
-    # Samples by commodity (exclude occurrence reports)
+    # Samples by commodity - show all commodities including 0 samples
     samples_by_commodity = list(qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(is_sample_taken=True).values('commodity').annotate(
-        count=Count('id')
+    ).values('commodity').annotate(
+        count=Count('id', filter=Q(is_sample_taken=True))
     ).order_by('commodity'))
 
     # Facility type distribution
