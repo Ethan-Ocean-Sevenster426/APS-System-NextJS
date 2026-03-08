@@ -982,7 +982,21 @@ function renderRevenueCostChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: txtColor(), padding: 12 } } },
+            plugins: {
+                legend: { labels: { color: txtColor(), padding: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var di = ctx.datasetIndex;
+                            var idx = ctx.dataIndex;
+                            var rand = 'R' + Math.round(ctx.parsed.y).toLocaleString();
+                            var rawVal = [rawHours, rawKm, rawSamples][di][idx];
+                            var unit = di === 0 ? Math.round(rawVal) + ' hours' : di === 1 ? Math.round(rawVal) + ' km' : Math.round(rawVal) + ' samples';
+                            return ctx.dataset.label + ': ' + rand + ' (' + unit + ')';
+                        }
+                    }
+                }
+            },
             scales: {
                 x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 }, autoSkip: false } },
                 y: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } }, beginAtZero: true }
