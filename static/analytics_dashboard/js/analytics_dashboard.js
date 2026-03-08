@@ -2612,10 +2612,8 @@ async function exportDashboardPDF() {
                 didDrawPage: tablePageHook('Summary'),
             });
         }
-        footer();
-
         // ════════════════════════════════════════════════════════════════
-        // PAGE 2: TARGETS TABLE
+        // TARGETS TABLE (new page after cover)
         // ════════════════════════════════════════════════════════════════
         prog('Building targets table...');
         pdf.addPage(); header('Quarterly Targets');
@@ -2686,15 +2684,17 @@ async function exportDashboardPDF() {
                 didDrawPage: tablePageHook('Quarterly Targets'),
             });
         }
-        footer();
 
         // ════════════════════════════════════════════════════════════════
-        // PAGE 3: EFFICIENCY MATRIX
+        // EFFICIENCY MATRIX (flows below targets)
         // ════════════════════════════════════════════════════════════════
         prog('Building efficiency matrix...');
         var matrixItems = d.inspectorCommodityMatrix || [];
         if (matrixItems.length > 0) {
-            pdf.addPage(); header('Efficiency Matrix');
+            var matStartY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : TOP;
+            // Add section label
+            if (matStartY + 30 > BOT) { footer(); pdf.addPage(); header('Efficiency Matrix'); matStartY = TOP; }
+            pdf.setFontSize(10); pdf.setTextColor(124, 58, 237); pdf.text('Efficiency Matrix', M, matStartY + 4); matStartY += 7;
             var inspectors = {}, commodities = new Set();
             matrixItems.forEach(function(item) {
                 commodities.add(item.commodity);
@@ -2712,7 +2712,7 @@ async function exportDashboardPDF() {
                 matBody.push(row);
             });
             pdf.autoTable({
-                startY: TOP,
+                startY: matStartY,
                 head: matHead, body: matBody,
                 margin: { left: M, right: M, top: TOP, bottom: PH - BOT },
                 styles: { fontSize: 7, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'center' },
@@ -2721,16 +2721,18 @@ async function exportDashboardPDF() {
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 didDrawPage: tablePageHook('Efficiency Matrix'),
             });
-            footer();
         }
 
         // ════════════════════════════════════════════════════════════════
-        // PAGE 4: FINANCIAL TABLE
+        // FINANCIAL TABLE (flows below efficiency matrix)
         // ════════════════════════════════════════════════════════════════
         prog('Building financial table...');
         var finItems = d.inspectorFinancials || [];
         if (finItems.length > 0) {
-            pdf.addPage(); header('Financial Summary');
+            var finStartY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : TOP;
+            // Add section label
+            if (finStartY + 30 > BOT) { footer(); pdf.addPage(); header('Financial Summary'); finStartY = TOP; }
+            pdf.setFontSize(10); pdf.setTextColor(16, 124, 16); pdf.text('Financial Summary', M, finStartY + 4); finStartY += 7;
             var KM_RATE = 4.50;
             var finHead = [['Inspector', 'Insp', 'Hrs', 'KM', 'R/km', 'Rev(Hrs)', 'Rev(KM)', 'Rev(Smp)', 'Total Rev', 'Salary', 'Expenses', 'Total Cost', 'Profit']];
             var finBody = [];
@@ -2768,7 +2770,7 @@ async function exportDashboardPDF() {
             ]);
 
             pdf.autoTable({
-                startY: TOP,
+                startY: finStartY,
                 head: finHead, body: finBody,
                 margin: { left: M, right: M, top: TOP, bottom: PH - BOT },
                 styles: { fontSize: 6, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'right', overflow: 'ellipsize' },
