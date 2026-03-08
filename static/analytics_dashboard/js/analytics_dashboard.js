@@ -18,11 +18,14 @@ window.addEventListener('storage', function(e) {
 // ================================================================
 // PDF DATA-LABELS PLUGIN  (only active when pdfValueLabels.enabled)
 // ================================================================
+// Format functions stored outside plugin options (Chart.js calls any fn in options)
+var _pdfLabelFormatters = {};
 Chart.register({
     id: 'pdfValueLabels',
     afterDatasetsDraw: function(chart) {
         var opts = (chart.options.plugins && chart.options.plugins.pdfValueLabels) || {};
         if (!opts.enabled) return;
+        var fmtFn = _pdfLabelFormatters[chart.canvas.id];
         var ctx = chart.ctx;
         ctx.save();
         ctx.font = 'bold 9px sans-serif';
@@ -33,16 +36,16 @@ Chart.register({
             meta.data.forEach(function(el, idx) {
                 var val = ds.data[idx];
                 if (val == null || val === 0 || typeof val !== 'number') return;
-                var fmt = opts.formatFn ? opts.formatFn(val) : String(Math.round(val).toLocaleString());
+                var label = fmtFn ? fmtFn(val) : String(Math.round(val).toLocaleString());
                 var isHoriz = chart.options.indexAxis === 'y';
                 if (isHoriz) {
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(fmt, el.x + 4, el.y);
+                    ctx.fillText(label, el.x + 4, el.y);
                 } else {
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
-                    ctx.fillText(fmt, el.x, el.y - 2);
+                    ctx.fillText(label, el.x, el.y - 2);
                 }
             });
         });
@@ -2565,10 +2568,11 @@ async function exportDashboardPDF() {
             var isBar = inst.config.type === 'bar';
             if (isBar) {
                 var isRandChart = canvasId === 'revenueCostChart' || canvasId === 'inspectorComparisonChart';
-                inst.options.plugins.pdfValueLabels = {
-                    enabled: true,
-                    formatFn: isRandChart ? function(v) { return 'R' + Math.round(v).toLocaleString(); } : null
-                };
+                // Store formatter externally - Chart.js calls any function in plugin options
+                if (isRandChart) {
+                    _pdfLabelFormatters[canvasId] = function(v) { return 'R' + Math.round(v).toLocaleString(); };
+                }
+                inst.options.plugins.pdfValueLabels = { enabled: true };
             }
 
             // Compact for PDF: zero layout padding, tight legend
@@ -2611,6 +2615,7 @@ async function exportDashboardPDF() {
             // Restore PDF data labels
             if (origPdfLabels) inst.options.plugins.pdfValueLabels = origPdfLabels;
             else if (inst.options.plugins.pdfValueLabels) delete inst.options.plugins.pdfValueLabels;
+            delete _pdfLabelFormatters[canvasId];
 
             // Restore canvas shape
             if (targetAR && wrapper) {
