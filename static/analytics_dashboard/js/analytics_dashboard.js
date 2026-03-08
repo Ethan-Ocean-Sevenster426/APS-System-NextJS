@@ -2503,20 +2503,26 @@ async function exportDashboardPDF() {
         }
 
         // ── Grab a chart image (compact: strip padding & shrink legend) ─
-        function getChartImage(canvasId) {
+        // targetAR: optional target aspect ratio (w/h) to reshape chart for PDF
+        function getChartImage(canvasId, targetAR) {
             var inst = chartInstances[canvasId];
             var can = document.getElementById(canvasId);
             if (!inst || !can || can.width === 0 || can.height === 0) return null;
 
+            var wrapper = can.parentNode;
+
             // Save originals
             var origDPR = inst.options.devicePixelRatio;
             var origPadding = inst.options.layout ? inst.options.layout.padding : undefined;
+            var origAR = inst.options.aspectRatio;
+            var origMaintain = inst.options.maintainAspectRatio;
             var leg = inst.options.plugins && inst.options.plugins.legend;
             var origLegPad, origLegFont;
             if (leg && leg.labels) {
                 origLegPad = leg.labels.padding;
                 origLegFont = leg.labels.font ? leg.labels.font.size : undefined;
             }
+            var origWrapStyle = wrapper ? wrapper.getAttribute('style') : null;
 
             // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
@@ -2528,9 +2534,23 @@ async function exportDashboardPDF() {
                 leg.labels.font.size = 7;
             }
 
+            // Reshape canvas to match PDF target aspect ratio
+            if (targetAR && wrapper) {
+                var targetW = 800;
+                var targetH = Math.round(targetW / targetAR);
+                wrapper.style.width = targetW + 'px';
+                wrapper.style.height = targetH + 'px';
+                wrapper.style.position = 'absolute';
+                wrapper.style.left = '-9999px';
+                inst.options.aspectRatio = targetAR;
+                inst.options.maintainAspectRatio = true;
+                inst.resize();
+            }
+
             inst.update('none');
 
             var img = inst.toBase64Image('image/png', 1.0);
+            var w = can.width, h = can.height;
 
             // Restore originals
             inst.options.devicePixelRatio = origDPR || undefined;
@@ -2541,9 +2561,18 @@ async function exportDashboardPDF() {
                 if (origLegFont !== undefined) leg.labels.font.size = origLegFont;
                 else if (leg.labels.font) delete leg.labels.font.size;
             }
+
+            // Restore canvas shape
+            if (targetAR && wrapper) {
+                if (origWrapStyle) wrapper.setAttribute('style', origWrapStyle);
+                else wrapper.removeAttribute('style');
+                inst.options.aspectRatio = origAR;
+                inst.options.maintainAspectRatio = origMaintain;
+                inst.resize();
+            }
             inst.update('none');
 
-            return { img: img, w: can.width, h: can.height };
+            return { img: img, w: w, h: h };
         }
 
         // ── Place chart image on page, returns new y ────────────────────
@@ -2923,15 +2952,20 @@ async function exportDashboardPDF() {
 
             // Paired sections: place charts side by side
             if (pairedSections[ch.section]) {
+                var secCapH = pairedHeight[ch.section] || 33;
+                var halfW = (CW - 6) / 2;
+                var pdfAR = halfW / secCapH; // target aspect ratio for PDF cells
+                // Re-capture with target AR so chart fills the PDF cell
+                chartData = getChartImage(ch.id, pdfAR) || chartData;
                 var nextIdx = ci + 1;
                 var rightData = null, rightLabel = '';
                 if (nextIdx < chartList.length && chartList[nextIdx].section === ch.section) {
                     prog('Exporting chart ' + (nextIdx + 1) + '/' + chartList.length + ': ' + chartList[nextIdx].label);
-                    rightData = getChartImage(chartList[nextIdx].id);
+                    rightData = getChartImage(chartList[nextIdx].id, pdfAR);
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
-                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairedHeight[ch.section] || 33);
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
             } else {
                 chartY = placeChart(chartY, chartData, ch.label, currentSection);
             }
