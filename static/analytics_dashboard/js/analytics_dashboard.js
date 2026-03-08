@@ -2928,7 +2928,7 @@ async function exportDashboardPDF() {
         // Sections that use 2-column paired layout (bar + trend side by side)
         var pairedSections = { 'Overview': true, 'Compliance': true, 'Timelines': true, 'Operations': true };
         // Per-section chart heights
-        var pairedHeight = { 'Overview': 54, 'Compliance': 39, 'Operations': 84, 'Timelines': 39 };
+        var pairedHeight = { 'Overview': 54, 'Compliance': 54, 'Operations': 84, 'Timelines': 39 };
 
         var currentSection = '';
         var chartY = BOT; // Force first chart onto a new page
