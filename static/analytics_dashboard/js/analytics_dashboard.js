@@ -932,7 +932,7 @@ function renderRevenueCostChart() {
     // Raw quantities for labels
     var rawHours = items.map(function(i) { return parseFloat(i.total_hours || 0); });
     var rawKm = items.map(function(i) { return parseFloat(i.total_km || 0); });
-    var rawSamples = items.map(function(i) { return parseInt(i.sample_count || i.total_samples || 0); });
+    var rawSamples = items.map(function(i) { return parseInt(i.total_samples || 0); });
 
     // Dynamic height based on inspector count
     var minHeight = Math.max(320, items.length * 30 + 60);
