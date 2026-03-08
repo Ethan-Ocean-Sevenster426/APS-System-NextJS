@@ -8435,6 +8435,21 @@ def analytics_dashboard(request):
     except Exception:
         pass
 
+    # Build list of non-inspector users to exclude from analytics
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector')
+        .values_list('first_name', flat=True)
+    )
+    # Also match by full name (first + last)
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
+
     # Date ranges for analysis
     now = datetime.now()
     thirty_days_ago = now - timedelta(days=30)
@@ -8497,7 +8512,7 @@ def analytics_dashboard(request):
     
     # === INSPECTOR PERFORMANCE ===
     inspector_performance = FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
@@ -8519,7 +8534,7 @@ def analytics_dashboard(request):
 
     # === UNKNOWN INSPECTORS (for assignment) ===
     unknown_inspectors = FoodSafetyAgencyInspection.objects.filter(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_id', 'inspector_name').annotate(
         total_inspections=Count('id'),
         latest_inspection=Max('date_of_inspection'),
@@ -8765,7 +8780,7 @@ def analytics_dashboard(request):
 
     # === TIME ALLOCATION (hours per inspector) ===
     time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(hours__isnull=True) | Q(hours=0)
     ).values('inspector_name').annotate(
@@ -8789,7 +8804,7 @@ def analytics_dashboard(request):
     occurrence_reports = list(FoodSafetyAgencyInspection.objects.filter(
         is_occurrence_report=True
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         count=Count('id')
     ).order_by('-count'))
@@ -8798,7 +8813,7 @@ def analytics_dashboard(request):
 
     # Directions (non-compliance findings) per inspector
     directions_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total=Count('id'),
         directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
@@ -8812,7 +8827,7 @@ def analytics_dashboard(request):
     # Use InspectionGroup to avoid double-counting km/hours across multi-commodity inspections
     _travel_map = {}
     for _row in InspectionGroup.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_km=Sum('km_traveled'),
         total_hours=Sum('hours'),
@@ -8830,7 +8845,7 @@ def analytics_dashboard(request):
     for _row in FoodSafetyAgencyInspection.objects.filter(
         inspection_group__isnull=True
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_km=Sum('km_traveled'),
         total_hours=Sum('hours'),
@@ -8856,7 +8871,7 @@ def analytics_dashboard(request):
 
     # Inspections per commodity per inspector (efficiency matrix)
     inspector_commodity_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(commodity__isnull=True) | Q(commodity='')
     ).values('inspector_name', 'commodity').annotate(
@@ -8865,7 +8880,7 @@ def analytics_dashboard(request):
 
     # Per-inspector per-commodity sample counts for target tracking
     inspector_sample_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
@@ -8876,7 +8891,7 @@ def analytics_dashboard(request):
 
     # Approval status breakdown per inspector
     approval_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total=Count('id'),
         approved=Count('id', filter=Q(approved_status='APPROVED')),
@@ -8941,7 +8956,7 @@ def analytics_dashboard(request):
 
     # Weekly inspector performance trend
     monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True).filter(
         date_of_inspection__gte=thirty_days_ago
     ).annotate(
@@ -8972,7 +8987,7 @@ def analytics_dashboard(request):
     _appr_by_month = {}
     for _insp in FoodSafetyAgencyInspection.objects.filter(
         approved_status='APPROVED', date_of_inspection__isnull=False
-    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
         _ref = _insp.approved_date or _insp.updated_at
         if _ref is None:
             continue
@@ -9013,7 +9028,7 @@ def analytics_dashboard(request):
         ).values_list('date_of_inspection', flat=True).distinct()
     ))
     all_inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
     all_commodities = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(commodity__isnull=True) | Q(commodity='')
@@ -9092,7 +9107,7 @@ def analytics_dashboard(request):
     from datetime import datetime, timedelta
     inspection_times = {}
     for _grp in InspectionGroup.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
     ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
@@ -9115,7 +9130,7 @@ def analytics_dashboard(request):
     # Get hours/km from InspectionGroup (group-level) to avoid double-counting
     _fin_group_data = {}
     for _row in InspectionGroup.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours'),
         total_km=Sum('km_traveled'),
@@ -9128,7 +9143,7 @@ def analytics_dashboard(request):
     for _row in FoodSafetyAgencyInspection.objects.filter(
         inspection_group__isnull=True
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours'),
         total_km=Sum('km_traveled'),
@@ -9145,7 +9160,7 @@ def analytics_dashboard(request):
 
     # Get inspection counts and sample counts from individual inspections (correct level)
     inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
@@ -9182,7 +9197,7 @@ def analytics_dashboard(request):
     # Lightweight date+inspector list for client-side period filtering
     inspection_dates_list = list(
         FoodSafetyAgencyInspection.objects.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(date_of_inspection__isnull=True).values_list(
             'date_of_inspection', 'inspector_name'
         )
@@ -9291,7 +9306,7 @@ def analytics_dashboard(request):
         approved_status='APPROVED',
         date_of_inspection__isnull=False,
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     )
 
     approval_by_inspector = {}
@@ -9470,6 +9485,20 @@ def analytics_dashboard_api(request):
     if request.user.role not in ('developer', 'super_admin'):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
+    # Build list of non-inspector users to exclude
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector')
+        .values_list('first_name', flat=True)
+    )
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
+
     # Get filter params
     year = request.GET.get('year')
     month = request.GET.get('month')
@@ -9522,7 +9551,7 @@ def analytics_dashboard_api(request):
 
     # Active inspectors
     active_inspectors = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').distinct().count()
 
     # Days worked
@@ -9603,7 +9632,7 @@ def analytics_dashboard_api(request):
 
     # Time allocation
     time_allocation = list(qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
     ).order_by('-total_hours')[:15])
@@ -9616,7 +9645,7 @@ def analytics_dashboard_api(request):
 
     # Inspector performance
     inspector_performance = list(qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
@@ -9626,7 +9655,7 @@ def analytics_dashboard_api(request):
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
     _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
     _inspector_trend_base = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True)
     if not _has_date_filter:
         _inspector_trend_base = _inspector_trend_base.filter(date_of_inspection__gte=thirty_days_ago)
@@ -9658,11 +9687,11 @@ def analytics_dashboard_api(request):
         'inspectorPerformance': inspector_performance,
         # Inspector metrics
         'occurrenceReports': list(qs.filter(is_occurrence_report=True).exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(count=Count('id')).order_by('-count')),
         'totalOccurrenceReports': qs.filter(is_occurrence_report=True).count(),
         'directionsPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(
             total=Count('id'),
             directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
@@ -9673,26 +9702,26 @@ def analytics_dashboard_api(request):
              'total_hours': float(r['total_hours'] or 0), 'inspection_count': r['inspection_count'] or 0,
              'avg_km': float(r['avg_km'] or 0)}
             for r in group_qs.exclude(
-                Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+                Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
             ).values('inspector_name').annotate(
                 total_km=Sum('km_traveled'), total_hours=Sum('hours'),
                 inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
             ).order_by('-total_km')
         ],
         'inspectorCommodityMatrix': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
             'inspector_name', 'commodity'
         ).annotate(count=Count('id')).order_by('inspector_name', 'commodity')),
         'inspectorSampleMatrix': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).filter(
             is_sample_taken=True
         ).values('inspector_name', 'commodity').annotate(
             count=Count('id')
         ).order_by('inspector_name', 'commodity')),
         'approvalPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(
             total=Count('id'),
             approved=Count('id', filter=Q(approved_status='APPROVED')),
@@ -9717,7 +9746,7 @@ def analytics_dashboard_api(request):
     # Use InspectionGroup directly to avoid double-counting
     inspection_times = {}
     for _grp in group_qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
     ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
@@ -9735,7 +9764,7 @@ def analytics_dashboard_api(request):
     # Get hours/km from InspectionGroup (group-level) to avoid double-counting
     _api_fin_group = {}
     for _row in group_qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours'), total_km=Sum('km_traveled'),
     ):
@@ -9745,7 +9774,7 @@ def analytics_dashboard_api(request):
         }
 
     inspector_financials_qs = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
@@ -9850,7 +9879,7 @@ def analytics_dashboard_api(request):
     approval_time = []
     approval_filtered = qs.filter(
         approved_status='APPROVED', date_of_inspection__isnull=False,
-    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown'))
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names))
     approval_by_inspector = {}
     for insp in approval_filtered:
         ref_date = insp.approved_date or insp.updated_at
@@ -9871,7 +9900,7 @@ def analytics_dashboard_api(request):
     # 5. Travel time per inspector
     travel_time_per_inspector = []
     travel_time_filtered = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(inspection_group__isnull=True)
     ).exclude(
@@ -9957,7 +9986,7 @@ def analytics_dashboard_api(request):
 
     # Monthly avg days to approval (filtered)
     _appr_by_month = {}
-    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
         _ref = _insp.approved_date or _insp.updated_at
         if _ref is None:
             continue
@@ -10001,6 +10030,17 @@ def get_inspector_targets(request):
     """Return all inspector targets and list of known inspectors."""
     from ..models import InspectorTarget, FoodSafetyAgencyInspection
     from django.db.models import Q
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector').values_list('first_name', flat=True)
+    )
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
 
     targets = {}
     for t in InspectorTarget.objects.all():
@@ -10010,7 +10050,7 @@ def get_inspector_targets(request):
         }
 
     inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
 
     return JsonResponse({'targets': targets, 'inspectors': inspectors})
