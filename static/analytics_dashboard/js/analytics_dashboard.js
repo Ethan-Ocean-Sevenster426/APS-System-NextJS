@@ -2887,9 +2887,10 @@ async function exportDashboardPDF() {
             // Calculate cell padding to fill the page
             var availH = BOT - TOP;
             var totalRows = targBody.length + 1; // +1 for header
-            var targFontSize = 8;
+            var targFontSize = 7;
             var targRowH = availH / totalRows;
-            var targPad = Math.max(1.5, (targRowH - targFontSize * 0.35) / 2);
+            // Font height in mm ≈ fontSize * 0.353; subtract that + line spacing from row height
+            var targPad = Math.max(1.5, (targRowH - targFontSize * 0.5) / 2);
 
             pdf.autoTable({
                 startY: TOP,
