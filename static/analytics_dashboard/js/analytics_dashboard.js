@@ -2884,14 +2884,21 @@ async function exportDashboardPDF() {
                     hoursLookup[name] ? parseFloat(hoursLookup[name]).toFixed(1) : '-']);
             });
 
+            // Calculate cell padding to fill the page
+            var availH = BOT - TOP;
+            var totalRows = targBody.length + 1; // +1 for header
+            var targFontSize = 8;
+            var targRowH = availH / totalRows;
+            var targPad = Math.max(1.5, (targRowH - targFontSize * 0.35) / 2);
+
             pdf.autoTable({
                 startY: TOP,
                 head: targHead,
                 body: targBody,
                 margin: { left: M, right: M, top: TOP, bottom: PH - BOT },
-                styles: { fontSize: 7, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2 },
+                styles: { fontSize: targFontSize, cellPadding: targPad, lineColor: [220, 225, 230], lineWidth: 0.2 },
                 headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
-                columnStyles: { 0: { halign: 'left', cellWidth: 35 }, 1: { halign: 'center', fontStyle: 'bold' } },
+                columnStyles: { 0: { halign: 'left', cellWidth: 38 }, 1: { halign: 'center', fontStyle: 'bold' } },
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 didParseCell: function(data) {
                     if (data.section === 'body' && data.column.index >= 2 && data.column.index <= 8) {
