@@ -3134,14 +3134,19 @@ async function exportDashboardPDF() {
             if (ch.section !== currentSection) {
                 if (currentSection) footer();
                 currentSection = ch.section;
-                pdf.addPage();
-                header(currentSection);
-                chartY = TOP;
-                pdf.setFontSize(11); pdf.setTextColor(30, 41, 59);
-                pdf.text(currentSection, M, chartY + 4);
-                pdf.setDrawColor(30, 41, 59);
-                pdf.line(M, chartY + 5, M + CW, chartY + 5);
-                chartY += 7;
+                // Skip section page if first chart creates its own page
+                if (ch.ownPage || ch.stackWith) {
+                    chartY = BOT; // force ownPage/stackWith to create the page
+                } else {
+                    pdf.addPage();
+                    header(currentSection);
+                    chartY = TOP;
+                    pdf.setFontSize(11); pdf.setTextColor(30, 41, 59);
+                    pdf.text(currentSection, M, chartY + 4);
+                    pdf.setDrawColor(30, 41, 59);
+                    pdf.line(M, chartY + 5, M + CW, chartY + 5);
+                    chartY += 7;
+                }
             }
 
             // Full-width charts within paired sections (dense line charts that need more space)
