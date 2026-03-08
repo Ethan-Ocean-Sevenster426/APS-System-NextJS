@@ -25,12 +25,118 @@ Chart.register({
     afterDatasetsDraw: function(chart) {
         var opts = (chart.options.plugins && chart.options.plugins.pdfValueLabels) || {};
         if (!opts.enabled) return;
-        // Skip grouped bar charts (multiple datasets) — labels overlap
-        var visibleDS = chart.data.datasets.filter(function(_, i) { return !chart.getDatasetMeta(i).hidden; });
-        if (visibleDS.length > 1 && chart.options.indexAxis !== 'y') return;
+        var chartType = chart.config.type;
         var fmtFn = _pdfLabelFormatters[chart.canvas.id];
         var ctx = chart.ctx;
         ctx.save();
+
+        // --- RADAR: label each vertex on the outermost visible dataset ---
+        if (chartType === 'radar') {
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            // Pick last visible dataset (typically the target or top layer)
+            chart.data.datasets.forEach(function(ds, di) {
+                var meta = chart.getDatasetMeta(di);
+                if (meta.hidden) return;
+                meta.data.forEach(function(pt, idx) {
+                    var val = ds.data[idx];
+                    if (val == null || typeof val !== 'number') return;
+                    var label = fmtFn ? fmtFn(val) : String(Math.round(val));
+                    // Offset outward from center
+                    var cx = chart.scales.r.xCenter, cy = chart.scales.r.yCenter;
+                    var dx = pt.x - cx, dy = pt.y - cy;
+                    var dist = Math.sqrt(dx * dx + dy * dy);
+                    var off = dist > 0 ? 10 / dist : 0;
+                    ctx.fillText(label, pt.x + dx * off, pt.y + dy * off);
+                });
+            });
+            ctx.restore();
+            return;
+        }
+
+        // --- STACKED BAR: show totals on top of each stack ---
+        var isStacked = chart.options.scales && chart.options.scales.x && chart.options.scales.x.stacked;
+        var visibleDS = chart.data.datasets.filter(function(_, i) { return !chart.getDatasetMeta(i).hidden; });
+        var isHoriz = chart.options.indexAxis === 'y';
+
+        if (chartType === 'bar' && isStacked && !isHoriz) {
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            var numLabels = chart.data.labels.length;
+            for (var li = 0; li < numLabels; li++) {
+                var total = 0;
+                var topY = Infinity;
+                visibleDS.forEach(function(ds, vi) {
+                    var val = ds.data[li];
+                    if (typeof val === 'number') total += val;
+                    var meta = chart.getDatasetMeta(chart.data.datasets.indexOf(ds));
+                    if (meta.data[li] && meta.data[li].y < topY) topY = meta.data[li].y;
+                });
+                if (total > 0) {
+                    var label = fmtFn ? fmtFn(total) : String(Math.round(total));
+                    var barX = chart.getDatasetMeta(chart.data.datasets.indexOf(visibleDS[0])).data[li].x;
+                    ctx.fillText(label, barX, topY - 2);
+                }
+            }
+            ctx.restore();
+            return;
+        }
+
+        // --- MIXED BAR+LINE (e.g. monthlyInspectionsTrendChart): label bars only ---
+        var hasMixedTypes = false;
+        chart.data.datasets.forEach(function(ds) { if (ds.type && ds.type !== chartType) hasMixedTypes = true; });
+        if (chartType === 'bar' && hasMixedTypes && !isHoriz) {
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            chart.data.datasets.forEach(function(ds, di) {
+                if (ds.type === 'line') return; // skip the line overlay
+                var meta = chart.getDatasetMeta(di);
+                if (meta.hidden) return;
+                meta.data.forEach(function(el, idx) {
+                    var val = ds.data[idx];
+                    if (val == null || val === 0 || typeof val !== 'number') return;
+                    ctx.fillText(fmtFn ? fmtFn(val) : String(Math.round(val)), el.x, el.y - 2);
+                });
+            });
+            ctx.restore();
+            return;
+        }
+
+        // --- GROUPED VERTICAL BAR (multiple datasets, not stacked): skip (too cluttered) ---
+        if (chartType === 'bar' && visibleDS.length > 1 && !isHoriz) {
+            ctx.restore();
+            return;
+        }
+
+        // --- LINE CHARTS: show values at data points ---
+        if (chartType === 'line') {
+            ctx.font = 'bold 7px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            // For multi-line, only label last data point per dataset to avoid clutter
+            var multiLine = visibleDS.length > 1;
+            chart.data.datasets.forEach(function(ds, di) {
+                var meta = chart.getDatasetMeta(di);
+                if (meta.hidden) return;
+                meta.data.forEach(function(pt, idx) {
+                    if (multiLine && idx !== ds.data.length - 1) return;
+                    var val = ds.data[idx];
+                    if (val == null || typeof val !== 'number') return;
+                    var label = fmtFn ? fmtFn(val) : String(Math.round(val * 10) / 10);
+                    ctx.fillText(label, pt.x, pt.y - 4);
+                });
+            });
+            ctx.restore();
+            return;
+        }
+
+        // --- SINGLE-DATASET BAR & HORIZONTAL BAR: label each bar ---
         ctx.font = 'bold 9px sans-serif';
         ctx.fillStyle = '#1e293b';
         chart.data.datasets.forEach(function(ds, di) {
@@ -40,7 +146,6 @@ Chart.register({
                 var val = ds.data[idx];
                 if (val == null || val === 0 || typeof val !== 'number') return;
                 var label = fmtFn ? fmtFn(val) : String(Math.round(val).toLocaleString());
-                var isHoriz = chart.options.indexAxis === 'y';
                 if (isHoriz) {
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
@@ -2573,18 +2678,17 @@ async function exportDashboardPDF() {
             }
             var origWrapStyle = wrapper ? wrapper.getAttribute('style') : null;
 
-            // Save & enable PDF data labels for bar charts
+            // Save & enable PDF data labels for all charts
             if (!inst.options.plugins) inst.options.plugins = {};
             var origPdfLabels = inst.options.plugins.pdfValueLabels;
-            var isBar = inst.config.type === 'bar';
-            if (isBar) {
-                var isRandChart = canvasId === 'revenueCostChart' || canvasId === 'inspectorComparisonChart';
-                // Store formatter externally - Chart.js calls any function in plugin options
-                if (isRandChart) {
-                    _pdfLabelFormatters[canvasId] = function(v) { return 'R' + Math.round(v).toLocaleString(); };
-                }
-                inst.options.plugins.pdfValueLabels = { enabled: true };
+            // Store formatter externally - Chart.js calls any function in plugin options
+            var isRandChart = canvasId === 'revenueCostChart' || canvasId === 'inspectorComparisonChart';
+            if (isRandChart) {
+                _pdfLabelFormatters[canvasId] = function(v) { return 'R' + Math.round(v).toLocaleString(); };
+            } else if (canvasId === 'dailyComplianceChart' || canvasId === 'complianceTrendChart' || canvasId === 'commodityTrendChart') {
+                _pdfLabelFormatters[canvasId] = function(v) { return Math.round(v) + '%'; };
             }
+            inst.options.plugins.pdfValueLabels = { enabled: true };
 
             // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
