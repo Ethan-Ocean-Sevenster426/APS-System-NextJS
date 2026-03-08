@@ -1920,6 +1920,10 @@ function renderInspectorTrendChart() {
             var ctx = chart.ctx;
             var meta = chart.getDatasetMeta(0);
             if (meta.hidden) return;
+            // Detect bar height to scale font
+            var barH = 20;
+            if (meta.data.length > 1) barH = Math.abs(meta.data[1].y - meta.data[0].y);
+            var fontSize = Math.max(7, Math.min(11, Math.floor(barH * 0.7)));
             meta.data.forEach(function(bar, index) {
                 var val = chart.data.datasets[0].data[index];
                 if (!val) return;
@@ -1927,25 +1931,24 @@ function renderInspectorTrendChart() {
                 // Inspector name inside bar
                 ctx.save();
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 11px sans-serif';
+                ctx.font = 'bold ' + fontSize + 'px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 var barWidth = bar.x - bar.base;
                 if (barWidth > 20) {
-                    // Truncate name to fit inside bar
-                    var maxTextWidth = barWidth - 12;
+                    var maxTextWidth = barWidth - 8;
                     var displayName = name;
                     while (ctx.measureText(displayName).width > maxTextWidth && displayName.length > 1) {
                         displayName = displayName.slice(0, -1);
                     }
                     if (displayName.length < name.length) displayName += '…';
-                    ctx.fillText(displayName, bar.base + 6, bar.y);
+                    ctx.fillText(displayName, bar.base + 4, bar.y);
                 }
                 ctx.restore();
                 // Value at end of bar
                 ctx.save();
                 ctx.fillStyle = txtColor();
-                ctx.font = 'bold 11px sans-serif';
+                ctx.font = 'bold ' + fontSize + 'px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 var valText = val.toLocaleString();
@@ -2690,6 +2693,13 @@ async function exportDashboardPDF() {
             }
             inst.options.plugins.pdfValueLabels = { enabled: true };
 
+            // Reduce bar thickness for dense horizontal bar charts in PDF
+            var origBarThickness = null;
+            if (canvasId === 'inspectorTrendChart' && inst.data.datasets[0]) {
+                origBarThickness = inst.data.datasets[0].barThickness;
+                inst.data.datasets[0].barThickness = 10;
+            }
+
             // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
             if (!inst.options.layout) inst.options.layout = {};
@@ -2731,6 +2741,10 @@ async function exportDashboardPDF() {
             if (origPdfLabels) inst.options.plugins.pdfValueLabels = origPdfLabels;
             else if (inst.options.plugins.pdfValueLabels) delete inst.options.plugins.pdfValueLabels;
             delete _pdfLabelFormatters[canvasId];
+            // Restore bar thickness
+            if (origBarThickness !== null && inst.data.datasets[0]) {
+                inst.data.datasets[0].barThickness = origBarThickness;
+            }
 
             // Restore canvas shape
             if (targetAR && wrapper) {
