@@ -8763,7 +8763,7 @@ def analytics_dashboard(request):
 
     # === DAILY COMPLIANCE TREND PER COMMODITY ===
     daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
         date_of_inspection__gte=thirty_days_ago
     ).exclude(
@@ -9472,6 +9472,43 @@ def analytics_dashboard(request):
     return render(request, 'main/analytics_dashboard.html', context)
 
 
+def _api_travel_per_inspector(group_qs, qs, non_inspector_names):
+    """Build travel-per-inspector including ungrouped (legacy) inspections."""
+    _excl = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    _map = {}
+    for r in group_qs.exclude(_excl).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+        inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
+    ):
+        _map[r['inspector_name']] = {
+            'inspector_name': r['inspector_name'],
+            'total_km': float(r['total_km'] or 0),
+            'total_hours': float(r['total_hours'] or 0),
+            'inspection_count': r['inspection_count'] or 0,
+            'avg_km': float(r['avg_km'] or 0),
+        }
+    for r in qs.filter(inspection_group__isnull=True).exclude(_excl).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+        inspection_count=Count('id'), avg_km=Avg('km_traveled'),
+    ):
+        name = r['inspector_name']
+        if name in _map:
+            _map[name]['total_km'] += float(r['total_km'] or 0)
+            _map[name]['total_hours'] += float(r['total_hours'] or 0)
+            _map[name]['inspection_count'] += r['inspection_count'] or 0
+        else:
+            _map[name] = {
+                'inspector_name': name,
+                'total_km': float(r['total_km'] or 0),
+                'total_hours': float(r['total_hours'] or 0),
+                'inspection_count': r['inspection_count'] or 0,
+                'avg_km': float(r['avg_km'] or 0),
+            }
+    for v in _map.values():
+        v['avg_km'] = round(v['total_km'] / max(v['inspection_count'], 1), 2)
+    return sorted(_map.values(), key=lambda x: x['total_km'], reverse=True)
+
+
 @login_required(login_url='login')
 def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
@@ -9618,7 +9655,7 @@ def analytics_dashboard_api(request):
     from django.db.models.functions import TruncDay
     thirty_days_ago = datetime.now() - timedelta(days=30)
     daily_compliance_trend = list(qs.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
         date_of_inspection__gte=thirty_days_ago
     ).exclude(date_of_inspection__isnull=True).annotate(
@@ -9697,17 +9734,7 @@ def analytics_dashboard_api(request):
             directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
             non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
         ).order_by('-total')),
-        'travelPerInspector': [
-            {'inspector_name': r['inspector_name'], 'total_km': float(r['total_km'] or 0),
-             'total_hours': float(r['total_hours'] or 0), 'inspection_count': r['inspection_count'] or 0,
-             'avg_km': float(r['avg_km'] or 0)}
-            for r in group_qs.exclude(
-                Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
-            ).values('inspector_name').annotate(
-                total_km=Sum('km_traveled'), total_hours=Sum('hours'),
-                inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
-            ).order_by('-total_km')
-        ],
+        'travelPerInspector': _api_travel_per_inspector(group_qs, qs, non_inspector_names),
         'inspectorCommodityMatrix': list(qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
