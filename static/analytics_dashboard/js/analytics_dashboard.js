@@ -3076,7 +3076,6 @@ async function exportDashboardPDF() {
             { id: 'dailyComplianceChart', label: 'Daily Compliance Trend', section: 'Overview' },
             { id: 'monthlyInspectionsTrendChart', label: 'Monthly Inspections Trend', section: 'Overview' },
             { id: 'approvalRateChart', label: 'Approval Rate', section: 'Overview' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison', section: 'Overview' },
             { id: 'inspectorRadarChart', label: 'Inspector Performance Radar', section: 'Overview' },
             { id: 'directionsChart', label: 'Directions & Non-Compliance', section: 'Overview' },
             { id: 'commodityTrendChart', label: 'Commodity Compliance Trend', section: 'Compliance', fullWidth: true },
@@ -3100,7 +3099,8 @@ async function exportDashboardPDF() {
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
             { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
-            { id: 'inspectorComparisonChart', label: 'Inspector Comparison', section: 'Financial' },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial' },
+            { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
         ];
 
         // Sections that use 2-column paired layout (bar + trend side by side)
