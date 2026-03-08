@@ -2517,31 +2517,27 @@ async function exportDashboardPDF() {
         }
 
         // ── Place chart image on page, returns new y ────────────────────
+        var CHART_MAX_H = 80; // Cap height so ~2 charts fit per page
         function placeChart(y, chartData, label, subtitle) {
             if (!chartData) return y;
             var ar = chartData.w / chartData.h;
             var iW = CW;
             var iH = iW / ar;
-            // Cap chart height at available page space
-            var maxH = BOT - TOP - 8;
-            if (iH > maxH) { iH = maxH; iW = iH * ar; }
+            // Cap chart height to fit multiple per page
+            if (iH > CHART_MAX_H) { iH = CHART_MAX_H; iW = iH * ar; }
+            var neededH = iH + (label ? 7 : 0);
+            // Need new page?
+            if (y + neededH > BOT) {
+                footer();
+                pdf.addPage();
+                header(subtitle);
+                y = TOP;
+            }
             // Label
             if (label) {
                 pdf.setFontSize(9); pdf.setTextColor(30, 41, 59);
                 pdf.text(label, M, y + 4);
                 y += 7;
-            }
-            // Need new page?
-            if (y + iH > BOT) {
-                footer();
-                pdf.addPage();
-                header(subtitle);
-                y = TOP;
-                if (label) {
-                    pdf.setFontSize(9); pdf.setTextColor(30, 41, 59);
-                    pdf.text(label, M, y + 4);
-                    y += 7;
-                }
             }
             pdf.addImage(chartData.img, 'PNG', M + (CW - iW) / 2, y, iW, iH);
             return y + iH + 5;
@@ -2835,19 +2831,32 @@ async function exportDashboardPDF() {
         ];
 
         var currentSection = '';
+        var chartY = BOT; // Force first chart onto a new page
         for (var ci = 0; ci < chartList.length; ci++) {
             var ch = chartList[ci];
             prog('Exporting chart ' + (ci + 1) + '/' + chartList.length + ': ' + ch.label);
             var chartData = getChartImage(ch.id);
             if (!chartData) continue;
 
-            // New page for each chart
-            pdf.addPage();
-            header(ch.section + ' — ' + ch.label);
-            placeChart(TOP, chartData, ch.label, ch.section);
-            footer();
+            // New section — start a new page with section heading
+            if (ch.section !== currentSection) {
+                if (currentSection) footer(); // footer for previous section's last page
+                currentSection = ch.section;
+                pdf.addPage();
+                header(currentSection);
+                chartY = TOP;
+                // Section heading
+                pdf.setFontSize(13); pdf.setTextColor(30, 41, 59);
+                pdf.text(currentSection, M, chartY + 5);
+                pdf.setDrawColor(30, 41, 59);
+                pdf.line(M, chartY + 7, M + CW, chartY + 7);
+                chartY += 12;
+            }
+
+            chartY = placeChart(chartY, chartData, ch.label, currentSection);
             await new Promise(function(r) { setTimeout(r, 50); });
         }
+        if (currentSection) footer(); // footer for the last chart page
 
         // ── Stamp page numbers ──────────────────────────────────────────
         prog('Finalising...');
