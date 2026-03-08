@@ -3099,7 +3099,7 @@ async function exportDashboardPDF() {
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
             { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', pairWith: 'inspectorComparisonChart' },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', stackWith: 'inspectorComparisonChart' },
             { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
         ];
 
@@ -3161,26 +3161,24 @@ async function exportDashboardPDF() {
                     ci = nextIdx; // skip next since we're rendering it here
                 }
                 chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
-            } else if (ch.pairWith) {
-                // Pair two charts side-by-side on a new page
+            } else if (ch.stackWith) {
+                // Stack two charts vertically on a new page
                 footer(); pdf.addPage(); header(currentSection);
                 chartY = TOP;
-                var pairCapH = BOT - TOP - 5;
-                var pairHalfW = (CW - 6) / 2;
-                var pairAR = pairHalfW / pairCapH;
-                chartData = getChartImage(ch.id, pairAR) || chartData;
-                // Find and render the paired chart
-                var rightData = null, rightLabel = '';
-                for (var pi = ci + 1; pi < chartList.length; pi++) {
-                    if (chartList[pi].id === ch.pairWith) {
-                        prog('Exporting chart ' + (pi + 1) + '/' + chartList.length + ': ' + chartList[pi].label);
-                        rightData = getChartImage(chartList[pi].id, pairAR);
-                        rightLabel = chartList[pi].label;
-                        ci = pi; // skip paired chart
+                var stackH = Math.floor((BOT - TOP - 20) / 2); // half page each, 20mm for labels+gaps
+                var stackAR = CW / stackH;
+                chartData = getChartImage(ch.id, stackAR) || chartData;
+                chartY = placeChart(chartY, chartData, ch.label, currentSection, stackH);
+                // Find and render the stacked partner
+                for (var si = ci + 1; si < chartList.length; si++) {
+                    if (chartList[si].id === ch.stackWith) {
+                        prog('Exporting chart ' + (si + 1) + '/' + chartList.length + ': ' + chartList[si].label);
+                        var stackData = getChartImage(chartList[si].id, stackAR);
+                        if (stackData) chartY = placeChart(chartY, stackData, chartList[si].label, currentSection, stackH);
+                        ci = si;
                         break;
                     }
                 }
-                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairCapH);
             } else {
                 // Reshape to fill page width at capped height
                 var capH = CHART_MAX_H;
