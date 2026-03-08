@@ -3076,7 +3076,7 @@ async function exportDashboardPDF() {
             { id: 'dailyComplianceChart', label: 'Daily Compliance Trend', section: 'Overview' },
             { id: 'monthlyInspectionsTrendChart', label: 'Monthly Inspections Trend', section: 'Overview' },
             { id: 'approvalRateChart', label: 'Approval Rate', section: 'Overview' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison', section: 'Overview', fullWidth: true, ownPage: true },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison', section: 'Overview' },
             { id: 'inspectorRadarChart', label: 'Inspector Performance Radar', section: 'Overview' },
             { id: 'directionsChart', label: 'Directions & Non-Compliance', section: 'Overview' },
             { id: 'commodityTrendChart', label: 'Commodity Compliance Trend', section: 'Compliance', fullWidth: true },
@@ -3130,16 +3130,8 @@ async function exportDashboardPDF() {
                 chartY += 7;
             }
 
-            // Charts that need their own full page
-            if (ch.ownPage) {
-                footer(); pdf.addPage(); header(currentSection);
-                chartY = TOP;
-                var ownCapH = BOT - TOP - 10;
-                var ownAR = CW / ownCapH;
-                chartData = getChartImage(ch.id, ownAR) || chartData;
-                chartY = placeChart(chartY, chartData, ch.label, currentSection, ownCapH);
             // Full-width charts within paired sections (dense line charts that need more space)
-            } else if (pairedSections[ch.section] && ch.fullWidth) {
+            if (pairedSections[ch.section] && ch.fullWidth) {
                 // Count full-width charts on this page to split available space
                 var fwCount = 0;
                 for (var fi = ci; fi < chartList.length && chartList[fi].section === ch.section; fi++) {
