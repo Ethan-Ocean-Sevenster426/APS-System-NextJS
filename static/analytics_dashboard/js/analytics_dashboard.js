@@ -2511,6 +2511,14 @@ async function exportDashboardPDF() {
         allPanelEls.forEach(function(p) { p.style.display = 'block'; });
         await new Promise(function(r) { setTimeout(r, 300); });
 
+        // Force Inspector Comparison to bar chart for PDF
+        var origChartType = inspectorTrendChartType;
+        if (inspectorTrendChartType !== 'bar') {
+            inspectorTrendChartType = 'bar';
+            renderInspectorTrendChart();
+            await new Promise(function(r) { setTimeout(r, 300); });
+        }
+
         // ── Init jsPDF ──────────────────────────────────────────────────
         var jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) throw new Error('jsPDF not loaded');
@@ -2915,9 +2923,9 @@ async function exportDashboardPDF() {
         prog('Building efficiency matrix...');
         var matrixItems = d.inspectorCommodityMatrix || [];
         if (matrixItems.length > 0) {
-            var matStartY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : TOP;
-            // Add section label
-            if (matStartY + 30 > BOT) { footer(); pdf.addPage(); header('Efficiency Matrix'); matStartY = TOP; }
+            // Always start Efficiency Matrix on a new page
+            footer(); pdf.addPage(); header('Efficiency Matrix');
+            var matStartY = TOP;
             pdf.setFontSize(10); pdf.setTextColor(124, 58, 237); pdf.text('Efficiency Matrix', M, matStartY + 4); matStartY += 7;
             var inspectors = {}, commodities = new Set();
             matrixItems.forEach(function(item) {
@@ -3071,6 +3079,11 @@ async function exportDashboardPDF() {
         console.error('PDF export error:', err);
         alert('Error generating PDF: ' + err.message);
     } finally {
+        // Restore Inspector Comparison chart type
+        if (origChartType !== inspectorTrendChartType) {
+            inspectorTrendChartType = origChartType;
+            renderInspectorTrendChart();
+        }
         allPanelEls.forEach(function(p) { p.style.display = ''; });
         var activePanelEl = document.getElementById('panel-' + savedPanel);
         if (activePanelEl) activePanelEl.style.display = 'block';
