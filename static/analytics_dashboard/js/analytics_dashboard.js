@@ -2901,8 +2901,8 @@ async function exportDashboardPDF() {
             { id: 'inspectorTrendChart', label: 'Inspector Comparison', section: 'Overview' },
             { id: 'inspectorRadarChart', label: 'Inspector Performance Radar', section: 'Overview' },
             { id: 'directionsChart', label: 'Directions & Non-Compliance', section: 'Overview' },
-            { id: 'commodityTrendChart', label: 'Commodity Compliance Trend', section: 'Compliance' },
-            { id: 'complianceTrendChart', label: 'Weekly Compliance Trend', section: 'Compliance' },
+            { id: 'commodityTrendChart', label: 'Commodity Compliance Trend', section: 'Compliance', fullWidth: true },
+            { id: 'complianceTrendChart', label: 'Weekly Compliance Trend', section: 'Compliance', fullWidth: true },
             { id: 'samplesTakenChart', label: 'Samples Per Inspector', section: 'Compliance' },
             { id: 'facilityTypesChart', label: 'Facility Types', section: 'Compliance' },
             { id: 'commodityCountChart', label: 'Commodity Count', section: 'Compliance' },
@@ -2952,21 +2952,24 @@ async function exportDashboardPDF() {
                 chartY += 7;
             }
 
+            // Full-width charts within paired sections (dense line charts that need more space)
+            if (pairedSections[ch.section] && ch.fullWidth) {
+                var fwAR = CW / (pairedHeight[ch.section] || 33); // full-width AR
+                chartData = getChartImage(ch.id, fwAR) || chartData;
+                chartY = placeChart(chartY, chartData, ch.label, currentSection, pairedHeight[ch.section] || 54);
             // Paired sections: place charts side by side
-            if (pairedSections[ch.section]) {
+            } else if (pairedSections[ch.section]) {
                 var secCapH = pairedHeight[ch.section] || 33;
                 var halfW = (CW - 6) / 2;
                 var pdfAR = halfW / secCapH; // target aspect ratio for PDF cells
-                // Charts that should NOT be reshaped (dense line charts that get unclear when stretched)
-                var noReshape = { 'commodityTrendChart': true };
                 // Re-capture with target AR so chart fills the PDF cell
-                chartData = getChartImage(ch.id, noReshape[ch.id] ? undefined : pdfAR) || chartData;
+                chartData = getChartImage(ch.id, pdfAR) || chartData;
                 var nextIdx = ci + 1;
                 var rightData = null, rightLabel = '';
-                if (nextIdx < chartList.length && chartList[nextIdx].section === ch.section) {
+                if (nextIdx < chartList.length && chartList[nextIdx].section === ch.section && !chartList[nextIdx].fullWidth) {
                     prog('Exporting chart ' + (nextIdx + 1) + '/' + chartList.length + ': ' + chartList[nextIdx].label);
                     var nextId = chartList[nextIdx].id;
-                    rightData = getChartImage(nextId, noReshape[nextId] ? undefined : pdfAR);
+                    rightData = getChartImage(nextId, pdfAR);
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
