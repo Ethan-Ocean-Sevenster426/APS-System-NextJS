@@ -2502,17 +2502,47 @@ async function exportDashboardPDF() {
             return function() { header(subtitle); footer(); };
         }
 
-        // ── Grab a chart image ──────────────────────────────────────────
+        // ── Grab a chart image (compact: strip padding & shrink legend) ─
         function getChartImage(canvasId) {
             var inst = chartInstances[canvasId];
             var can = document.getElementById(canvasId);
             if (!inst || !can || can.width === 0 || can.height === 0) return null;
+
+            // Save originals
             var origDPR = inst.options.devicePixelRatio;
+            var origPadding = inst.options.layout ? inst.options.layout.padding : undefined;
+            var leg = inst.options.plugins && inst.options.plugins.legend;
+            var origLegPad, origLegFont;
+            if (leg && leg.labels) {
+                origLegPad = leg.labels.padding;
+                origLegFont = leg.labels.font ? leg.labels.font.size : undefined;
+            }
+
+            // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
-            inst.resize();
+            if (!inst.options.layout) inst.options.layout = {};
+            inst.options.layout.padding = 0;
+            if (leg && leg.labels) {
+                leg.labels.padding = 3;
+                if (!leg.labels.font) leg.labels.font = {};
+                leg.labels.font.size = 7;
+            }
+
+            inst.update('none');
+
             var img = inst.toBase64Image('image/png', 1.0);
+
+            // Restore originals
             inst.options.devicePixelRatio = origDPR || undefined;
-            inst.resize();
+            if (origPadding !== undefined) { inst.options.layout.padding = origPadding; }
+            else { delete inst.options.layout.padding; }
+            if (leg && leg.labels) {
+                leg.labels.padding = origLegPad;
+                if (origLegFont !== undefined) leg.labels.font.size = origLegFont;
+                else if (leg.labels.font) delete leg.labels.font.size;
+            }
+            inst.update('none');
+
             return { img: img, w: can.width, h: can.height };
         }
 
