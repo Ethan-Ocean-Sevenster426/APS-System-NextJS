@@ -32,8 +32,8 @@ Chart.register({
             if (meta.hidden) return;
             meta.data.forEach(function(el, idx) {
                 var val = ds.data[idx];
-                if (val == null || val === 0) return;
-                var fmt = opts.formatter ? opts.formatter(val) : val.toLocaleString();
+                if (val == null || val === 0 || typeof val !== 'number') return;
+                var fmt = opts.formatter ? opts.formatter(val) : String(Math.round(val).toLocaleString());
                 var isHoriz = chart.options.indexAxis === 'y';
                 if (isHoriz) {
                     ctx.textAlign = 'left';
@@ -2574,8 +2574,7 @@ async function exportDashboardPDF() {
             // Compact for PDF: zero layout padding, tight legend
             inst.options.devicePixelRatio = 2;
             if (!inst.options.layout) inst.options.layout = {};
-            var isHorizBar = isBar && inst.options.indexAxis === 'y';
-            inst.options.layout.padding = isHorizBar ? { right: 50 } : (isBar ? { top: 14 } : 0);
+            inst.options.layout.padding = 0;
             if (leg && leg.labels) {
                 leg.labels.padding = 3;
                 if (!leg.labels.font) leg.labels.font = {};
