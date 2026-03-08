@@ -2486,6 +2486,8 @@ function renderInspectorComparisonChart() {
         colors = labels.map(function(_, idx) { return CHART_PALETTE[idx % CHART_PALETTE.length]; });
     }
 
+    var _revenueIsRand = isRand;
+    var _revenueMetric = metric;
     chartInstances['inspectorComparisonChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2499,6 +2501,30 @@ function renderInspectorComparisonChart() {
                 categoryPercentage: 0.7,
             }]
         },
+        plugins: [{
+            id: 'revenueBarLabels',
+            afterDatasetsDraw: function(chart) {
+                var ctx = chart.ctx;
+                var meta = chart.getDatasetMeta(0);
+                if (!meta || meta.hidden) return;
+                ctx.save();
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillStyle = '#1e293b';
+                ctx.textBaseline = 'middle';
+                meta.data.forEach(function(bar, idx) {
+                    var val = chart.data.datasets[0].data[idx];
+                    if (val == null) return;
+                    var label;
+                    if (_revenueIsRand) label = formatRand(val);
+                    else if (_revenueMetric === 'total_km') label = Math.round(val).toLocaleString() + ' km';
+                    else if (_revenueMetric === 'total_hours' || _revenueMetric === 'inspection_time') label = val.toFixed(1) + ' hrs';
+                    else label = Math.round(val).toLocaleString();
+                    ctx.textAlign = 'left';
+                    ctx.fillText(label, bar.x + 4, bar.y);
+                });
+                ctx.restore();
+            }
+        }],
         options: {
             indexAxis: 'y',
             responsive: true,
