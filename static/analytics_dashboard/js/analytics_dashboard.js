@@ -956,7 +956,7 @@ function renderRevenueCostChart() {
             afterDatasetsDraw: function(chart) {
                 var ctx = chart.ctx;
                 ctx.save();
-                ctx.font = 'bold 10px sans-serif';
+                ctx.font = 'bold 8px sans-serif';
                 ctx.textBaseline = 'bottom';
                 ctx.textAlign = 'center';
                 var rawArrays = [rawHours, rawKm, rawSamples];
@@ -969,12 +969,11 @@ function renderRevenueCostChart() {
                         var val = ds.data[idx];
                         if (val == null || val === 0) return;
                         var raw = rawArrays[di] ? rawArrays[di][idx] : 0;
-                        var rawStr;
-                        if (di === 0) rawStr = Math.round(raw) + 'h';
-                        else if (di === 1) rawStr = Math.round(raw) + 'km';
-                        else rawStr = String(Math.round(raw));
-                        var label = 'R' + Math.round(val).toLocaleString() + ' (' + rawStr + ')';
-                        ctx.fillText(label, bar.x, bar.y - 3);
+                        var label;
+                        if (di === 0) label = Math.round(raw) + 'h';
+                        else if (di === 1) label = Math.round(raw) + 'km';
+                        else label = String(Math.round(raw));
+                        ctx.fillText(label, bar.x, bar.y - 2);
                     });
                 });
                 ctx.restore();
