@@ -2518,13 +2518,14 @@ async function exportDashboardPDF() {
 
         // ── Place chart image on page, returns new y ────────────────────
         var CHART_MAX_H = 80; // Cap height so ~2 charts fit per page
-        function placeChart(y, chartData, label, subtitle) {
+        function placeChart(y, chartData, label, subtitle, maxH) {
             if (!chartData) return y;
+            var capH = maxH || CHART_MAX_H;
             var ar = chartData.w / chartData.h;
             var iW = CW;
             var iH = iW / ar;
             // Cap chart height to fit multiple per page
-            if (iH > CHART_MAX_H) { iH = CHART_MAX_H; iW = iH * ar; }
+            if (iH > capH) { iH = capH; iW = iH * ar; }
             var neededH = iH + (label ? 7 : 0);
             // Need new page?
             if (y + neededH > BOT) {
@@ -2541,6 +2542,37 @@ async function exportDashboardPDF() {
             }
             pdf.addImage(chartData.img, 'PNG', M + (CW - iW) / 2, y, iW, iH);
             return y + iH + 5;
+        }
+
+        // ── Place two charts side by side, returns new y ────────────────
+        function placeChartPair(y, left, right, leftLabel, rightLabel, subtitle, maxH) {
+            var capH = maxH || 42;
+            var halfW = (CW - 6) / 2; // 6mm gap between columns
+            var neededH = capH + 12; // chart + label
+            if (y + neededH > BOT) {
+                footer();
+                pdf.addPage();
+                header(subtitle);
+                y = TOP;
+            }
+            // Left chart
+            if (left) {
+                if (leftLabel) { pdf.setFontSize(8); pdf.setTextColor(30, 41, 59); pdf.text(leftLabel, M, y + 3); }
+                var arL = left.w / left.h;
+                var iHL = halfW / arL; if (iHL > capH) { iHL = capH; }
+                var iWL = iHL * arL; if (iWL > halfW) { iWL = halfW; iHL = iWL / arL; }
+                pdf.addImage(left.img, 'PNG', M, y + 5, iWL, iHL);
+            }
+            // Right chart
+            if (right) {
+                if (rightLabel) { pdf.setFontSize(8); pdf.setTextColor(30, 41, 59); pdf.text(rightLabel, M + halfW + 6, y + 3); }
+                var arR = right.w / right.h;
+                var iHR = halfW / arR; if (iHR > capH) { iHR = capH; }
+                var iWR = iHR * arR; if (iWR > halfW) { iWR = halfW; iHR = iWR / arR; }
+                pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 5, iWR, iHR);
+            }
+            var maxUsed = capH;
+            return y + maxUsed + 10;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -2832,6 +2864,9 @@ async function exportDashboardPDF() {
             { id: 'inspectorComparisonChart', label: 'Inspector Comparison', section: 'Financial' },
         ];
 
+        // Sections that use 2-column paired layout (bar + trend side by side)
+        var pairedSections = { 'Timelines': true, 'Operations': true };
+
         var currentSection = '';
         var chartY = BOT; // Force first chart onto a new page
         for (var ci = 0; ci < chartList.length; ci++) {
@@ -2842,12 +2877,11 @@ async function exportDashboardPDF() {
 
             // New section — start a new page with section heading
             if (ch.section !== currentSection) {
-                if (currentSection) footer(); // footer for previous section's last page
+                if (currentSection) footer();
                 currentSection = ch.section;
                 pdf.addPage();
                 header(currentSection);
                 chartY = TOP;
-                // Section heading
                 pdf.setFontSize(13); pdf.setTextColor(30, 41, 59);
                 pdf.text(currentSection, M, chartY + 5);
                 pdf.setDrawColor(30, 41, 59);
@@ -2855,7 +2889,20 @@ async function exportDashboardPDF() {
                 chartY += 12;
             }
 
-            chartY = placeChart(chartY, chartData, ch.label, currentSection);
+            // Paired sections: place charts side by side
+            if (pairedSections[ch.section]) {
+                var nextIdx = ci + 1;
+                var rightData = null, rightLabel = '';
+                if (nextIdx < chartList.length && chartList[nextIdx].section === ch.section) {
+                    prog('Exporting chart ' + (nextIdx + 1) + '/' + chartList.length + ': ' + chartList[nextIdx].label);
+                    rightData = getChartImage(chartList[nextIdx].id);
+                    rightLabel = chartList[nextIdx].label;
+                    ci = nextIdx; // skip next since we're rendering it here
+                }
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, 42);
+            } else {
+                chartY = placeChart(chartY, chartData, ch.label, currentSection);
+            }
             await new Promise(function(r) { setTimeout(r, 50); });
         }
         if (currentSection) footer(); // footer for the last chart page
