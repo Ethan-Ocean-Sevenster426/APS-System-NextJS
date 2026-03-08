@@ -934,6 +934,9 @@ function renderRevenueCostChart() {
     var minHeight = Math.max(320, items.length * 30 + 60);
     canvas.parentElement.style.minHeight = minHeight + 'px';
 
+    // Compute totals per inspector for labels
+    var totals = items.map(function(i) { return (i.revenue_hours || 0) + (i.revenue_km || 0) + (i.revenue_samples || 0); });
+
     chartInstances['revenueCostChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -944,6 +947,41 @@ function renderRevenueCostChart() {
                 { label: 'Samples', data: samplesData, backgroundColor: '#ffb900', borderRadius: 3, barPercentage: 0.7 },
             ]
         },
+        plugins: [{
+            id: 'revenueCostLabels',
+            afterDatasetsDraw: function(chart) {
+                var ctx = chart.ctx;
+                ctx.save();
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillStyle = '#1e293b';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                // Find the topmost bar per group and draw total
+                var numLabels = chart.data.labels.length;
+                for (var i = 0; i < numLabels; i++) {
+                    var topY = Infinity;
+                    var xPos = 0;
+                    chart.data.datasets.forEach(function(ds, di) {
+                        var meta = chart.getDatasetMeta(di);
+                        if (meta.hidden || !meta.data[i]) return;
+                        if (meta.data[i].y < topY) {
+                            topY = meta.data[i].y;
+                        }
+                        xPos = meta.data[i].x; // middle dataset x is close enough
+                    });
+                    // Use center of the group (average x of first and last dataset)
+                    var meta0 = chart.getDatasetMeta(0);
+                    var metaLast = chart.getDatasetMeta(chart.data.datasets.length - 1);
+                    if (meta0.data[i] && metaLast.data[i]) {
+                        xPos = (meta0.data[i].x + metaLast.data[i].x) / 2;
+                    }
+                    if (topY < Infinity) {
+                        ctx.fillText('R' + Math.round(totals[i]).toLocaleString(), xPos, topY - 3);
+                    }
+                }
+                ctx.restore();
+            }
+        }],
         options: {
             responsive: true,
             maintainAspectRatio: false,
