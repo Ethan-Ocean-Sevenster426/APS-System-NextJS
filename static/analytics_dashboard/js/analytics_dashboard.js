@@ -2585,6 +2585,7 @@ async function exportDashboardPDF() {
                 header(subtitle);
                 y = TOP;
             }
+            var actualMaxH = 0;
             // Left chart
             if (left) {
                 if (leftLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(leftLabel, M, y + 2); }
@@ -2592,6 +2593,7 @@ async function exportDashboardPDF() {
                 var iHL = halfW / arL; if (iHL > capH) { iHL = capH; }
                 var iWL = iHL * arL; if (iWL > halfW) { iWL = halfW; iHL = iWL / arL; }
                 pdf.addImage(left.img, 'PNG', M, y + 3, iWL, iHL);
+                if (iHL > actualMaxH) actualMaxH = iHL;
             }
             // Right chart
             if (right) {
@@ -2600,8 +2602,9 @@ async function exportDashboardPDF() {
                 var iHR = halfW / arR; if (iHR > capH) { iHR = capH; }
                 var iWR = iHR * arR; if (iWR > halfW) { iWR = halfW; iHR = iWR / arR; }
                 pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 3, iWR, iHR);
+                if (iHR > actualMaxH) actualMaxH = iHR;
             }
-            return y + capH + 2;
+            return y + actualMaxH + 2;
         }
 
         // ════════════════════════════════════════════════════════════════
