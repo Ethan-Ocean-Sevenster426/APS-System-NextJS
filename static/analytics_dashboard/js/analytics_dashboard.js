@@ -1928,21 +1928,27 @@ function renderInspectorTrendChart() {
                 var val = chart.data.datasets[0].data[index];
                 if (!val) return;
                 var name = flatInspectorNames[index] || '';
-                // Inspector name inside bar
-                ctx.save();
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold ' + fontSize + 'px sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
                 var barWidth = bar.x - bar.base;
-                if (barWidth > 20) {
-                    var maxTextWidth = barWidth - 8;
-                    var displayName = name;
-                    while (ctx.measureText(displayName).width > maxTextWidth && displayName.length > 1) {
-                        displayName = displayName.slice(0, -1);
-                    }
-                    if (displayName.length < name.length) displayName += '…';
-                    ctx.fillText(displayName, bar.base + 4, bar.y);
+                // Inspector name inside bar (if it fits)
+                ctx.save();
+                ctx.font = 'bold ' + fontSize + 'px sans-serif';
+                ctx.textBaseline = 'middle';
+                var nameWidth = ctx.measureText(name).width;
+                if (barWidth > nameWidth + 8) {
+                    // Full name fits inside bar
+                    ctx.fillStyle = '#fff';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(name, bar.base + 4, bar.y);
+                } else {
+                    // Name doesn't fit - draw it bold dark after the value
+                    var valText = val.toLocaleString();
+                    if (metric === 'total_km') valText = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                    if (metric === 'total_hours') valText = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                    var valWidth = ctx.measureText(valText + '  ').width;
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'left';
+                    ctx.font = fontSize + 'px sans-serif';
+                    ctx.fillText(name, bar.x + 4 + valWidth, bar.y);
                 }
                 ctx.restore();
                 // Value at end of bar
@@ -1951,10 +1957,10 @@ function renderInspectorTrendChart() {
                 ctx.font = 'bold ' + fontSize + 'px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                var valText = val.toLocaleString();
-                if (metric === 'total_km') valText = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
-                if (metric === 'total_hours') valText = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
-                ctx.fillText(valText, bar.x + 4, bar.y);
+                var valText2 = val.toLocaleString();
+                if (metric === 'total_km') valText2 = val.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+                if (metric === 'total_hours') valText2 = val.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' hrs';
+                ctx.fillText(valText2, bar.x + 4, bar.y);
                 ctx.restore();
             });
         }
