@@ -929,6 +929,10 @@ function renderRevenueCostChart() {
     var hoursData = items.map(function(i) { return i.revenue_hours || 0; });
     var kmData = items.map(function(i) { return i.revenue_km || 0; });
     var samplesData = items.map(function(i) { return i.revenue_samples || 0; });
+    // Raw quantities for labels
+    var rawHours = items.map(function(i) { return parseFloat(i.total_hours || 0); });
+    var rawKm = items.map(function(i) { return parseFloat(i.total_km || 0); });
+    var rawSamples = items.map(function(i) { return parseInt(i.sample_count || i.total_samples || 0); });
 
     // Dynamic height based on inspector count
     var minHeight = Math.max(320, items.length * 30 + 60);
@@ -953,16 +957,23 @@ function renderRevenueCostChart() {
                 var ctx = chart.ctx;
                 ctx.save();
                 ctx.font = 'bold 8px sans-serif';
+                ctx.fillStyle = '#1e293b';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
+                var rawArrays = [rawHours, rawKm, rawSamples];
+                var units = ['h', 'km', ''];
                 chart.data.datasets.forEach(function(ds, di) {
                     var meta = chart.getDatasetMeta(di);
                     if (meta.hidden) return;
                     meta.data.forEach(function(bar, idx) {
                         var val = ds.data[idx];
                         if (val == null || val === 0) return;
-                        ctx.fillStyle = '#1e293b';
-                        ctx.fillText('R' + Math.round(val).toLocaleString(), bar.x, bar.y - 2);
+                        var raw = rawArrays[di] ? rawArrays[di][idx] : 0;
+                        var label;
+                        if (di === 0) label = raw.toFixed(1) + 'h';
+                        else if (di === 1) label = Math.round(raw).toLocaleString() + 'km';
+                        else label = Math.round(raw).toLocaleString();
+                        ctx.fillText(label, bar.x, bar.y - 2);
                     });
                 });
                 ctx.restore();
