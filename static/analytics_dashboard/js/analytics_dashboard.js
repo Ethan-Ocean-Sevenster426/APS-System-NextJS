@@ -3099,7 +3099,7 @@ async function exportDashboardPDF() {
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
             { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', ownPage: true },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', pairWith: 'inspectorComparisonChart' },
             { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
         ];
 
@@ -3161,8 +3161,28 @@ async function exportDashboardPDF() {
                     ci = nextIdx; // skip next since we're rendering it here
                 }
                 chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
+            } else if (ch.pairWith) {
+                // Pair two charts side-by-side on a new page
+                footer(); pdf.addPage(); header(currentSection);
+                chartY = TOP;
+                var pairCapH = BOT - TOP - 5;
+                var pairHalfW = (CW - 6) / 2;
+                var pairAR = pairHalfW / pairCapH;
+                chartData = getChartImage(ch.id, pairAR) || chartData;
+                // Find and render the paired chart
+                var rightData = null, rightLabel = '';
+                for (var pi = ci + 1; pi < chartList.length; pi++) {
+                    if (chartList[pi].id === ch.pairWith) {
+                        prog('Exporting chart ' + (pi + 1) + '/' + chartList.length + ': ' + chartList[pi].label);
+                        rightData = getChartImage(chartList[pi].id, pairAR);
+                        rightLabel = chartList[pi].label;
+                        ci = pi; // skip paired chart
+                        break;
+                    }
+                }
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairCapH);
             } else {
-                // Charts that need a full page (many bars)
+                // Reshape to fill page width at capped height
                 var capH = CHART_MAX_H;
                 if (ch.ownPage) {
                     footer(); pdf.addPage(); header(currentSection);
