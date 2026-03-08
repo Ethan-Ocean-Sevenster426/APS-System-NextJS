@@ -3099,7 +3099,7 @@ async function exportDashboardPDF() {
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
             { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
-            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial' },
+            { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', ownPage: true },
             { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
         ];
 
@@ -3162,8 +3162,13 @@ async function exportDashboardPDF() {
                 }
                 chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
             } else {
-                // Reshape to fill page width at capped height
+                // Charts that need a full page (many bars)
                 var capH = CHART_MAX_H;
+                if (ch.ownPage) {
+                    footer(); pdf.addPage(); header(currentSection);
+                    chartY = TOP;
+                    capH = BOT - TOP - 10;
+                }
                 var reshapedAR = CW / capH;
                 chartData = getChartImage(ch.id, reshapedAR) || chartData;
                 chartY = placeChart(chartY, chartData, ch.label, currentSection, capH);
