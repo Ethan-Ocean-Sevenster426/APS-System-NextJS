@@ -1,60 +1,72 @@
-"""
-Test script to send a dummy email with attachments via Microsoft Graph API.
-Sends to ethansevenster5@gmail.com
-"""
-import os
-import sys
-import django
+"""Test PDF export: login, click export, download PDF, read contents."""
+import os, sys, time
+from playwright.sync_api import sync_playwright
+import fitz  # PyMuPDF
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
-sys.path.insert(0, os.path.dirname(__file__))
-django.setup()
+BASE = "http://127.0.0.1:8888"
+PDF_PATH = os.path.join(os.path.dirname(__file__), "test_export.pdf")
 
-from django.core.mail import EmailMessage
-from django.conf import settings
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    context = browser.new_context(accept_downloads=True)
+    page = context.new_page()
 
-# Create a dummy PDF file for testing
-dummy_pdf_path = '/tmp/test_inspection_report.pdf'
-with open(dummy_pdf_path, 'wb') as f:
-    f.write(b'%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n')
-    f.write(b'2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n')
-    f.write(b'3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\n')
-    f.write(b'xref\n0 4\ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n0\n%%EOF\n')
+    # Collect console logs
+    console_logs = []
+    page.on("console", lambda msg: console_logs.append(f"[{msg.type}] {msg.text}"))
 
-dummy_txt_path = '/tmp/test_inspection_notes.txt'
-with open(dummy_txt_path, 'w') as f:
-    f.write('Test inspection notes\nClient: Test Email Client\nDate: 2026-02-19\n')
+    # 1. Login
+    print("1. Logging in...")
+    page.goto(f"{BASE}/login/")
+    page.fill('input[name="username"]', "admin")
+    page.fill('input[name="password"]', "admin123")
+    page.click('button[type="submit"], input[type="submit"]')
+    page.wait_for_load_state("networkidle")
+    print(f"   Logged in. URL: {page.url}")
 
-print(f"Email backend: {settings.EMAIL_BACKEND}")
-print(f"From email: {settings.DEFAULT_FROM_EMAIL}")
-print(f"Graph Client ID: {settings.GRAPH_CLIENT_ID[:8]}..." if settings.GRAPH_CLIENT_ID else "Graph Client ID: NOT SET")
-print(f"Graph Tenant ID: {settings.GRAPH_TENANT_ID[:8]}..." if settings.GRAPH_TENANT_ID else "Graph Tenant ID: NOT SET")
-print()
+    # 2. Go to analytics dashboard
+    print("2. Loading analytics dashboard...")
+    page.goto(f"{BASE}/analytics-dashboard/")
+    page.wait_for_load_state("networkidle")
+    time.sleep(3)  # let charts render
+    print(f"   Dashboard loaded. URL: {page.url}")
 
-recipient = 'ethansevenster5@gmail.com'
-print(f"Sending test email to {recipient}...")
+    # 3. Click Export PDF and capture the download
+    print("3. Clicking Export PDF...")
+    with page.expect_download(timeout=120000) as download_info:
+        page.click("#exportPdfBtn")
+        print("   Waiting for PDF to generate (up to 2 min)...")
+    download = download_info.value
+    download.save_as(PDF_PATH)
+    print(f"   PDF saved: {PDF_PATH} ({os.path.getsize(PDF_PATH)} bytes)")
 
-email = EmailMessage(
-    subject='Test Inspection Documents - Food Safety Agency',
-    body='This is a test email from the Inspection System.\n\nAttached are dummy inspection documents for testing.',
-    from_email=settings.DEFAULT_FROM_EMAIL,
-    to=[recipient],
-)
+    # Print any JS errors
+    errors = [l for l in console_logs if l.startswith("[error]")]
+    if errors:
+        print(f"\n   JS ERRORS ({len(errors)}):")
+        for e in errors[:10]:
+            print(f"   {e}")
 
-email.attach_file(dummy_pdf_path)
-email.attach_file(dummy_txt_path)
+    browser.close()
 
-try:
-    result = email.send()
-    print(f"Result: {result}")
-    if result:
-        print("SUCCESS - Email sent! Check ethansevenster5@gmail.com")
+# 4. Read the PDF
+print("\n4. Reading PDF contents...")
+doc = fitz.open(PDF_PATH)
+print(f"   Total pages: {doc.page_count}")
+print(f"   File size: {os.path.getsize(PDF_PATH):,} bytes")
+
+for i in range(doc.page_count):
+    pg = doc[i]
+    text = pg.get_text().strip()
+    images = pg.get_images()
+    print(f"\n   --- Page {i+1} ---")
+    print(f"   Images: {len(images)}")
+    if text:
+        # Show first 300 chars of text
+        preview = text[:300].replace('\n', ' | ')
+        print(f"   Text: {preview}")
     else:
-        print("FAILED - email.send() returned 0")
-except Exception as e:
-    print(f"ERROR: {e}")
-    import traceback
-    traceback.print_exc()
+        print("   Text: (none)")
 
-os.remove(dummy_pdf_path)
-os.remove(dummy_txt_path)
+doc.close()
+print("\nDone!")

@@ -2613,9 +2613,10 @@ async function exportDashboardPDF() {
             startY: 55,
             head: [['Metric', 'Value']],
             body: kpiData,
-            margin: { left: M, right: PW / 2 + 10 },
+            margin: { left: M, right: M },
             styles: { fontSize: 9, cellPadding: 3 },
             headStyles: { fillColor: [0, 120, 144], textColor: [255, 255, 255] },
+            columnStyles: { 0: { cellWidth: 80 } },
             alternateRowStyles: { fillColor: [245, 247, 250] },
         });
 
@@ -2645,7 +2646,81 @@ async function exportDashboardPDF() {
             });
         }
         // ════════════════════════════════════════════════════════════════
-        // TARGETS TABLE (new page after cover)
+        // FINANCIAL TABLE (flows on cover/summary pages)
+        // ════════════════════════════════════════════════════════════════
+        prog('Building financial table...');
+        var finItems = d.inspectorFinancials || [];
+        if (finItems.length > 0) {
+            var finStartY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : TOP;
+            if (finStartY + 30 > BOT) { footer(); pdf.addPage(); header('Financial Summary'); finStartY = TOP; }
+            pdf.setFontSize(10); pdf.setTextColor(16, 124, 16); pdf.text('Financial Summary', M, finStartY + 4); finStartY += 7;
+            var KM_RATE = 4.50;
+            var finHead = [['Inspector', 'Insp', 'Hrs', 'KM', 'R/km', 'Rev(Hrs)', 'Rev(KM)', 'Rev(Smp)', 'Total Rev', 'Salary', 'Expenses', 'Total Cost', 'Profit']];
+            var finBody = [];
+            var totals = { insp: 0, hrs: 0, km: 0, kmC: 0, rH: 0, rK: 0, rS: 0, tot: 0, sal: 0, exp: 0, tc: 0, prof: 0 };
+
+            finItems.forEach(function(item) {
+                var hrs = parseFloat(item.total_hours || 0);
+                var km = parseFloat(item.total_km || 0);
+                var kmC = km * KM_RATE;
+                var rH = item.revenue_hours || 0, rK = item.revenue_km || 0, rS = item.revenue_samples || 0;
+                var tot = item.total_revenue || 0;
+                var sal = getInspectorSalary(item.inspector_name);
+                var exp = getInspectorExpenses(item.inspector_name);
+                var tc = sal + exp;
+                var prof = tc ? tot - tc : 0;
+                totals.insp += (item.total_inspections || 0);
+                totals.hrs += hrs; totals.km += km; totals.kmC += kmC;
+                totals.rH += rH; totals.rK += rK; totals.rS += rS; totals.tot += tot;
+                totals.sal += sal; totals.exp += exp; totals.tc += tc;
+                if (tc) totals.prof += prof;
+
+                finBody.push([
+                    item.inspector_name || '-', item.total_inspections || 0, hrs.toFixed(1),
+                    km ? Math.round(km).toLocaleString() : '-', km ? formatRand(kmC) : '\u2014',
+                    formatRand(rH), formatRand(rK), formatRand(rS), formatRand(tot),
+                    sal ? formatRand(sal) : '\u2014', exp ? formatRand(exp) : '\u2014', tc ? formatRand(tc) : '\u2014',
+                    tc ? formatRand(prof) : '\u2014'
+                ]);
+            });
+            finBody.push([
+                'TOTAL', totals.insp, totals.hrs.toFixed(1), Math.round(totals.km).toLocaleString(),
+                formatRand(totals.kmC), formatRand(totals.rH), formatRand(totals.rK), formatRand(totals.rS),
+                formatRand(totals.tot), formatRand(totals.sal), formatRand(totals.exp), formatRand(totals.tc),
+                formatRand(totals.prof)
+            ]);
+
+            pdf.autoTable({
+                startY: finStartY,
+                head: finHead, body: finBody,
+                margin: { left: M, right: M, top: TOP, bottom: PH - BOT },
+                styles: { fontSize: 6, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'right', overflow: 'ellipsize' },
+                headStyles: { fillColor: [16, 124, 16], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 6 },
+                columnStyles: { 0: { halign: 'left', cellWidth: 30, fontStyle: 'bold' } },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.row.index === finBody.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [226, 232, 240];
+                    }
+                    if (data.section === 'body' && data.column.index === 12) {
+                        var txt = String(data.cell.raw);
+                        if (txt !== '\u2014') {
+                            var num = parseFloat(txt.replace(/[^\d.-]/g, ''));
+                            if (!isNaN(num)) {
+                                data.cell.styles.textColor = num >= 0 ? [16, 185, 129] : [239, 68, 68];
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    }
+                },
+                didDrawPage: tablePageHook('Financial Summary'),
+            });
+        }
+        footer();
+
+        // ════════════════════════════════════════════════════════════════
+        // TARGETS TABLE (new page)
         // ════════════════════════════════════════════════════════════════
         prog('Building targets table...');
         pdf.addPage(); header('Quarterly Targets');
@@ -2755,80 +2830,7 @@ async function exportDashboardPDF() {
             });
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // FINANCIAL TABLE (flows below efficiency matrix)
-        // ════════════════════════════════════════════════════════════════
-        prog('Building financial table...');
-        var finItems = d.inspectorFinancials || [];
-        if (finItems.length > 0) {
-            var finStartY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : TOP;
-            // Add section label
-            if (finStartY + 30 > BOT) { footer(); pdf.addPage(); header('Financial Summary'); finStartY = TOP; }
-            pdf.setFontSize(10); pdf.setTextColor(16, 124, 16); pdf.text('Financial Summary', M, finStartY + 4); finStartY += 7;
-            var KM_RATE = 4.50;
-            var finHead = [['Inspector', 'Insp', 'Hrs', 'KM', 'R/km', 'Rev(Hrs)', 'Rev(KM)', 'Rev(Smp)', 'Total Rev', 'Salary', 'Expenses', 'Total Cost', 'Profit']];
-            var finBody = [];
-            var totals = { insp: 0, hrs: 0, km: 0, kmC: 0, rH: 0, rK: 0, rS: 0, tot: 0, sal: 0, exp: 0, tc: 0, prof: 0 };
-
-            finItems.forEach(function(item) {
-                var hrs = parseFloat(item.total_hours || 0);
-                var km = parseFloat(item.total_km || 0);
-                var kmC = km * KM_RATE;
-                var rH = item.revenue_hours || 0, rK = item.revenue_km || 0, rS = item.revenue_samples || 0;
-                var tot = item.total_revenue || 0;
-                var sal = getInspectorSalary(item.inspector_name);
-                var exp = getInspectorExpenses(item.inspector_name);
-                var tc = sal + exp;
-                var prof = tc ? tot - tc : 0;
-                totals.insp += (item.total_inspections || 0);
-                totals.hrs += hrs; totals.km += km; totals.kmC += kmC;
-                totals.rH += rH; totals.rK += rK; totals.rS += rS; totals.tot += tot;
-                totals.sal += sal; totals.exp += exp; totals.tc += tc;
-                if (tc) totals.prof += prof;
-
-                finBody.push([
-                    item.inspector_name || '-', item.total_inspections || 0, hrs.toFixed(1),
-                    km ? Math.round(km).toLocaleString() : '-', km ? formatRand(kmC) : '—',
-                    formatRand(rH), formatRand(rK), formatRand(rS), formatRand(tot),
-                    sal ? formatRand(sal) : '—', exp ? formatRand(exp) : '—', tc ? formatRand(tc) : '—',
-                    tc ? formatRand(prof) : '—'
-                ]);
-            });
-            finBody.push([
-                'TOTAL', totals.insp, totals.hrs.toFixed(1), Math.round(totals.km).toLocaleString(),
-                formatRand(totals.kmC), formatRand(totals.rH), formatRand(totals.rK), formatRand(totals.rS),
-                formatRand(totals.tot), formatRand(totals.sal), formatRand(totals.exp), formatRand(totals.tc),
-                formatRand(totals.prof)
-            ]);
-
-            pdf.autoTable({
-                startY: finStartY,
-                head: finHead, body: finBody,
-                margin: { left: M, right: M, top: TOP, bottom: PH - BOT },
-                styles: { fontSize: 6, cellPadding: 1.5, lineColor: [220, 225, 230], lineWidth: 0.2, halign: 'right', overflow: 'ellipsize' },
-                headStyles: { fillColor: [16, 124, 16], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', fontSize: 6 },
-                columnStyles: { 0: { halign: 'left', cellWidth: 30, fontStyle: 'bold' } },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                didParseCell: function(data) {
-                    if (data.section === 'body' && data.row.index === finBody.length - 1) {
-                        data.cell.styles.fontStyle = 'bold';
-                        data.cell.styles.fillColor = [226, 232, 240];
-                    }
-                    if (data.section === 'body' && data.column.index === 12) {
-                        var txt = String(data.cell.raw);
-                        if (txt !== '—') {
-                            var num = parseFloat(txt.replace(/[^\d.-]/g, ''));
-                            if (!isNaN(num)) {
-                                data.cell.styles.textColor = num >= 0 ? [16, 185, 129] : [239, 68, 68];
-                                data.cell.styles.fontStyle = 'bold';
-                            }
-                        }
-                    }
-                },
-                didDrawPage: tablePageHook('Financial Summary'),
-            });
-            footer();
-        }
+        // (Financial table moved to cover/summary section above)
 
         // ════════════════════════════════════════════════════════════════
         // CHARTS — one per page, simple
@@ -2865,7 +2867,7 @@ async function exportDashboardPDF() {
         ];
 
         // Sections that use 2-column paired layout (bar + trend side by side)
-        var pairedSections = { 'Timelines': true, 'Operations': true };
+        var pairedSections = { 'Overview': true, 'Timelines': true, 'Operations': true };
 
         var currentSection = '';
         var chartY = BOT; // Force first chart onto a new page
