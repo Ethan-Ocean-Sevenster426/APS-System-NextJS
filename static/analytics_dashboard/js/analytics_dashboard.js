@@ -2902,7 +2902,11 @@ async function exportDashboardPDF() {
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
-                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairedHeight[ch.section] || 33);
+                var pairH = pairedHeight[ch.section] || 33;
+                // Overview: rows 2-3 (Approval Rate, Inspector Comparison, etc.) get extra height
+                if (ch.section === 'Overview' && ch.id === 'dailyComplianceChart') pairH = 57;
+                else if (ch.section === 'Overview') pairH = 67;
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairH);
             } else {
                 chartY = placeChart(chartY, chartData, ch.label, currentSection);
             }
