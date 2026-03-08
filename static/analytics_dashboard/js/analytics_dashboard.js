@@ -3012,9 +3012,18 @@ async function exportDashboardPDF() {
 
             // Full-width charts within paired sections (dense line charts that need more space)
             if (pairedSections[ch.section] && ch.fullWidth) {
-                var fwAR = CW / (pairedHeight[ch.section] || 33); // full-width AR
+                // Count full-width charts on this page to split available space
+                var fwCount = 0;
+                for (var fi = ci; fi < chartList.length && chartList[fi].section === ch.section; fi++) {
+                    if (chartList[fi].fullWidth) fwCount++;
+                    else break; // stop at first non-fullWidth
+                }
+                if (fwCount < 1) fwCount = 1;
+                var availH = BOT - chartY;
+                var fwCapH = Math.floor((availH - fwCount * 10) / fwCount); // 10mm for label+gap per chart
+                var fwAR = CW / fwCapH;
                 chartData = getChartImage(ch.id, fwAR) || chartData;
-                chartY = placeChart(chartY, chartData, ch.label, currentSection, pairedHeight[ch.section] || 54);
+                chartY = placeChart(chartY, chartData, ch.label, currentSection, fwCapH);
             // Paired sections: place charts side by side
             } else if (pairedSections[ch.section]) {
                 var secCapH = pairedHeight[ch.section] || 33;
