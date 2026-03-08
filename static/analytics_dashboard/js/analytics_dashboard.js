@@ -119,17 +119,24 @@ Chart.register({
             ctx.fillStyle = '#1e293b';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            // For multi-line, only label last data point per dataset to avoid clutter
             var multiLine = visibleDS.length > 1;
             chart.data.datasets.forEach(function(ds, di) {
                 var meta = chart.getDatasetMeta(di);
                 if (meta.hidden) return;
+                var total = ds.data.length;
+                // For multi-line: show first, last, and evenly spaced points
+                var step = 1;
+                if (multiLine && total > 6) {
+                    step = Math.max(1, Math.floor(total / 5)); // ~5-6 labels per line
+                }
                 meta.data.forEach(function(pt, idx) {
-                    if (multiLine && idx !== ds.data.length - 1) return;
+                    if (multiLine && total > 6 && idx !== 0 && idx !== total - 1 && idx % step !== 0) return;
                     var val = ds.data[idx];
                     if (val == null || typeof val !== 'number') return;
                     var label = fmtFn ? fmtFn(val) : String(Math.round(val * 10) / 10);
-                    ctx.fillText(label, pt.x, pt.y - 4);
+                    // Alternate label position above/below to reduce overlap
+                    var yOff = (di % 2 === 0) ? -4 : 10;
+                    ctx.fillText(label, pt.x, pt.y + yOff);
                 });
             });
             ctx.restore();
@@ -3097,7 +3104,7 @@ async function exportDashboardPDF() {
             { id: 'monthlyInspectionsTrendChart', label: 'Monthly Inspections Trend', section: 'Overview' },
             { id: 'approvalRateChart', label: 'Approval Rate', section: 'Overview' },
             { id: 'inspectorRadarChart', label: 'Inspector Performance Radar', section: 'Overview' },
-            { id: 'directionsChart', label: 'Directions & Non-Compliance', section: 'Overview' },
+            { id: 'directionsChart', label: 'Directions & Non-Compliance', section: 'Overview', fullWidth: true },
             { id: 'commodityTrendChart', label: 'Commodity Compliance Trend', section: 'Compliance', fullWidth: true },
             { id: 'complianceTrendChart', label: 'Weekly Compliance Trend', section: 'Compliance', fullWidth: true },
             { id: 'samplesTakenChart', label: 'Samples Per Inspector', section: 'Compliance' },
