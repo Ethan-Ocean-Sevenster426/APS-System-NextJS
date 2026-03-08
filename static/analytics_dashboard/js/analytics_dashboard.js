@@ -33,7 +33,7 @@ Chart.register({
             meta.data.forEach(function(el, idx) {
                 var val = ds.data[idx];
                 if (val == null || val === 0 || typeof val !== 'number') return;
-                var fmt = opts.formatter ? opts.formatter(val) : String(Math.round(val).toLocaleString());
+                var fmt = opts.formatFn ? opts.formatFn(val) : String(Math.round(val).toLocaleString());
                 var isHoriz = chart.options.indexAxis === 'y';
                 if (isHoriz) {
                     ctx.textAlign = 'left';
@@ -2567,7 +2567,7 @@ async function exportDashboardPDF() {
                 var isRandChart = canvasId === 'revenueCostChart' || canvasId === 'inspectorComparisonChart';
                 inst.options.plugins.pdfValueLabels = {
                     enabled: true,
-                    formatter: isRandChart ? function(v) { return 'R' + Math.round(v).toLocaleString(); } : undefined
+                    formatFn: isRandChart ? function(v) { return 'R' + Math.round(v).toLocaleString(); } : null
                 };
             }
 
