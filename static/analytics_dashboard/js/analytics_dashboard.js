@@ -2957,13 +2957,16 @@ async function exportDashboardPDF() {
                 var secCapH = pairedHeight[ch.section] || 33;
                 var halfW = (CW - 6) / 2;
                 var pdfAR = halfW / secCapH; // target aspect ratio for PDF cells
+                // Charts that should NOT be reshaped (dense line charts that get unclear when stretched)
+                var noReshape = { 'commodityTrendChart': true };
                 // Re-capture with target AR so chart fills the PDF cell
-                chartData = getChartImage(ch.id, pdfAR) || chartData;
+                chartData = getChartImage(ch.id, noReshape[ch.id] ? undefined : pdfAR) || chartData;
                 var nextIdx = ci + 1;
                 var rightData = null, rightLabel = '';
                 if (nextIdx < chartList.length && chartList[nextIdx].section === ch.section) {
                     prog('Exporting chart ' + (nextIdx + 1) + '/' + chartList.length + ': ' + chartList[nextIdx].label);
-                    rightData = getChartImage(chartList[nextIdx].id, pdfAR);
+                    var nextId = chartList[nextIdx].id;
+                    rightData = getChartImage(nextId, noReshape[nextId] ? undefined : pdfAR);
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
