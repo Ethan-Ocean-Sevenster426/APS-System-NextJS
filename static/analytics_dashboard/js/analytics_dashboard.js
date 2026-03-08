@@ -2868,6 +2868,8 @@ async function exportDashboardPDF() {
 
         // Sections that use 2-column paired layout (bar + trend side by side)
         var pairedSections = { 'Overview': true, 'Timelines': true, 'Operations': true };
+        // Per-section chart heights: Overview/Operations have fewer rows so can be taller
+        var pairedHeight = { 'Overview': 46, 'Operations': 48, 'Timelines': 33 };
 
         var currentSection = '';
         var chartY = BOT; // Force first chart onto a new page
@@ -2901,7 +2903,7 @@ async function exportDashboardPDF() {
                     rightLabel = chartList[nextIdx].label;
                     ci = nextIdx; // skip next since we're rendering it here
                 }
-                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, 33);
+                chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, pairedHeight[ch.section] || 33);
             } else {
                 chartY = placeChart(chartY, chartData, ch.label, currentSection);
             }
