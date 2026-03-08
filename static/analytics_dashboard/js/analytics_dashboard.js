@@ -2585,26 +2585,22 @@ async function exportDashboardPDF() {
                 header(subtitle);
                 y = TOP;
             }
-            var actualMaxH = 0;
-            // Left chart
+            // If another row won't fit after this one, stretch to fill remaining page space
+            var remainAfter = BOT - (y + capH + 2); // space left after this row
+            if (remainAfter < neededH) {
+                capH = BOT - y - 3; // use all remaining height (minus label offset)
+            }
+            // Left chart — stretch to fill capH, maintaining width at halfW
             if (left) {
                 if (leftLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(leftLabel, M, y + 2); }
-                var arL = left.w / left.h;
-                var iHL = halfW / arL; if (iHL > capH) { iHL = capH; }
-                var iWL = iHL * arL; if (iWL > halfW) { iWL = halfW; iHL = iWL / arL; }
-                pdf.addImage(left.img, 'PNG', M, y + 3, iWL, iHL);
-                if (iHL > actualMaxH) actualMaxH = iHL;
+                pdf.addImage(left.img, 'PNG', M, y + 3, halfW, capH);
             }
-            // Right chart
+            // Right chart — stretch to fill capH, maintaining width at halfW
             if (right) {
                 if (rightLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(rightLabel, M + halfW + 6, y + 2); }
-                var arR = right.w / right.h;
-                var iHR = halfW / arR; if (iHR > capH) { iHR = capH; }
-                var iWR = iHR * arR; if (iWR > halfW) { iWR = halfW; iHR = iWR / arR; }
-                pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 3, iWR, iHR);
-                if (iHR > actualMaxH) actualMaxH = iHR;
+                pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 3, halfW, capH);
             }
-            return y + actualMaxH + 2;
+            return y + capH + 2;
         }
 
         // ════════════════════════════════════════════════════════════════
