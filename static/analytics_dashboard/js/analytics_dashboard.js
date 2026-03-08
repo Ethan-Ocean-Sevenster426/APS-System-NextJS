@@ -952,33 +952,19 @@ function renderRevenueCostChart() {
             afterDatasetsDraw: function(chart) {
                 var ctx = chart.ctx;
                 ctx.save();
-                ctx.font = 'bold 9px sans-serif';
-                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 8px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                // Find the topmost bar per group and draw total
-                var numLabels = chart.data.labels.length;
-                for (var i = 0; i < numLabels; i++) {
-                    var topY = Infinity;
-                    var xPos = 0;
-                    chart.data.datasets.forEach(function(ds, di) {
-                        var meta = chart.getDatasetMeta(di);
-                        if (meta.hidden || !meta.data[i]) return;
-                        if (meta.data[i].y < topY) {
-                            topY = meta.data[i].y;
-                        }
-                        xPos = meta.data[i].x; // middle dataset x is close enough
+                chart.data.datasets.forEach(function(ds, di) {
+                    var meta = chart.getDatasetMeta(di);
+                    if (meta.hidden) return;
+                    meta.data.forEach(function(bar, idx) {
+                        var val = ds.data[idx];
+                        if (val == null || val === 0) return;
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillText('R' + Math.round(val).toLocaleString(), bar.x, bar.y - 2);
                     });
-                    // Use center of the group (average x of first and last dataset)
-                    var meta0 = chart.getDatasetMeta(0);
-                    var metaLast = chart.getDatasetMeta(chart.data.datasets.length - 1);
-                    if (meta0.data[i] && metaLast.data[i]) {
-                        xPos = (meta0.data[i].x + metaLast.data[i].x) / 2;
-                    }
-                    if (topY < Infinity) {
-                        ctx.fillText('R' + Math.round(totals[i]).toLocaleString(), xPos, topY - 3);
-                    }
-                }
+                });
                 ctx.restore();
             }
         }],
