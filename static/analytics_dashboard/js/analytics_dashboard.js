@@ -3030,7 +3030,11 @@ async function exportDashboardPDF() {
                 }
                 chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
             } else {
-                chartY = placeChart(chartY, chartData, ch.label, currentSection);
+                // Reshape to fill page width at capped height
+                var capH = CHART_MAX_H;
+                var reshapedAR = CW / capH;
+                chartData = getChartImage(ch.id, reshapedAR) || chartData;
+                chartY = placeChart(chartY, chartData, ch.label, currentSection, capH);
             }
             await new Promise(function(r) { setTimeout(r, 50); });
         }
