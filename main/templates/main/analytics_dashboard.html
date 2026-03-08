@@ -563,7 +563,7 @@
 
         <!-- Weekly Compliance + Samples + Facility -->
         <div class="dashboard-grid-2col">
-            <div class="card">
+            <div class="card" style="display: flex; flex-direction: column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
@@ -572,7 +572,7 @@
                            id="complianceTrendInfo" title="Inspection breakdown by commodity"></i>
                     </div>
                 </div>
-                <div class="card-body" style="height: 180px;">
+                <div class="card-body" style="flex: 1; min-height: 0;">
                     <canvas id="complianceTrendChart"></canvas>
                 </div>
             </div>
