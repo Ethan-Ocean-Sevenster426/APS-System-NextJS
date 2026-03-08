@@ -3162,19 +3162,22 @@ async function exportDashboardPDF() {
                 }
                 chartY = placeChartPair(chartY, chartData, rightData, ch.label, rightLabel, currentSection, secCapH);
             } else if (ch.stackWith) {
-                // Stack two charts vertically on a new page
+                // Stack two charts vertically on a new page (first gets 60%, second 40%)
                 footer(); pdf.addPage(); header(currentSection);
                 chartY = TOP;
-                var stackH = Math.floor((BOT - TOP - 20) / 2); // half page each, 20mm for labels+gaps
-                var stackAR = CW / stackH;
-                chartData = getChartImage(ch.id, stackAR) || chartData;
-                chartY = placeChart(chartY, chartData, ch.label, currentSection, stackH);
+                var totalH = BOT - TOP - 20; // 20mm for labels+gaps
+                var stackH1 = Math.floor(totalH * 0.6);
+                var stackH2 = Math.floor(totalH * 0.4);
+                var stackAR1 = CW / stackH1;
+                chartData = getChartImage(ch.id, stackAR1) || chartData;
+                chartY = placeChart(chartY, chartData, ch.label, currentSection, stackH1);
                 // Find and render the stacked partner
                 for (var si = ci + 1; si < chartList.length; si++) {
                     if (chartList[si].id === ch.stackWith) {
                         prog('Exporting chart ' + (si + 1) + '/' + chartList.length + ': ' + chartList[si].label);
-                        var stackData = getChartImage(chartList[si].id, stackAR);
-                        if (stackData) chartY = placeChart(chartY, stackData, chartList[si].label, currentSection, stackH);
+                        var stackAR2 = CW / stackH2;
+                        var stackData = getChartImage(chartList[si].id, stackAR2);
+                        if (stackData) chartY = placeChart(chartY, stackData, chartList[si].label, currentSection, stackH2);
                         ci = si;
                         break;
                     }
