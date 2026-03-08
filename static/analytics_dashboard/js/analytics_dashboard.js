@@ -2548,7 +2548,7 @@ async function exportDashboardPDF() {
         function placeChartPair(y, left, right, leftLabel, rightLabel, subtitle, maxH) {
             var capH = maxH || 42;
             var halfW = (CW - 6) / 2; // 6mm gap between columns
-            var neededH = capH + 4; // chart + label (tight)
+            var neededH = capH + 3; // chart + label
             if (y + neededH > BOT) {
                 footer();
                 pdf.addPage();
@@ -2557,21 +2557,21 @@ async function exportDashboardPDF() {
             }
             // Left chart
             if (left) {
-                if (leftLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(leftLabel, M, y + 3); }
+                if (leftLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(leftLabel, M, y + 2); }
                 var arL = left.w / left.h;
                 var iHL = halfW / arL; if (iHL > capH) { iHL = capH; }
                 var iWL = iHL * arL; if (iWL > halfW) { iWL = halfW; iHL = iWL / arL; }
-                pdf.addImage(left.img, 'PNG', M, y + 4, iWL, iHL);
+                pdf.addImage(left.img, 'PNG', M, y + 3, iWL, iHL);
             }
             // Right chart
             if (right) {
-                if (rightLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(rightLabel, M + halfW + 6, y + 3); }
+                if (rightLabel) { pdf.setFontSize(7); pdf.setTextColor(30, 41, 59); pdf.text(rightLabel, M + halfW + 6, y + 2); }
                 var arR = right.w / right.h;
                 var iHR = halfW / arR; if (iHR > capH) { iHR = capH; }
                 var iWR = iHR * arR; if (iWR > halfW) { iWR = halfW; iHR = iWR / arR; }
-                pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 4, iWR, iHR);
+                pdf.addImage(right.img, 'PNG', M + halfW + 6, y + 3, iWR, iHR);
             }
-            return y + capH + 5;
+            return y + capH + 2;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -2868,7 +2868,7 @@ async function exportDashboardPDF() {
         // Sections that use 2-column paired layout (bar + trend side by side)
         var pairedSections = { 'Overview': true, 'Compliance': true, 'Timelines': true, 'Operations': true };
         // Per-section chart heights
-        var pairedHeight = { 'Overview': 53, 'Compliance': 38, 'Operations': 82, 'Timelines': 38 };
+        var pairedHeight = { 'Overview': 57, 'Compliance': 41, 'Operations': 87, 'Timelines': 41 };
 
         var currentSection = '';
         var chartY = BOT; // Force first chart onto a new page
@@ -2885,11 +2885,11 @@ async function exportDashboardPDF() {
                 pdf.addPage();
                 header(currentSection);
                 chartY = TOP;
-                pdf.setFontSize(13); pdf.setTextColor(30, 41, 59);
-                pdf.text(currentSection, M, chartY + 5);
+                pdf.setFontSize(11); pdf.setTextColor(30, 41, 59);
+                pdf.text(currentSection, M, chartY + 4);
                 pdf.setDrawColor(30, 41, 59);
-                pdf.line(M, chartY + 7, M + CW, chartY + 7);
-                chartY += 12;
+                pdf.line(M, chartY + 5, M + CW, chartY + 5);
+                chartY += 7;
             }
 
             // Paired sections: place charts side by side
