@@ -969,10 +969,11 @@ function renderRevenueCostChart() {
                         var val = ds.data[idx];
                         if (val == null || val === 0) return;
                         var raw = rawArrays[di] ? rawArrays[di][idx] : 0;
-                        var label;
-                        if (di === 0) label = Math.round(raw) + 'h';
-                        else if (di === 1) label = Math.round(raw) + 'km';
-                        else label = String(Math.round(raw));
+                        var rawStr;
+                        if (di === 0) rawStr = Math.round(raw) + 'h';
+                        else if (di === 1) rawStr = Math.round(raw) + 'km';
+                        else rawStr = String(Math.round(raw));
+                        var label = 'R' + Math.round(val).toLocaleString() + ' (' + rawStr + ')';
                         ctx.fillText(label, bar.x, bar.y - 3);
                     });
                 });
