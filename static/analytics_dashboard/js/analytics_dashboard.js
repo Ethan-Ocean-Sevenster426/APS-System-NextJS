@@ -956,12 +956,7 @@ function renderRevenueCostChart() {
             afterDatasetsDraw: function(chart) {
                 var ctx = chart.ctx;
                 ctx.save();
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillStyle = '#1e293b';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
                 var rawArrays = [rawHours, rawKm, rawSamples];
-                var units = ['h', 'km', ''];
                 chart.data.datasets.forEach(function(ds, di) {
                     var meta = chart.getDatasetMeta(di);
                     if (meta.hidden) return;
@@ -973,7 +968,37 @@ function renderRevenueCostChart() {
                         if (di === 0) label = raw.toFixed(1) + 'h';
                         else if (di === 1) label = Math.round(raw).toLocaleString() + 'km';
                         else label = Math.round(raw).toLocaleString();
-                        ctx.fillText(label, bar.x, bar.y - 2);
+                        // Bar dimensions
+                        var barBase = chart.scales.y.getPixelForValue(0);
+                        var barH = barBase - bar.y;
+                        var barW = bar.width || 10;
+                        // Draw rotated text inside the bar
+                        ctx.save();
+                        var fontSize = Math.min(9, barW * 0.8);
+                        ctx.font = 'bold ' + fontSize + 'px sans-serif';
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        var cx = bar.x;
+                        var cy = bar.y + barH / 2;
+                        // Rotate -90 degrees to write vertically inside bar
+                        ctx.translate(cx, cy);
+                        ctx.rotate(-Math.PI / 2);
+                        // Only draw inside if bar is tall enough
+                        var textW = ctx.measureText(label).width;
+                        if (barH > textW + 4) {
+                            ctx.fillText(label, 0, 0);
+                        } else {
+                            // Bar too short — draw above it
+                            ctx.restore();
+                            ctx.save();
+                            ctx.font = 'bold 7px sans-serif';
+                            ctx.fillStyle = '#1e293b';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(label, bar.x, bar.y - 2);
+                        }
+                        ctx.restore();
                     });
                 });
                 ctx.restore();
