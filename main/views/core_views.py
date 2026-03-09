@@ -13194,7 +13194,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
         if client_name and client_name.startswith('btn-'):
             client_name = client_name[4:]
 
-        # Parse date
+        # Parse date (strip whitespace that may come from template formatting)
+        if inspection_date:
+            inspection_date = inspection_date.strip()
         date_obj = None
         date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y%m%d']
         for fmt in date_formats:
@@ -15709,8 +15711,8 @@ def send_group_documents(request):
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
         inspection_group_id = data.get('inspection_group_id', '') or group_id
-        client_name = data.get('client_name', '')
-        inspection_date = data.get('inspection_date', '')
+        client_name = data.get('client_name', '').strip()
+        inspection_date = data.get('inspection_date', '').strip()
 
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
