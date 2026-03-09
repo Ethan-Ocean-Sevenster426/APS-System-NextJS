@@ -2261,14 +2261,7 @@ def shipment_list(request):
 
     # PERFORMANCE FIX: Include page number and filters in cache key so each page/filter combo is cached separately
     page_number = request.GET.get('page', 1)
-    # Build cache key that handles multi-value params (branch, lab, test_type) correctly
-    _cache_filter_keys = ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter', 'corporate_group', 'group_type', 'lab', 'test_type', 'needs_retest', 'coa_uploaded', 'file_status_filter']
-    _cache_parts = []
-    for k in sorted(_cache_filter_keys):
-        vals = request.GET.getlist(k)
-        if vals:
-            _cache_parts.append(f"{k}_{'|'.join(sorted(vals))}")
-    filter_params = '_'.join(_cache_parts)
+    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter'])
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
@@ -2307,8 +2300,7 @@ def shipment_list(request):
     inspections = FoodSafetyAgencyInspection.objects.only(
         # Load ONLY essential fields to reduce data transfer
         'id', 'client_name', 'date_of_inspection', 'inspector_name', 'inspection_group_id',
-        'commodity', 'remote_id', 'product_name', 'is_sent', 'approved_status',
-        'inspection_group',
+        'commodity', 'remote_id', 'product_name', 'is_sent'
     )
     # Show ALL inspections (both manual and synced from SQL Server)
     
@@ -2601,14 +2593,14 @@ def shipment_list(request):
                     # Collect all emails for this client
                     emails = []
                     if _c.email:
-                        # Split on comma, semicolon, slash, or space
-                        for _e in re.split(r'[,;/\s]+', str(_c.email)):
-                            _e = _e.strip().strip('"').strip("'")
+                        # Split comma-separated emails in the primary field
+                        for _e in _c.email.split(','):
+                            _e = _e.strip()
                             if _e:
                                 emails.append({'email': _e, 'type': 'primary', 'removable': True})
                     if _c.manual_email:
-                        for _e in re.split(r'[,;/\s]+', str(_c.manual_email)):
-                            _e = _e.strip().strip('"').strip("'")
+                        for _e in _c.manual_email.split(','):
+                            _e = _e.strip()
                             if _e:
                                 emails.append({'email': _e, 'type': 'manual', 'removable': True})
                     
@@ -5113,17 +5105,10 @@ def apply_fsa_inspection_filters(request, inspections):
     if inspection_no:
         inspections = inspections.filter(remote_id__icontains=inspection_no)
     
-    # Filter by client name - search in both directions for fuzzy matching
+    # Filter by client name
     client_name = request.GET.get('client')
     if client_name:
-        from django.db.models import Q
-        # Match if inspection client_name contains search term OR search term contains inspection client_name
-        # Also match via Client model (name may differ between Client record and inspection record)
-        client_q = Q(client_name__icontains=client_name)
-        # Also find via Client model FK
-        client_q |= Q(client__name__icontains=client_name)
-        client_q |= Q(client__client_id__icontains=client_name)
-        inspections = inspections.filter(client_q)
+        inspections = inspections.filter(client_name__icontains=client_name)
     
     # Filter by inspector(s) - supports multiple selection
     inspectors = request.GET.getlist('branch')  # Keep same parameter name for template compatibility
@@ -9530,7 +9515,7 @@ def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
     from ..models import FoodSafetyAgencyInspection, InspectionGroup
     from django.db.models import Count, Q, Avg, Sum
-    from django.db.models.functions import TruncMonth, TruncDay, TruncWeek
+    from django.db.models.functions import TruncMonth, TruncDay
     from datetime import datetime, timedelta
     from django.core.serializers.json import DjangoJSONEncoder
 
@@ -9646,47 +9631,30 @@ def analytics_dashboard_api(request):
         Q(facility_type__isnull=True) | Q(facility_type='')
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
-    # Commodity Compliance Trends (daily compliance % per commodity, last 30 days)
-    # Matches initial view: daily granularity with compliance_rate field
-    from django.db.models.functions import TruncDate
-    thirty_days_ago = datetime.now() - timedelta(days=30)
-    _commodity_trend_qs = qs.exclude(
+    # Monthly commodity trends
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    trends_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        date_of_inspection__gte=thirty_days_ago
-    ).annotate(
-        month=TruncDate('date_of_inspection')
-    ).values('month', 'commodity').annotate(
-        total=Count('id'),
-        approved=Count('id', filter=Q(approved_status='APPROVED'))
-    )
-    monthly_commodity_trends = []
-    for item in _commodity_trend_qs:
-        total = item['total']
-        approved = item['approved']
-        compliance_rate = round((approved / total * 100) if total > 0 else 0, 1)
-        monthly_commodity_trends.append({
-            'month': item['month'],
-            'commodity': item['commodity'],
-            'compliance_rate': compliance_rate,
-            'total': total,
-            'approved': approved
-        })
+    ).filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(trends_qs.annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
 
-    # Weekly compliance trend per commodity (uses TruncWeek for granular data)
-    # Matches initial view: weekly granularity, excludes occurrence reports
+    # Monthly compliance trend per commodity
     monthly_compliance_trend = list(qs.exclude(
-        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+        Q(commodity__isnull=True) | Q(commodity='')
     ).exclude(date_of_inspection__isnull=True).annotate(
-        month=TruncWeek('date_of_inspection')
+        month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED'))
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
     # Daily compliance trend per commodity (last 30 days)
+    from django.db.models.functions import TruncDay
+    thirty_days_ago = datetime.now() - timedelta(days=30)
     daily_compliance_trend = list(qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
@@ -15744,10 +15712,6 @@ def send_group_documents(request):
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
 
-        import logging
-        _send_log = logging.getLogger(__name__)
-        _send_log.info(f"[SEND DOC] group_id='{group_id}', inspection_group_id='{inspection_group_id}', client_name='{client_name}', inspection_date='{inspection_date}'")
-
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
 
@@ -15763,17 +15727,20 @@ def send_group_documents(request):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
 
-        # Get ALL client emails (client record + additional emails on inspection/group)
-        all_client_emails = get_all_client_emails(client_name, inspection_group_id=inspection_group_id)
+        if not attachments:
+            return JsonResponse({
+                'success': False,
+                'error': f'No documents found for {client_name} on {inspection_date}. Please upload documents before sending.'
+            })
 
-        if not all_client_emails:
+        # Get client email (pass inspection_group_id for reliable FK lookup)
+        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+
+        if not recipient_email:
             return JsonResponse({
                 'success': False,
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
-
-        # First email is primary recipient, rest go in TO as well
-        recipient_email = all_client_emails[0]
 
         # Get commodities inspected for this group
         from ..models import FoodSafetyAgencyInspection
@@ -15880,39 +15847,69 @@ def send_group_documents(request):
 </div>
 """
 
-        # Build CC list: inspector who did the inspection + manager email
-        cc_emails = []
-        MANAGER_EMAIL = 'simphiwe.mathenjwa@afsq.co.za'
-        cc_emails.append(MANAGER_EMAIL)
+        # Build TO list: client email + all additional emails
+        to_emails = [recipient_email]
 
-        # Find the inspector's email from User model (match by inspector_name)
-        inspector_name = group_inspections.values_list('inspector_name', flat=True).first()
-        if inspector_name:
-            from django.contrib.auth.models import User as AuthUser
-            # Try matching by full name or username
-            inspector_user = None
-            if ' ' in inspector_name:
-                parts = inspector_name.split()
-                inspector_user = AuthUser.objects.filter(
-                    first_name__iexact=parts[0],
-                    last_name__iexact=parts[-1],
-                ).first()
-            if not inspector_user:
-                inspector_user = AuthUser.objects.filter(username__iexact=inspector_name).first()
+        # Add additional_email from FoodSafetyAgencyInspection (comma-separated)
+        additional_email_raw = group_inspections.exclude(
+            additional_email__isnull=True
+        ).exclude(
+            additional_email__exact=''
+        ).values_list('additional_email', flat=True).first()
+        if not additional_email_raw and inspection_group_id:
+            from ..models import InspectionGroup
+            ig = InspectionGroup.objects.filter(id=inspection_group_id).values_list('additional_email', flat=True).first()
+            if ig:
+                additional_email_raw = ig
+        if additional_email_raw:
+            for e in additional_email_raw.split(','):
+                e = e.strip()
+                if e and e not in to_emails:
+                    to_emails.append(e)
+
+        # Add additional_email_1..4 from Inspection model
+        from ..models import Inspection
+        insp_record = Inspection.objects.filter(
+            facility_client_name__iexact=client_name,
+            inspection_date=date_obj.date()
+        ).first()
+        if insp_record:
+            for field in ['additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                val = getattr(insp_record, field, None)
+                if val and val.strip() and val.strip() not in to_emails:
+                    to_emails.append(val.strip())
+
+        # Build CC list: inspector + management
+        cc_emails = []
+
+        # CC the inspector who performed the inspection
+        from django.contrib.auth.models import User as AuthUser
+        insp_name = group_inspections.exclude(
+            inspector_name__isnull=True
+        ).exclude(
+            inspector_name__exact=''
+        ).values_list('inspector_name', flat=True).first()
+        if insp_name:
+            inspector_user = AuthUser.objects.filter(
+                first_name__iexact=insp_name.split()[0]
+            ).exclude(email__exact='').first()
             if inspector_user and inspector_user.email:
                 cc_emails.append(inspector_user.email)
 
-        # Dedupe and remove any that match the main recipient
-        cc_emails = list(set(e.lower().strip() for e in cc_emails if e))
-        # Remove any CC that's already in the TO list
-        to_emails_lower = set(e.lower().strip() for e in all_client_emails)
-        cc_emails = [e for e in cc_emails if e not in to_emails_lower]
+        # CC management
+        management_cc = [
+            'simphiwe.mathenjwa@afsq.co.za',
+            'nicole.bergh@afsq.co.za',
+        ]
+        for mgmt_email in management_cc:
+            if mgmt_email not in cc_emails:
+                cc_emails.append(mgmt_email)
 
         email = EmailMessage(
             subject=subject,
             body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=all_client_emails,
+            to=to_emails,
             cc=cc_emails if cc_emails else None,
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
@@ -15922,8 +15919,6 @@ def send_group_documents(request):
             email.attach_file(file_path)
 
         email.send()
-
-        all_recipients = all_client_emails + cc_emails
 
         # Mark inspections as sent (reuse group_inspections queryset from above)
         group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
@@ -15936,12 +15931,12 @@ def send_group_documents(request):
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(all_client_emails)} (CC: {", ".join(cc_emails)})',
+            description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(to_emails)}' + (f' (CC: {", ".join(cc_emails)})' if cc_emails else ''),
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
                 'documents_sent': documents_found,
-                'recipient': recipient_email,
+                'to': to_emails,
                 'cc': cc_emails
             }
         )
@@ -15950,11 +15945,13 @@ def send_group_documents(request):
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
         sent_time = timezone.now().strftime('%d %b %Y %H:%M')
 
-        cc_display = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
+        cc_msg = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
+        to_msg = ', '.join(to_emails)
         return JsonResponse({
             'success': True,
-            'message': f'Documents sent successfully to {recipient_email}{cc_display}',
-            'recipients': ', '.join(all_recipients),
+            'message': f'Documents sent successfully to {to_msg}{cc_msg}',
+            'recipients': to_emails,
+            'cc': cc_emails,
             'documents_sent': len(attachments),
             'sent_by': sender_name,
             'sent_time': sent_time,
@@ -15962,39 +15959,8 @@ def send_group_documents(request):
 
     except Exception as e:
         import traceback
-        import logging
-        _err_log = logging.getLogger(__name__)
         traceback.print_exc()
-        error_msg = str(e)
-
-        # Extract Graph API error details if available
-        graph_error_detail = ''
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                err_json = e.response.json()
-                graph_error_detail = err_json.get('error', {}).get('message', '')
-                graph_code = err_json.get('error', {}).get('code', '')
-                _err_log.error(f"[SEND DOC ERROR] Graph API code={graph_code}, message={graph_error_detail}")
-                _err_log.error(f"[SEND DOC ERROR] TO={all_client_emails if 'all_client_emails' in dir() else 'unknown'}")
-                _err_log.error(f"[SEND DOC ERROR] Attachments={len(attachments) if 'attachments' in dir() else 'unknown'}")
-            except Exception:
-                _err_log.error(f"[SEND DOC ERROR] Raw response: {e.response.text[:500] if e.response else 'no response'}")
-
-        # Make Graph API errors more user-friendly
-        if '400' in error_msg or 'Bad Request' in error_msg:
-            total_size = sum(os.path.getsize(f) for f in attachments if os.path.isfile(f)) if 'attachments' in dir() else 0
-            size_mb = round(total_size / (1024 * 1024), 1)
-            if total_size > 3 * 1024 * 1024:
-                error_msg = f'Attachments too large ({size_mb}MB). Microsoft Graph API has a 4MB limit. Try sending fewer documents.'
-            elif graph_error_detail:
-                error_msg = f'Email service error: {graph_error_detail}'
-            else:
-                error_msg = f'Email service rejected the request ({size_mb}MB). Please try again or contact support.'
-        elif '401' in error_msg or 'Unauthorized' in error_msg:
-            error_msg = 'Email service authentication failed. Please contact support.'
-        elif '403' in error_msg or 'Forbidden' in error_msg:
-            error_msg = 'Email service permission denied. The sender mailbox may not have send permissions.'
-        return JsonResponse({'success': False, 'error': error_msg})
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 def get_client_email(client_name, inspection_group_id=None):
@@ -16002,38 +15968,26 @@ def get_client_email(client_name, inspection_group_id=None):
 
     Lookup order:
     1. Via inspection's client FK (most reliable - avoids name mismatch issues)
-    2. Via InspectionGroup's client FK
-    3. By client_id field (iexact)
-    4. By client name field (iexact)
-    5. By client name (icontains - partial match)
-    6. Normalized name search (strips hyphens, punctuation for fuzzy match)
+    2. By client_id field (iexact)
+    3. By client name field (iexact)
+    4. Normalized name search (strips hyphens, punctuation for fuzzy match)
     """
     import re
-    import logging
-    _log = logging.getLogger(__name__)
-
-    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
-    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
 
     def _extract_email(client):
-        """Return first available valid email from a Client object."""
-        import re
-        for field in [client.manual_email, client.email]:
-            if field and str(field).strip():
-                for part in re.split(r'[,;/\s]+', str(field)):
-                    e = part.strip().strip('"').strip("'")
-                    if _valid_email_re.match(e) and not _bad_domain_re.search(e):
-                        return e
+        """Return first available email from a Client object."""
+        if client.manual_email:
+            return client.manual_email.split(',')[0].strip()
+        if client.email:
+            return client.email.split(',')[0].strip()
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
-        if client_email and client_email.email and _valid_email_re.match(str(client_email.email).strip()):
-            return client_email.email.strip()
+        if client_email:
+            return client_email.email
         return None
 
     try:
-        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
-
-        _log.info(f"[EMAIL LOOKUP] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection
 
         # 1. Try via inspection's client FK (most reliable)
         if inspection_group_id:
@@ -16043,57 +15997,24 @@ def get_client_email(client_name, inspection_group_id=None):
             ).select_related('client').first()
             if insp and insp.client:
                 email = _extract_email(insp.client)
-                _log.info(f"[EMAIL LOOKUP] Step 1 (inspection FK): client={insp.client.name}, email={email}")
                 if email:
                     return email
-            else:
-                _log.info(f"[EMAIL LOOKUP] Step 1: No inspection with client FK found for group {inspection_group_id}")
 
-            # 2. Try via InspectionGroup's client FK
-            try:
-                group = InspectionGroup.objects.filter(id=inspection_group_id, client__isnull=False).select_related('client').first()
-                if group and group.client:
-                    email = _extract_email(group.client)
-                    _log.info(f"[EMAIL LOOKUP] Step 2 (group FK): client={group.client.name}, email={email}")
-                    if email:
-                        return email
-            except Exception:
-                pass
-
-        # 3. Try by client_id field
+        # 2. Try by client_id field
         client = Client.objects.filter(client_id__iexact=client_name).first()
         if client:
             email = _extract_email(client)
-            _log.info(f"[EMAIL LOOKUP] Step 3 (client_id match): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 4. Try by name field (exact)
+        # 3. Try by name field
         client = Client.objects.filter(name__iexact=client_name).first()
         if client:
             email = _extract_email(client)
-            _log.info(f"[EMAIL LOOKUP] Step 4 (name exact): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 5. Try by name field (contains - partial match)
-        if client_name and len(client_name) > 3:
-            client = Client.objects.filter(name__icontains=client_name).first()
-            if not client:
-                # Try the other way: client name contains the search term
-                for c in Client.objects.filter(email__isnull=False).exclude(email='').only('id', 'name', 'client_id', 'email', 'manual_email'):
-                    if c.name and client_name.lower() in c.name.lower():
-                        email = _extract_email(c)
-                        if email:
-                            _log.info(f"[EMAIL LOOKUP] Step 5b (reverse contains): client={c.name}, email={email}")
-                            return email
-            elif client:
-                email = _extract_email(client)
-                _log.info(f"[EMAIL LOOKUP] Step 5 (name contains): client={client.name}, email={email}")
-                if email:
-                    return email
-
-        # 6. Normalized search (strips hyphens, punctuation - matches page display logic)
+        # 4. Normalized search (strips hyphens, punctuation - matches page display logic)
         def _norm(text):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
@@ -16103,158 +16024,13 @@ def get_client_email(client_name, inspection_group_id=None):
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
                 if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
                     email = _extract_email(c)
-                    _log.info(f"[EMAIL LOOKUP] Step 6 (normalized): client={c.name}, email={email}")
                     if email:
                         return email
 
-        # 7. Fallback: check additional_email on inspection or group
-        if inspection_group_id:
-            # Check inspection-level additional_email
-            insp_email = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id
-            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
-            if insp_email:
-                email = insp_email.split(',')[0].strip()
-                if '@' in email:
-                    _log.info(f"[EMAIL LOOKUP] Step 7a (inspection additional_email): {email}")
-                    return email
-
-            # Check group-level additional_email
-            try:
-                group_email = InspectionGroup.objects.filter(
-                    id=inspection_group_id
-                ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
-                if group_email:
-                    email = str(group_email).split(',')[0].strip()
-                    if '@' in email:
-                        _log.info(f"[EMAIL LOOKUP] Step 7b (group additional_email): {email}")
-                        return email
-            except Exception:
-                pass
-
-        # 8. Last resort: find Client by name words (handles cases like "Kekkel en kraai hirbenia" vs "Kekkel En Kraai Hirbenia")
-        if client_name and len(client_name) > 3:
-            words = [w for w in client_name.lower().split() if len(w) > 2]
-            if words:
-                from django.db.models import Q
-                q = Q()
-                for word in words[:3]:  # Use first 3 significant words
-                    q &= Q(name__icontains=word)
-                client = Client.objects.filter(q).first()
-                if client:
-                    email = _extract_email(client)
-                    _log.info(f"[EMAIL LOOKUP] Step 8 (word match): client={client.name}, email={email}")
-                    if email:
-                        return email
-
-        _log.warning(f"[EMAIL LOOKUP] FAILED - No email found for client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
         return None
 
-    except Exception as e:
-        _log.error(f"[EMAIL LOOKUP] Exception: {e}")
+    except Exception:
         return None
-
-
-def get_all_client_emails(client_name, inspection_group_id=None):
-    """Get ALL email addresses for a client: client record emails + additional emails on inspection/group.
-    Returns a deduplicated list of all valid emails, or empty list if none found.
-    """
-    import re
-    import logging
-    _log = logging.getLogger(__name__)
-
-    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
-    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
-
-    emails = set()
-
-    def _is_valid(e):
-        return bool(_valid_email_re.match(e)) and not _bad_domain_re.search(e)
-
-    def _add_emails_from_field(value):
-        """Extract all emails from a field that may contain comma/semicolon/slash/space-separated values."""
-        if not value:
-            return
-        import re
-        for part in re.split(r'[,;/\s]+', str(value)):
-            e = part.strip().strip('"').strip("'").lower()
-            if e and _is_valid(e):
-                emails.add(e)
-            elif e and '@' in e:
-                _log.warning(f"[EMAIL ALL] Skipping malformed email: '{e}'")
-
-    try:
-        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
-
-        _log.info(f"[EMAIL ALL] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
-
-        # 1. Get emails from inspection's client FK
-        if inspection_group_id:
-            insp = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id,
-                client__isnull=False
-            ).select_related('client').first()
-            if insp and insp.client:
-                _add_emails_from_field(insp.client.manual_email)
-                _add_emails_from_field(insp.client.email)
-                # Also check ClientEmail table
-                from ..models import ClientEmail
-                for ce in ClientEmail.objects.filter(client=insp.client):
-                    _add_emails_from_field(ce.email)
-
-            # 2. Get additional_email from inspections in this group
-            for ae in FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id
-            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).distinct():
-                _add_emails_from_field(ae)
-
-            # 3. Get additional_email from InspectionGroup
-            try:
-                group = InspectionGroup.objects.filter(id=inspection_group_id).first()
-                if group:
-                    _add_emails_from_field(group.additional_email)
-                    if group.client:
-                        _add_emails_from_field(group.client.manual_email)
-                        _add_emails_from_field(group.client.email)
-            except Exception:
-                pass
-
-        # 4. Search by client name if we still have no emails
-        if not emails:
-            # Try exact name match, then fuzzy
-            from ..models import Client
-            for lookup in [
-                Client.objects.filter(client_id__iexact=client_name),
-                Client.objects.filter(name__iexact=client_name),
-                Client.objects.filter(name__icontains=client_name) if client_name and len(client_name) > 3 else Client.objects.none(),
-            ]:
-                client = lookup.first()
-                if client:
-                    _add_emails_from_field(client.manual_email)
-                    _add_emails_from_field(client.email)
-                    if emails:
-                        break
-
-            # Word-based fuzzy match as last resort
-            if not emails and client_name and len(client_name) > 3:
-                words = [w for w in client_name.lower().split() if len(w) > 2]
-                if words:
-                    from django.db.models import Q
-                    q = Q()
-                    for word in words[:3]:
-                        q &= Q(name__icontains=word)
-                    client = Client.objects.filter(q).first()
-                    if client:
-                        _add_emails_from_field(client.manual_email)
-                        _add_emails_from_field(client.email)
-
-        result = sorted(emails)
-        _log.info(f"[EMAIL ALL] Found {len(result)} emails: {result}")
-        return result
-
-    except Exception as e:
-        _log.error(f"[EMAIL ALL] Exception: {e}")
-        return list(emails) if emails else []
 
 
 @login_required
