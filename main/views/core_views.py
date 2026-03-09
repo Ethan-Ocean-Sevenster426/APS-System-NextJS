@@ -15714,6 +15714,9 @@ def send_group_documents(request):
         client_name = data.get('client_name', '').strip()
         inspection_date = data.get('inspection_date', '').strip()
 
+        print(f"[SEND DEBUG] Received: client_name='{client_name}', inspection_date='{inspection_date}', group_id='{group_id}', inspection_group_id='{inspection_group_id}'")
+        print(f"[SEND DEBUG] client_name bytes: {[hex(ord(c)) for c in client_name]}")
+
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
 
@@ -15728,6 +15731,31 @@ def send_group_documents(request):
                     if os.path.isfile(full_path):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+
+        # Fallback: if no files found by name+date, try lookup by inspection_group_id
+        if not attachments and inspection_group_id:
+            print(f"[SEND DEBUG] Name+date lookup found 0 files. Trying fallback via inspection_group_id={inspection_group_id}")
+            from main.models import FoodSafetyAgencyInspection
+            CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
+            fallback_inspections = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).select_related('client')
+            print(f"[SEND DEBUG] Fallback found {fallback_inspections.count()} inspection(s) by group_id")
+            docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+            for insp in fallback_inspections:
+                client_obj = insp.client
+                if client_obj:
+                    docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
+                    print(f"[SEND DEBUG] Fallback checking path: {docs_path} exists={os.path.exists(docs_path)}")
+                    if os.path.exists(docs_path):
+                        for category in CATEGORIES:
+                            cat_path = os.path.join(docs_path, category)
+                            if os.path.exists(cat_path):
+                                for filename in os.listdir(cat_path):
+                                    file_path = os.path.join(cat_path, filename)
+                                    if os.path.isfile(file_path):
+                                        attachments.append(file_path)
+                                        documents_found.append(f"{category}/{filename}")
 
         if not attachments:
             return JsonResponse({
