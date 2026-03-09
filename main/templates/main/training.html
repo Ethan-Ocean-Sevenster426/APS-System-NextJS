@@ -3,117 +3,226 @@
 <head>
     {% load static %}
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Training - Food Safety Agency</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'training/css/training.css' %}?v=20260212">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"
+        media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    </noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007890',
+                        'primary-light': '#e6f3f7',
+                        secondary: '#EC343C',
+                        danger: '#EC343C',
+                        warning: '#f59e0b',
+                        'sidebar-bg': '#1e293b',
+                        'sidebar-text': '#f1f5f9',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="{% static 'training/css/training.css' %}?v=20260308">
     <style>
         :root {
             --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
         }
     </style>
 </head>
-<body>
+<body class="min-h-screen text-gray-800">
     <!-- Mobile Menu Button -->
-    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">
+    <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
         <i class="fas fa-bars"></i>
     </button>
 
     <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-    <!-- Sidebar -->
-    <div id="sidebar">
-        <div class="sidebar-header">
-            <button class="sidebar-close-btn" onclick="toggleSidebar()">
-                <i class="fas fa-times"></i>
-            </button>
-            <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Logo">
-            <div class="company-name">Food Safety Agency</div>
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+            <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
+                <div class="text-center mb-2">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo"
+                        class="max-h-12 mx-auto">
+                </div>
+                <div class="text-sm font-semibold text-center" style="color: #ffffff;">
+                    Food Safety Agency (Pty) Ltd
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
+                <ul class="px-2 py-2 space-y-1">
+                    <!-- 1. Home Center -->
+                    <li>
+                        <a href="{% url 'home' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>
+                            Home Center
+                        </a>
+                    </li>
+
+                    {% if request.user.role == 'inspector' %}
+                    <!-- Inspector-specific menu -->
+                    <li>
+                        <a href="{% url 'inspector_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
+                            My Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
+                            Inspections
+                        </a>
+                    </li>
+                    {% else %}
+                    <!-- 2. Client Allocation Sheet -->
+                    <li>
+                        <a href="{% url 'client_allocation_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
+                            Client Allocation Sheet
+                        </a>
+                    </li>
+                    <!-- 3. Inspection Records -->
+                    <li>
+                        <a href="{% url 'shipment_list' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
+                            Inspection Records
+                        </a>
+                    </li>
+                    <!-- 4. User Management -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
+                            User Management
+                        </a>
+                    </li>
+                    <!-- 5. System Logs -->
+                    <li>
+                        <a href="{% url 'system_logs' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
+                            System Logs
+                        </a>
+                    </li>
+                    <!-- 6. Support Tickets -->
+                    <li>
+                        <a href="{% url 'fsa_operations_board' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
+                            Support Tickets
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- 7. Submit Ticket (visible to all) -->
+                    <li>
+                        <a href="{% url 'submit_ticket' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
+                            Submit Ticket
+                        </a>
+                    </li>
+
+                    <!-- 8. Server View -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'server_view' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
+                            Server View
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 9. Training (ACTIVE) -->
+                    {% if request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'developer' %}
+                    <li>
+                        <a href="{% url 'training_page' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text bg-white bg-opacity-10 rounded-lg text-sm font-medium min-h-[32px]"
+                            style="background-color: #007890;">
+                            <i class="fas fa-video mr-2 w-4 text-center text-purple-400"></i>
+                            Training
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 10. Export Sheet -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                    <li>
+                        <a href="{% url 'export_sheet' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
+                            Export Sheet
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 11. Inspector Analytics -->
+                    {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
+                    <li>
+                        <a href="{% url 'analytics_dashboard' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
+                            Inspector Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'debtors_page' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>
+                            Debtors
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- 12. Settings (visible to all) -->
+                    <li>
+                        <a href="{% url 'settings' %}"
+                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Logout Button -->
+            <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
+                <form action="{% url 'logout' %}" method="post" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
         </div>
 
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="{% url 'home' %}" class="nav-link">
-                    <i class="fas fa-home"></i>
-                    Dashboard
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'client_allocation_sheet' %}" class="nav-link">
-                    <i class="fas fa-th-list"></i>
-                    Client Allocation Sheet
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'shipment_list' %}" class="nav-link">
-                    <i class="fas fa-clipboard-check"></i>
-                    Inspections
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'user_management' %}" class="nav-link">
-                    <i class="fas fa-users-cog"></i>
-                    User Management
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'system_logs' %}" class="nav-link">
-                    <i class="fas fa-list-alt"></i>
-                    System Logs
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'fsa_operations_board' %}" class="nav-link">
-                    <i class="fas fa-ticket-alt" style="color: #22d3ee;"></i>
-                    Support Tickets
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'server_view' %}" class="nav-link">
-                    <i class="fas fa-tachometer-alt"></i>
-                    Server View
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'training_page' %}" class="nav-link active">
-                    <i class="fas fa-video"></i>
-                    Training
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'submit_ticket' %}" class="nav-link">
-                    <i class="fas fa-ticket-alt" style="color: #f87171;"></i>
-                    Submit Ticket
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'settings' %}" class="nav-link">
-                    <i class="fas fa-cog"></i>
-                    Settings
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{% url 'export_sheet' %}" class="nav-link">
-                    <i class="fas fa-file-export"></i>
-                    Export Sheet
-                </a>
-            </li>
-        </ul>
-
-        <div class="logout-section">
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-content">
+        <!-- Main Content -->
+        <div id="main-content" class="flex-1 w-full lg:ml-64">
+    <div class="main-content" style="margin-left: 0;">
         <div class="logo">
             <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo">
         </div>
@@ -178,7 +287,18 @@
             </div>
         </div>
     </div>
+        </div>
+    </div>
 
-    <script src="{% static 'training/js/training.js' %}?v=20260212"></script>
+    <script src="{% static 'training/js/training.js' %}?v=20260308"></script>
+    <script>
+        // Sidebar toggle event listeners
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const menuBtn = document.getElementById('mobile-menu-btn');
+
+        if (menuBtn) menuBtn.addEventListener('click', toggleSidebar);
+        if (overlay) overlay.addEventListener('click', toggleSidebar);
+    </script>
 </body>
 </html>

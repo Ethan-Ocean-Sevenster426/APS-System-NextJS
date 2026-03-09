@@ -2261,14 +2261,7 @@ def shipment_list(request):
 
     # PERFORMANCE FIX: Include page number and filters in cache key so each page/filter combo is cached separately
     page_number = request.GET.get('page', 1)
-    # Build cache key that handles multi-value params (branch, lab, test_type) correctly
-    _cache_filter_keys = ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter', 'corporate_group', 'group_type', 'lab', 'test_type', 'needs_retest', 'coa_uploaded', 'file_status_filter']
-    _cache_parts = []
-    for k in sorted(_cache_filter_keys):
-        vals = request.GET.getlist(k)
-        if vals:
-            _cache_parts.append(f"{k}_{'|'.join(sorted(vals))}")
-    filter_params = '_'.join(_cache_parts)
+    filter_params = '_'.join(f"{k}_{v}" for k, v in sorted(request.GET.items()) if k in ['claim_no', 'client', 'branch', 'inspection_date_from', 'inspection_date_to', 'sent_status', 'compliance_status', 'approved_status_filter'])
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
@@ -2307,8 +2300,7 @@ def shipment_list(request):
     inspections = FoodSafetyAgencyInspection.objects.only(
         # Load ONLY essential fields to reduce data transfer
         'id', 'client_name', 'date_of_inspection', 'inspector_name', 'inspection_group_id',
-        'commodity', 'remote_id', 'product_name', 'is_sent', 'approved_status',
-        'inspection_group',
+        'commodity', 'remote_id', 'product_name', 'is_sent'
     )
     # Show ALL inspections (both manual and synced from SQL Server)
     
@@ -2601,14 +2593,14 @@ def shipment_list(request):
                     # Collect all emails for this client
                     emails = []
                     if _c.email:
-                        # Split on comma, semicolon, slash, or space
-                        for _e in re.split(r'[,;/\s]+', str(_c.email)):
-                            _e = _e.strip().strip('"').strip("'")
+                        # Split comma-separated emails in the primary field
+                        for _e in _c.email.split(','):
+                            _e = _e.strip()
                             if _e:
                                 emails.append({'email': _e, 'type': 'primary', 'removable': True})
                     if _c.manual_email:
-                        for _e in re.split(r'[,;/\s]+', str(_c.manual_email)):
-                            _e = _e.strip().strip('"').strip("'")
+                        for _e in _c.manual_email.split(','):
+                            _e = _e.strip()
                             if _e:
                                 emails.append({'email': _e, 'type': 'manual', 'removable': True})
                     
@@ -5113,17 +5105,10 @@ def apply_fsa_inspection_filters(request, inspections):
     if inspection_no:
         inspections = inspections.filter(remote_id__icontains=inspection_no)
     
-    # Filter by client name - search in both directions for fuzzy matching
+    # Filter by client name
     client_name = request.GET.get('client')
     if client_name:
-        from django.db.models import Q
-        # Match if inspection client_name contains search term OR search term contains inspection client_name
-        # Also match via Client model (name may differ between Client record and inspection record)
-        client_q = Q(client_name__icontains=client_name)
-        # Also find via Client model FK
-        client_q |= Q(client__name__icontains=client_name)
-        client_q |= Q(client__client_id__icontains=client_name)
-        inspections = inspections.filter(client_q)
+        inspections = inspections.filter(client_name__icontains=client_name)
     
     # Filter by inspector(s) - supports multiple selection
     inspectors = request.GET.getlist('branch')  # Keep same parameter name for template compatibility
@@ -8423,7 +8408,7 @@ def analytics_dashboard(request):
     if request.user.role == 'inspector_manager':
         return redirect('inspector_dashboard')
     
-    from ..models import Client, Inspection, FoodSafetyAgencyInspection, Settings, InspectionFee, InspectorTarget
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectionGroup, Settings, InspectionFee, InspectorTarget
     from django.db.models import Count, Q, Avg, Max, Min, Sum, Case, When, IntegerField, DecimalField, Value, F
     from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, Extract
     from datetime import datetime, timedelta, date
@@ -8449,6 +8434,21 @@ def analytics_dashboard(request):
             }
     except Exception:
         pass
+
+    # Build list of non-inspector users to exclude from analytics
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector')
+        .values_list('first_name', flat=True)
+    )
+    # Also match by full name (first + last)
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
 
     # Date ranges for analysis
     now = datetime.now()
@@ -8512,7 +8512,7 @@ def analytics_dashboard(request):
     
     # === INSPECTOR PERFORMANCE ===
     inspector_performance = FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
@@ -8534,7 +8534,7 @@ def analytics_dashboard(request):
 
     # === UNKNOWN INSPECTORS (for assignment) ===
     unknown_inspectors = FoodSafetyAgencyInspection.objects.filter(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_id', 'inspector_name').annotate(
         total_inspections=Count('id'),
         latest_inspection=Max('date_of_inspection'),
@@ -8579,7 +8579,8 @@ def analytics_dashboard(request):
             commodity['compliance_rate'] = 0
     
     # === GEOGRAPHIC ANALYSIS ===
-    geographic_analysis = FoodSafetyAgencyInspection.objects.exclude(
+    # Use InspectionGroup to avoid double-counting km across multi-commodity inspections
+    geographic_analysis = InspectionGroup.objects.exclude(
         Q(km_traveled__isnull=True) | Q(km_traveled=0)
     ).aggregate(
         avg_distance=Avg('km_traveled'),
@@ -8702,12 +8703,12 @@ def analytics_dashboard(request):
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # === SAMPLES BY COMMODITY ===
-    # Exclude occurrence reports from commodity-based analysis
+    # Show all commodities with their sample count (including 0)
     samples_by_commodity = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        is_sample_taken=True
-    ).values('commodity').annotate(count=Count('id')).order_by('commodity'))
+    ).values('commodity').annotate(
+        count=Count('id', filter=Q(is_sample_taken=True))
+    ).order_by('commodity'))
 
     # === FACILITY TYPE DISTRIBUTION ===
     facility_type_distribution = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -8762,7 +8763,7 @@ def analytics_dashboard(request):
 
     # === DAILY COMPLIANCE TREND PER COMMODITY ===
     daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
         date_of_inspection__gte=thirty_days_ago
     ).exclude(
@@ -8779,7 +8780,7 @@ def analytics_dashboard(request):
 
     # === TIME ALLOCATION (hours per inspector) ===
     time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(hours__isnull=True) | Q(hours=0)
     ).values('inspector_name').annotate(
@@ -8803,7 +8804,7 @@ def analytics_dashboard(request):
     occurrence_reports = list(FoodSafetyAgencyInspection.objects.filter(
         is_occurrence_report=True
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         count=Count('id')
     ).order_by('-count'))
@@ -8812,7 +8813,7 @@ def analytics_dashboard(request):
 
     # Directions (non-compliance findings) per inspector
     directions_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total=Count('id'),
         directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
@@ -8823,18 +8824,54 @@ def analytics_dashboard(request):
         item['direction_rate'] = round((item['directions'] / item['total']) * 100, 1) if item['total'] > 0 else 0
 
     # Travel & distance per inspector
-    travel_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    # Use InspectionGroup to avoid double-counting km/hours across multi-commodity inspections
+    _travel_map = {}
+    for _row in InspectionGroup.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    ).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+        inspection_count=Count('inspections'),
+        avg_km=Avg('km_traveled'),
+    ):
+        _travel_map[_row['inspector_name']] = {
+            'inspector_name': _row['inspector_name'],
+            'total_km': float(_row['total_km'] or 0),
+            'total_hours': float(_row['total_hours'] or 0),
+            'inspection_count': _row['inspection_count'] or 0,
+            'avg_km': float(_row['avg_km'] or 0),
+        }
+    # Include ungrouped inspections (legacy data without a parent group)
+    for _row in FoodSafetyAgencyInspection.objects.filter(
+        inspection_group__isnull=True
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_km=Sum('km_traveled'),
         total_hours=Sum('hours'),
         inspection_count=Count('id'),
         avg_km=Avg('km_traveled'),
-    ).order_by('-total_km'))
+    ):
+        name = _row['inspector_name']
+        if name in _travel_map:
+            _travel_map[name]['total_km'] += float(_row['total_km'] or 0)
+            _travel_map[name]['total_hours'] += float(_row['total_hours'] or 0)
+            _travel_map[name]['inspection_count'] += _row['inspection_count'] or 0
+        else:
+            _travel_map[name] = {
+                'inspector_name': name,
+                'total_km': float(_row['total_km'] or 0),
+                'total_hours': float(_row['total_hours'] or 0),
+                'inspection_count': _row['inspection_count'] or 0,
+                'avg_km': float(_row['avg_km'] or 0),
+            }
+    for _v in _travel_map.values():
+        _v['avg_km'] = round(_v['total_km'] / max(_v['inspection_count'], 1), 2)
+    travel_per_inspector = sorted(_travel_map.values(), key=lambda x: x['total_km'], reverse=True)
 
     # Inspections per commodity per inspector (efficiency matrix)
     inspector_commodity_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(commodity__isnull=True) | Q(commodity='')
     ).values('inspector_name', 'commodity').annotate(
@@ -8843,7 +8880,7 @@ def analytics_dashboard(request):
 
     # Per-inspector per-commodity sample counts for target tracking
     inspector_sample_matrix = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
@@ -8854,7 +8891,7 @@ def analytics_dashboard(request):
 
     # Approval status breakdown per inspector
     approval_per_inspector = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total=Count('id'),
         approved=Count('id', filter=Q(approved_status='APPROVED')),
@@ -8873,8 +8910,8 @@ def analytics_dashboard(request):
         month=_TruncMonth('date_of_inspection')
     ).values('month').annotate(count=Count('id')).order_by('month'))
 
-    # Monthly total travel distance
-    monthly_travel_trend = list(FoodSafetyAgencyInspection.objects.exclude(
+    # Monthly total travel distance (from InspectionGroup to avoid double-counting)
+    monthly_travel_trend = list(InspectionGroup.objects.exclude(
         Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
     ).annotate(month=_TruncMonth('date_of_inspection')).values('month').annotate(
         total_km=Sum('km_traveled')
@@ -8919,7 +8956,7 @@ def analytics_dashboard(request):
 
     # Weekly inspector performance trend
     monthly_inspector_trend = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True).filter(
         date_of_inspection__gte=thirty_days_ago
     ).annotate(
@@ -8950,7 +8987,7 @@ def analytics_dashboard(request):
     _appr_by_month = {}
     for _insp in FoodSafetyAgencyInspection.objects.filter(
         approved_status='APPROVED', date_of_inspection__isnull=False
-    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
         _ref = _insp.approved_date or _insp.updated_at
         if _ref is None:
             continue
@@ -8964,17 +9001,15 @@ def analytics_dashboard(request):
         _appr_by_month[_mk]['count'] += 1
     monthly_approval_trend = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
 
-    # Monthly total travel hours
+    # Monthly total travel hours (from InspectionGroup to avoid double-counting)
     _travel_hrs_by_month = {}
-    for _insp in FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
-        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    for _grp in InspectionGroup.objects.exclude(
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).values(
+        'travel_start_time', 'travel_end_time', 'date_of_inspection'
     ):
-        _start = _insp['inspection_group__travel_start_time']
-        _end = _insp['inspection_group__travel_end_time']
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if not (_start and _end):
             continue
         _start_dt = datetime.combine(datetime.today(), _start)
@@ -8982,7 +9017,7 @@ def analytics_dashboard(request):
         if _end_dt < _start_dt:
             _end_dt += timedelta(days=1)
         _dur = (_end_dt - _start_dt).total_seconds() / 3600
-        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _mk = _grp['date_of_inspection'].strftime('%Y-%m')
         _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
     monthly_travel_hours_trend = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
@@ -8993,7 +9028,7 @@ def analytics_dashboard(request):
         ).values_list('date_of_inspection', flat=True).distinct()
     ))
     all_inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
     all_commodities = list(FoodSafetyAgencyInspection.objects.exclude(
         Q(commodity__isnull=True) | Q(commodity='')
@@ -9068,45 +9103,66 @@ def analytics_dashboard(request):
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to travel end time) per inspector
-    # Note: Using travel_start_time and travel_end_time from InspectionGroup
+    # Use InspectionGroup directly to avoid double-counting across multi-commodity inspections
     from datetime import datetime, timedelta
     inspection_times = {}
-    inspections_with_times = FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    for _grp in InspectionGroup.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
+        inspector = _grp['inspector_name']
+        start = _grp['travel_start_time']
+        end = _grp['travel_end_time']
 
-    for insp in inspections_with_times:
-        inspector = insp['inspector_name']
-        start = insp['inspection_group__travel_start_time']
-        end = insp['inspection_group__travel_end_time']
-
-        # Calculate duration in hours
         if start and end:
-            # Convert time to datetime for calculation
             start_dt = datetime.combine(datetime.today(), start)
             end_dt = datetime.combine(datetime.today(), end)
-
-            # Handle cases where end time is before start time (crosses midnight)
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
-
-            duration = (end_dt - start_dt).total_seconds() / 3600  # Convert to hours
+            duration = (end_dt - start_dt).total_seconds() / 3600
 
             if inspector not in inspection_times:
                 inspection_times[inspector] = 0
             inspection_times[inspector] += duration
 
     # Calculate revenue per inspector
-    inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    # Get hours/km from InspectionGroup (group-level) to avoid double-counting
+    _fin_group_data = {}
+    for _row in InspectionGroup.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
-        total_inspections=Count('id'),
         total_hours=Sum('hours'),
         total_km=Sum('km_traveled'),
+    ):
+        _fin_group_data[_row['inspector_name']] = {
+            'total_hours': float(_row['total_hours'] or 0),
+            'total_km': float(_row['total_km'] or 0),
+        }
+    # Also include ungrouped inspections
+    for _row in FoodSafetyAgencyInspection.objects.filter(
+        inspection_group__isnull=True
+    ).exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours'),
+        total_km=Sum('km_traveled'),
+    ):
+        name = _row['inspector_name']
+        if name in _fin_group_data:
+            _fin_group_data[name]['total_hours'] += float(_row['total_hours'] or 0)
+            _fin_group_data[name]['total_km'] += float(_row['total_km'] or 0)
+        else:
+            _fin_group_data[name] = {
+                'total_hours': float(_row['total_hours'] or 0),
+                'total_km': float(_row['total_km'] or 0),
+            }
+
+    # Get inspection counts and sample counts from individual inspections (correct level)
+    inspector_financials_qs = FoodSafetyAgencyInspection.objects.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    ).values('inspector_name').annotate(
+        total_inspections=Count('id'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
     ).order_by('-total_inspections')
@@ -9114,10 +9170,12 @@ def analytics_dashboard(request):
     inspector_financials = []
     total_revenue = 0
     for item in inspector_financials_qs:
-        hrs = float(item['total_hours'] or 0)
-        km = float(item['total_km'] or 0)
+        name = item['inspector_name']
+        group_data = _fin_group_data.get(name, {})
+        hrs = group_data.get('total_hours', 0)
+        km = group_data.get('total_km', 0)
         samples = item['total_samples'] or 0
-        inspection_time = inspection_times.get(item['inspector_name'], 0)
+        inspection_time = inspection_times.get(name, 0)
 
         rev_hours = round(hrs * hourly_rate, 2)
         rev_km = round(km * km_rate, 2)
@@ -9125,10 +9183,11 @@ def analytics_dashboard(request):
         tot = round(rev_hours + rev_km + rev_samples, 2)
         total_revenue += tot
         inspector_financials.append({
-            'inspector_name': item['inspector_name'],
+            'inspector_name': name,
             'total_inspections': item['total_inspections'],
             'total_hours': hrs,
             'total_km': km,
+            'total_samples': samples,
             'inspection_time': round(inspection_time, 1),
             'revenue_hours': rev_hours,
             'revenue_km': rev_km,
@@ -9139,7 +9198,7 @@ def analytics_dashboard(request):
     # Lightweight date+inspector list for client-side period filtering
     inspection_dates_list = list(
         FoodSafetyAgencyInspection.objects.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(date_of_inspection__isnull=True).values_list(
             'date_of_inspection', 'inspector_name'
         )
@@ -9248,7 +9307,7 @@ def analytics_dashboard(request):
         approved_status='APPROVED',
         date_of_inspection__isnull=False,
     ).exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     )
 
     approval_by_inspector = {}
@@ -9414,18 +9473,69 @@ def analytics_dashboard(request):
     return render(request, 'main/analytics_dashboard.html', context)
 
 
+def _api_travel_per_inspector(group_qs, qs, non_inspector_names):
+    """Build travel-per-inspector including ungrouped (legacy) inspections."""
+    _excl = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    _map = {}
+    for r in group_qs.exclude(_excl).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+        inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
+    ):
+        _map[r['inspector_name']] = {
+            'inspector_name': r['inspector_name'],
+            'total_km': float(r['total_km'] or 0),
+            'total_hours': float(r['total_hours'] or 0),
+            'inspection_count': r['inspection_count'] or 0,
+            'avg_km': float(r['avg_km'] or 0),
+        }
+    for r in qs.filter(inspection_group__isnull=True).exclude(_excl).values('inspector_name').annotate(
+        total_km=Sum('km_traveled'), total_hours=Sum('hours'),
+        inspection_count=Count('id'), avg_km=Avg('km_traveled'),
+    ):
+        name = r['inspector_name']
+        if name in _map:
+            _map[name]['total_km'] += float(r['total_km'] or 0)
+            _map[name]['total_hours'] += float(r['total_hours'] or 0)
+            _map[name]['inspection_count'] += r['inspection_count'] or 0
+        else:
+            _map[name] = {
+                'inspector_name': name,
+                'total_km': float(r['total_km'] or 0),
+                'total_hours': float(r['total_hours'] or 0),
+                'inspection_count': r['inspection_count'] or 0,
+                'avg_km': float(r['avg_km'] or 0),
+            }
+    for v in _map.values():
+        v['avg_km'] = round(v['total_km'] / max(v['inspection_count'], 1), 2)
+    return sorted(_map.values(), key=lambda x: x['total_km'], reverse=True)
+
+
 @login_required(login_url='login')
 def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
-    from ..models import FoodSafetyAgencyInspection
+    from ..models import FoodSafetyAgencyInspection, InspectionGroup
     from django.db.models import Count, Q, Avg, Sum
-    from django.db.models.functions import TruncMonth, TruncDay, TruncWeek
+    from django.db.models.functions import TruncMonth, TruncDay
     from datetime import datetime, timedelta
     from django.core.serializers.json import DjangoJSONEncoder
 
     # Block non-authorized roles
     if request.user.role not in ('developer', 'super_admin'):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Build list of non-inspector users to exclude
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector')
+        .values_list('first_name', flat=True)
+    )
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
 
     # Get filter params
     year = request.GET.get('year')
@@ -9452,6 +9562,21 @@ def analytics_dashboard_api(request):
     if commodity and commodity != 'all':
         qs = qs.filter(commodity=commodity)
 
+    # Build matching InspectionGroup filter for group-level metrics (km, hours)
+    group_qs = InspectionGroup.objects.all()
+    if date_from:
+        group_qs = group_qs.filter(date_of_inspection__gte=date_from)
+    if date_to:
+        group_qs = group_qs.filter(date_of_inspection__lte=date_to)
+    if year and year != 'all':
+        group_qs = group_qs.filter(date_of_inspection__year=int(year))
+    if month and month != 'all':
+        group_qs = group_qs.filter(date_of_inspection__month=int(month))
+    if inspector and inspector != 'all':
+        group_qs = group_qs.filter(inspector_name=inspector)
+    if commodity and commodity != 'all':
+        group_qs = group_qs.filter(inspections__commodity=commodity).distinct()
+
     # Total inspections
     total_inspections = qs.count()
 
@@ -9464,7 +9589,7 @@ def analytics_dashboard_api(request):
 
     # Active inspectors
     active_inspectors = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').distinct().count()
 
     # Days worked
@@ -9494,11 +9619,11 @@ def analytics_dashboard_api(request):
         total_inspections=Count('id')
     ).order_by('-total_inspections'))
 
-    # Samples by commodity (exclude occurrence reports)
+    # Samples by commodity - show all commodities including 0 samples
     samples_by_commodity = list(qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(is_sample_taken=True).values('commodity').annotate(
-        count=Count('id')
+    ).values('commodity').annotate(
+        count=Count('id', filter=Q(is_sample_taken=True))
     ).order_by('commodity'))
 
     # Facility type distribution
@@ -9506,49 +9631,32 @@ def analytics_dashboard_api(request):
         Q(facility_type__isnull=True) | Q(facility_type='')
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
-    # Commodity Compliance Trends (daily compliance % per commodity, last 30 days)
-    # Matches initial view: daily granularity with compliance_rate field
-    from django.db.models.functions import TruncDate
-    thirty_days_ago = datetime.now() - timedelta(days=30)
-    _commodity_trend_qs = qs.exclude(
+    # Monthly commodity trends
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    trends_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        date_of_inspection__gte=thirty_days_ago
-    ).annotate(
-        month=TruncDate('date_of_inspection')
-    ).values('month', 'commodity').annotate(
-        total=Count('id'),
-        approved=Count('id', filter=Q(approved_status='APPROVED'))
-    )
-    monthly_commodity_trends = []
-    for item in _commodity_trend_qs:
-        total = item['total']
-        approved = item['approved']
-        compliance_rate = round((approved / total * 100) if total > 0 else 0, 1)
-        monthly_commodity_trends.append({
-            'month': item['month'],
-            'commodity': item['commodity'],
-            'compliance_rate': compliance_rate,
-            'total': total,
-            'approved': approved
-        })
+    ).filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(trends_qs.annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
 
-    # Weekly compliance trend per commodity (uses TruncWeek for granular data)
-    # Matches initial view: weekly granularity, excludes occurrence reports
+    # Monthly compliance trend per commodity
     monthly_compliance_trend = list(qs.exclude(
-        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
+        Q(commodity__isnull=True) | Q(commodity='')
     ).exclude(date_of_inspection__isnull=True).annotate(
-        month=TruncWeek('date_of_inspection')
+        month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED'))
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
     # Daily compliance trend per commodity (last 30 days)
+    from django.db.models.functions import TruncDay
+    thirty_days_ago = datetime.now() - timedelta(days=30)
     daily_compliance_trend = list(qs.exclude(
-        Q(commodity__isnull=True) | Q(commodity='')
+        Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).filter(
         date_of_inspection__gte=thirty_days_ago
     ).exclude(date_of_inspection__isnull=True).annotate(
@@ -9562,7 +9670,7 @@ def analytics_dashboard_api(request):
 
     # Time allocation
     time_allocation = list(qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
     ).order_by('-total_hours')[:15])
@@ -9575,7 +9683,7 @@ def analytics_dashboard_api(request):
 
     # Inspector performance
     inspector_performance = list(qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
@@ -9585,7 +9693,7 @@ def analytics_dashboard_api(request):
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
     _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
     _inspector_trend_base = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True)
     if not _has_date_filter:
         _inspector_trend_base = _inspector_trend_base.filter(date_of_inspection__gte=thirty_days_ago)
@@ -9617,36 +9725,31 @@ def analytics_dashboard_api(request):
         'inspectorPerformance': inspector_performance,
         # Inspector metrics
         'occurrenceReports': list(qs.filter(is_occurrence_report=True).exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(count=Count('id')).order_by('-count')),
         'totalOccurrenceReports': qs.filter(is_occurrence_report=True).count(),
         'directionsPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(
             total=Count('id'),
             directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
             non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
         ).order_by('-total')),
-        'travelPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
-        ).values('inspector_name').annotate(
-            total_km=Sum('km_traveled'), total_hours=Sum('hours'),
-            inspection_count=Count('id'), avg_km=Avg('km_traveled'),
-        ).order_by('-total_km')),
+        'travelPerInspector': _api_travel_per_inspector(group_qs, qs, non_inspector_names),
         'inspectorCommodityMatrix': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
             'inspector_name', 'commodity'
         ).annotate(count=Count('id')).order_by('inspector_name', 'commodity')),
         'inspectorSampleMatrix': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).filter(
             is_sample_taken=True
         ).values('inspector_name', 'commodity').annotate(
             count=Count('id')
         ).order_by('inspector_name', 'commodity')),
         'approvalPerInspector': list(qs.exclude(
-            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+            Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(
             total=Count('id'),
             approved=Count('id', filter=Q(approved_status='APPROVED')),
@@ -9668,34 +9771,40 @@ def analytics_dashboard_api(request):
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to end) per inspector for filtered qs
+    # Use InspectionGroup directly to avoid double-counting
     inspection_times = {}
-    travel_insp_qs = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+    for _grp in group_qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).select_related('inspection_group').values(
-        'inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time'
-    )
-    for _row in travel_insp_qs:
-        _start = _row['inspection_group__travel_start_time']
-        _end = _row['inspection_group__travel_end_time']
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).values('inspector_name', 'travel_start_time', 'travel_end_time'):
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if _start and _end:
             _start_dt = datetime.combine(datetime.today(), _start)
             _end_dt = datetime.combine(datetime.today(), _end)
             if _end_dt < _start_dt:
                 _end_dt += timedelta(days=1)
             _dur = (_end_dt - _start_dt).total_seconds() / 3600
-            inspector = _row['inspector_name']
+            inspector = _grp['inspector_name']
             inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
 
+    # Get hours/km from InspectionGroup (group-level) to avoid double-counting
+    _api_fin_group = {}
+    for _row in group_qs.exclude(
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    ).values('inspector_name').annotate(
+        total_hours=Sum('hours'), total_km=Sum('km_traveled'),
+    ):
+        _api_fin_group[_row['inspector_name']] = {
+            'total_hours': float(_row['total_hours'] or 0),
+            'total_km': float(_row['total_km'] or 0),
+        }
+
     inspector_financials_qs = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
-        total_hours=Sum('hours'),
-        total_km=Sum('km_traveled'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
     ).order_by('-total_inspections')
@@ -9703,10 +9812,12 @@ def analytics_dashboard_api(request):
     inspector_financials = []
     total_revenue = 0
     for item in inspector_financials_qs:
-        hrs = float(item['total_hours'] or 0)
-        km = float(item['total_km'] or 0)
+        name = item['inspector_name']
+        grp = _api_fin_group.get(name, {})
+        hrs = grp.get('total_hours', 0)
+        km = grp.get('total_km', 0)
         samples = item['total_samples'] or 0
-        inspection_time = inspection_times.get(item['inspector_name'], 0)
+        inspection_time = inspection_times.get(name, 0)
 
         rev_hours = round(hrs * hourly_rate, 2)
         rev_km = round(km * km_rate, 2)
@@ -9714,10 +9825,11 @@ def analytics_dashboard_api(request):
         tot = round(rev_hours + rev_km + rev_samples, 2)
         total_revenue += tot
         inspector_financials.append({
-            'inspector_name': item['inspector_name'],
+            'inspector_name': name,
             'total_inspections': item['total_inspections'],
             'total_hours': hrs,
             'total_km': km,
+            'total_samples': samples,
             'inspection_time': round(inspection_time, 1),
             'revenue_hours': rev_hours,
             'revenue_km': rev_km,
@@ -9796,7 +9908,7 @@ def analytics_dashboard_api(request):
     approval_time = []
     approval_filtered = qs.filter(
         approved_status='APPROVED', date_of_inspection__isnull=False,
-    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown'))
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names))
     approval_by_inspector = {}
     for insp in approval_filtered:
         ref_date = insp.approved_date or insp.updated_at
@@ -9817,7 +9929,7 @@ def analytics_dashboard_api(request):
     # 5. Travel time per inspector
     travel_time_per_inspector = []
     travel_time_filtered = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(inspection_group__isnull=True)
     ).exclude(
@@ -9849,11 +9961,14 @@ def analytics_dashboard_api(request):
         month=_TM('date_of_inspection')
     ).values('month').annotate(count=Count('id')).order_by('month'))
 
-    data['monthlyTravelTrend'] = list(qs.exclude(
-        Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
-    ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
-        total_km=Sum('km_traveled')
-    ).order_by('month'))
+    data['monthlyTravelTrend'] = [
+        {'month': r['month'], 'total_km': float(r['total_km'] or 0)}
+        for r in group_qs.exclude(
+            Q(km_traveled__isnull=True) | Q(date_of_inspection__isnull=True)
+        ).annotate(month=_TM('date_of_inspection')).values('month').annotate(
+            total_km=Sum('km_traveled')
+        ).order_by('month')
+    ]
 
     data['monthlyInspectionsTrend'] = list(qs.exclude(
         date_of_inspection__isnull=True
@@ -9900,7 +10015,7 @@ def analytics_dashboard_api(request):
 
     # Monthly avg days to approval (filtered)
     _appr_by_month = {}
-    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')):
+    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
         _ref = _insp.approved_date or _insp.updated_at
         if _ref is None:
             continue
@@ -9915,16 +10030,15 @@ def analytics_dashboard_api(request):
     data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
 
     # Monthly total travel hours (filtered)
+    # Monthly travel hours (from InspectionGroup to avoid double-counting)
     _travel_hrs_by_month = {}
-    for _insp in qs.exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).exclude(date_of_inspection__isnull=True).select_related('inspection_group').values(
-        'inspection_group__travel_start_time', 'inspection_group__travel_end_time', 'date_of_inspection'
+    for _grp in group_qs.exclude(
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).exclude(date_of_inspection__isnull=True).values(
+        'travel_start_time', 'travel_end_time', 'date_of_inspection'
     ):
-        _start = _insp['inspection_group__travel_start_time']
-        _end = _insp['inspection_group__travel_end_time']
+        _start = _grp['travel_start_time']
+        _end = _grp['travel_end_time']
         if not (_start and _end):
             continue
         from datetime import datetime as _dt, timedelta as _td
@@ -9933,7 +10047,7 @@ def analytics_dashboard_api(request):
         if _end_dt < _start_dt:
             _end_dt += _td(days=1)
         _dur = (_end_dt - _start_dt).total_seconds() / 3600
-        _mk = _insp['date_of_inspection'].strftime('%Y-%m')
+        _mk = _grp['date_of_inspection'].strftime('%Y-%m')
         _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
     data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
 
@@ -9945,6 +10059,17 @@ def get_inspector_targets(request):
     """Return all inspector targets and list of known inspectors."""
     from ..models import InspectorTarget, FoodSafetyAgencyInspection
     from django.db.models import Q
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    non_inspector_names = set(
+        _User.objects.exclude(role='inspector').values_list('first_name', flat=True)
+    )
+    for u in _User.objects.exclude(role='inspector'):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            non_inspector_names.add(full)
+    non_inspector_names.discard('')
+    non_inspector_names.add('admin')
 
     targets = {}
     for t in InspectorTarget.objects.all():
@@ -9954,7 +10079,7 @@ def get_inspector_targets(request):
         }
 
     inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown')
+        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values_list('inspector_name', flat=True).distinct().order_by('inspector_name'))
 
     return JsonResponse({'targets': targets, 'inspectors': inspectors})
@@ -15587,10 +15712,6 @@ def send_group_documents(request):
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
 
-        import logging
-        _send_log = logging.getLogger(__name__)
-        _send_log.info(f"[SEND DOC] group_id='{group_id}', inspection_group_id='{inspection_group_id}', client_name='{client_name}', inspection_date='{inspection_date}'")
-
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
 
@@ -15606,17 +15727,20 @@ def send_group_documents(request):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
 
-        # Get ALL client emails (client record + additional emails on inspection/group)
-        all_client_emails = get_all_client_emails(client_name, inspection_group_id=inspection_group_id)
+        if not attachments:
+            return JsonResponse({
+                'success': False,
+                'error': f'No documents found for {client_name} on {inspection_date}. Please upload documents before sending.'
+            })
 
-        if not all_client_emails:
+        # Get client email (pass inspection_group_id for reliable FK lookup)
+        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+
+        if not recipient_email:
             return JsonResponse({
                 'success': False,
                 'error': f'No email address found for {client_name}. Please add client email in the system.'
             })
-
-        # First email is primary recipient, rest go in TO as well
-        recipient_email = all_client_emails[0]
 
         # Get commodities inspected for this group
         from ..models import FoodSafetyAgencyInspection
@@ -15723,39 +15847,68 @@ def send_group_documents(request):
 </div>
 """
 
-        # Build CC list: inspector who did the inspection + manager email
-        cc_emails = []
-        MANAGER_EMAIL = 'simphiwe.mathenjwa@afsq.co.za'
-        cc_emails.append(MANAGER_EMAIL)
+        # Build TO list: client email + all additional emails
+        to_emails = [recipient_email]
 
-        # Find the inspector's email from User model (match by inspector_name)
-        inspector_name = group_inspections.values_list('inspector_name', flat=True).first()
-        if inspector_name:
-            from django.contrib.auth.models import User as AuthUser
-            # Try matching by full name or username
-            inspector_user = None
-            if ' ' in inspector_name:
-                parts = inspector_name.split()
-                inspector_user = AuthUser.objects.filter(
-                    first_name__iexact=parts[0],
-                    last_name__iexact=parts[-1],
-                ).first()
-            if not inspector_user:
-                inspector_user = AuthUser.objects.filter(username__iexact=inspector_name).first()
+        # Add additional_email from FoodSafetyAgencyInspection (comma-separated)
+        additional_email_raw = group_inspections.exclude(
+            additional_email__isnull=True
+        ).exclude(
+            additional_email__exact=''
+        ).values_list('additional_email', flat=True).first()
+        if not additional_email_raw and inspection_group_id:
+            from ..models import InspectionGroup
+            ig = InspectionGroup.objects.filter(id=inspection_group_id).values_list('additional_email', flat=True).first()
+            if ig:
+                additional_email_raw = ig
+        if additional_email_raw:
+            for e in additional_email_raw.split(','):
+                e = e.strip()
+                if e and e not in to_emails:
+                    to_emails.append(e)
+
+        # Add additional_email_1..4 from Inspection model
+        from ..models import Inspection
+        insp_record = Inspection.objects.filter(
+            facility_client_name__iexact=client_name,
+            inspection_date=date_obj.date()
+        ).first()
+        if insp_record:
+            for field in ['additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                val = getattr(insp_record, field, None)
+                if val and val.strip() and val.strip() not in to_emails:
+                    to_emails.append(val.strip())
+
+        # Build CC list: inspector + management
+        cc_emails = []
+
+        # CC the inspector who performed the inspection
+        from django.contrib.auth.models import User as AuthUser
+        insp_name = group_inspections.exclude(
+            inspector_name__isnull=True
+        ).exclude(
+            inspector_name__exact=''
+        ).values_list('inspector_name', flat=True).first()
+        if insp_name:
+            inspector_user = AuthUser.objects.filter(
+                first_name__iexact=insp_name.split()[0]
+            ).exclude(email__exact='').first()
             if inspector_user and inspector_user.email:
                 cc_emails.append(inspector_user.email)
 
-        # Dedupe and remove any that match the main recipient
-        cc_emails = list(set(e.lower().strip() for e in cc_emails if e))
-        # Remove any CC that's already in the TO list
-        to_emails_lower = set(e.lower().strip() for e in all_client_emails)
-        cc_emails = [e for e in cc_emails if e not in to_emails_lower]
+        # CC management
+        management_cc = [
+            'simphiwe.mathenjwa@afsq.co.za',
+        ]
+        for mgmt_email in management_cc:
+            if mgmt_email not in cc_emails:
+                cc_emails.append(mgmt_email)
 
         email = EmailMessage(
             subject=subject,
             body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=all_client_emails,
+            to=to_emails,
             cc=cc_emails if cc_emails else None,
             reply_to=[settings.DEFAULT_FROM_EMAIL]
         )
@@ -15765,8 +15918,6 @@ def send_group_documents(request):
             email.attach_file(file_path)
 
         email.send()
-
-        all_recipients = all_client_emails + cc_emails
 
         # Mark inspections as sent (reuse group_inspections queryset from above)
         group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
@@ -15779,12 +15930,12 @@ def send_group_documents(request):
             page='inspections',
             object_type='group_documents',
             object_id=group_id,
-            description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(all_client_emails)} (CC: {", ".join(cc_emails)})',
+            description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(to_emails)}' + (f' (CC: {", ".join(cc_emails)})' if cc_emails else ''),
             details={
                 'client_name': client_name,
                 'inspection_date': inspection_date,
                 'documents_sent': documents_found,
-                'recipient': recipient_email,
+                'to': to_emails,
                 'cc': cc_emails
             }
         )
@@ -15793,11 +15944,13 @@ def send_group_documents(request):
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
         sent_time = timezone.now().strftime('%d %b %Y %H:%M')
 
-        cc_display = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
+        cc_msg = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
+        to_msg = ', '.join(to_emails)
         return JsonResponse({
             'success': True,
-            'message': f'Documents sent successfully to {recipient_email}{cc_display}',
-            'recipients': ', '.join(all_recipients),
+            'message': f'Documents sent successfully to {to_msg}{cc_msg}',
+            'recipients': to_emails,
+            'cc': cc_emails,
             'documents_sent': len(attachments),
             'sent_by': sender_name,
             'sent_time': sent_time,
@@ -15805,39 +15958,8 @@ def send_group_documents(request):
 
     except Exception as e:
         import traceback
-        import logging
-        _err_log = logging.getLogger(__name__)
         traceback.print_exc()
-        error_msg = str(e)
-
-        # Extract Graph API error details if available
-        graph_error_detail = ''
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                err_json = e.response.json()
-                graph_error_detail = err_json.get('error', {}).get('message', '')
-                graph_code = err_json.get('error', {}).get('code', '')
-                _err_log.error(f"[SEND DOC ERROR] Graph API code={graph_code}, message={graph_error_detail}")
-                _err_log.error(f"[SEND DOC ERROR] TO={all_client_emails if 'all_client_emails' in dir() else 'unknown'}")
-                _err_log.error(f"[SEND DOC ERROR] Attachments={len(attachments) if 'attachments' in dir() else 'unknown'}")
-            except Exception:
-                _err_log.error(f"[SEND DOC ERROR] Raw response: {e.response.text[:500] if e.response else 'no response'}")
-
-        # Make Graph API errors more user-friendly
-        if '400' in error_msg or 'Bad Request' in error_msg:
-            total_size = sum(os.path.getsize(f) for f in attachments if os.path.isfile(f)) if 'attachments' in dir() else 0
-            size_mb = round(total_size / (1024 * 1024), 1)
-            if total_size > 3 * 1024 * 1024:
-                error_msg = f'Attachments too large ({size_mb}MB). Microsoft Graph API has a 4MB limit. Try sending fewer documents.'
-            elif graph_error_detail:
-                error_msg = f'Email service error: {graph_error_detail}'
-            else:
-                error_msg = f'Email service rejected the request ({size_mb}MB). Please try again or contact support.'
-        elif '401' in error_msg or 'Unauthorized' in error_msg:
-            error_msg = 'Email service authentication failed. Please contact support.'
-        elif '403' in error_msg or 'Forbidden' in error_msg:
-            error_msg = 'Email service permission denied. The sender mailbox may not have send permissions.'
-        return JsonResponse({'success': False, 'error': error_msg})
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 def get_client_email(client_name, inspection_group_id=None):
@@ -15845,38 +15967,26 @@ def get_client_email(client_name, inspection_group_id=None):
 
     Lookup order:
     1. Via inspection's client FK (most reliable - avoids name mismatch issues)
-    2. Via InspectionGroup's client FK
-    3. By client_id field (iexact)
-    4. By client name field (iexact)
-    5. By client name (icontains - partial match)
-    6. Normalized name search (strips hyphens, punctuation for fuzzy match)
+    2. By client_id field (iexact)
+    3. By client name field (iexact)
+    4. Normalized name search (strips hyphens, punctuation for fuzzy match)
     """
     import re
-    import logging
-    _log = logging.getLogger(__name__)
-
-    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
-    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
 
     def _extract_email(client):
-        """Return first available valid email from a Client object."""
-        import re
-        for field in [client.manual_email, client.email]:
-            if field and str(field).strip():
-                for part in re.split(r'[,;/\s]+', str(field)):
-                    e = part.strip().strip('"').strip("'")
-                    if _valid_email_re.match(e) and not _bad_domain_re.search(e):
-                        return e
+        """Return first available email from a Client object."""
+        if client.manual_email:
+            return client.manual_email.split(',')[0].strip()
+        if client.email:
+            return client.email.split(',')[0].strip()
         from ..models import ClientEmail
         client_email = ClientEmail.objects.filter(client=client).first()
-        if client_email and client_email.email and _valid_email_re.match(str(client_email.email).strip()):
-            return client_email.email.strip()
+        if client_email:
+            return client_email.email
         return None
 
     try:
-        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
-
-        _log.info(f"[EMAIL LOOKUP] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
+        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection
 
         # 1. Try via inspection's client FK (most reliable)
         if inspection_group_id:
@@ -15886,57 +15996,24 @@ def get_client_email(client_name, inspection_group_id=None):
             ).select_related('client').first()
             if insp and insp.client:
                 email = _extract_email(insp.client)
-                _log.info(f"[EMAIL LOOKUP] Step 1 (inspection FK): client={insp.client.name}, email={email}")
                 if email:
                     return email
-            else:
-                _log.info(f"[EMAIL LOOKUP] Step 1: No inspection with client FK found for group {inspection_group_id}")
 
-            # 2. Try via InspectionGroup's client FK
-            try:
-                group = InspectionGroup.objects.filter(id=inspection_group_id, client__isnull=False).select_related('client').first()
-                if group and group.client:
-                    email = _extract_email(group.client)
-                    _log.info(f"[EMAIL LOOKUP] Step 2 (group FK): client={group.client.name}, email={email}")
-                    if email:
-                        return email
-            except Exception:
-                pass
-
-        # 3. Try by client_id field
+        # 2. Try by client_id field
         client = Client.objects.filter(client_id__iexact=client_name).first()
         if client:
             email = _extract_email(client)
-            _log.info(f"[EMAIL LOOKUP] Step 3 (client_id match): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 4. Try by name field (exact)
+        # 3. Try by name field
         client = Client.objects.filter(name__iexact=client_name).first()
         if client:
             email = _extract_email(client)
-            _log.info(f"[EMAIL LOOKUP] Step 4 (name exact): client={client.name}, email={email}")
             if email:
                 return email
 
-        # 5. Try by name field (contains - partial match)
-        if client_name and len(client_name) > 3:
-            client = Client.objects.filter(name__icontains=client_name).first()
-            if not client:
-                # Try the other way: client name contains the search term
-                for c in Client.objects.filter(email__isnull=False).exclude(email='').only('id', 'name', 'client_id', 'email', 'manual_email'):
-                    if c.name and client_name.lower() in c.name.lower():
-                        email = _extract_email(c)
-                        if email:
-                            _log.info(f"[EMAIL LOOKUP] Step 5b (reverse contains): client={c.name}, email={email}")
-                            return email
-            elif client:
-                email = _extract_email(client)
-                _log.info(f"[EMAIL LOOKUP] Step 5 (name contains): client={client.name}, email={email}")
-                if email:
-                    return email
-
-        # 6. Normalized search (strips hyphens, punctuation - matches page display logic)
+        # 4. Normalized search (strips hyphens, punctuation - matches page display logic)
         def _norm(text):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
@@ -15946,158 +16023,13 @@ def get_client_email(client_name, inspection_group_id=None):
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
                 if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
                     email = _extract_email(c)
-                    _log.info(f"[EMAIL LOOKUP] Step 6 (normalized): client={c.name}, email={email}")
                     if email:
                         return email
 
-        # 7. Fallback: check additional_email on inspection or group
-        if inspection_group_id:
-            # Check inspection-level additional_email
-            insp_email = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id
-            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
-            if insp_email:
-                email = insp_email.split(',')[0].strip()
-                if '@' in email:
-                    _log.info(f"[EMAIL LOOKUP] Step 7a (inspection additional_email): {email}")
-                    return email
-
-            # Check group-level additional_email
-            try:
-                group_email = InspectionGroup.objects.filter(
-                    id=inspection_group_id
-                ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).first()
-                if group_email:
-                    email = str(group_email).split(',')[0].strip()
-                    if '@' in email:
-                        _log.info(f"[EMAIL LOOKUP] Step 7b (group additional_email): {email}")
-                        return email
-            except Exception:
-                pass
-
-        # 8. Last resort: find Client by name words (handles cases like "Kekkel en kraai hirbenia" vs "Kekkel En Kraai Hirbenia")
-        if client_name and len(client_name) > 3:
-            words = [w for w in client_name.lower().split() if len(w) > 2]
-            if words:
-                from django.db.models import Q
-                q = Q()
-                for word in words[:3]:  # Use first 3 significant words
-                    q &= Q(name__icontains=word)
-                client = Client.objects.filter(q).first()
-                if client:
-                    email = _extract_email(client)
-                    _log.info(f"[EMAIL LOOKUP] Step 8 (word match): client={client.name}, email={email}")
-                    if email:
-                        return email
-
-        _log.warning(f"[EMAIL LOOKUP] FAILED - No email found for client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
         return None
 
-    except Exception as e:
-        _log.error(f"[EMAIL LOOKUP] Exception: {e}")
+    except Exception:
         return None
-
-
-def get_all_client_emails(client_name, inspection_group_id=None):
-    """Get ALL email addresses for a client: client record emails + additional emails on inspection/group.
-    Returns a deduplicated list of all valid emails, or empty list if none found.
-    """
-    import re
-    import logging
-    _log = logging.getLogger(__name__)
-
-    _valid_email_re = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
-    _bad_domain_re = re.compile(r'\.(coza|coz|coaz|co\.z)$', re.IGNORECASE)
-
-    emails = set()
-
-    def _is_valid(e):
-        return bool(_valid_email_re.match(e)) and not _bad_domain_re.search(e)
-
-    def _add_emails_from_field(value):
-        """Extract all emails from a field that may contain comma/semicolon/slash/space-separated values."""
-        if not value:
-            return
-        import re
-        for part in re.split(r'[,;/\s]+', str(value)):
-            e = part.strip().strip('"').strip("'").lower()
-            if e and _is_valid(e):
-                emails.add(e)
-            elif e and '@' in e:
-                _log.warning(f"[EMAIL ALL] Skipping malformed email: '{e}'")
-
-    try:
-        from ..models import Client, ClientEmail, FoodSafetyAgencyInspection, InspectionGroup
-
-        _log.info(f"[EMAIL ALL] client_name='{client_name}', inspection_group_id='{inspection_group_id}'")
-
-        # 1. Get emails from inspection's client FK
-        if inspection_group_id:
-            insp = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id,
-                client__isnull=False
-            ).select_related('client').first()
-            if insp and insp.client:
-                _add_emails_from_field(insp.client.manual_email)
-                _add_emails_from_field(insp.client.email)
-                # Also check ClientEmail table
-                from ..models import ClientEmail
-                for ce in ClientEmail.objects.filter(client=insp.client):
-                    _add_emails_from_field(ce.email)
-
-            # 2. Get additional_email from inspections in this group
-            for ae in FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id
-            ).exclude(additional_email__isnull=True).exclude(additional_email='').values_list('additional_email', flat=True).distinct():
-                _add_emails_from_field(ae)
-
-            # 3. Get additional_email from InspectionGroup
-            try:
-                group = InspectionGroup.objects.filter(id=inspection_group_id).first()
-                if group:
-                    _add_emails_from_field(group.additional_email)
-                    if group.client:
-                        _add_emails_from_field(group.client.manual_email)
-                        _add_emails_from_field(group.client.email)
-            except Exception:
-                pass
-
-        # 4. Search by client name if we still have no emails
-        if not emails:
-            # Try exact name match, then fuzzy
-            from ..models import Client
-            for lookup in [
-                Client.objects.filter(client_id__iexact=client_name),
-                Client.objects.filter(name__iexact=client_name),
-                Client.objects.filter(name__icontains=client_name) if client_name and len(client_name) > 3 else Client.objects.none(),
-            ]:
-                client = lookup.first()
-                if client:
-                    _add_emails_from_field(client.manual_email)
-                    _add_emails_from_field(client.email)
-                    if emails:
-                        break
-
-            # Word-based fuzzy match as last resort
-            if not emails and client_name and len(client_name) > 3:
-                words = [w for w in client_name.lower().split() if len(w) > 2]
-                if words:
-                    from django.db.models import Q
-                    q = Q()
-                    for word in words[:3]:
-                        q &= Q(name__icontains=word)
-                    client = Client.objects.filter(q).first()
-                    if client:
-                        _add_emails_from_field(client.manual_email)
-                        _add_emails_from_field(client.email)
-
-        result = sorted(emails)
-        _log.info(f"[EMAIL ALL] Found {len(result)} emails: {result}")
-        return result
-
-    except Exception as e:
-        _log.error(f"[EMAIL ALL] Exception: {e}")
-        return list(emails) if emails else []
 
 
 @login_required

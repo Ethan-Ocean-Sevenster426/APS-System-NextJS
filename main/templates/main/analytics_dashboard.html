@@ -23,8 +23,8 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{% static 'analytics_dashboard/js/html2canvas.min.js' %}?v=1.4.1"></script>
     <script src="{% static 'analytics_dashboard/js/jspdf.umd.min.js' %}?v=2.5.1"></script>
+    <script src="{% static 'analytics_dashboard/js/jspdf.plugin.autotable.min.js' %}?v=3.8.4"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -563,7 +563,7 @@
 
         <!-- Weekly Compliance + Samples + Facility -->
         <div class="dashboard-grid-2col">
-            <div class="card">
+            <div class="card" style="display: flex; flex-direction: column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
@@ -572,7 +572,7 @@
                            id="complianceTrendInfo" title="Inspection breakdown by commodity"></i>
                     </div>
                 </div>
-                <div class="card-body" style="height: 280px;">
+                <div class="card-body" style="flex: 1; min-height: 0;">
                     <canvas id="complianceTrendChart"></canvas>
                 </div>
             </div>
@@ -660,19 +660,8 @@
          ============================================================ -->
     <div id="panel-operations" class="dashboard-panel">
 
-        <!-- Travel Distance + Monthly Travel Trend -->
+        <!-- Monthly Trends Row -->
         <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-route"></i>
-                        <span>Travel Distance Per Inspector</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelChart"></canvas>
-                </div>
-            </div>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -680,23 +669,8 @@
                         <span>Monthly Travel Distance (km)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 260px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="travelTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Travel Time Per Inspector + Travel Hours Trend -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-car"></i>
-                        <span>Travel Time Per Inspector (Hours)</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="travelTimeChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -706,9 +680,35 @@
                         <span>Travel Hours Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 260px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="travelHoursTrendChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <!-- Travel Distance Per Inspector (full width) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-route"></i>
+                    <span>Travel Distance Per Inspector</span>
+                </div>
+            </div>
+            <div class="card-body" style="min-height: 300px;">
+                <canvas id="travelChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Travel Time Per Inspector (full width) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-car"></i>
+                    <span>Travel Time Per Inspector (Hours)</span>
+                </div>
+            </div>
+            <div class="card-body" style="min-height: 300px;">
+                <canvas id="travelTimeChart"></canvas>
             </div>
         </div>
     </div>
@@ -718,19 +718,8 @@
          ============================================================ -->
     <div id="panel-documents" class="dashboard-panel">
 
-        <!-- Doc Send -->
+        <!-- Monthly Trends (2x2 grid) -->
         <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-paper-plane"></i>
-                        <span>Avg Days to Send Documents</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="docSendChart"></canvas>
-                </div>
-            </div>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -738,23 +727,8 @@
                         <span>Doc Send Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="docSendTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Invoice Upload -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Avg Days to Upload Invoice</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="invoiceUploadChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -764,25 +738,12 @@
                         <span>Invoice Upload Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="invoiceTrendChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- COA Upload -->
         <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-flask"></i>
-                        <span>Avg Days: Sample to COA Upload</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 240px;">
-                    <canvas id="coaTimeChart"></canvas>
-                </div>
-            </div>
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -790,23 +751,8 @@
                         <span>COA Upload Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 240px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="coaTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Approval Time -->
-        <div class="dashboard-grid-2col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-hourglass-half"></i>
-                        <span>Avg Days to Approval</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 260px;">
-                    <canvas id="approvalTimeChart"></canvas>
                 </div>
             </div>
             <div class="card">
@@ -816,8 +762,58 @@
                         <span>Approval Time Trend (Monthly)</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 260px;">
+                <div class="card-body" style="height: 180px;">
                     <canvas id="approvalTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avg Days Bar Charts (full width each) -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Avg Days to Send Documents</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="docSendChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Avg Days to Upload Invoice</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="invoiceUploadChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-flask"></i>
+                        <span>Avg Days: Sample to COA Upload</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="coaTimeChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-hourglass-half"></i>
+                        <span>Avg Days to Approval</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 280px;">
+                    <canvas id="approvalTimeChart"></canvas>
                 </div>
             </div>
         </div>
@@ -860,10 +856,11 @@
                 <table class="inspections-table" id="financialTable">
                     <thead>
                         <tr>
-                            <th class="fin-col-inspector">Inspector</th>
+                            <th class="fin-col-inspector fin-sticky-col">Inspector</th>
                             <th class="num">Inspections</th>
                             <th class="num">Billable Hrs</th>
                             <th class="num">KM</th>
+                            <th class="num">R/km</th>
                             <th class="num">On-Site Hrs</th>
                             <th class="num">Rev (Hours)</th>
                             <th class="num">Rev (KM)</th>
@@ -918,41 +915,42 @@
         </div>
         {% endif %}
 
-        <!-- Revenue Breakdown Chart -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Revenue Breakdown Per Inspector</span>
+        <!-- Revenue Breakdown + Inspector Comparison side by side -->
+        <div class="dashboard-grid-2col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Revenue Breakdown Per Inspector</span>
+                    </div>
+                </div>
+                <div class="card-body" style="min-height: 320px;">
+                    <canvas id="revenueCostChart"></canvas>
                 </div>
             </div>
-            <div class="card-body" style="height: 320px;">
-                <canvas id="revenueCostChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Inspector Comparison Trend -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Inspector Comparison</span>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Inspector Comparison</span>
+                    </div>
+                    <div class="financial-actions">
+                        <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
+                            <option value="total_revenue">Total Revenue</option>
+                            <option value="total_profit">Total Profit</option>
+                            <option value="revenue_hours">Revenue (Hours)</option>
+                            <option value="revenue_km">Revenue (KM)</option>
+                            <option value="revenue_samples">Revenue (Samples)</option>
+                            <option value="total_hours">Billable Hours</option>
+                            <option value="total_km">KM Traveled</option>
+                            <option value="inspection_time">On-Site Hours</option>
+                            <option value="total_inspections">Inspections</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="financial-actions">
-                    <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
-                        <option value="total_revenue">Total Revenue</option>
-                        <option value="revenue_hours">Revenue (Hours)</option>
-                        <option value="revenue_km">Revenue (KM)</option>
-                        <option value="revenue_samples">Revenue (Samples)</option>
-                        <option value="total_hours">Billable Hours</option>
-                        <option value="total_km">KM Traveled</option>
-                        <option value="inspection_time">On-Site Hours</option>
-                        <option value="total_inspections">Inspections</option>
-                    </select>
+                <div class="card-body" style="min-height: 320px;">
+                    <canvas id="inspectorComparisonChart"></canvas>
                 </div>
-            </div>
-            <div class="card-body" style="height: 380px;">
-                <canvas id="inspectorComparisonChart"></canvas>
             </div>
         </div>
     </div>
@@ -1031,7 +1029,7 @@
     };
 </script>
 <!-- Analytics Dashboard JS -->
-<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260224m"></script>
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260308m"></script>
 
 {% if request.user.role != 'inspector' %}
 <!-- Xero Integration JS -->
