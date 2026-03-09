@@ -15708,7 +15708,7 @@ def send_group_documents(request):
 
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
-        inspection_group_id = data.get('inspection_group_id', '')
+        inspection_group_id = data.get('inspection_group_id', '') or group_id
         client_name = data.get('client_name', '')
         inspection_date = data.get('inspection_date', '')
 
