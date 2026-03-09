@@ -15818,6 +15818,11 @@ def send_group_documents(request):
         for category, file_list in files_by_category.items():
             if file_list:
                 attached_categories.add(category)
+        # Also include categories from fallback-found documents
+        for doc_entry in documents_found:
+            cat = doc_entry.split('/')[0] if '/' in doc_entry else ''
+            if cat:
+                attached_categories.add(cat)
 
         documents_lines = ''
         for cat_key, cat_label in category_display.items():
