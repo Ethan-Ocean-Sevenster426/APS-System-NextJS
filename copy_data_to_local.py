@@ -1,6 +1,7 @@
 """
-1. Run Django migrations on localhost DB
-2. Copy all data from remote DB (82.25.97.159) to local DB (localhost)
+1. Install missing deps
+2. Run Django migrations on localhost DB
+3. Copy all data from remote DB (82.25.97.159) to local DB (localhost)
 
 Run on the server: cd /var/www/v4-Worksheet-demo && python copy_data_to_local.py
 """
@@ -8,21 +9,19 @@ import os
 import sys
 import subprocess
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SETTINGS_FILE = os.path.join(BASE_DIR, 'mysite', 'settings.py')
+
+# Step 0: Install missing deps
+print('=== Step 0: Installing missing dependencies ===\n')
+subprocess.run([sys.executable, '-m', 'pip', 'install', 'reportlab', '-q'], check=False)
+
 # Step 1: Run migrations against localhost
-print('=== Step 1: Running migrations on localhost DB ===\n')
+print('\n=== Step 1: Running migrations on localhost DB ===\n')
 
-# Temporarily override DB host to localhost via env
-env = os.environ.copy()
-env['DJANGO_SETTINGS_MODULE'] = 'mysite.settings'
-
-# Patch settings to use localhost before Django loads
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mysite', 'settings.py')
-
-# Read current settings
 with open(SETTINGS_FILE, 'r') as f:
     original_settings = f.read()
 
-# Swap to localhost
 patched_settings = original_settings.replace("'HOST': '82.25.97.159'", "'HOST': 'localhost'")
 with open(SETTINGS_FILE, 'w') as f:
     f.write(patched_settings)
@@ -32,25 +31,27 @@ print('Pointed settings.py to localhost')
 try:
     result = subprocess.run(
         [sys.executable, 'manage.py', 'migrate', '--run-syncdb'],
-        env=env,
-        capture_output=True,
-        text=True,
-        cwd=os.path.dirname(os.path.abspath(__file__))
+        capture_output=True, text=True, cwd=BASE_DIR
     )
     print(result.stdout)
     if result.returncode != 0:
-        print(f'Migration warnings/errors:\n{result.stderr}')
-        # Don't abort - some warnings are OK
+        print(f'Migration output:\n{result.stderr}')
     print('Migrations complete.\n')
 except Exception as e:
     print(f'Migration error: {e}')
-    # Restore original settings before exiting
     with open(SETTINGS_FILE, 'w') as f:
         f.write(original_settings)
     sys.exit(1)
 
-# Step 2: Copy data
+# Step 2: Grant superuser to inspection_user temporarily, then copy
 print('=== Step 2: Copying data from 82.25.97.159 to localhost ===\n')
+
+# Grant superuser so we can disable triggers
+subprocess.run(
+    ['sudo', '-u', 'postgres', 'psql', '-d', 'inspection_system', '-c',
+     'ALTER USER inspection_user WITH SUPERUSER;'],
+    check=False
+)
 
 import psycopg2
 
@@ -70,7 +71,6 @@ LOCAL = {
     'password': 'InspectionTest2026',
 }
 
-# Tables in dependency order (parents before children)
 TABLES = [
     'django_content_type',
     'auth_permission',
@@ -105,7 +105,6 @@ TABLES = [
 
 
 def copy_table(remote_cur, local_cur, local_conn, table):
-    """Copy all rows from remote table to local table."""
     try:
         remote_cur.execute(f'SELECT * FROM "{table}"')
         rows = remote_cur.fetchall()
@@ -123,7 +122,7 @@ def copy_table(remote_cur, local_cur, local_conn, table):
             try:
                 local_cur.execute(insert_sql, row)
                 inserted += 1
-            except Exception as e:
+            except Exception:
                 local_conn.rollback()
                 local_cur.execute("SET session_replication_role = 'replica';")
 
@@ -145,7 +144,6 @@ def main():
     local_conn = psycopg2.connect(**LOCAL)
     local_cur = local_conn.cursor()
 
-    # Disable FK checks
     local_cur.execute("SET session_replication_role = 'replica';")
 
     print('\nCopying tables...\n')
@@ -156,7 +154,7 @@ def main():
         local_conn.commit()
         local_cur.execute("SET session_replication_role = 'replica';")
 
-    # Fix sequences so new inserts get correct IDs
+    # Fix sequences
     print('\n=== Fixing sequences ===\n')
     for table in TABLES:
         try:
@@ -169,17 +167,22 @@ def main():
         except Exception:
             local_conn.rollback()
 
-    # Re-enable FK checks
     local_cur.execute("SET session_replication_role = 'origin';")
     local_conn.commit()
 
     remote_conn.close()
     local_conn.close()
 
-    # Verify
+    # Revoke superuser
+    subprocess.run(
+        ['sudo', '-u', 'postgres', 'psql', '-d', 'inspection_system', '-c',
+         'ALTER USER inspection_user WITH NOSUPERUSER;'],
+        check=False
+    )
+
     print(f'\nDone! Copied {total} total rows.')
     print('\nSettings.py is now pointed to localhost.')
-    print('Restart gunicorn: sudo systemctl restart gunicorn')
+    print('Run: sudo systemctl restart gunicorn')
 
 
 if __name__ == '__main__':
