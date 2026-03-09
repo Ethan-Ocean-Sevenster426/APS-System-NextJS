@@ -15899,7 +15899,6 @@ def send_group_documents(request):
         # CC management
         management_cc = [
             'simphiwe.mathenjwa@afsq.co.za',
-            'nicole.bergh@afsq.co.za',
         ]
         for mgmt_email in management_cc:
             if mgmt_email not in cc_emails:
