@@ -16053,10 +16053,23 @@ def get_client_email(client_name, inspection_group_id=None):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
 
+        def _compact(text):
+            """Remove all spaces for compact comparison (e.g. 'Super Spar' == 'SuperSpar')"""
+            return _norm(text).replace(" ", "")
+
         norm_name = _norm(client_name)
+        compact_name = _compact(client_name)
         if norm_name:
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
-                if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
+                c_norm = _norm(c.name)
+                c_cid_norm = _norm(c.client_id)
+                # Exact normalized match
+                if c_cid_norm == norm_name or c_norm == norm_name:
+                    email = _extract_email(c)
+                    if email:
+                        return email
+                # Compact match (ignores spaces: "Super Spar" == "SuperSpar")
+                if _compact(c.name) == compact_name or _compact(c.client_id) == compact_name:
                     email = _extract_email(c)
                     if email:
                         return email
