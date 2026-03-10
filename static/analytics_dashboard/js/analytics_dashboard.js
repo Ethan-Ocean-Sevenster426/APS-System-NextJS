@@ -3831,7 +3831,7 @@ function renderProfitabilityTable() {
     }
 
     var html = '';
-    var totals = { rev: 0, target: 0, salary: 0, vehicle: 0, other: 0, cost: 0, profit: 0 };
+    var totals = { rev: 0, target: 0, salary: 0, vehicle: 0, other: 0, mgmt: 0, cost: 0, profit: 0 };
     var inspectorNames = Object.keys(inspectors).sort();
 
     inspectorNames.forEach(function(name) {
@@ -3844,7 +3844,8 @@ function renderProfitabilityTable() {
         var salary3 = (qt.monthly_salary || getInspectorSalary(name) || 0) * 3;
         var vehicle3 = (qt.monthly_vehicle_cost || 0) * 3;
         var other3 = (qt.monthly_other_costs || 0) * 3;
-        var totalCost = salary3 + vehicle3 + other3;
+        var mgmtFee = Math.round((salary3 + vehicle3 + other3) * 0.20);
+        var totalCost = salary3 + vehicle3 + other3 + mgmtFee;
         var profit = totalRevenue - totalCost;
         var margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 100) : 0;
         var revTarget = qt.quarterly_revenue_target || 0;
@@ -3853,7 +3854,7 @@ function renderProfitabilityTable() {
 
         totals.rev += totalRevenue; totals.target += revTarget;
         totals.salary += salary3; totals.vehicle += vehicle3; totals.other += other3;
-        totals.cost += totalCost; totals.profit += profit;
+        totals.mgmt += mgmtFee; totals.cost += totalCost; totals.profit += profit;
 
         function fR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
         var pColor = profit >= 0 ? '#166534' : '#991b1b';
@@ -3868,6 +3869,7 @@ function renderProfitabilityTable() {
         html += '<td class="num">' + (salary3 > 0 ? fR(salary3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
         html += '<td class="num">' + (vehicle3 > 0 ? fR(vehicle3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
         html += '<td class="num">' + (other3 > 0 ? fR(other3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (mgmtFee > 0 ? fR(mgmtFee) : '<span style="color:#9ca3af;">—</span>') + '</td>';
         html += '<td class="num" style="font-weight:600;">' + (totalCost > 0 ? fR(totalCost) : '<span style="color:#9ca3af;">—</span>') + '</td>';
         html += '<td class="num" style="color:' + pColor + '; background:' + pBg + '; font-weight:700;">' + fR(profit) + '</td>';
         html += '<td class="num" style="color:' + (margin >= 20 ? '#166534' : margin >= 0 ? '#92400e' : '#991b1b') + '; font-weight:600;">' + margin + '%</td>';
@@ -3887,10 +3889,11 @@ function renderProfitabilityTable() {
     html += '<td class="num">' + fR(totals.salary) + '</td>';
     html += '<td class="num">' + fR(totals.vehicle) + '</td>';
     html += '<td class="num">' + fR(totals.other) + '</td>';
+    html += '<td class="num">' + fR(totals.mgmt) + '</td>';
     html += '<td class="num">' + fR(totals.cost) + '</td>';
     html += '<td class="num" style="color:' + tpColor + ';">' + fR(totals.profit) + '</td>';
     html += '<td class="num">' + tMargin + '%</td>';
-    html += '<td class="num"></td><td class="num"></td>';
+    html += '<td class="num"></td><td class="num"></td><td class="num"></td>';
     html += '</tr>';
     tbody.innerHTML = html;
 }
