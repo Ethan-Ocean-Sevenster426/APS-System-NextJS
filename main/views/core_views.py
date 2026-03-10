@@ -9515,7 +9515,7 @@ def analytics_dashboard_api(request):
     """API endpoint for filtered analytics dashboard data."""
     from ..models import FoodSafetyAgencyInspection, InspectionGroup
     from django.db.models import Count, Q, Avg, Sum
-    from django.db.models.functions import TruncMonth, TruncDay
+    from django.db.models.functions import TruncMonth, TruncDay, TruncWeek
     from datetime import datetime, timedelta
     from django.core.serializers.json import DjangoJSONEncoder
 
