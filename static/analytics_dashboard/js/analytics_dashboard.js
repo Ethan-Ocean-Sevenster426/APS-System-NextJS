@@ -3928,16 +3928,15 @@ function onTargetInspectorChange() {
             document.getElementById('targetOther').value = qt.monthly_other_costs || 0;
             document.getElementById('targetNotes').value = qt.notes || '';
         } else {
-            // Fall back to InspectorTarget defaults
-            var t = getTargetsForInspector(name);
-            document.getElementById('targetEggs').value = t.inspections.EGGS;
-            document.getElementById('targetPoultry').value = t.inspections.POULTRY;
-            document.getElementById('targetRaw').value = t.inspections.RAW;
-            document.getElementById('targetPmp').value = t.inspections.PMP;
-            document.getElementById('targetRawSamples').value = t.sampling.RAW;
-            document.getElementById('targetPmpSamples').value = t.sampling.PMP;
-            document.getElementById('targetTotalSamples').value = t.totalSamples;
-            document.getElementById('targetSalary').value = getInspectorSalary(name) || 0;
+            // No quarterly target for this period — show 0
+            document.getElementById('targetEggs').value = 0;
+            document.getElementById('targetPoultry').value = 0;
+            document.getElementById('targetRaw').value = 0;
+            document.getElementById('targetPmp').value = 0;
+            document.getElementById('targetRawSamples').value = 0;
+            document.getElementById('targetPmpSamples').value = 0;
+            document.getElementById('targetTotalSamples').value = 0;
+            document.getElementById('targetSalary').value = 0;
             document.getElementById('targetRevTarget').value = 0;
             document.getElementById('targetVehicle').value = 0;
             document.getElementById('targetOther').value = 0;
@@ -4007,6 +4006,69 @@ function saveInspectorTarget() {
         statusEl.innerHTML = '<span style="color:#991b1b;">Network error</span>';
     }).finally(function() {
         btn.disabled = false; btn.textContent = 'Save Target';
+    });
+}
+
+function saveTargetAllInspectors() {
+    var year = parseInt(document.getElementById('targetYearSelect').value);
+    var quarter = parseInt(document.getElementById('targetQuarterSelect').value);
+    var statusEl = document.getElementById('targetSaveStatus');
+    var btn = document.getElementById('targetSaveAllBtn');
+
+    // Gather all inspector names
+    var names = new Set();
+    (dashboardData.travelPerInspector || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
+    (dashboardData.inspectorCommodityMatrix || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
+    Object.keys(dashboardData.inspectorTargets || {}).forEach(function(n) { names.add(n); });
+    var allNames = Array.from(names).sort();
+
+    if (allNames.length === 0) { statusEl.innerHTML = '<span style="color:#991b1b;">No inspectors found</span>'; return; }
+    if (!confirm('Apply these targets to all ' + allNames.length + ' inspectors for ' + year + ' Q' + quarter + '?')) return;
+
+    var basePayload = {
+        eggs: parseInt(document.getElementById('targetEggs').value) || 0,
+        poultry: parseInt(document.getElementById('targetPoultry').value) || 0,
+        raw: parseInt(document.getElementById('targetRaw').value) || 0,
+        pmp: parseInt(document.getElementById('targetPmp').value) || 0,
+        raw_samples: parseInt(document.getElementById('targetRawSamples').value) || 0,
+        pmp_samples: parseInt(document.getElementById('targetPmpSamples').value) || 0,
+        total_samples: parseInt(document.getElementById('targetTotalSamples').value) || 0,
+        monthly_salary: parseFloat(document.getElementById('targetSalary').value) || 0,
+        quarterly_revenue_target: parseFloat(document.getElementById('targetRevTarget').value) || 0,
+        monthly_vehicle_cost: parseFloat(document.getElementById('targetVehicle').value) || 0,
+        monthly_other_costs: parseFloat(document.getElementById('targetOther').value) || 0,
+        notes: document.getElementById('targetNotes').value || '',
+    };
+
+    btn.disabled = true; btn.textContent = 'Saving...';
+    var saved = 0; var failed = 0;
+    var key = _qtCacheKey(year, quarter);
+    if (!_quarterlyTargetsCache[key]) _quarterlyTargetsCache[key] = {};
+
+    var promises = allNames.map(function(name) {
+        var payload = Object.assign({}, basePayload, { inspector_name: name, year: year, quarter: quarter });
+        return fetch(window.DJANGO_CONFIG.saveQuarterlyTargetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+                saved++;
+                _quarterlyTargetsCache[key][name] = payload;
+            } else { failed++; }
+        }).catch(function() { failed++; });
+    });
+
+    Promise.all(promises).then(function() {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-users"></i> Apply to All Inspectors';
+        if (failed === 0) {
+            statusEl.innerHTML = '<span style="color:#166534;"><i class="fas fa-check-circle"></i> Saved for all ' + saved + ' inspectors (' + year + ' Q' + quarter + ')</span>';
+        } else {
+            statusEl.innerHTML = '<span style="color:#92400e;"><i class="fas fa-exclamation-circle"></i> ' + saved + ' saved, ' + failed + ' failed</span>';
+        }
+        renderInspectorTargetsTable();
+        renderInspectorRadarChart();
+        renderProfitabilityTable();
     });
 }
 

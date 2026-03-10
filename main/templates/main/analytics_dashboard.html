@@ -1341,9 +1341,12 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div id="targetSaveStatus" style="font-size:12px; margin-top:8px; min-height:18px;"></div>
         </div>
-        <div style="display:flex; gap:8px; justify-content:flex-end; padding:12px 20px; border-top:1px solid #e5e7eb; background:#f9fafb;">
-            <button onclick="closeTargetsModal()" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; font-weight:500; cursor:pointer;">Cancel</button>
-            <button onclick="saveInspectorTarget()" id="targetSaveBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#007890; color:white; font-size:13px; font-weight:500; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">Save Target</button>
+        <div style="display:flex; gap:8px; justify-content:space-between; padding:12px 20px; border-top:1px solid #e5e7eb; background:#f9fafb;">
+            <button onclick="saveTargetAllInspectors()" id="targetSaveAllBtn" style="padding:8px 16px; border:1px solid #f59e0b; border-radius:6px; background:#f59e0b; color:white; font-size:12px; font-weight:500; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" title="Apply these targets to ALL inspectors for the selected quarter"><i class="fas fa-users"></i> Apply to All Inspectors</button>
+            <div style="display:flex; gap:8px;">
+                <button onclick="closeTargetsModal()" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; font-weight:500; cursor:pointer;">Cancel</button>
+                <button onclick="saveInspectorTarget()" id="targetSaveBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#007890; color:white; font-size:13px; font-weight:500; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">Save Target</button>
+            </div>
         </div>
     </div>
 </div>
