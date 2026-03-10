@@ -33,43 +33,7 @@
     <style>
         :root { --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2"); }
 
-        /* ===== Duplicate section ===== */
-        .dup-section {
-            background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
-            margin-bottom:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06);
-        }
-        .dup-section-header {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:14px 20px; cursor:pointer; user-select:none;
-            background:linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(245,158,11,0.06) 100%);
-            border-bottom:1px solid transparent; transition:background 0.2s;
-        }
-        .dup-section-header:hover { background:linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(245,158,11,0.1) 100%); }
-        .dup-section-header h3 {
-            display:flex; align-items:center; gap:10px;
-            font-size:14px; font-weight:600; color:#991b1b; margin:0;
-        }
-        [data-theme="dark"] .dup-section-header h3 { color:#fca5a5; }
-        .dup-section-header .dup-toggle { color:#6b7280; transition:transform 0.25s; font-size:14px; }
-        .dup-section-header .dup-toggle.open { transform:rotate(180deg); }
-        .dup-section-body { display:none; }
-        .dup-section-body.show { display:block; }
-
-        /* Group card (each duplicate group) */
-        .dup-group {
-            border-bottom:1px solid var(--border); padding:0;
-        }
-        .dup-group:last-child { border-bottom:none; }
-        .dup-group-header {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:12px 20px; cursor:pointer; transition:background 0.15s;
-        }
-        .dup-group-header:hover { background:rgba(0,0,0,0.02); }
-        [data-theme="dark"] .dup-group-header:hover { background:rgba(255,255,255,0.03); }
-        .dup-group-info { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
-        .dup-group-info .client { font-weight:600; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px; }
-        .dup-group-info .meta { font-size:11px; color:var(--text-light); display:flex; gap:14px; flex-shrink:0; }
-        .dup-group-info .meta span { display:flex; align-items:center; gap:4px; }
+        /* ===== Duplicate badges ===== */
         .dup-badge {
             display:inline-flex; align-items:center; justify-content:center;
             font-size:11px; font-weight:700; border-radius:6px;
@@ -78,29 +42,6 @@
         .dup-badge-red { background:#dc2626; }
         .dup-badge-amber { background:#f59e0b; }
         .dup-badge-grey { background:#6b7280; }
-        .dup-group-detail { display:none; background:rgba(0,0,0,0.015); border-top:1px solid var(--border); }
-        [data-theme="dark"] .dup-group-detail { background:rgba(255,255,255,0.02); }
-        .dup-group-detail.show { display:block; }
-        .dup-group-detail table { width:100%; border-collapse:collapse; font-size:12px; }
-        .dup-group-detail th {
-            text-align:left; padding:8px 20px; font-size:10px; font-weight:600;
-            text-transform:uppercase; letter-spacing:0.5px; color:var(--text-light);
-            background:rgba(0,0,0,0.03); border-bottom:1px solid var(--border);
-        }
-        [data-theme="dark"] .dup-group-detail th { background:rgba(255,255,255,0.04); }
-        .dup-group-detail td { padding:8px 20px; border-bottom:1px solid var(--border); color:var(--text); }
-        .dup-group-detail tr:last-child td { border-bottom:none; }
-        .dup-group-detail tr:first-child td { background:rgba(16,185,129,0.06); }
-        .dup-group-detail .original-tag {
-            display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
-            background:#10b981; color:white; padding:2px 6px; border-radius:4px; letter-spacing:0.3px;
-        }
-        .dup-group-detail .duplicate-tag {
-            display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
-            background:#ef4444; color:white; padding:2px 6px; border-radius:4px; letter-spacing:0.3px;
-        }
-        .sent-yes { color:#10b981; font-weight:600; }
-        .sent-no { color:#6b7280; }
 
         /* ===== Filter card — analytics style ===== */
         .filter-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:12px; }
@@ -233,73 +174,44 @@
                 </div>
                 {% endif %}
 
-                <!-- ===== Duplicate Inspections Deep Dive ===== -->
+                <!-- Duplicate Inspections Table (hidden by default, toggled by button) -->
                 {% if duplicate_inspections %}
-                <div class="dup-section">
-                    <div class="dup-section-header" onclick="toggleSection('dup-main')">
-                        <h3>
-                            <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
-                            Duplicate Inspections — {{ duplicate_count }} groups, {{ total_extra_copies }} extra copies
-                        </h3>
-                        <i class="fas fa-chevron-down dup-toggle" id="dup-main-toggle"></i>
+                <div id="duplicates-table" class="log-table-wrap" style="display:none;">
+                    <div class="log-table-header">
+                        <h3><i class="fas fa-copy" style="color:#dc2626;"></i> Duplicate Inspections</h3>
+                        <span class="showing">{{ duplicate_count }} groups, {{ total_extra_copies }} extra copies</span>
                     </div>
-                    <div class="dup-section-body" id="dup-main-body">
-                        {% for dupe in duplicate_inspections %}
-                        <div class="dup-group">
-                            <div class="dup-group-header" onclick="toggleGroup('dup-{{ forloop.counter }}')">
-                                <div class="dup-group-info">
-                                    <span class="dup-badge {% if dupe.count >= 10 %}dup-badge-red{% elif dupe.count >= 5 %}dup-badge-amber{% else %}dup-badge-grey{% endif %}">{{ dupe.count }}x</span>
-                                    <span class="client">{{ dupe.client_name }}</span>
-                                    <span class="meta">
-                                        <span><i class="fas fa-user"></i> {{ dupe.inspector }}</span>
-                                        <span><i class="fas fa-calendar"></i> {{ dupe.date|date:"d M Y" }}</span>
-                                        <span style="font-size:10px;color:#9ca3af;">IDs: {{ dupe.first_id }} - {{ dupe.last_id }}</span>
-                                    </span>
-                                </div>
-                                <i class="fas fa-chevron-right" style="color:var(--text-light);font-size:11px;transition:transform 0.2s;" id="dup-{{ forloop.counter }}-icon"></i>
-                            </div>
-                            <div class="dup-group-detail" id="dup-{{ forloop.counter }}-detail">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th style="width:50px;">Status</th>
-                                            <th>ID</th>
-                                            <th>Group</th>
-                                            <th>Commodity</th>
-                                            <th>Town</th>
-                                            <th>Sent</th>
-                                            <th>Created</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for item in dupe.items %}
-                                        <tr>
-                                            <td>
-                                                {% if forloop.first %}
-                                                    <span class="original-tag">Original</span>
-                                                {% else %}
-                                                    <span class="duplicate-tag">Duplicate</span>
-                                                {% endif %}
-                                            </td>
-                                            <td style="font-weight:600;">#{{ item.id }}</td>
-                                            <td>{{ item.group_id|default:"-" }}</td>
-                                            <td>{{ item.commodity }}</td>
-                                            <td>{{ item.town }}</td>
-                                            <td>
-                                                {% if item.is_sent %}
-                                                    <span class="sent-yes"><i class="fas fa-check-circle"></i> {{ item.sent_date|date:"d/m/y"|default:"Yes" }}</span>
-                                                {% else %}
-                                                    <span class="sent-no"><i class="fas fa-minus-circle"></i> No</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ item.created_at|date:"d/m/y H:i"|default:"-" }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        {% endfor %}
+                    <div class="table-responsive" style="border:none;border-radius:0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Copies</th>
+                                    <th>Client / Facility</th>
+                                    <th>Inspector</th>
+                                    <th>Date</th>
+                                    <th>ID Range</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dupe in duplicate_inspections %}
+                                <tr>
+                                    <td>
+                                        <span class="dup-badge {% if dupe.count >= 10 %}dup-badge-red{% elif dupe.count >= 5 %}dup-badge-amber{% else %}dup-badge-grey{% endif %}">{{ dupe.count }}x</span>
+                                    </td>
+                                    <td style="font-weight:500;">{{ dupe.client_name }}</td>
+                                    <td>{{ dupe.inspector }}</td>
+                                    <td>{{ dupe.date|date:"d M Y" }}</td>
+                                    <td style="font-size:11px;color:var(--text-light);">#{{ dupe.first_id }} - #{{ dupe.last_id }}</td>
+                                    <td>
+                                        <a href="{% url 'shipment_list' %}?client={{ dupe.client_name|urlencode }}" style="padding:4px 10px; border:none; border-radius:4px; background:#007890; color:white; font-size:11px; font-weight:500; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="View all inspections for this client">
+                                            <i class="fas fa-external-link-alt"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
                 {% endif %}
@@ -365,7 +277,7 @@
                                 </a>
                                 {% endif %}
                                 {% if duplicate_count > 0 %}
-                                <button type="button" onclick="toggleSection('dup-main'); document.getElementById('dup-main-body').parentElement.scrollIntoView({behavior:'smooth'});" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s; margin-left:auto;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <button type="button" onclick="var el=document.getElementById('duplicates-table'); el.style.display=el.style.display==='none'?'block':'none'; if(el.style.display==='block') el.scrollIntoView({behavior:'smooth'});" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                     <i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})
                                 </button>
                                 {% endif %}
@@ -459,20 +371,6 @@
             userRole: '{{ request.user.role }}'
         };
 
-        function toggleSection(id) {
-            var body = document.getElementById(id + '-body');
-            var toggle = document.getElementById(id + '-toggle');
-            body.classList.toggle('show');
-            toggle.classList.toggle('open');
-        }
-
-        function toggleGroup(id) {
-            var detail = document.getElementById(id + '-detail');
-            var icon = document.getElementById(id + '-icon');
-            var isOpen = detail.classList.contains('show');
-            detail.classList.toggle('show');
-            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
-        }
     </script>
     <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311b"></script>
     <script>
