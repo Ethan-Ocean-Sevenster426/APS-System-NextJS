@@ -481,11 +481,20 @@
             <div class="card-header">
                 <div class="card-title">
                     <i class="fas fa-clipboard-check"></i>
-                    <span>Inspector Quarterly Targets & Activity (Q1: Jan-Mar)</span>
+                    <span id="targetsCardTitle">Inspector Quarterly Targets & Activity</span>
                 </div>
-                <button onclick="openTargetsModal()" style="font-size: 12px; padding: 6px 14px; border: 1px solid #007890; border-radius: 6px; background: #007890; color: white; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
-                    <i class="fas fa-bullseye"></i> Inspector Targets
-                </button>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <select id="targetsYear" onchange="onTargetsQuarterChange()" style="font-size:11px; padding:5px 8px; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer;"></select>
+                    <select id="targetsQuarter" onchange="onTargetsQuarterChange()" style="font-size:11px; padding:5px 8px; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer;">
+                        <option value="1">Q1 (Jan-Mar)</option>
+                        <option value="2">Q2 (Apr-Jun)</option>
+                        <option value="3">Q3 (Jul-Sep)</option>
+                        <option value="4">Q4 (Oct-Dec)</option>
+                    </select>
+                    <button onclick="openTargetsModal()" style="font-size: 12px; padding: 6px 14px; border: 1px solid #007890; border-radius: 6px; background: #007890; color: white; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
+                        <i class="fas fa-bullseye"></i> Set Targets
+                    </button>
+                </div>
             </div>
             <div class="card-body" style="padding: 12px 16px; overflow-x: auto;">
                 <table class="inspections-table" id="inspectorTargetsTable" style="font-size: 10.5px; width: 100%;">
@@ -493,6 +502,37 @@
                         <tr id="targetsHeader"></tr>
                     </thead>
                     <tbody id="targetsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Profitability Calculator -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-calculator"></i>
+                    <span>Profitability Calculator</span>
+                </div>
+                <span id="profitQuarterLabel" style="font-size:11px; color:#6b7280;"></span>
+            </div>
+            <div class="card-body" style="padding: 12px 16px; overflow-x: auto;">
+                <table class="inspections-table" style="font-size: 10.5px; width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="min-width:110px;">Inspector</th>
+                            <th class="num">Rev (Actual)</th>
+                            <th class="num">Rev Target</th>
+                            <th class="num">Salary (3mo)</th>
+                            <th class="num">Vehicle (3mo)</th>
+                            <th class="num">Other (3mo)</th>
+                            <th class="num">Total Cost</th>
+                            <th class="num">Profit</th>
+                            <th class="num">Margin</th>
+                            <th class="num">Weekly Target</th>
+                            <th class="num">Weekly Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="profitBody"></tbody>
                 </table>
             </div>
         </div>
@@ -1025,11 +1065,13 @@
         // Per-inspector targets
         inspectorTargets: {{ inspector_targets_data|safe }},
         inspectorTargetsUrl: '{% url "get_inspector_targets" %}',
-        updateTargetsUrl: '{% url "update_inspector_targets" %}'
+        updateTargetsUrl: '{% url "update_inspector_targets" %}',
+        quarterlyTargetsUrl: '{% url "get_quarterly_targets" %}',
+        saveQuarterlyTargetUrl: '{% url "save_quarterly_target" %}'
     };
 </script>
 <!-- Analytics Dashboard JS -->
-<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260308m"></script>
+<script src="{% static 'analytics_dashboard/js/analytics_dashboard.js' %}?v=20260310b"></script>
 
 {% if request.user.role != 'inspector' %}
 <!-- Xero Integration JS -->
@@ -1216,18 +1258,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Inspector Targets Modal -->
 <div id="targetsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;" onclick="if(event.target===this)closeTargetsModal()">
-    <div style="background:white; border-radius:10px; width:90%; max-width:480px; box-shadow:0 8px 32px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="background:white; border-radius:10px; width:90%; max-width:560px; max-height:90vh; box-shadow:0 8px 32px rgba(0,0,0,0.25); overflow:hidden; display:flex; flex-direction:column;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #e5e7eb; background:#f9fafb;">
-            <h3 style="margin:0; font-size:16px; font-weight:600; color:#111827;"><i class="fas fa-bullseye" style="color:#007890; margin-right:8px;"></i>Inspector Targets</h3>
+            <h3 style="margin:0; font-size:16px; font-weight:600; color:#111827;"><i class="fas fa-bullseye" style="color:#007890; margin-right:8px;"></i>Quarterly Inspector Targets</h3>
             <button onclick="closeTargetsModal()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#6b7280; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:4px;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='none'">&times;</button>
         </div>
-        <div style="padding:20px;">
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Inspector</label>
-                <select id="targetInspectorSelect" onchange="onTargetInspectorChange()" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:white; color:#111827;">
-                    <option value="">-- Select Inspector --</option>
-                </select>
+        <div style="padding:20px; overflow-y:auto; flex:1;">
+            <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Inspector</label>
+                    <select id="targetInspectorSelect" onchange="onTargetInspectorChange()" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:white;">
+                        <option value="">-- Select Inspector --</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Year</label>
+                    <select id="targetYearSelect" onchange="onTargetInspectorChange()" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:white;"></select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px;">Quarter</label>
+                    <select id="targetQuarterSelect" onchange="onTargetInspectorChange()" style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; background:white;">
+                        <option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option>
+                    </select>
+                </div>
             </div>
+            <h4 style="font-size:12px; color:#007890; margin:12px 0 8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px;">Inspection Targets (per quarter)</h4>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Egg Inspections</label>
@@ -1257,6 +1312,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Total Samples</label>
                     <input type="number" id="targetTotalSamples" value="70" min="0" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
                 </div>
+            </div>
+            <h4 style="font-size:12px; color:#007890; margin:16px 0 8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px;">Financial (monthly costs for profitability)</h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Monthly Salary (CTC)</label>
+                    <input type="number" step="0.01" id="targetSalary" value="0" min="0" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Revenue Target (quarter)</label>
+                    <input type="number" step="0.01" id="targetRevTarget" value="0" min="0" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Monthly Vehicle Cost</label>
+                    <input type="number" step="0.01" id="targetVehicle" value="0" min="0" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Monthly Other Costs</label>
+                    <input type="number" step="0.01" id="targetOther" value="0" min="0" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                </div>
+            </div>
+            <div style="margin-top:12px;">
+                <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">Notes / Adjustments</label>
+                <textarea id="targetNotes" rows="2" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:12px; resize:vertical;"></textarea>
+            </div>
+            <div style="margin-top:8px; padding:8px 12px; background:#fffbeb; border-radius:6px; font-size:11px; color:#92400e;">
+                <i class="fas fa-info-circle"></i> Weekly target = quarterly target / 13 weeks. Targets are saved per inspector per quarter per year.
             </div>
             <div id="targetSaveStatus" style="font-size:12px; margin-top:8px; min-height:18px;"></div>
         </div>

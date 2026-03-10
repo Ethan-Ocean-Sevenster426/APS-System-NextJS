@@ -10121,6 +10121,70 @@ def update_inspector_targets(request):
 
 
 @login_required
+def get_quarterly_targets(request):
+    """Return quarterly targets for a given year/quarter."""
+    from ..models import QuarterlyTarget
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    from datetime import date
+    today = date.today()
+    req_year = int(request.GET.get('year', today.year))
+    req_quarter = int(request.GET.get('quarter', (today.month - 1) // 3 + 1))
+
+    targets = {}
+    for qt in QuarterlyTarget.objects.filter(year=req_year, quarter=req_quarter):
+        targets[qt.inspector_name] = {
+            'eggs': qt.eggs, 'poultry': qt.poultry, 'raw': qt.raw, 'pmp': qt.pmp,
+            'raw_samples': qt.raw_samples, 'pmp_samples': qt.pmp_samples,
+            'total_samples': qt.total_samples,
+            'monthly_salary': float(qt.monthly_salary),
+            'quarterly_revenue_target': float(qt.quarterly_revenue_target),
+            'monthly_vehicle_cost': float(qt.monthly_vehicle_cost),
+            'monthly_other_costs': float(qt.monthly_other_costs),
+            'notes': qt.notes or '',
+        }
+    return JsonResponse({'year': req_year, 'quarter': req_quarter, 'targets': targets})
+
+
+@login_required
+@require_POST
+def save_quarterly_target(request):
+    """Create or update a quarterly target."""
+    import json
+    from ..models import QuarterlyTarget
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        data = json.loads(request.body)
+        name = data.get('inspector_name', '').strip()
+        year = int(data.get('year', 0))
+        quarter = int(data.get('quarter', 0))
+        if not name or not year or quarter not in (1, 2, 3, 4):
+            return JsonResponse({'error': 'inspector_name, year, and quarter (1-4) required'}, status=400)
+        obj, created = QuarterlyTarget.objects.update_or_create(
+            inspector_name=name, year=year, quarter=quarter,
+            defaults={
+                'eggs': int(data.get('eggs', 51)),
+                'poultry': int(data.get('poultry', 59)),
+                'raw': int(data.get('raw', 63)),
+                'pmp': int(data.get('pmp', 54)),
+                'raw_samples': int(data.get('raw_samples', 58)),
+                'pmp_samples': int(data.get('pmp_samples', 12)),
+                'total_samples': int(data.get('total_samples', 70)),
+                'monthly_salary': float(data.get('monthly_salary', 0)),
+                'quarterly_revenue_target': float(data.get('quarterly_revenue_target', 0)),
+                'monthly_vehicle_cost': float(data.get('monthly_vehicle_cost', 0)),
+                'monthly_other_costs': float(data.get('monthly_other_costs', 0)),
+                'notes': data.get('notes', ''),
+                'updated_by': request.user,
+            }
+        )
+        return JsonResponse({'success': True, 'created': created})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def export_analytics(request, format_type):
     """Export analytics data in various formats"""
     if request.method != 'POST':

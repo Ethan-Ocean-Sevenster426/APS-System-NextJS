@@ -3584,26 +3584,317 @@ function renderFacilityTypesOverview() {
 // ================================================================
 // INSPECTOR TARGETS MODAL
 // ================================================================
+// ================================================================
+// QUARTERLY TARGETS SYSTEM
+// ================================================================
+var _quarterlyTargetsCache = {};  // key: "YYYY-Q" -> targets map
+
+function _qtCacheKey(y, q) { return y + '-' + q; }
+
+function _loadQuarterlyTargets(year, quarter, cb) {
+    var key = _qtCacheKey(year, quarter);
+    if (_quarterlyTargetsCache[key]) { cb(_quarterlyTargetsCache[key]); return; }
+    fetch(window.DJANGO_CONFIG.quarterlyTargetsUrl + '?year=' + year + '&quarter=' + quarter, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        _quarterlyTargetsCache[key] = data.targets || {};
+        cb(_quarterlyTargetsCache[key]);
+    }).catch(function() { cb({}); });
+}
+
+function _currentQuarterTargets() {
+    var y = (document.getElementById('targetsYear') || {}).value;
+    var q = (document.getElementById('targetsQuarter') || {}).value;
+    if (!y || !q) return {};
+    return _quarterlyTargetsCache[_qtCacheKey(y, q)] || {};
+}
+
+// Get effective target for an inspector: quarterly override > InspectorTarget > defaults
+function getEffectiveTarget(name) {
+    var qt = _currentQuarterTargets()[name];
+    if (qt) return {
+        inspections: { EGGS: qt.eggs, POULTRY: qt.poultry, RAW: qt.raw, PMP: qt.pmp },
+        sampling: { RAW: qt.raw_samples, PMP: qt.pmp_samples },
+        totalSamples: qt.total_samples,
+        financial: qt
+    };
+    return getTargetsForInspector(name);
+}
+
+// Initialize year/quarter selectors on Inspectors panel
+function initTargetsQuarterSelectors() {
+    var yearSel = document.getElementById('targetsYear');
+    if (!yearSel || yearSel.options.length > 0) return;
+    var now = new Date();
+    for (var y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+        var opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === now.getFullYear()) opt.selected = true;
+        yearSel.appendChild(opt);
+    }
+    document.getElementById('targetsQuarter').value = Math.ceil((now.getMonth() + 1) / 3);
+}
+
+function onTargetsQuarterChange() {
+    var y = document.getElementById('targetsYear').value;
+    var q = document.getElementById('targetsQuarter').value;
+    var qNames = ['', 'Q1: Jan-Mar', 'Q2: Apr-Jun', 'Q3: Jul-Sep', 'Q4: Oct-Dec'];
+    var title = document.getElementById('targetsCardTitle');
+    if (title) title.textContent = 'Inspector Quarterly Targets & Activity (' + y + ' ' + qNames[q] + ')';
+    _loadQuarterlyTargets(y, q, function() {
+        renderInspectorTargetsTable();
+        renderProfitabilityTable();
+    });
+}
+
+// Override the targets table to use quarterly targets
+var _origRenderTargetsTable = renderInspectorTargetsTable;
+renderInspectorTargetsTable = function() {
+    initTargetsQuarterSelectors();
+    var headerRow = document.getElementById('targetsHeader');
+    var tbody = document.getElementById('targetsBody');
+    if (!headerRow || !tbody) return;
+
+    var inspectors = getInspectorData();
+    var inspectorNames = Object.keys(inspectors).sort();
+    if (inspectorNames.length === 0) { headerRow.innerHTML = '<th>No data</th>'; tbody.innerHTML = ''; return; }
+
+    var kmLookup = {};
+    var hoursLookup = {};
+    var inspCountLookup = {};
+    (dashboardData.travelPerInspector || []).forEach(function(item) {
+        kmLookup[item.inspector_name] = item.total_km || 0;
+        hoursLookup[item.inspector_name] = item.total_hours || 0;
+        inspCountLookup[item.inspector_name] = item.inspection_count || 0;
+    });
+    Object.keys(inspCountLookup).forEach(function(name) {
+        if (!inspectors[name]) inspectors[name] = { inspections: {}, samples: {} };
+    });
+    inspectorNames = Object.keys(inspectors).sort();
+
+    var knownCommodities = ['EGGS', 'EGG', 'POULTRY', 'RAW', 'PMP'];
+    var otherCommodities = new Set();
+    inspectorNames.forEach(function(name) {
+        Object.keys(inspectors[name].inspections).forEach(function(c) {
+            if (knownCommodities.indexOf(c) === -1) otherCommodities.add(c);
+        });
+    });
+    var otherList = Array.from(otherCommodities).sort();
+    var hasOther = otherList.length > 0;
+
+    var headerHtml = '<th style="min-width:110px;">Inspector</th>' +
+        '<th class="num">Total</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Eggs</th>' +
+        '<th class="num">Poultry</th>' +
+        '<th class="num">RAW</th>' +
+        '<th class="num">PMP</th>';
+    if (hasOther) otherList.forEach(function(c) { headerHtml += '<th class="num">' + c + '</th>'; });
+    headerHtml +=
+        '<th class="num" style="border-left:2px solid #d1d5db;">RAW Smp</th>' +
+        '<th class="num">PMP Smp</th>' +
+        '<th class="num">Total Smp</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">KM</th>' +
+        '<th class="num">Hours</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Overall %</th>';
+    headerRow.innerHTML = headerHtml;
+
+    function cell(actual, target, extraStyle) {
+        var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+        var color = pct >= 100 ? '#166534' : pct >= 70 ? '#92400e' : '#991b1b';
+        var bg = pct >= 100 ? '#dcfce7' : pct >= 70 ? '#fef3c7' : '#fee2e2';
+        return '<td class="num" style="color:' + color + '; background:' + bg + '; font-weight:600;' + (extraStyle || '') + '">' +
+            actual + '<small style="opacity:0.7;"> /' + target + ' (' + pct + '%)</small></td>';
+    }
+
+    var html = '';
+    inspectorNames.forEach(function(name) {
+        var d = inspectors[name];
+        var t = getEffectiveTarget(name);
+        var eggs = d.inspections['EGGS'] || d.inspections['EGG'] || 0;
+        var poultry = d.inspections['POULTRY'] || 0;
+        var raw = d.inspections['RAW'] || 0;
+        var pmp = d.inspections['PMP'] || 0;
+        var totalInsp = inspCountLookup[name] || 0;
+        if (!totalInsp) Object.keys(d.inspections).forEach(function(k) { totalInsp += d.inspections[k] || 0; });
+        var km = kmLookup[name] || 0;
+        var hours = hoursLookup[name] || 0;
+        var rawSamples = d.samples['RAW'] || 0;
+        var pmpSamples = d.samples['PMP'] || 0;
+        var totalSamples = 0;
+        Object.keys(d.samples).forEach(function(k) { totalSamples += d.samples[k] || 0; });
+
+        // Overall %
+        var pcts = [];
+        if (t.inspections.EGGS > 0) pcts.push(eggs / t.inspections.EGGS);
+        if (t.inspections.POULTRY > 0) pcts.push(poultry / t.inspections.POULTRY);
+        if (t.inspections.RAW > 0) pcts.push(raw / t.inspections.RAW);
+        if (t.inspections.PMP > 0) pcts.push(pmp / t.inspections.PMP);
+        var overallPct = pcts.length > 0 ? Math.round((pcts.reduce(function(s, v) { return s + v; }, 0) / pcts.length) * 100) : 0;
+        var overallColor = overallPct >= 100 ? '#166534' : overallPct >= 70 ? '#92400e' : '#991b1b';
+        var overallBg = overallPct >= 100 ? '#dcfce7' : overallPct >= 70 ? '#fef3c7' : '#fee2e2';
+
+        var isQtTarget = !!_currentQuarterTargets()[name];
+
+        html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name;
+        if (isQtTarget) html += ' <i class="fas fa-bullseye" style="color:#f59e0b; font-size:9px;" title="Quarterly target set"></i>';
+        html += '</td>';
+        html += '<td class="num" style="font-weight:700;">' + totalInsp + '</td>';
+        html += cell(eggs, t.inspections.EGGS, 'border-left:2px solid #d1d5db;');
+        html += cell(poultry, t.inspections.POULTRY);
+        html += cell(raw, t.inspections.RAW);
+        html += cell(pmp, t.inspections.PMP);
+        if (hasOther) otherList.forEach(function(c) {
+            html += '<td class="num">' + (d.inspections[c] || '-') + '</td>';
+        });
+        html += cell(rawSamples, t.sampling.RAW, 'border-left:2px solid #d1d5db;');
+        html += cell(pmpSamples, t.sampling.PMP);
+        html += cell(totalSamples, t.totalSamples);
+        html += '<td class="num" style="border-left:2px solid #d1d5db;">' + (km ? km.toLocaleString(undefined, {maximumFractionDigits: 0}) : '-') + '</td>';
+        html += '<td class="num">' + (hours ? parseFloat(hours).toLocaleString(undefined, {maximumFractionDigits: 1}) : '-') + '</td>';
+        html += '<td class="num" style="border-left:2px solid #d1d5db; color:' + overallColor + '; background:' + overallBg + '; font-weight:700; font-size:13px;">' + overallPct + '%</td>';
+        html += '</tr>';
+    });
+    tbody.innerHTML = html;
+};
+
+// Profitability table
+function renderProfitabilityTable() {
+    var tbody = document.getElementById('profitBody');
+    if (!tbody) return;
+    var label = document.getElementById('profitQuarterLabel');
+    var y = (document.getElementById('targetsYear') || {}).value || new Date().getFullYear();
+    var q = (document.getElementById('targetsQuarter') || {}).value || Math.ceil((new Date().getMonth() + 1) / 3);
+    var qNames = ['', 'Q1', 'Q2', 'Q3', 'Q4'];
+    if (label) label.textContent = y + ' ' + qNames[q] + ' — Weekly target = quarterly / 13 weeks';
+
+    var inspectors = getInspectorData();
+    var inspCountLookup = {};
+    var hoursLookup = {};
+    var kmLookup = {};
+    (dashboardData.travelPerInspector || []).forEach(function(item) {
+        inspCountLookup[item.inspector_name] = item.inspection_count || 0;
+        hoursLookup[item.inspector_name] = item.total_hours || 0;
+        kmLookup[item.inspector_name] = item.total_km || 0;
+    });
+    Object.keys(inspCountLookup).forEach(function(name) {
+        if (!inspectors[name]) inspectors[name] = { inspections: {}, samples: {} };
+    });
+
+    var financialData = dashboardData.inspectorFinancials || [];
+    var finMap = {};
+    financialData.forEach(function(f) { finMap[f.inspector_name] = f; });
+
+    // Weeks elapsed in the quarter
+    var now = new Date();
+    var qStartMonth = (parseInt(q) - 1) * 3;
+    var qStart = new Date(parseInt(y), qStartMonth, 1);
+    var qEnd = new Date(parseInt(y), qStartMonth + 3, 0);
+    var weeksElapsed = 1;
+    if (now >= qStart && now <= qEnd) {
+        weeksElapsed = Math.max(1, Math.ceil((now - qStart) / (7 * 86400000)));
+    } else if (now > qEnd) {
+        weeksElapsed = 13;
+    }
+
+    var html = '';
+    var totals = { rev: 0, target: 0, salary: 0, vehicle: 0, other: 0, cost: 0, profit: 0 };
+    var inspectorNames = Object.keys(inspectors).sort();
+
+    inspectorNames.forEach(function(name) {
+        var d = inspectors[name];
+        var t = getEffectiveTarget(name);
+        var fin = finMap[name] || {};
+        var qt = (t.financial || {});
+
+        var totalRevenue = fin.total_revenue || 0;
+        var salary3 = (qt.monthly_salary || getInspectorSalary(name) || 0) * 3;
+        var vehicle3 = (qt.monthly_vehicle_cost || 0) * 3;
+        var other3 = (qt.monthly_other_costs || 0) * 3;
+        var totalCost = salary3 + vehicle3 + other3;
+        var profit = totalRevenue - totalCost;
+        var margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 100) : 0;
+        var revTarget = qt.quarterly_revenue_target || 0;
+        var weeklyTarget = revTarget > 0 ? Math.round(revTarget / 13) : 0;
+        var weeklyActual = weeksElapsed > 0 ? Math.round(totalRevenue / weeksElapsed) : 0;
+
+        totals.rev += totalRevenue; totals.target += revTarget;
+        totals.salary += salary3; totals.vehicle += vehicle3; totals.other += other3;
+        totals.cost += totalCost; totals.profit += profit;
+
+        function fR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+        var pColor = profit >= 0 ? '#166534' : '#991b1b';
+        var pBg = profit >= 0 ? '#dcfce7' : '#fee2e2';
+        var wColor = weeklyTarget > 0 ? (weeklyActual >= weeklyTarget ? '#166534' : '#991b1b') : '#6b7280';
+        var wBg = weeklyTarget > 0 ? (weeklyActual >= weeklyTarget ? '#dcfce7' : '#fee2e2') : 'transparent';
+
+        html += '<tr>';
+        html += '<td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
+        html += '<td class="num">' + fR(totalRevenue) + '</td>';
+        html += '<td class="num">' + (revTarget > 0 ? fR(revTarget) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (salary3 > 0 ? fR(salary3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (vehicle3 > 0 ? fR(vehicle3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (other3 > 0 ? fR(other3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num" style="font-weight:600;">' + (totalCost > 0 ? fR(totalCost) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num" style="color:' + pColor + '; background:' + pBg + '; font-weight:700;">' + fR(profit) + '</td>';
+        html += '<td class="num" style="color:' + (margin >= 20 ? '#166534' : margin >= 0 ? '#92400e' : '#991b1b') + '; font-weight:600;">' + margin + '%</td>';
+        html += '<td class="num">' + (weeklyTarget > 0 ? fR(weeklyTarget) + '/wk' : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num" style="color:' + wColor + '; background:' + wBg + '; font-weight:600;">' + fR(weeklyActual) + '/wk</td>';
+        html += '</tr>';
+    });
+
+    // Totals
+    function fR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+    var tpColor = totals.profit >= 0 ? '#166534' : '#991b1b';
+    var tMargin = totals.rev > 0 ? Math.round((totals.profit / totals.rev) * 100) : 0;
+    html += '<tr style="border-top:2px solid #374151; font-weight:700; background:#f9fafb;">';
+    html += '<td>TOTAL</td>';
+    html += '<td class="num">' + fR(totals.rev) + '</td>';
+    html += '<td class="num">' + (totals.target > 0 ? fR(totals.target) : '—') + '</td>';
+    html += '<td class="num">' + fR(totals.salary) + '</td>';
+    html += '<td class="num">' + fR(totals.vehicle) + '</td>';
+    html += '<td class="num">' + fR(totals.other) + '</td>';
+    html += '<td class="num">' + fR(totals.cost) + '</td>';
+    html += '<td class="num" style="color:' + tpColor + ';">' + fR(totals.profit) + '</td>';
+    html += '<td class="num">' + tMargin + '%</td>';
+    html += '<td class="num"></td><td class="num"></td>';
+    html += '</tr>';
+    tbody.innerHTML = html;
+}
+
 function openTargetsModal() {
     var modal = document.getElementById('targetsModal');
     if (!modal) return;
     modal.style.display = 'flex';
-    // Populate inspector dropdown from known inspectors
+
+    // Populate year selector
+    var yearSel = document.getElementById('targetYearSelect');
+    if (yearSel && yearSel.options.length === 0) {
+        var now = new Date();
+        for (var y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+            var opt = document.createElement('option');
+            opt.value = y; opt.textContent = y;
+            if (y === parseInt((document.getElementById('targetsYear') || {}).value || now.getFullYear())) opt.selected = true;
+            yearSel.appendChild(opt);
+        }
+    }
+    var qtSel = document.getElementById('targetQuarterSelect');
+    if (qtSel) qtSel.value = (document.getElementById('targetsQuarter') || {}).value || Math.ceil((new Date().getMonth() + 1) / 3);
+
+    // Populate inspector dropdown
     var sel = document.getElementById('targetInspectorSelect');
     if (!sel) return;
-    // Gather inspector names from current data
     var names = new Set();
     (dashboardData.travelPerInspector || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
     (dashboardData.inspectorCommodityMatrix || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
     Object.keys(dashboardData.inspectorTargets || {}).forEach(function(n) { names.add(n); });
+    Object.keys(_currentQuarterTargets()).forEach(function(n) { names.add(n); });
     var sorted = Array.from(names).sort();
     sel.innerHTML = '<option value="">-- Select Inspector --</option>';
     sorted.forEach(function(name) {
         var opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
-        // Mark inspectors with custom targets
-        if ((dashboardData.inspectorTargets || {})[name]) opt.textContent += ' *';
+        if (_currentQuarterTargets()[name]) opt.textContent += ' *';
         sel.appendChild(opt);
     });
     document.getElementById('targetSaveStatus').textContent = '';
@@ -3616,22 +3907,53 @@ function closeTargetsModal() {
 
 function onTargetInspectorChange() {
     var name = document.getElementById('targetInspectorSelect').value;
-    var t = name ? getTargetsForInspector(name) : getTargetsForInspector('');
-    document.getElementById('targetEggs').value = t.inspections.EGGS;
-    document.getElementById('targetPoultry').value = t.inspections.POULTRY;
-    document.getElementById('targetRaw').value = t.inspections.RAW;
-    document.getElementById('targetPmp').value = t.inspections.PMP;
-    document.getElementById('targetRawSamples').value = t.sampling.RAW;
-    document.getElementById('targetPmpSamples').value = t.sampling.PMP;
-    document.getElementById('targetTotalSamples').value = t.totalSamples;
-    document.getElementById('targetSaveStatus').textContent = '';
+    if (!name) return;
+    var year = document.getElementById('targetYearSelect').value;
+    var quarter = document.getElementById('targetQuarterSelect').value;
+
+    // Load quarterly targets for this year/quarter and populate
+    _loadQuarterlyTargets(year, quarter, function(targets) {
+        var qt = targets[name];
+        if (qt) {
+            document.getElementById('targetEggs').value = qt.eggs;
+            document.getElementById('targetPoultry').value = qt.poultry;
+            document.getElementById('targetRaw').value = qt.raw;
+            document.getElementById('targetPmp').value = qt.pmp;
+            document.getElementById('targetRawSamples').value = qt.raw_samples;
+            document.getElementById('targetPmpSamples').value = qt.pmp_samples;
+            document.getElementById('targetTotalSamples').value = qt.total_samples;
+            document.getElementById('targetSalary').value = qt.monthly_salary || 0;
+            document.getElementById('targetRevTarget').value = qt.quarterly_revenue_target || 0;
+            document.getElementById('targetVehicle').value = qt.monthly_vehicle_cost || 0;
+            document.getElementById('targetOther').value = qt.monthly_other_costs || 0;
+            document.getElementById('targetNotes').value = qt.notes || '';
+        } else {
+            // Fall back to InspectorTarget defaults
+            var t = getTargetsForInspector(name);
+            document.getElementById('targetEggs').value = t.inspections.EGGS;
+            document.getElementById('targetPoultry').value = t.inspections.POULTRY;
+            document.getElementById('targetRaw').value = t.inspections.RAW;
+            document.getElementById('targetPmp').value = t.inspections.PMP;
+            document.getElementById('targetRawSamples').value = t.sampling.RAW;
+            document.getElementById('targetPmpSamples').value = t.sampling.PMP;
+            document.getElementById('targetTotalSamples').value = t.totalSamples;
+            document.getElementById('targetSalary').value = getInspectorSalary(name) || 0;
+            document.getElementById('targetRevTarget').value = 0;
+            document.getElementById('targetVehicle').value = 0;
+            document.getElementById('targetOther').value = 0;
+            document.getElementById('targetNotes').value = '';
+        }
+        document.getElementById('targetSaveStatus').textContent = '';
+    });
 }
 
 function saveInspectorTarget() {
     var name = document.getElementById('targetInspectorSelect').value;
     if (!name) { document.getElementById('targetSaveStatus').innerHTML = '<span style="color:#991b1b;">Please select an inspector</span>'; return; }
+    var year = parseInt(document.getElementById('targetYearSelect').value);
+    var quarter = parseInt(document.getElementById('targetQuarterSelect').value);
     var payload = {
-        inspector_name: name,
+        inspector_name: name, year: year, quarter: quarter,
         eggs: parseInt(document.getElementById('targetEggs').value) || 0,
         poultry: parseInt(document.getElementById('targetPoultry').value) || 0,
         raw: parseInt(document.getElementById('targetRaw').value) || 0,
@@ -3639,28 +3961,43 @@ function saveInspectorTarget() {
         raw_samples: parseInt(document.getElementById('targetRawSamples').value) || 0,
         pmp_samples: parseInt(document.getElementById('targetPmpSamples').value) || 0,
         total_samples: parseInt(document.getElementById('targetTotalSamples').value) || 0,
+        monthly_salary: parseFloat(document.getElementById('targetSalary').value) || 0,
+        quarterly_revenue_target: parseFloat(document.getElementById('targetRevTarget').value) || 0,
+        monthly_vehicle_cost: parseFloat(document.getElementById('targetVehicle').value) || 0,
+        monthly_other_costs: parseFloat(document.getElementById('targetOther').value) || 0,
+        notes: document.getElementById('targetNotes').value || '',
     };
     var btn = document.getElementById('targetSaveBtn');
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.disabled = true; btn.textContent = 'Saving...';
     var statusEl = document.getElementById('targetSaveStatus');
-    fetch(window.DJANGO_CONFIG.updateTargetsUrl, {
+
+    // Save to quarterly targets API
+    fetch(window.DJANGO_CONFIG.saveQuarterlyTargetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
         body: JSON.stringify(payload)
     }).then(function(resp) { return resp.json(); }).then(function(data) {
         if (data.success) {
-            // Update local data
+            // Also save to legacy InspectorTarget for backward compat
+            fetch(window.DJANGO_CONFIG.updateTargetsUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify(payload)
+            }).catch(function() {});
+
+            // Update caches
+            var key = _qtCacheKey(year, quarter);
+            if (!_quarterlyTargetsCache[key]) _quarterlyTargetsCache[key] = {};
+            _quarterlyTargetsCache[key][name] = payload;
             if (!dashboardData.inspectorTargets) dashboardData.inspectorTargets = {};
             dashboardData.inspectorTargets[name] = {
                 eggs: payload.eggs, poultry: payload.poultry, raw: payload.raw, pmp: payload.pmp,
                 raw_samples: payload.raw_samples, pmp_samples: payload.pmp_samples, total_samples: payload.total_samples
             };
-            statusEl.innerHTML = '<span style="color:#166534;">Saved successfully!</span>';
-            // Re-render table and radar to reflect new targets
+            statusEl.innerHTML = '<span style="color:#166534;"><i class="fas fa-check-circle"></i> Saved for ' + year + ' Q' + quarter + '!</span>';
             renderInspectorTargetsTable();
             renderInspectorRadarChart();
-            // Update dropdown marker
+            renderProfitabilityTable();
             var opt = document.querySelector('#targetInspectorSelect option[value="' + name + '"]');
             if (opt && opt.textContent.indexOf('*') === -1) opt.textContent += ' *';
         } else {
@@ -3669,8 +4006,7 @@ function saveInspectorTarget() {
     }).catch(function(err) {
         statusEl.innerHTML = '<span style="color:#991b1b;">Network error</span>';
     }).finally(function() {
-        btn.disabled = false;
-        btn.textContent = 'Save Target';
+        btn.disabled = false; btn.textContent = 'Save Target';
     });
 }
 
@@ -3699,6 +4035,7 @@ var PANEL_RENDER_MAP = {
     'inspectors': [
         renderInspectorRadarChart,
         renderInspectorTargetsTable,
+        renderProfitabilityTable,
         renderInspectorTrendChart,
         renderDirectionsChart
     ],

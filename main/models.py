@@ -1139,6 +1139,37 @@ class InspectorTarget(models.Model):
         return f"Targets: {self.inspector_name}"
 
 
+class QuarterlyTarget(models.Model):
+    """Per-inspector, per-quarter adjustable targets."""
+    QUARTER_CHOICES = [(1, 'Q1'), (2, 'Q2'), (3, 'Q3'), (4, 'Q4')]
+
+    inspector_name = models.CharField(max_length=100)
+    year = models.IntegerField()
+    quarter = models.IntegerField(choices=QUARTER_CHOICES)
+    eggs = models.IntegerField(default=51)
+    poultry = models.IntegerField(default=59)
+    raw = models.IntegerField(default=63)
+    pmp = models.IntegerField(default=54)
+    raw_samples = models.IntegerField(default=58)
+    pmp_samples = models.IntegerField(default=12)
+    total_samples = models.IntegerField(default=70)
+    monthly_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    quarterly_revenue_target = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    monthly_vehicle_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    monthly_other_costs = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, null=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'quarterly_targets'
+        unique_together = [['inspector_name', 'year', 'quarter']]
+        ordering = ['inspector_name', 'year', 'quarter']
+
+    def __str__(self):
+        return f"{self.inspector_name} - {self.year} Q{self.quarter}"
+
+
 class FeeHistory(models.Model):
     """
     Track historical changes to fee rates with effective dates.
