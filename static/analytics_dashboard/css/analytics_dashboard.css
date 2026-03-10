@@ -2165,3 +2165,19 @@ thead .fin-sticky-col {
         display: block;
     }
 }
+
+/* Info tooltip on hover */
+.info-tooltip:hover .info-tooltip-text {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+.info-tooltip-text::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1e293b transparent transparent transparent;
+}

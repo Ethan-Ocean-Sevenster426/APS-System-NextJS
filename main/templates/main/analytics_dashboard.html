@@ -957,19 +957,19 @@
         </div>
         {% endif %}
 
-        <!-- Revenue Breakdown + Inspector Comparison side by side -->
+        <!-- Revenue Sources + Inspector Performance side by side -->
         <div class="dashboard-grid-2col">
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-bar"></i>
-                        <span>Revenue Breakdown Per Inspector</span>
-                    </div>
-                    <div class="financial-actions">
-                        <select id="revenueBreakdownMetric" class="form-control" style="min-width:140px;font-size:11px;">
-                            <option value="revenue">Revenue Breakdown</option>
-                            <option value="profit">Profit</option>
-                        </select>
+                        <span>Revenue Sources</span>
+                        <span class="info-tooltip" style="position:relative;display:inline-block;margin-left:6px;cursor:help;">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text" style="visibility:hidden;opacity:0;position:absolute;z-index:999;bottom:125%;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 12px;border-radius:6px;font-size:11px;font-weight:400;white-space:nowrap;transition:opacity 0.2s;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                                Shows where each inspector's revenue comes from: hours billed, kilometres driven, and samples collected.
+                            </span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="min-height: 320px;">
@@ -980,12 +980,18 @@
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
-                        <span>Inspector Comparison</span>
+                        <span>Inspector Performance</span>
+                        <span class="info-tooltip" style="position:relative;display:inline-block;margin-left:6px;cursor:help;">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text" style="visibility:hidden;opacity:0;position:absolute;z-index:999;bottom:125%;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 12px;border-radius:6px;font-size:11px;font-weight:400;white-space:nowrap;transition:opacity 0.2s;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                                Compare inspectors side by side on any metric: profit, revenue, hours, kilometres, or inspections.
+                            </span>
+                        </span>
                     </div>
                     <div class="financial-actions">
                         <select id="inspectorTrendMetric" class="form-control" style="min-width:160px;font-size:11px;">
-                            <option value="total_revenue">Total Revenue</option>
-                            <option value="total_profit">Total Profit</option>
+                            <option value="total_profit">Profit</option>
+                            <option value="total_revenue">Revenue</option>
                             <option value="revenue_hours">Revenue (Hours)</option>
                             <option value="revenue_km">Revenue (KM)</option>
                             <option value="revenue_samples">Revenue (Samples)</option>
