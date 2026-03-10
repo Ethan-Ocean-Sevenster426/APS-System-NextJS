@@ -2536,12 +2536,18 @@ function renderInspectorComparisonChart() {
         var expenses = getInspectorExpenses(i.inspector_name);
         var mgmtFees = Math.round((salary + expenses) * 0.20);
         var totalCost = salary + expenses + mgmtFees;
-        copy.total_profit = totalCost ? (i.total_revenue || 0) - totalCost : 0;
+        copy.total_profit = totalCost ? (i.total_revenue || 0) - totalCost : null;
         return copy;
     });
 
+    // For profit metric, exclude inspectors with no cost data (matches table's "—" display)
+    var filtered = enriched;
+    if (metric === 'total_profit') {
+        filtered = enriched.filter(function(i) { return i.total_profit !== null; });
+    }
+
     // Sort by selected metric descending
-    var sorted = enriched.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
+    var sorted = filtered.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
 
     var labels = sorted.map(function(i) { return i.inspector_name || 'Unknown'; });
     var values = sorted.map(function(i) { return i[metric] || 0; });
