@@ -802,8 +802,7 @@ function applyFinancialPeriod() {
     fullFinancials.forEach(function(full) {
         var name = full.inspector_name;
         var partialCount = byInspector[name] || 0;
-        if (partialCount === 0) return; // Skip inspectors with no inspections in this period
-        var ratio = partialCount / (full.total_inspections || 1);
+        var ratio = partialCount > 0 ? partialCount / (full.total_inspections || 1) : 0;
         result.push({
             inspector_name: name,
             total_inspections: partialCount,
