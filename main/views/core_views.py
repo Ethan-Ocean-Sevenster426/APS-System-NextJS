@@ -9475,6 +9475,7 @@ def analytics_dashboard(request):
 
 def _api_travel_per_inspector(group_qs, qs, non_inspector_names):
     """Build travel-per-inspector including ungrouped (legacy) inspections."""
+    from django.db.models import Sum, Count, Avg, Q
     _excl = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     _map = {}
     for r in group_qs.exclude(_excl).values('inspector_name').annotate(
