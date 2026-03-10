@@ -3931,8 +3931,26 @@ function openTargetsModal() {
         if (_currentQuarterTargets()[name]) opt.textContent += ' *';
         sel.appendChild(opt);
     });
-    // Reset form fields to 0 when modal opens
-    _resetTargetFormToZero();
+    // Pre-fill form with existing quarterly targets if available
+    var qt = _currentQuarterTargets();
+    var qtKeys = Object.keys(qt);
+    if (qtKeys.length > 0) {
+        var sample = qt[qtKeys[0]];
+        document.getElementById('targetEggs').value = sample.eggs || 0;
+        document.getElementById('targetPoultry').value = sample.poultry || 0;
+        document.getElementById('targetRaw').value = sample.raw || 0;
+        document.getElementById('targetPmp').value = sample.pmp || 0;
+        document.getElementById('targetRawSamples').value = sample.raw_samples || 0;
+        document.getElementById('targetPmpSamples').value = sample.pmp_samples || 0;
+        document.getElementById('targetTotalSamples').value = sample.total_samples || 0;
+        document.getElementById('targetSalary').value = 0;
+        document.getElementById('targetRevTarget').value = sample.quarterly_revenue_target || 0;
+        document.getElementById('targetVehicle').value = sample.monthly_vehicle_cost || 0;
+        document.getElementById('targetOther').value = sample.monthly_other_costs || 0;
+        document.getElementById('targetNotes').value = '';
+    } else {
+        _resetTargetFormToZero();
+    }
     document.getElementById('targetSaveStatus').textContent = '';
 }
 
