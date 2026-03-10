@@ -1542,16 +1542,16 @@ function renderFacilityTypesChart() {
 // DEFAULT INSPECTOR TARGETS (Q1: Jan-Mar 2026) — overridden per-inspector from DB
 // ================================================================
 var DEFAULT_TARGETS = {
-    eggs: 51, poultry: 59, raw: 63, pmp: 54,
-    raw_samples: 58, pmp_samples: 12, total_samples: 70
+    eggs: 0, poultry: 0, raw: 0, pmp: 0,
+    raw_samples: 0, pmp_samples: 0, total_samples: 0
 };
 
 // Legacy format for backward compat with radar chart
 var INSPECTOR_TARGETS = {
-    inspections: { EGGS: 51, POULTRY: 59, RAW: 63, PMP: 54 },
-    sampling: { RAW: 58, PMP: 12 }
+    inspections: { EGGS: 0, POULTRY: 0, RAW: 0, PMP: 0 },
+    sampling: { RAW: 0, PMP: 0 }
 };
-var SAMPLING_TOTAL_TARGET = 70;
+var SAMPLING_TOTAL_TARGET = 0;
 
 function getTargetsForInspector(name) {
     var custom = (dashboardData.inspectorTargets || {})[name];

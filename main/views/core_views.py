@@ -10105,13 +10105,13 @@ def update_inspector_targets(request):
         obj, created = InspectorTarget.objects.update_or_create(
             inspector_name=name,
             defaults={
-                'eggs': int(data.get('eggs', 51)),
-                'poultry': int(data.get('poultry', 59)),
-                'raw': int(data.get('raw', 63)),
-                'pmp': int(data.get('pmp', 54)),
-                'raw_samples': int(data.get('raw_samples', 58)),
-                'pmp_samples': int(data.get('pmp_samples', 12)),
-                'total_samples': int(data.get('total_samples', 70)),
+                'eggs': int(data.get('eggs', 0)),
+                'poultry': int(data.get('poultry', 0)),
+                'raw': int(data.get('raw', 0)),
+                'pmp': int(data.get('pmp', 0)),
+                'raw_samples': int(data.get('raw_samples', 0)),
+                'pmp_samples': int(data.get('pmp_samples', 0)),
+                'total_samples': int(data.get('total_samples', 0)),
                 'updated_by': request.user,
             }
         )
@@ -10164,13 +10164,13 @@ def save_quarterly_target(request):
         obj, created = QuarterlyTarget.objects.update_or_create(
             inspector_name=name, year=year, quarter=quarter,
             defaults={
-                'eggs': int(data.get('eggs', 51)),
-                'poultry': int(data.get('poultry', 59)),
-                'raw': int(data.get('raw', 63)),
-                'pmp': int(data.get('pmp', 54)),
-                'raw_samples': int(data.get('raw_samples', 58)),
-                'pmp_samples': int(data.get('pmp_samples', 12)),
-                'total_samples': int(data.get('total_samples', 70)),
+                'eggs': int(data.get('eggs', 0)),
+                'poultry': int(data.get('poultry', 0)),
+                'raw': int(data.get('raw', 0)),
+                'pmp': int(data.get('pmp', 0)),
+                'raw_samples': int(data.get('raw_samples', 0)),
+                'pmp_samples': int(data.get('pmp_samples', 0)),
+                'total_samples': int(data.get('total_samples', 0)),
                 'monthly_salary': float(data.get('monthly_salary', 0)),
                 'quarterly_revenue_target': float(data.get('quarterly_revenue_target', 0)),
                 'monthly_vehicle_cost': float(data.get('monthly_vehicle_cost', 0)),
