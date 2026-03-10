@@ -850,7 +850,7 @@ body.bg-loaded::before {
     font-weight: 600;
     font-size: 0.75rem;
     padding: 0.6rem 0.75rem;
-    text-align: left;
+    text-align: center;
     white-space: nowrap;
     border-bottom: 2px solid var(--border);
     text-transform: uppercase;
@@ -862,6 +862,7 @@ body.bg-loaded::before {
     font-size: 0.8rem;
     color: var(--text);
     border-bottom: 1px solid var(--border);
+    text-align: center;
 }
 
 .inspections-table tbody tr:hover {
@@ -873,7 +874,7 @@ body.bg-loaded::before {
 }
 
 .inspections-table .num {
-    text-align: right;
+    text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
@@ -1701,7 +1702,17 @@ body.bg-loaded::before {
     width: 24px;
     pointer-events: none;
     background: linear-gradient(to right, transparent, rgba(255,255,255,0.6));
-    display: none;
+}
+
+/* Financial table: center all cells */
+#financialTable th,
+#financialTable td {
+    text-align: center;
+}
+
+#financialTable th:first-child,
+#financialTable td:first-child {
+    text-align: left;
 }
 
 /* Xero aging buckets responsive */
