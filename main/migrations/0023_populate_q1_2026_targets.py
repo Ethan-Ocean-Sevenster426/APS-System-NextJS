@@ -21,12 +21,8 @@ INSPECTOR_SALARIES = {
 
 
 def populate_q1_2026_targets(apps, schema_editor):
-    """Create QuarterlyTarget records for 2026 Q1 with the standard targets."""
+    """Create or update QuarterlyTarget records for 2026 Q1 with the standard targets."""
     QuarterlyTarget = apps.get_model('main', 'QuarterlyTarget')
-    # Skip if records already exist for 2026 Q1
-    if QuarterlyTarget.objects.filter(year=2026, quarter=1).exists():
-        return
-
     FoodSafetyAgencyInspection = apps.get_model('main', 'FoodSafetyAgencyInspection')
     User = apps.get_model('main', 'User')
 
@@ -55,21 +51,23 @@ def populate_q1_2026_targets(apps, schema_editor):
 
     for name in inspector_names:
         salary = INSPECTOR_SALARIES.get(name, 0)
-        QuarterlyTarget.objects.create(
+        QuarterlyTarget.objects.update_or_create(
             inspector_name=name,
             year=2026,
             quarter=1,
-            eggs=51,
-            poultry=59,
-            raw=63,
-            pmp=54,
-            raw_samples=58,
-            pmp_samples=12,
-            total_samples=70,
-            monthly_salary=salary,
-            quarterly_revenue_target=0,
-            monthly_vehicle_cost=0,
-            monthly_other_costs=0,
+            defaults={
+                'eggs': 51,
+                'poultry': 59,
+                'raw': 63,
+                'pmp': 54,
+                'raw_samples': 58,
+                'pmp_samples': 12,
+                'total_samples': 70,
+                'monthly_salary': salary,
+                'quarterly_revenue_target': 0,
+                'monthly_vehicle_cost': 0,
+                'monthly_other_costs': 0,
+            }
         )
 
 
