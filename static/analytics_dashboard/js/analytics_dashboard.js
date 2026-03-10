@@ -586,11 +586,7 @@ function openSalaryModal() {
     var body = document.getElementById('salaryModalBody');
     if (!modal || !body) return;
     var items = dashboardData.inspectorFinancials || [];
-    var html = '<table style="width:100%; border-collapse:collapse; font-size:13px;">' +
-        '<thead><tr style="border-bottom:2px solid #e5e7eb;">' +
-        '<th style="text-align:left; padding:8px 6px; font-weight:600; color:#374151;">Inspector</th>' +
-        '<th style="text-align:right; padding:8px 6px; font-weight:600; color:#374151;">Salary (CTC) R</th>' +
-        '</tr></thead><tbody>';
+    var html = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;">';
     items.forEach(function(item) {
         var name = item.inspector_name || '';
         var lower = name.toLowerCase();
@@ -600,14 +596,16 @@ function openSalaryModal() {
         }
         if (isNonInspector) return;
         var salary = getInspectorSalary(name);
-        html += '<tr style="border-bottom:1px solid #f3f4f6;">' +
-            '<td style="padding:6px;">' + name + '</td>' +
-            '<td style="padding:6px; text-align:right;">' +
+        html += '<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + name + '">' + name + '</label>' +
+            '<div style="position:relative;">' +
+            '<span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:#9ca3af; pointer-events:none;">R</span>' +
             '<input type="number" step="0.01" min="0" value="' + (salary || '') + '" data-inspector="' + lower + '" class="salary-input" ' +
-            'style="width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; text-align:right;">' +
-            '</td></tr>';
+            'style="width:100%; box-sizing:border-box; padding:7px 10px 7px 26px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; text-align:right; outline:none; transition:border 0.2s;" ' +
+            'onfocus="this.style.borderColor=\'#007890\'" onblur="this.style.borderColor=\'#d1d5db\'">' +
+            '</div></div>';
     });
-    html += '</tbody></table>';
+    html += '</div>';
     body.innerHTML = html;
     document.getElementById('salarySaveStatus').innerHTML = '';
     modal.style.display = 'flex';
