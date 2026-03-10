@@ -639,6 +639,7 @@ function saveSalaries() {
     localStorage.setItem('inspector_salaries', JSON.stringify(savedSalaries));
     SAVED_SALARIES = savedSalaries;
     renderFinancialTable();
+    renderInspectorComparisonChart();
     document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
     setTimeout(function() { closeSalaryModal(); }, 800);
 }
@@ -703,6 +704,7 @@ function submitExpense() {
     addExpense(inspector, amount, desc, date);
     renderExpenseList();
     renderFinancialTable();
+    renderInspectorComparisonChart();
 
     // Clear form
     document.getElementById('expenseAmount').value = '';
@@ -717,6 +719,7 @@ function removeExpense(id) {
     deleteExpense(id);
     renderExpenseList();
     renderFinancialTable();
+    renderInspectorComparisonChart();
 }
 
 // Financial period filter - client-side filter on inspectionsList then recompute financials
@@ -731,6 +734,8 @@ function applyFinancialPeriod() {
         var cfg = window.DJANGO_CONFIG;
         dashboardData.inspectorFinancials = cfg.inspectorFinancials || [];
         renderFinancialTable();
+        renderRevenueCostChart();
+        renderInspectorComparisonChart();
         return;
     }
 
@@ -804,6 +809,7 @@ function applyFinancialPeriod() {
             total_inspections: partialCount,
             total_hours: Math.round(full.total_hours * ratio * 10) / 10,
             total_km: Math.round(full.total_km * ratio * 10) / 10,
+            total_samples: Math.round((full.total_samples || 0) * ratio),
             inspection_time: Math.round((full.inspection_time || 0) * ratio * 10) / 10,
             revenue_hours: Math.round(full.revenue_hours * ratio),
             revenue_km: Math.round(full.revenue_km * ratio),
@@ -813,6 +819,8 @@ function applyFinancialPeriod() {
     });
     dashboardData.inspectorFinancials = result;
     renderFinancialTable();
+    renderRevenueCostChart();
+    renderInspectorComparisonChart();
 }
 
 function renderFinancialTable() {
