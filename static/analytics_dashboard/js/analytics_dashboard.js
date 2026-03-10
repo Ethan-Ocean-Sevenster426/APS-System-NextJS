@@ -945,8 +945,20 @@ function renderRevenueCostChart() {
     destroyChart('revenueCostChart');
     var canvas = document.getElementById('revenueCostChart');
     if (!canvas) return;
+    // Remove any previous no-data message
+    var existingMsg = canvas.parentElement.querySelector('.chart-no-data');
+    if (existingMsg) existingMsg.remove();
+    canvas.style.display = '';
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) return;
+    if (items.length === 0) {
+        canvas.style.display = 'none';
+        var msg = document.createElement('div');
+        msg.className = 'chart-no-data';
+        msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:320px;color:#9ca3af;font-size:14px;';
+        msg.innerHTML = '<div style="text-align:center;"><i class="fas fa-chart-bar" style="font-size:2rem;margin-bottom:8px;display:block;"></i>No revenue data for this period</div>';
+        canvas.parentElement.appendChild(msg);
+        return;
+    }
 
     var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
     var hoursData = items.map(function(i) { return i.revenue_hours || 0; });
@@ -2518,8 +2530,20 @@ function renderInspectorComparisonChart() {
     destroyChart('inspectorComparisonChart');
     var canvas = document.getElementById('inspectorComparisonChart');
     if (!canvas) return;
+    // Remove any previous no-data message
+    var existingMsg = canvas.parentElement.querySelector('.chart-no-data');
+    if (existingMsg) existingMsg.remove();
+    canvas.style.display = '';
     var items = dashboardData.inspectorFinancials || [];
-    if (items.length === 0) return;
+    if (items.length === 0) {
+        canvas.style.display = 'none';
+        var msg = document.createElement('div');
+        msg.className = 'chart-no-data';
+        msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:320px;color:#9ca3af;font-size:14px;';
+        msg.innerHTML = '<div style="text-align:center;"><i class="fas fa-chart-line" style="font-size:2rem;margin-bottom:8px;display:block;"></i>No data for this period</div>';
+        canvas.parentElement.appendChild(msg);
+        return;
+    }
 
     var metricSel = document.getElementById('inspectorTrendMetric');
     var metric = metricSel ? metricSel.value : 'total_revenue';
@@ -2556,6 +2580,16 @@ function renderInspectorComparisonChart() {
 
     // Sort by selected metric descending
     var sorted = filtered.slice().sort(function(a, b) { return (b[metric] || 0) - (a[metric] || 0); });
+
+    if (sorted.length === 0) {
+        canvas.style.display = 'none';
+        var msg2 = document.createElement('div');
+        msg2.className = 'chart-no-data';
+        msg2.style.cssText = 'display:flex;align-items:center;justify-content:center;height:320px;color:#9ca3af;font-size:14px;';
+        msg2.innerHTML = '<div style="text-align:center;"><i class="fas fa-chart-line" style="font-size:2rem;margin-bottom:8px;display:block;"></i>No data available — set salaries to see profit</div>';
+        canvas.parentElement.appendChild(msg2);
+        return;
+    }
 
     var labels = sorted.map(function(i) { return i.inspector_name || 'Unknown'; });
     var values = sorted.map(function(i) { return i[metric] || 0; });
