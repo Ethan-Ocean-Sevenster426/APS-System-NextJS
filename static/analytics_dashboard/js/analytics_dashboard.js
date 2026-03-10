@@ -940,84 +940,151 @@ function renderRevenueCostChart() {
     var items = dashboardData.inspectorFinancials || [];
     if (items.length === 0) return;
 
-    var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
-    var hoursData = items.map(function(i) { return i.revenue_hours || 0; });
-    var kmData = items.map(function(i) { return i.revenue_km || 0; });
-    var samplesData = items.map(function(i) { return i.revenue_samples || 0; });
-    // Raw quantities for labels
-    var rawHours = items.map(function(i) { return parseFloat(i.total_hours || 0); });
-    var rawKm = items.map(function(i) { return parseFloat(i.total_km || 0); });
-    var rawSamples = items.map(function(i) { return parseInt(i.total_samples || 0); });
+    var metricSel = document.getElementById('revenueBreakdownMetric');
+    var metric = metricSel ? metricSel.value : 'revenue';
 
     // Dynamic height based on inspector count
     var minHeight = Math.max(320, items.length * 30 + 60);
     canvas.parentElement.style.minHeight = minHeight + 'px';
 
-    // Compute totals per inspector for labels
-    var totals = items.map(function(i) { return (i.revenue_hours || 0) + (i.revenue_km || 0) + (i.revenue_samples || 0); });
+    if (metric === 'profit') {
+        // Profit view: horizontal bar per inspector, green/red
+        var enriched = items.map(function(i) {
+            var salary = getInspectorSalary(i.inspector_name);
+            var expenses = getInspectorExpenses(i.inspector_name);
+            var mgmtFees = Math.round((salary + expenses) * 0.20);
+            var totalCost = salary + expenses + mgmtFees;
+            var profit = totalCost ? (i.total_revenue || 0) - totalCost : 0;
+            return { name: i.inspector_name || 'Unknown', profit: profit };
+        });
+        var sorted = enriched.slice().sort(function(a, b) { return (b.profit) - (a.profit); });
+        var labels = sorted.map(function(i) { return i.name; });
+        var values = sorted.map(function(i) { return i.profit; });
+        var colors = values.map(function(v) { return v >= 0 ? '#10b981' : '#ef4444'; });
 
-    chartInstances['revenueCostChart'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Hours', data: hoursData, backgroundColor: '#107c10', borderRadius: 3, barPercentage: 0.7 },
-                { label: 'KM', data: kmData, backgroundColor: '#0078d4', borderRadius: 3, barPercentage: 0.7 },
-                { label: 'Samples', data: samplesData, backgroundColor: '#ffb900', borderRadius: 3, barPercentage: 0.7 },
-            ]
-        },
-        plugins: [{
-            id: 'revenueCostLabels',
-            afterDatasetsDraw: function(chart) {
-                var ctx = chart.ctx;
-                ctx.save();
-                ctx.font = 'bold 8px sans-serif';
-                ctx.textBaseline = 'bottom';
-                ctx.textAlign = 'center';
-                var rawArrays = [rawHours, rawKm, rawSamples];
-                var labelColors = ['#0a5a0a', '#004a8a', '#8a6500'];
-                chart.data.datasets.forEach(function(ds, di) {
-                    var meta = chart.getDatasetMeta(di);
-                    if (meta.hidden) return;
-                    ctx.fillStyle = labelColors[di];
+        chartInstances['revenueCostChart'] = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Profit',
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7,
+                }]
+            },
+            plugins: [{
+                id: 'profitBarLabels',
+                afterDatasetsDraw: function(chart) {
+                    var ctx = chart.ctx;
+                    var meta = chart.getDatasetMeta(0);
+                    if (!meta || meta.hidden) return;
+                    ctx.save();
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.fillStyle = '#1e293b';
+                    ctx.textBaseline = 'middle';
                     meta.data.forEach(function(bar, idx) {
-                        var val = ds.data[idx];
-                        if (val == null || val === 0) return;
-                        var raw = rawArrays[di] ? rawArrays[di][idx] : 0;
-                        var label;
-                        if (di === 0) label = Math.round(raw) + 'h';
-                        else if (di === 1) label = Math.round(raw) + 'km';
-                        else label = String(Math.round(raw));
-                        ctx.fillText(label, bar.x, bar.y - 2);
+                        var val = chart.data.datasets[0].data[idx];
+                        if (val == null) return;
+                        ctx.textAlign = val >= 0 ? 'left' : 'right';
+                        ctx.fillText(formatRand(val), val >= 0 ? bar.x + 4 : bar.x - 4, bar.y);
                     });
-                });
-                ctx.restore();
-            }
-        }],
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: txtColor(), padding: 12 } },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            var di = ctx.datasetIndex;
-                            var idx = ctx.dataIndex;
-                            var rand = 'R' + Math.round(ctx.parsed.y).toLocaleString();
-                            var rawVal = [rawHours, rawKm, rawSamples][di][idx];
-                            var unit = di === 0 ? Math.round(rawVal) + ' hours' : di === 1 ? Math.round(rawVal) + ' km' : Math.round(rawVal) + ' samples';
-                            return ctx.dataset.label + ': ' + rand + ' (' + unit + ')';
+                    ctx.restore();
+                }
+            }],
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return 'Profit: ' + formatRand(ctx.parsed.x); }
                         }
                     }
+                },
+                scales: {
+                    x: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } } },
+                    y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } }
                 }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 }, autoSkip: false } },
-                y: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } }, beginAtZero: true }
             }
-        }
-    });
+        });
+    } else {
+        // Default revenue breakdown view
+        var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
+        var hoursData = items.map(function(i) { return i.revenue_hours || 0; });
+        var kmData = items.map(function(i) { return i.revenue_km || 0; });
+        var samplesData = items.map(function(i) { return i.revenue_samples || 0; });
+        var rawHours = items.map(function(i) { return parseFloat(i.total_hours || 0); });
+        var rawKm = items.map(function(i) { return parseFloat(i.total_km || 0); });
+        var rawSamples = items.map(function(i) { return parseInt(i.total_samples || 0); });
+
+        chartInstances['revenueCostChart'] = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Hours', data: hoursData, backgroundColor: '#107c10', borderRadius: 3, barPercentage: 0.7 },
+                    { label: 'KM', data: kmData, backgroundColor: '#0078d4', borderRadius: 3, barPercentage: 0.7 },
+                    { label: 'Samples', data: samplesData, backgroundColor: '#ffb900', borderRadius: 3, barPercentage: 0.7 },
+                ]
+            },
+            plugins: [{
+                id: 'revenueCostLabels',
+                afterDatasetsDraw: function(chart) {
+                    var ctx = chart.ctx;
+                    ctx.save();
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.textBaseline = 'bottom';
+                    ctx.textAlign = 'center';
+                    var rawArrays = [rawHours, rawKm, rawSamples];
+                    var labelColors = ['#0a5a0a', '#004a8a', '#8a6500'];
+                    chart.data.datasets.forEach(function(ds, di) {
+                        var meta = chart.getDatasetMeta(di);
+                        if (meta.hidden) return;
+                        ctx.fillStyle = labelColors[di];
+                        meta.data.forEach(function(bar, idx) {
+                            var val = ds.data[idx];
+                            if (val == null || val === 0) return;
+                            var raw = rawArrays[di] ? rawArrays[di][idx] : 0;
+                            var label;
+                            if (di === 0) label = Math.round(raw) + 'h';
+                            else if (di === 1) label = Math.round(raw) + 'km';
+                            else label = String(Math.round(raw));
+                            ctx.fillText(label, bar.x, bar.y - 2);
+                        });
+                    });
+                    ctx.restore();
+                }
+            }],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: txtColor(), padding: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                var di = ctx.datasetIndex;
+                                var idx = ctx.dataIndex;
+                                var rand = 'R' + Math.round(ctx.parsed.y).toLocaleString();
+                                var rawVal = [rawHours, rawKm, rawSamples][di][idx];
+                                var unit = di === 0 ? Math.round(rawVal) + ' hours' : di === 1 ? Math.round(rawVal) + ' km' : Math.round(rawVal) + ' samples';
+                                return ctx.dataset.label + ': ' + rand + ' (' + unit + ')';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: txtColor(), maxRotation: 45, font: { size: 10 }, autoSkip: false } },
+                    y: { grid: { color: gridColor() }, ticks: { color: txtColor(), callback: function(v) { return 'R' + v.toLocaleString(); } }, beginAtZero: true }
+                }
+            }
+        });
+    }
 }
 
 // ================================================================
@@ -3420,6 +3487,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Re-render inspector comparison chart when metric changes
     var metricSel = document.getElementById('inspectorTrendMetric');
     if (metricSel) metricSel.addEventListener('change', renderInspectorComparisonChart);
+
+    // Re-render revenue breakdown chart when metric changes
+    var revBreakdownSel = document.getElementById('revenueBreakdownMetric');
+    if (revBreakdownSel) revBreakdownSel.addEventListener('change', renderRevenueCostChart);
 });
 
 // ================================================================
