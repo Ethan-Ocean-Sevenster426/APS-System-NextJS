@@ -2600,12 +2600,13 @@ function renderInspectorComparisonChart() {
     };
     var isRand = metric.indexOf('revenue') !== -1 || metric === 'total_revenue' || metric === 'total_profit';
 
-    // Compute profit on the fly (revenue - salary - expenses)
+    // Compute profit on the fly (revenue - salary - expenses - mgmt fees)
     var enriched = items.map(function(i) {
         var copy = Object.assign({}, i);
         var salary = getInspectorSalary(i.inspector_name);
         var expenses = getInspectorExpenses(i.inspector_name);
-        var totalCost = salary + expenses;
+        var mgmtFees = Math.round((salary + expenses) * 0.20);
+        var totalCost = salary + expenses + mgmtFees;
         copy.total_profit = totalCost ? (i.total_revenue || 0) - totalCost : 0;
         return copy;
     });
