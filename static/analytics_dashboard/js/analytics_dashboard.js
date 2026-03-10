@@ -3889,7 +3889,7 @@ function openTargetsModal() {
     Object.keys(dashboardData.inspectorTargets || {}).forEach(function(n) { names.add(n); });
     Object.keys(_currentQuarterTargets()).forEach(function(n) { names.add(n); });
     var sorted = Array.from(names).sort();
-    sel.innerHTML = '<option value="">-- Select Inspector --</option>';
+    sel.innerHTML = '<option value="__all__">All Inspectors</option>';
     sorted.forEach(function(name) {
         var opt = document.createElement('option');
         opt.value = name;
@@ -3897,7 +3897,24 @@ function openTargetsModal() {
         if (_currentQuarterTargets()[name]) opt.textContent += ' *';
         sel.appendChild(opt);
     });
+    // Reset form fields to 0 when modal opens
+    _resetTargetFormToZero();
     document.getElementById('targetSaveStatus').textContent = '';
+}
+
+function _resetTargetFormToZero() {
+    document.getElementById('targetEggs').value = 0;
+    document.getElementById('targetPoultry').value = 0;
+    document.getElementById('targetRaw').value = 0;
+    document.getElementById('targetPmp').value = 0;
+    document.getElementById('targetRawSamples').value = 0;
+    document.getElementById('targetPmpSamples').value = 0;
+    document.getElementById('targetTotalSamples').value = 0;
+    document.getElementById('targetSalary').value = 0;
+    document.getElementById('targetRevTarget').value = 0;
+    document.getElementById('targetVehicle').value = 0;
+    document.getElementById('targetOther').value = 0;
+    document.getElementById('targetNotes').value = '';
 }
 
 function closeTargetsModal() {
@@ -3907,7 +3924,7 @@ function closeTargetsModal() {
 
 function onTargetInspectorChange() {
     var name = document.getElementById('targetInspectorSelect').value;
-    if (!name) return;
+    if (!name || name === '__all__') { _resetTargetFormToZero(); return; }
     var year = document.getElementById('targetYearSelect').value;
     var quarter = document.getElementById('targetQuarterSelect').value;
 
@@ -3928,19 +3945,7 @@ function onTargetInspectorChange() {
             document.getElementById('targetOther').value = qt.monthly_other_costs || 0;
             document.getElementById('targetNotes').value = qt.notes || '';
         } else {
-            // No quarterly target for this period — show 0
-            document.getElementById('targetEggs').value = 0;
-            document.getElementById('targetPoultry').value = 0;
-            document.getElementById('targetRaw').value = 0;
-            document.getElementById('targetPmp').value = 0;
-            document.getElementById('targetRawSamples').value = 0;
-            document.getElementById('targetPmpSamples').value = 0;
-            document.getElementById('targetTotalSamples').value = 0;
-            document.getElementById('targetSalary').value = 0;
-            document.getElementById('targetRevTarget').value = 0;
-            document.getElementById('targetVehicle').value = 0;
-            document.getElementById('targetOther').value = 0;
-            document.getElementById('targetNotes').value = '';
+            _resetTargetFormToZero();
         }
         document.getElementById('targetSaveStatus').textContent = '';
     });
@@ -3949,6 +3954,7 @@ function onTargetInspectorChange() {
 function saveInspectorTarget() {
     var name = document.getElementById('targetInspectorSelect').value;
     if (!name) { document.getElementById('targetSaveStatus').innerHTML = '<span style="color:#991b1b;">Please select an inspector</span>'; return; }
+    if (name === '__all__') { saveTargetAllInspectors(); return; }
     var year = parseInt(document.getElementById('targetYearSelect').value);
     var quarter = parseInt(document.getElementById('targetQuarterSelect').value);
     var payload = {
