@@ -845,7 +845,7 @@ function renderFinancialTable() {
     var KM_RATE = 4.50;
     var html = '';
     var totals = { inspections: 0, hours: 0, km: 0, kmCost: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, mgmtFees: 0, totalCost: 0, profit: 0 };
-    var shaded = 'background:rgba(0,120,144,0.06);';
+    var shaded = 'background:rgba(239,68,68,0.08);color:#dc2626;';
     var profitShade = 'background:rgba(16,185,129,0.06);';
 
     filteredItems.forEach(function(item) {
