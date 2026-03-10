@@ -6,14 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>System Logs - Food Safety Agency</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
-
-    <!-- Preconnect hints for faster CDN connections -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-
-    <!-- Async Font Awesome loading -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,188 +29,149 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="{% static 'system_logs/css/system_logs.css' %}?v=20260311">
+    <link rel="stylesheet" href="{% static 'system_logs/css/system_logs.css' %}?v=20260311b">
     <style>
-        :root {
-            --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
-        }
+        :root { --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2"); }
 
-        /* Summary stat cards */
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 12px;
-        }
+        /* ===== Analytics-style stat cards ===== */
+        .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px; }
         .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: var(--shadow);
+            background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+            padding:16px 18px; display:flex; align-items:center; gap:14px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.06); transition:transform 0.15s, box-shadow 0.15s;
         }
+        .stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
         .stat-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
+            width:44px; height:44px; border-radius:12px; display:flex;
+            align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
         }
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            line-height: 1;
-            color: var(--text);
+        .stat-value { font-size:1.6rem; font-weight:700; line-height:1; color:var(--text); }
+        .stat-label { font-size:0.65rem; color:var(--text-light); text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; font-weight:500; }
+
+        /* ===== Duplicate section ===== */
+        .dup-section {
+            background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+            margin-bottom:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06);
         }
-        .stat-label {
-            font-size: 0.7rem;
-            color: var(--text-light);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 2px;
+        .dup-section-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 20px; cursor:pointer; user-select:none;
+            background:linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(245,158,11,0.06) 100%);
+            border-bottom:1px solid transparent; transition:background 0.2s;
+        }
+        .dup-section-header:hover { background:linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(245,158,11,0.1) 100%); }
+        .dup-section-header h3 {
+            display:flex; align-items:center; gap:10px;
+            font-size:14px; font-weight:600; color:#991b1b; margin:0;
+        }
+        [data-theme="dark"] .dup-section-header h3 { color:#fca5a5; }
+        .dup-section-header .dup-toggle { color:#6b7280; transition:transform 0.25s; font-size:14px; }
+        .dup-section-header .dup-toggle.open { transform:rotate(180deg); }
+        .dup-section-body { display:none; }
+        .dup-section-body.show { display:block; }
+
+        /* Group card (each duplicate group) */
+        .dup-group {
+            border-bottom:1px solid var(--border); padding:0;
+        }
+        .dup-group:last-child { border-bottom:none; }
+        .dup-group-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 20px; cursor:pointer; transition:background 0.15s;
+        }
+        .dup-group-header:hover { background:rgba(0,0,0,0.02); }
+        [data-theme="dark"] .dup-group-header:hover { background:rgba(255,255,255,0.03); }
+        .dup-group-info { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+        .dup-group-info .client { font-weight:600; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px; }
+        .dup-group-info .meta { font-size:11px; color:var(--text-light); display:flex; gap:14px; flex-shrink:0; }
+        .dup-group-info .meta span { display:flex; align-items:center; gap:4px; }
+        .dup-badge {
+            display:inline-flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:700; border-radius:6px;
+            min-width:28px; height:22px; padding:0 8px; color:white; flex-shrink:0;
+        }
+        .dup-badge-red { background:#dc2626; }
+        .dup-badge-amber { background:#f59e0b; }
+        .dup-badge-grey { background:#6b7280; }
+        .dup-group-detail { display:none; background:rgba(0,0,0,0.015); border-top:1px solid var(--border); }
+        [data-theme="dark"] .dup-group-detail { background:rgba(255,255,255,0.02); }
+        .dup-group-detail.show { display:block; }
+        .dup-group-detail table { width:100%; border-collapse:collapse; font-size:12px; }
+        .dup-group-detail th {
+            text-align:left; padding:8px 20px; font-size:10px; font-weight:600;
+            text-transform:uppercase; letter-spacing:0.5px; color:var(--text-light);
+            background:rgba(0,0,0,0.03); border-bottom:1px solid var(--border);
+        }
+        [data-theme="dark"] .dup-group-detail th { background:rgba(255,255,255,0.04); }
+        .dup-group-detail td { padding:8px 20px; border-bottom:1px solid var(--border); color:var(--text); }
+        .dup-group-detail tr:last-child td { border-bottom:none; }
+        .dup-group-detail tr:first-child td { background:rgba(16,185,129,0.06); }
+        .dup-group-detail .original-tag {
+            display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
+            background:#10b981; color:white; padding:2px 6px; border-radius:4px; letter-spacing:0.3px;
+        }
+        .dup-group-detail .duplicate-tag {
+            display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
+            background:#ef4444; color:white; padding:2px 6px; border-radius:4px; letter-spacing:0.3px;
+        }
+        .sent-yes { color:#10b981; font-weight:600; }
+        .sent-no { color:#6b7280; }
+
+        /* ===== Filter card — analytics style ===== */
+        .filter-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:12px; }
+        .filter-field label {
+            display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;
+        }
+        [data-theme="dark"] .filter-field label { color:#d1d5db; }
+        .filter-field select, .filter-field input {
+            width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px;
+            font-size:13px; background:white; color:var(--text); transition:border 0.2s;
+        }
+        [data-theme="dark"] .filter-field select, [data-theme="dark"] .filter-field input {
+            background:#3a3a3a; border-color:#555; color:#fff;
+        }
+        .filter-field select:focus, .filter-field input:focus {
+            outline:none; border-color:#007890; box-shadow:0 0 0 3px rgba(0,120,144,0.15);
         }
 
-        /* Duplicate alert card */
-        .duplicate-card {
-            background: var(--card-bg);
-            border: 1px solid #fbbf24;
-            border-left: 4px solid #f59e0b;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            overflow: hidden;
+        /* ===== Improved table ===== */
+        .log-table-wrap {
+            background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+            overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:10px;
         }
-        .duplicate-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            background: rgba(245, 158, 11, 0.08);
-            cursor: pointer;
-            user-select: none;
+        .log-table-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 20px; border-bottom:1px solid var(--border);
         }
-        .duplicate-header:hover {
-            background: rgba(245, 158, 11, 0.12);
+        .log-table-header h3 {
+            font-size:14px; font-weight:600; color:var(--text);
+            display:flex; align-items:center; gap:8px; margin:0;
         }
-        .duplicate-header h3 {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #92400e;
-        }
-        [data-theme="dark"] .duplicate-header h3 {
-            color: #fbbf24;
-        }
-        .duplicate-body {
-            display: none;
-            padding: 0;
-        }
-        .duplicate-body.show {
-            display: block;
-        }
-        .duplicate-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-        }
-        .duplicate-table th {
-            background: rgba(245, 158, 11, 0.06);
-            padding: 8px 14px;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text);
-            border-bottom: 1px solid var(--border);
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .duplicate-table td {
-            padding: 8px 14px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text);
-        }
-        .duplicate-table tr:last-child td {
-            border-bottom: none;
-        }
-        .duplicate-table tr:hover {
-            background: rgba(245, 158, 11, 0.04);
-        }
-        .dupe-count-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #dc2626;
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 700;
-            border-radius: 10px;
-            min-width: 22px;
-            height: 18px;
-            padding: 0 6px;
-        }
-        .dupe-count-high {
-            background: #dc2626;
-        }
-        .dupe-count-med {
-            background: #f59e0b;
-        }
-        .dupe-count-low {
-            background: #6b7280;
-        }
+        .log-table-header .showing { font-size:12px; color:var(--text-light); }
 
-        /* Improved filter card */
-        .filter-row {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
-            margin-bottom: 12px;
+        @media (max-width:1024px) {
+            .stat-grid { grid-template-columns:repeat(2,1fr); }
+            .filter-grid { grid-template-columns:repeat(3,1fr); }
+            .dup-group-info .client { max-width:200px; }
         }
-
-        @media (max-width: 1024px) {
-            .stat-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .filter-row {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-        @media (max-width: 768px) {
-            .stat-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
-            }
-            .stat-card {
-                padding: 10px 12px;
-                gap: 8px;
-            }
-            .stat-icon {
-                width: 32px;
-                height: 32px;
-                font-size: 13px;
-            }
-            .stat-value {
-                font-size: 1.1rem;
-            }
-            .filter-row {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width:768px) {
+            .stat-grid { grid-template-columns:repeat(2,1fr); gap:6px; }
+            .stat-card { padding:12px; gap:10px; }
+            .stat-icon { width:36px; height:36px; font-size:14px; border-radius:10px; }
+            .stat-value { font-size:1.2rem; }
+            .filter-grid { grid-template-columns:1fr; }
+            .dup-group-header { flex-direction:column; gap:8px; align-items:flex-start; }
+            .dup-group-info { flex-wrap:wrap; }
+            .dup-group-info .client { max-width:100%; }
+            .dup-group-detail { overflow-x:auto; }
         }
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Button -->
     <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
         <i class="fas fa-bars text-xl"></i>
     </button>
 
-    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
     {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
     <div id="notification-bell" class="notification-bell-float" title="Notifications">
         <i class="fas fa-bell"></i>
@@ -223,7 +179,6 @@
     </div>
     {% endif %}
 
-    <!-- Sidebar Overlay -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
     <div class="flex min-h-screen">
@@ -233,144 +188,46 @@
                 <div class="text-center mb-2">
                     <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
                 </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
-                    Food Safety Agency (Pty) Ltd
-                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">Food Safety Agency (Pty) Ltd</div>
             </div>
-
             <div class="flex-1 flex flex-col justify-between overflow-y-auto">
                 <ul class="px-2 py-2 space-y-1">
-                    <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
-                        </a>
-                    </li>
+                    <li><a href="{% url 'home' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-home mr-2 w-4 text-center"></i>Home Center</a></li>
                     {% if request.user.role == 'inspector' %}
-                    <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
-                        </a>
-                    </li>
+                    <li><a href="{% url 'inspector_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-chart-line mr-2 w-4 text-center"></i>My Analytics</a></li>
+                    <li><a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>Inspections</a></li>
                     {% else %}
-                    <li>
-                        <a href="{% url 'client_allocation_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
-                            Client Allocation Sheet
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
-                        </a>
-                    </li>
+                    <li><a href="{% url 'client_allocation_sheet' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>Client Allocation Sheet</a></li>
+                    <li><a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-file-invoice mr-2 w-4 text-center"></i>Inspection Records</a></li>
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
-                        </a>
-                    </li>
+                    <li><a href="{% url 'user_management' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>User Management</a></li>
                     {% endif %}
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
-                        </a>
-                    </li>
+                    <li><a href="{% url 'system_logs' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20"><i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>System Logs</a></li>
+                    <li><a href="{% url 'fsa_operations_board' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>Support Tickets</a></li>
                     {% endif %}
-                    <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
-                        </a>
-                    </li>
+                    <li><a href="{% url 'submit_ticket' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>Submit Ticket</a></li>
                     {% if request.user.role == 'developer' %}
-                    <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
-                        </a>
-                    </li>
+                    <li><a href="{% url 'onedrive_view' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>OneDrive View</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
-                        </a>
-                    </li>
+                    <li><a href="{% url 'server_view' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>Server View</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
-                    <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
-                        </a>
-                    </li>
+                    <li><a href="{% url 'export_sheet' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>Export Sheet</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'debtors_page' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>
-                            Debtors
-                        </a>
-                    </li>
+                    <li><a href="{% url 'analytics_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>Inspector Analytics</a></li>
+                    <li><a href="{% url 'debtors_page' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>Debtors</a></li>
                     {% endif %}
-                    <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
-                        </a>
-                    </li>
+                    <li><a href="{% url 'settings' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]"><i class="fas fa-sliders-h mr-2 w-4 text-center"></i>Settings</a></li>
                 </ul>
             </div>
-
-            <!-- Logout Button -->
             <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
                 <form action="{% url 'logout' %}" method="post" class="inline w-full">
                     {% csrf_token %}
-                    <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
-                    </button>
+                    <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </form>
             </div>
         </div>
@@ -379,167 +236,179 @@
         <div class="main-content">
             <div class="container">
                 <div class="header">
-                    <h1>System Logs</h1>
+                    <h1><i class="fas fa-shield-alt" style="margin-right:8px;opacity:0.8;"></i>System Logs</h1>
                     <h2>Activity tracking, monitoring & duplicate detection</h2>
                 </div>
 
-                <!-- Messages Section -->
                 {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
-                    </div>
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
                     {% endfor %}
                 </div>
                 {% endif %}
 
-                <!-- Summary Stats -->
+                <!-- ===== Summary Stats ===== -->
                 <div class="stat-grid">
                     <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(0,120,144,0.1);color:#007890;">
-                            <i class="fas fa-list-alt"></i>
-                        </div>
+                        <div class="stat-icon" style="background:rgba(0,120,144,0.1);color:#007890;"><i class="fas fa-list-alt"></i></div>
                         <div>
                             <div class="stat-value">{{ total_logs }}</div>
                             <div class="stat-label">Total Logs</div>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
-                            <i class="fas fa-copy"></i>
-                        </div>
+                        <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#dc2626;"><i class="fas fa-copy"></i></div>
                         <div>
-                            <div class="stat-value" style="{% if duplicate_count > 0 %}color:#dc2626{% endif %}">{{ duplicate_count }}</div>
+                            <div class="stat-value" style="color:#dc2626;">{{ duplicate_count }}</div>
                             <div class="stat-label">Duplicate Groups</div>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
-                            <i class="fas fa-sign-in-alt"></i>
+                        <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;"><i class="fas fa-clone"></i></div>
+                        <div>
+                            <div class="stat-value" style="color:#f59e0b;">{{ total_extra_copies }}</div>
+                            <div class="stat-label">Extra Copies</div>
                         </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;"><i class="fas fa-sign-in-alt"></i></div>
                         <div>
                             <div class="stat-value" id="login-count">-</div>
                             <div class="stat-label">Logins Today</div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <div>
-                            <div class="stat-value" id="error-count">-</div>
-                            <div class="stat-label">Errors Today</div>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Duplicate Inspections Alert -->
+                <!-- ===== Duplicate Inspections Deep Dive ===== -->
                 {% if duplicate_inspections %}
-                <div class="duplicate-card">
-                    <div class="duplicate-header" onclick="toggleDuplicates()">
+                <div class="dup-section">
+                    <div class="dup-section-header" onclick="toggleSection('dup-main')">
                         <h3>
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Duplicate Inspections Detected
-                            <span class="dupe-count-badge dupe-count-high">{{ duplicate_count }}</span>
+                            <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+                            Duplicate Inspections — {{ duplicate_count }} groups, {{ total_extra_copies }} extra copies
                         </h3>
-                        <i class="fas fa-chevron-down" id="dupe-chevron" style="color:#92400e;transition:transform 0.2s;"></i>
+                        <i class="fas fa-chevron-down dup-toggle" id="dup-main-toggle"></i>
                     </div>
-                    <div class="duplicate-body" id="duplicate-body">
-                        <table class="duplicate-table">
-                            <thead>
-                                <tr>
-                                    <th>Client / Facility</th>
-                                    <th>Inspector</th>
-                                    <th>Date</th>
-                                    <th>Copies</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dupe in duplicate_inspections %}
-                                <tr>
-                                    <td style="font-weight:500;">{{ dupe.client_name }}</td>
-                                    <td>{{ dupe.inspector }}</td>
-                                    <td>{{ dupe.date|date:"d M Y" }}</td>
-                                    <td>
-                                        <span class="dupe-count-badge {% if dupe.count >= 10 %}dupe-count-high{% elif dupe.count >= 5 %}dupe-count-med{% else %}dupe-count-low{% endif %}">
-                                            {{ dupe.count }}x
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="dup-section-body" id="dup-main-body">
+                        {% for dupe in duplicate_inspections %}
+                        <div class="dup-group">
+                            <div class="dup-group-header" onclick="toggleGroup('dup-{{ forloop.counter }}')">
+                                <div class="dup-group-info">
+                                    <span class="dup-badge {% if dupe.count >= 10 %}dup-badge-red{% elif dupe.count >= 5 %}dup-badge-amber{% else %}dup-badge-grey{% endif %}">{{ dupe.count }}x</span>
+                                    <span class="client">{{ dupe.client_name }}</span>
+                                    <span class="meta">
+                                        <span><i class="fas fa-user"></i> {{ dupe.inspector }}</span>
+                                        <span><i class="fas fa-calendar"></i> {{ dupe.date|date:"d M Y" }}</span>
+                                        <span style="font-size:10px;color:#9ca3af;">IDs: {{ dupe.first_id }} - {{ dupe.last_id }}</span>
+                                    </span>
+                                </div>
+                                <i class="fas fa-chevron-right" style="color:var(--text-light);font-size:11px;transition:transform 0.2s;" id="dup-{{ forloop.counter }}-icon"></i>
+                            </div>
+                            <div class="dup-group-detail" id="dup-{{ forloop.counter }}-detail">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width:50px;">Status</th>
+                                            <th>ID</th>
+                                            <th>Group</th>
+                                            <th>Commodity</th>
+                                            <th>Town</th>
+                                            <th>Sent</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in dupe.items %}
+                                        <tr>
+                                            <td>
+                                                {% if forloop.first %}
+                                                    <span class="original-tag">Original</span>
+                                                {% else %}
+                                                    <span class="duplicate-tag">Duplicate</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="font-weight:600;">#{{ item.id }}</td>
+                                            <td>{{ item.group_id|default:"-" }}</td>
+                                            <td>{{ item.commodity }}</td>
+                                            <td>{{ item.town }}</td>
+                                            <td>
+                                                {% if item.is_sent %}
+                                                    <span class="sent-yes"><i class="fas fa-check-circle"></i> {{ item.sent_date|date:"d/m/y"|default:"Yes" }}</span>
+                                                {% else %}
+                                                    <span class="sent-no"><i class="fas fa-minus-circle"></i> No</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ item.created_at|date:"d/m/y H:i"|default:"-" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
 
-                <!-- Filter Card -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <i class="fas fa-filter"></i> Filter Logs
-                        </div>
+                <!-- ===== Filter Card ===== -->
+                <div class="card" style="border-radius:10px;">
+                    <div class="card-header" style="padding:12px 20px;">
+                        <div class="card-title" style="font-size:14px;"><i class="fas fa-filter"></i> Filter Logs</div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body" style="padding:16px 20px;">
                         <form method="get" action="">
-                            <div class="filter-row">
-                                <div class="form-field">
-                                    <label class="form-label">User</label>
-                                    <select class="form-control" name="user">
+                            <div class="filter-grid">
+                                <div class="filter-field">
+                                    <label>User</label>
+                                    <select name="user">
                                         <option value="">All Users</option>
                                         {% for user in users %}
                                         <option value="{{ user.username }}" {% if filters.user == user.username %}selected{% endif %}>{{ user.username }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">Action</label>
-                                    <select class="form-control" name="action">
+                                <div class="filter-field">
+                                    <label>Action</label>
+                                    <select name="action">
                                         <option value="">All Actions</option>
                                         {% for action in actions %}
                                         <option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">Page</label>
-                                    <select class="form-control" name="page">
+                                <div class="filter-field">
+                                    <label>Page</label>
+                                    <select name="page">
                                         <option value="">All Pages</option>
                                         {% for page in pages %}
                                         <option value="{{ page }}" {% if filters.page == page %}selected{% endif %}>{{ page }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">Date From</label>
-                                    <input type="date" class="form-control" name="date_from" value="{{ filters.date_from }}">
+                                <div class="filter-field">
+                                    <label>Date From</label>
+                                    <input type="date" name="date_from" value="{{ filters.date_from }}">
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">Date To</label>
-                                    <input type="date" class="form-control" name="date_to" value="{{ filters.date_to }}">
+                                <div class="filter-field">
+                                    <label>Date To</label>
+                                    <input type="date" name="date_to" value="{{ filters.date_to }}">
                                 </div>
                             </div>
-
-                            <!-- Action Buttons Row -->
-                            <div class="filter-actions">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-search"></i>
-                                    <span>Apply Filters</span>
+                            <div style="display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                                <button type="submit" style="padding:8px 16px; border:none; border-radius:6px; background:#007890; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#006070'" onmouseout="this.style.background='#007890'">
+                                    <i class="fas fa-search"></i> Apply Filters
                                 </button>
-                                <a href="?" class="btn btn-secondary">
-                                    <i class="fas fa-times"></i>
-                                    <span>Clear All</span>
+                                <a href="?" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; font-weight:500; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:6px;">
+                                    <i class="fas fa-times"></i> Clear All
                                 </a>
                                 {% if not filters.show_all %}
-                                <a href="?show_all=true" class="btn btn-secondary">
-                                    <i class="fas fa-list"></i>
-                                    <span>Show All ({{ total_logs }})</span>
+                                <a href="?show_all=true" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; font-weight:500; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:6px;">
+                                    <i class="fas fa-list"></i> Show All ({{ total_logs }})
                                 </a>
                                 {% else %}
-                                <a href="?" class="btn btn-secondary">
-                                    <i class="fas fa-list"></i>
-                                    <span>Show Paginated</span>
+                                <a href="?" style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; font-size:13px; font-weight:500; cursor:pointer; text-decoration:none; display:flex; align-items:center; gap:6px;">
+                                    <i class="fas fa-list"></i> Show Paginated
                                 </a>
                                 {% endif %}
                             </div>
@@ -547,132 +416,72 @@
                     </div>
                 </div>
 
-                <!-- Logs Table -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <i class="fas fa-list-alt"></i> Activity Logs
-                        </div>
-                        <span class="table-info">Showing {{ logs|length }} of {{ total_logs }}</span>
+                <!-- ===== Activity Logs Table ===== -->
+                <div class="log-table-wrap">
+                    <div class="log-table-header">
+                        <h3><i class="fas fa-list-alt" style="color:#007890;"></i> Activity Logs</h3>
+                        <span class="showing">Showing {{ logs|length }} of {{ total_logs }}</span>
                     </div>
-                    <div class="card-body" style="padding:0;">
-                        <div class="table-responsive" style="border:none;border-radius:0;">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th class="col-timestamp">Timestamp</th>
-                                        <th class="col-user">User</th>
-                                        <th class="col-action">Action</th>
-                                        <th class="col-page">Page</th>
-                                        <th class="col-object">Object</th>
-                                        <th class="col-description">Description</th>
-                                        <th class="col-ip">IP Address</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for log in logs %}
-                                    <tr>
-                                        <!-- Desktop table cells -->
-                                        <td class="col-timestamp" data-label="Timestamp">
-                                            <span>{{ log.timestamp|date:"d/m/y H:i:s" }}</span>
-                                        </td>
-                                        <td class="col-user" data-label="User">
-                                            <span>{{ log.user.username }}</span>
-                                        </td>
-                                        <td class="col-action" data-label="Action">
-                                            <span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span>
-                                        </td>
-                                        <td class="col-page" data-label="Page">
-                                            <span>{{ log.page|default:"-" }}</span>
-                                        </td>
-                                        <td class="col-object" data-label="Object">
-                                            <span>
-                                            {% if log.object_type and log.object_id %}
-                                                {{ log.object_type }}: {{ log.object_id }}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                            </span>
-                                        </td>
-                                        <td class="col-description" data-label="Description">
-                                            <span>{{ log.description|default:"-"|truncatechars:80 }}</span>
-                                        </td>
-                                        <td class="col-ip" data-label="IP Address">
-                                            <span>{{ log.ip_address|default:"-" }}</span>
-                                        </td>
+                    <div class="table-responsive" style="border:none;border-radius:0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="col-timestamp">Timestamp</th>
+                                    <th class="col-user">User</th>
+                                    <th class="col-action">Action</th>
+                                    <th class="col-page">Page</th>
+                                    <th class="col-object">Object</th>
+                                    <th class="col-description">Description</th>
+                                    <th class="col-ip">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td class="col-timestamp" data-label="Timestamp"><span>{{ log.timestamp|date:"d/m/y H:i:s" }}</span></td>
+                                    <td class="col-user" data-label="User"><span>{{ log.user.username }}</span></td>
+                                    <td class="col-action" data-label="Action"><span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span></td>
+                                    <td class="col-page" data-label="Page"><span>{{ log.page|default:"-" }}</span></td>
+                                    <td class="col-object" data-label="Object"><span>{% if log.object_type and log.object_id %}{{ log.object_type }}: {{ log.object_id }}{% else %}-{% endif %}</span></td>
+                                    <td class="col-description" data-label="Description"><span>{{ log.description|default:"-"|truncatechars:80 }}</span></td>
+                                    <td class="col-ip" data-label="IP Address"><span>{{ log.ip_address|default:"-" }}</span></td>
 
-                                        <!-- Mobile card content -->
-                                        <td class="mobile-row-content" style="display: none;">
-                                            <div class="mobile-row-header">
-                                                <div>
-                                                    <div class="mobile-row-field">
-                                                        <span class="mobile-row-label">Time</span>
-                                                        <span class="mobile-row-value">{{ log.timestamp|date:"d/m/y H:i:s" }}</span>
-                                                    </div>
-                                                    <div class="mobile-row-field">
-                                                        <span class="mobile-row-label">User</span>
-                                                        <span class="mobile-row-value">{{ log.user.username }}</span>
-                                                    </div>
-                                                    <div class="mobile-row-field">
-                                                        <span class="mobile-row-label">Action</span>
-                                                        <span class="mobile-row-value action-badge action-{{ log.action }}">{{ log.action|title }}</span>
-                                                    </div>
-                                                </div>
-                                                <button class="mobile-expand-btn" onclick="toggleMobileRow(this)">
-                                                    <i class="fas fa-chevron-down"></i>
-                                                </button>
+                                    <td class="mobile-row-content" style="display:none;">
+                                        <div class="mobile-row-header">
+                                            <div>
+                                                <div class="mobile-row-field"><span class="mobile-row-label">Time</span><span class="mobile-row-value">{{ log.timestamp|date:"d/m/y H:i:s" }}</span></div>
+                                                <div class="mobile-row-field"><span class="mobile-row-label">User</span><span class="mobile-row-value">{{ log.user.username }}</span></div>
+                                                <div class="mobile-row-field"><span class="mobile-row-label">Action</span><span class="mobile-row-value action-badge action-{{ log.action }}">{{ log.action|title }}</span></div>
                                             </div>
-
-                                            <div class="mobile-row-expandable">
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">Page</span>
-                                                    <span class="mobile-row-value">{{ log.page|default:"-" }}</span>
-                                                </div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">Object</span>
-                                                    <span class="mobile-row-value">
-                                                        {% if log.object_type and log.object_id %}
-                                                            {{ log.object_type }}: {{ log.object_id }}
-                                                        {% else %}
-                                                            -
-                                                        {% endif %}
-                                                    </span>
-                                                </div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">Description</span>
-                                                    <span class="mobile-row-value">{{ log.description|default:"-" }}</span>
-                                                </div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">IP Address</span>
-                                                    <span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr class="empty-row">
-                                        <td colspan="7" class="empty-message" style="display: table-cell;">
-                                            <i class="fas fa-list-alt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                                            <p>No system logs found.</p>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                                            <button class="mobile-expand-btn" onclick="toggleMobileRow(this)"><i class="fas fa-chevron-down"></i></button>
+                                        </div>
+                                        <div class="mobile-row-expandable">
+                                            <div class="mobile-row-field"><span class="mobile-row-label">Page</span><span class="mobile-row-value">{{ log.page|default:"-" }}</span></div>
+                                            <div class="mobile-row-field"><span class="mobile-row-label">Object</span><span class="mobile-row-value">{% if log.object_type and log.object_id %}{{ log.object_type }}: {{ log.object_id }}{% else %}-{% endif %}</span></div>
+                                            <div class="mobile-row-field"><span class="mobile-row-label">Description</span><span class="mobile-row-value">{{ log.description|default:"-" }}</span></div>
+                                            <div class="mobile-row-field"><span class="mobile-row-label">IP</span><span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr class="empty-row">
+                                    <td colspan="7" class="empty-message" style="display:table-cell;">
+                                        <i class="fas fa-list-alt" style="font-size:2rem;margin-bottom:1rem;opacity:0.5;"></i>
+                                        <p>No system logs found.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
 
                     {% if page_obj and not filters.show_all %}
-                    <div class="pagination" style="padding: 12px 16px; border-top: 1px solid var(--border);">
+                    <div class="pagination" style="padding:12px 20px; border-top:1px solid var(--border);">
                         {% if page_obj.has_previous %}
                             <a href="?page=1{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">First</a>
                             <a href="?page={{ page_obj.previous_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Previous</a>
                         {% endif %}
-
-                        <span class="page-info">
-                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                        </span>
-
+                        <span class="page-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
                         {% if page_obj.has_next %}
                             <a href="?page={{ page_obj.next_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Next</a>
                             <a href="?page={{ page_obj.paginator.num_pages }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Last</a>
@@ -680,6 +489,7 @@
                     </div>
                     {% endif %}
                 </div>
+
             </div>
         </div>
     </div>
@@ -691,47 +501,40 @@
             userRole: '{{ request.user.role }}'
         };
 
-        // Inline quick stats count from rendered logs
-        (function() {
-            var today = new Date().toISOString().slice(0, 10);
-            // We'll calculate from the page data passed as JSON
-        })();
+        function toggleSection(id) {
+            var body = document.getElementById(id + '-body');
+            var toggle = document.getElementById(id + '-toggle');
+            body.classList.toggle('show');
+            toggle.classList.toggle('open');
+        }
 
-        function toggleDuplicates() {
-            var body = document.getElementById('duplicate-body');
-            var chevron = document.getElementById('dupe-chevron');
-            if (body.classList.contains('show')) {
-                body.classList.remove('show');
-                chevron.style.transform = 'rotate(0deg)';
-            } else {
-                body.classList.add('show');
-                chevron.style.transform = 'rotate(180deg)';
-            }
+        function toggleGroup(id) {
+            var detail = document.getElementById(id + '-detail');
+            var icon = document.getElementById(id + '-icon');
+            var isOpen = detail.classList.contains('show');
+            detail.classList.toggle('show');
+            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
         }
     </script>
-    <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311"></script>
+    <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311b"></script>
     <script>
-        // Calculate today's logins and errors from visible log data
         document.addEventListener('DOMContentLoaded', function() {
+            // Count logins today from visible rows
             var rows = document.querySelectorAll('tbody tr:not(.empty-row)');
             var today = new Date();
-            var todayStr = ('0' + today.getDate()).slice(-2) + '/' + ('0' + (today.getMonth()+1)).slice(-2) + '/' + String(today.getFullYear()).slice(-2);
-            var logins = 0, errors = 0;
+            var dd = ('0'+today.getDate()).slice(-2), mm = ('0'+(today.getMonth()+1)).slice(-2), yy = String(today.getFullYear()).slice(-2);
+            var todayStr = dd+'/'+mm+'/'+yy;
+            var logins = 0;
             rows.forEach(function(row) {
                 var cells = row.querySelectorAll('td:not(.mobile-row-content)');
                 if (cells.length >= 3) {
                     var ts = cells[0].textContent.trim();
                     var action = cells[2].textContent.trim().toUpperCase();
-                    if (ts.indexOf(todayStr) === 0) {
-                        if (action === 'LOGIN') logins++;
-                        if (action === 'ERROR') errors++;
-                    }
+                    if (ts.indexOf(todayStr) === 0 && action === 'LOGIN') logins++;
                 }
             });
-            var loginEl = document.getElementById('login-count');
-            var errorEl = document.getElementById('error-count');
-            if (loginEl) loginEl.textContent = logins;
-            if (errorEl) errorEl.textContent = errors;
+            var el = document.getElementById('login-count');
+            if (el) el.textContent = logins;
         });
     </script>
 </body>

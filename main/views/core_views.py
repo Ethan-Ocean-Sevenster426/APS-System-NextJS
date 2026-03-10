@@ -17301,21 +17301,50 @@ def system_logs(request):
     
     # Detect duplicate inspections (same client + date + inspector, count > 1)
     duplicate_inspections = []
+    total_extra_copies = 0
     try:
         from ..models import FoodSafetyAgencyInspection
-        from django.db.models import Count
+        from django.db.models import Count, Min, Max
         dupes = FoodSafetyAgencyInspection.objects.values(
             'client_name', 'date_of_inspection', 'inspector_name'
         ).annotate(
-            count=Count('id')
-        ).filter(count__gt=1).order_by('-count')[:20]
+            count=Count('id'),
+            first_id=Min('id'),
+            last_id=Max('id'),
+        ).filter(count__gt=1).order_by('-count')[:30]
 
         for d in dupes:
+            # Get all individual inspections in this duplicate group
+            group_inspections = FoodSafetyAgencyInspection.objects.filter(
+                client_name=d['client_name'],
+                date_of_inspection=d['date_of_inspection'],
+                inspector_name=d['inspector_name'],
+            ).order_by('id').values(
+                'id', 'commodity', 'town', 'is_sent', 'sent_date',
+                'created_at', 'inspection_group_id',
+            )
+            items = []
+            for gi in group_inspections:
+                items.append({
+                    'id': gi['id'],
+                    'commodity': gi['commodity'] or '-',
+                    'town': gi['town'] or '-',
+                    'is_sent': gi['is_sent'],
+                    'sent_date': gi['sent_date'],
+                    'created_at': gi['created_at'],
+                    'group_id': gi['inspection_group_id'],
+                })
+
+            extras = d['count'] - 1  # first one is the original
+            total_extra_copies += extras
             duplicate_inspections.append({
                 'client_name': d['client_name'],
                 'date': d['date_of_inspection'],
                 'inspector': d['inspector_name'],
                 'count': d['count'],
+                'first_id': d['first_id'],
+                'last_id': d['last_id'],
+                'items': items,
             })
     except Exception:
         pass
@@ -17339,6 +17368,7 @@ def system_logs(request):
         'pages': pages,
         'duplicate_inspections': duplicate_inspections,
         'duplicate_count': len(duplicate_inspections),
+        'total_extra_copies': total_extra_copies,
         'filters': {
             'user': user_filter,
             'action': action_filter,
