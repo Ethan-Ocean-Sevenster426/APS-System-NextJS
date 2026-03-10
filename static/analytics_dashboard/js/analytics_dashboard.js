@@ -3609,7 +3609,8 @@ function _currentQuarterTargets() {
     return _quarterlyTargetsCache[_qtCacheKey(y, q)] || {};
 }
 
-// Get effective target for an inspector: quarterly override > InspectorTarget > defaults
+// Get effective target for an inspector: quarterly override > 0 (no target set)
+// Only current Q1 2026 uses InspectorTarget defaults; all other quarters show 0 if no quarterly target saved
 function getEffectiveTarget(name) {
     var qt = _currentQuarterTargets()[name];
     if (qt) return {
@@ -3618,6 +3619,19 @@ function getEffectiveTarget(name) {
         totalSamples: qt.total_samples,
         financial: qt
     };
+    // If quarterly targets have been loaded for this period and inspector has none, show 0
+    var y = (document.getElementById('targetsYear') || {}).value;
+    var qtr = (document.getElementById('targetsQuarter') || {}).value;
+    var cacheKey = y && qtr ? _qtCacheKey(y, qtr) : null;
+    if (cacheKey && _quarterlyTargetsCache[cacheKey] !== undefined) {
+        return {
+            inspections: { EGGS: 0, POULTRY: 0, RAW: 0, PMP: 0 },
+            sampling: { RAW: 0, PMP: 0 },
+            totalSamples: 0,
+            financial: {}
+        };
+    }
+    // Fallback for initial load before quarterly data loaded
     return getTargetsForInspector(name);
 }
 
@@ -3632,7 +3646,13 @@ function initTargetsQuarterSelectors() {
         if (y === now.getFullYear()) opt.selected = true;
         yearSel.appendChild(opt);
     }
-    document.getElementById('targetsQuarter').value = Math.ceil((now.getMonth() + 1) / 3);
+    var currentQ = Math.ceil((now.getMonth() + 1) / 3);
+    document.getElementById('targetsQuarter').value = currentQ;
+    // Load quarterly targets for current period so table shows correct values
+    _loadQuarterlyTargets(now.getFullYear(), currentQ, function() {
+        renderInspectorTargetsTable();
+        renderProfitabilityTable();
+    });
 }
 
 function onTargetsQuarterChange() {
