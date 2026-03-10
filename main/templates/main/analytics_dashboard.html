@@ -1056,6 +1056,7 @@
         inspectorFinancials: {{ inspector_financials|safe }},
         financialSummary: {{ financial_summary|safe }},
         inspectionDatesList: {{ inspection_dates_list|safe }},
+        nonInspectorNames: {{ non_inspector_names_json|safe }},
 
         // Phase 2: Time-based analytics
         docSendTime: {{ doc_send_time|safe }},
@@ -1424,13 +1425,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
         if (!sel || !window.DJANGO_CONFIG) return;
         var items = window.DJANGO_CONFIG.inspectorFinancials || [];
-        var nonInsp = ['mpho motaung', 'test inspector'];
         items.forEach(function(item) {
             var name = item.inspector_name || '';
-            var lower = name.toLowerCase();
-            var skip = false;
-            nonInsp.forEach(function(n) { if (lower.indexOf(n) !== -1) skip = true; });
-            if (skip) return;
+            if (typeof isNonInspectorName === 'function' && isNonInspectorName(name)) return;
             var opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;

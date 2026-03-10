@@ -8438,15 +8438,19 @@ def analytics_dashboard(request):
     # Build list of non-inspector users to exclude from analytics
     from django.contrib.auth import get_user_model
     _User = get_user_model()
+    _non_inspector_users = _User.objects.exclude(role='inspector')
     non_inspector_names = set(
-        _User.objects.exclude(role='inspector')
-        .values_list('first_name', flat=True)
+        _non_inspector_users.values_list('first_name', flat=True)
     )
-    # Also match by full name (first + last)
-    for u in _User.objects.exclude(role='inspector'):
+    # Also match by full name, last name, and username
+    for u in _non_inspector_users:
         full = f"{u.first_name} {u.last_name}".strip()
         if full:
             non_inspector_names.add(full)
+        if u.last_name:
+            non_inspector_names.add(u.last_name)
+        if u.username:
+            non_inspector_names.add(u.username)
     non_inspector_names.discard('')
     non_inspector_names.add('admin')
 
@@ -9448,6 +9452,7 @@ def analytics_dashboard(request):
         'inspector_financials': safe_json_dumps(inspector_financials, []),
         'financial_summary': safe_json_dumps(financial_summary, {}),
         'inspection_dates_list': safe_json_dumps(inspection_dates_for_js, []),
+        'non_inspector_names_json': safe_json_dumps(list(non_inspector_names), []),
 
         # Per-inspector targets
         'inspector_targets_data': safe_json_dumps(inspector_targets_data, {}),
@@ -9527,14 +9532,18 @@ def analytics_dashboard_api(request):
     # Build list of non-inspector users to exclude
     from django.contrib.auth import get_user_model
     _User = get_user_model()
+    _non_inspector_users = _User.objects.exclude(role='inspector')
     non_inspector_names = set(
-        _User.objects.exclude(role='inspector')
-        .values_list('first_name', flat=True)
+        _non_inspector_users.values_list('first_name', flat=True)
     )
-    for u in _User.objects.exclude(role='inspector'):
+    for u in _non_inspector_users:
         full = f"{u.first_name} {u.last_name}".strip()
         if full:
             non_inspector_names.add(full)
+        if u.last_name:
+            non_inspector_names.add(u.last_name)
+        if u.username:
+            non_inspector_names.add(u.username)
     non_inspector_names.discard('')
     non_inspector_names.add('admin')
 

@@ -501,7 +501,23 @@ var DEFAULT_SALARIES = {
 };
 
 // Non-inspector staff (excluded from salary/profit calculations)
-var NON_INSPECTORS = ['mpho motaung', 'test inspector'];
+var NON_INSPECTORS = ['mpho motaung', 'test inspector', 'admin', 'test_superadmin', 'test_admin', 'admin1', 'admin3'];
+
+// Check if a name belongs to a super_admin or developer role (from DJANGO_CONFIG)
+function isNonInspectorName(name) {
+    var lower = (name || '').toLowerCase();
+    for (var n = 0; n < NON_INSPECTORS.length; n++) {
+        if (lower.indexOf(NON_INSPECTORS[n]) !== -1) return true;
+    }
+    // Also exclude if DJANGO_CONFIG has non-inspector user list
+    if (window.DJANGO_CONFIG && window.DJANGO_CONFIG.nonInspectorNames) {
+        var excluded = window.DJANGO_CONFIG.nonInspectorNames;
+        for (var i = 0; i < excluded.length; i++) {
+            if (lower === excluded[i].toLowerCase()) return true;
+        }
+    }
+    return false;
+}
 
 // Load saved salaries from localStorage, fallback to defaults
 function loadSalaries() {
@@ -566,10 +582,8 @@ function deleteExpense(id) {
 function getInspectorSalary(name) {
     if (!name) return 0;
     var lower = name.toLowerCase();
-    // Exclude non-inspectors
-    for (var n = 0; n < NON_INSPECTORS.length; n++) {
-        if (lower.indexOf(NON_INSPECTORS[n]) !== -1) return 0;
-    }
+    // Exclude non-inspectors (super admins, developers, etc.)
+    if (isNonInspectorName(name)) return 0;
     // Check saved overrides first
     if (SAVED_SALARIES[lower] !== undefined) return SAVED_SALARIES[lower];
     // Fallback to defaults
@@ -589,12 +603,7 @@ function openSalaryModal() {
     var inspectors = [];
     items.forEach(function(item) {
         var name = item.inspector_name || '';
-        var lower = name.toLowerCase();
-        var isNonInspector = false;
-        for (var n = 0; n < NON_INSPECTORS.length; n++) {
-            if (lower.indexOf(NON_INSPECTORS[n]) !== -1) { isNonInspector = true; break; }
-        }
-        if (!isNonInspector) inspectors.push(name);
+        if (!isNonInspectorName(name)) inspectors.push(name);
     });
     var html = '<h4 style="font-size:12px; color:#007890; margin:0 0 10px; border-bottom:1px solid #e5e7eb; padding-bottom:4px;">Monthly Salary (CTC) per Inspector</h4>';
     html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">';
@@ -823,9 +832,11 @@ function renderFinancialTable() {
     // Role-based filtering: inspectors see only their own row
     var userRole = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole) || '';
     var userName = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userName) || '';
-    var filteredItems = items;
+    var filteredItems = items.filter(function(item) {
+        return !isNonInspectorName(item.inspector_name || '');
+    });
     if (userRole === 'inspector' && userName) {
-        filteredItems = items.filter(function(item) {
+        filteredItems = filteredItems.filter(function(item) {
             var inspName = (item.inspector_name || '').toLowerCase();
             return inspName.indexOf(userName.toLowerCase()) !== -1;
         });
