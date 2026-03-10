@@ -34,10 +34,178 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="{% static 'system_logs/css/system_logs.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'system_logs/css/system_logs.css' %}?v=20260311">
     <style>
         :root {
             --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
+        }
+
+        /* Summary stat cards */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow);
+        }
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text);
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* Duplicate alert card */
+        .duplicate-card {
+            background: var(--card-bg);
+            border: 1px solid #fbbf24;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .duplicate-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(245, 158, 11, 0.08);
+            cursor: pointer;
+            user-select: none;
+        }
+        .duplicate-header:hover {
+            background: rgba(245, 158, 11, 0.12);
+        }
+        .duplicate-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #92400e;
+        }
+        [data-theme="dark"] .duplicate-header h3 {
+            color: #fbbf24;
+        }
+        .duplicate-body {
+            display: none;
+            padding: 0;
+        }
+        .duplicate-body.show {
+            display: block;
+        }
+        .duplicate-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .duplicate-table th {
+            background: rgba(245, 158, 11, 0.06);
+            padding: 8px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .duplicate-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        .duplicate-table tr:last-child td {
+            border-bottom: none;
+        }
+        .duplicate-table tr:hover {
+            background: rgba(245, 158, 11, 0.04);
+        }
+        .dupe-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #dc2626;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            border-radius: 10px;
+            min-width: 22px;
+            height: 18px;
+            padding: 0 6px;
+        }
+        .dupe-count-high {
+            background: #dc2626;
+        }
+        .dupe-count-med {
+            background: #f59e0b;
+        }
+        .dupe-count-low {
+            background: #6b7280;
+        }
+
+        /* Improved filter card */
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 1024px) {
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .filter-row {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .stat-card {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            .stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+            .stat-value {
+                font-size: 1.1rem;
+            }
+            .filter-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -206,252 +374,365 @@
                 </form>
             </div>
         </div>
-        
+
         <!-- Main Content -->
         <div class="main-content">
             <div class="container">
-            <div class="header">
+                <div class="header">
                     <h1>System Logs</h1>
-                <h2>Comprehensive system activity tracking and monitoring</h2>
-            </div>
-
-            <!-- Messages Section -->
-            {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
+                    <h2>Activity tracking, monitoring & duplicate detection</h2>
                 </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-         
-            <!-- Action bar removed - all actions available in sidebar -->
-            
-            <!-- Filter Card -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-filter"></i> Filter Logs
+
+                <!-- Messages Section -->
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Summary Stats -->
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(0,120,144,0.1);color:#007890;">
+                            <i class="fas fa-list-alt"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">{{ total_logs }}</div>
+                            <div class="stat-label">Total Logs</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">
+                            <i class="fas fa-copy"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" style="{% if duplicate_count > 0 %}color:#dc2626{% endif %}">{{ duplicate_count }}</div>
+                            <div class="stat-label">Duplicate Groups</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="login-count">-</div>
+                            <div class="stat-label">Logins Today</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value" id="error-count">-</div>
+                            <div class="stat-label">Errors Today</div>
+                        </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <form method="get" action="">
-                        <!-- First Row: Selection Fields -->
-                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-field" style="flex: 1;">
-                                <label class="form-label">User</label>
-                                <select class="form-control" name="user">
-                                    <option value="">All Users</option>
-                                    {% for user in users %}
-                                    <option value="{{ user.username }}" {% if filters.user == user.username %}selected{% endif %}>{{ user.username }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-field" style="flex: 1;">
-                                <label class="form-label">Action</label>
-                                <select class="form-control" name="action">
-                                    <option value="">All Actions</option>
-                                    {% for action in actions %}
-                                    <option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-field" style="flex: 1;">
-                                <label class="form-label">Page</label>
-                                <select class="form-control" name="page">
-                                    <option value="">All Pages</option>
-                                    {% for page in pages %}
-                                    <option value="{{ page }}" {% if filters.page == page %}selected{% endif %}>{{ page }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Second Row: Date Range -->
-                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                            <div class="form-field" style="flex: 1;">
-                                <label class="form-label">Date From</label>
-                                <input type="date" class="form-control" name="date_from" value="{{ filters.date_from }}">
-                            </div>
-                            <div class="form-field" style="flex: 1;">
-                                <label class="form-label">Date To</label>
-                                <input type="date" class="form-control" name="date_to" value="{{ filters.date_to }}">
-                            </div>
-                            <div class="form-field" style="flex: 1; display: flex; align-items: end;">
-                                <!-- Empty space for alignment -->
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons Row -->
-                        <div class="filter-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search"></i>
-                                <span>Apply Filters</span>
-                            </button>
-                            <a href="?" class="btn btn-secondary">
-                                <i class="fas fa-times"></i>
-                                <span>Clear All</span>
-                            </a>
-                            {% if not filters.show_all %}
-                            <a href="?show_all=true" class="btn btn-secondary">
-                                <i class="fas fa-list"></i>
-                                <span>Show All ({{ total_logs }})</span>
-                            </a>
-                            {% else %}
-                            <a href="?" class="btn btn-secondary">
-                                <i class="fas fa-list"></i>
-                                <span>Show Paginated</span>
-                            </a>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
-            </div>
 
-            <!-- Logs Table -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-list-alt"></i> System Activity Logs
+                <!-- Duplicate Inspections Alert -->
+                {% if duplicate_inspections %}
+                <div class="duplicate-card">
+                    <div class="duplicate-header" onclick="toggleDuplicates()">
+                        <h3>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Duplicate Inspections Detected
+                            <span class="dupe-count-badge dupe-count-high">{{ duplicate_count }}</span>
+                        </h3>
+                        <i class="fas fa-chevron-down" id="dupe-chevron" style="color:#92400e;transition:transform 0.2s;"></i>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table>
+                    <div class="duplicate-body" id="duplicate-body">
+                        <table class="duplicate-table">
                             <thead>
                                 <tr>
-                                    <th class="col-timestamp">Timestamp</th>
-                                    <th class="col-user">User</th>
-                                    <th class="col-action">Action</th>
-                                    <th class="col-page">Page</th>
-                                    <th class="col-object">Object</th>
-                                    <th class="col-description">Description</th>
-                                    <th class="col-ip">IP Address</th>
+                                    <th>Client / Facility</th>
+                                    <th>Inspector</th>
+                                    <th>Date</th>
+                                    <th>Copies</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for log in logs %}
+                                {% for dupe in duplicate_inspections %}
                                 <tr>
-                                    <!-- Desktop table cells -->
-                                    <td class="col-timestamp" data-label="Timestamp">
-                                        <span>{{ log.timestamp|date:"m/d/y H:i:s" }}</span>
-                                    </td>
-                                    <td class="col-user" data-label="User">
-                                        <span>{{ log.user.username }}</span>
-                                    </td>
-                                    <td class="col-action" data-label="Action">
-                                        <span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span>
-                                    </td>
-                                    <td class="col-page" data-label="Page">
-                                        <span>{{ log.page|default:"-" }}</span>
-                                    </td>
-                                    <td class="col-object" data-label="Object">
-                                        <span>
-                                        {% if log.object_type and log.object_id %}
-                                            {{ log.object_type }}: {{ log.object_id }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
+                                    <td style="font-weight:500;">{{ dupe.client_name }}</td>
+                                    <td>{{ dupe.inspector }}</td>
+                                    <td>{{ dupe.date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="dupe-count-badge {% if dupe.count >= 10 %}dupe-count-high{% elif dupe.count >= 5 %}dupe-count-med{% else %}dupe-count-low{% endif %}">
+                                            {{ dupe.count }}x
                                         </span>
-                                    </td>
-                                    <td class="col-description" data-label="Description">
-                                        <span>{{ log.description|default:"-" }}</span>
-                                    </td>
-                                    <td class="col-ip" data-label="IP Address">
-                                        <span>{{ log.ip_address|default:"-" }}</span>
-                                    </td>
-                                    
-                                    <!-- Mobile card content -->
-                                    <td class="mobile-row-content" style="display: none;">
-                                        <div class="mobile-row-header">
-                                            <div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">Time</span>
-                                                    <span class="mobile-row-value">{{ log.timestamp|date:"m/d/y H:i:s" }}</span>
-                                                </div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">User</span>
-                                                    <span class="mobile-row-value">{{ log.user.username }}</span>
-                                                </div>
-                                                <div class="mobile-row-field">
-                                                    <span class="mobile-row-label">Action</span>
-                                                    <span class="mobile-row-value action-badge action-{{ log.action }}">{{ log.action|title }}</span>
-                                                </div>
-                                            </div>
-                                            <button class="mobile-expand-btn" onclick="toggleMobileRow(this)">
-                                                <i class="fas fa-chevron-down"></i>
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="mobile-row-expandable">
-                                            <div class="mobile-row-field">
-                                                <span class="mobile-row-label">Page</span>
-                                                <span class="mobile-row-value">{{ log.page|default:"-" }}</span>
-                                            </div>
-                                            <div class="mobile-row-field">
-                                                <span class="mobile-row-label">Object</span>
-                                                <span class="mobile-row-value">
-                                                    {% if log.object_type and log.object_id %}
-                                                        {{ log.object_type }}: {{ log.object_id }}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-                                            <div class="mobile-row-field">
-                                                <span class="mobile-row-label">Description</span>
-                                                <span class="mobile-row-value">{{ log.description|default:"-" }}</span>
-                                            </div>
-                                            <div class="mobile-row-field">
-                                                <span class="mobile-row-label">IP Address</span>
-                                                <span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr class="empty-row">
-                                    <td colspan="7" class="empty-message" style="display: table-cell;">
-                                        <i class="fas fa-list-alt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                                        <p>No system logs found.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    
+                </div>
+                {% endif %}
+
+                <!-- Filter Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-filter"></i> Filter Logs
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" action="">
+                            <div class="filter-row">
+                                <div class="form-field">
+                                    <label class="form-label">User</label>
+                                    <select class="form-control" name="user">
+                                        <option value="">All Users</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.username }}" {% if filters.user == user.username %}selected{% endif %}>{{ user.username }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-label">Action</label>
+                                    <select class="form-control" name="action">
+                                        <option value="">All Actions</option>
+                                        {% for action in actions %}
+                                        <option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-label">Page</label>
+                                    <select class="form-control" name="page">
+                                        <option value="">All Pages</option>
+                                        {% for page in pages %}
+                                        <option value="{{ page }}" {% if filters.page == page %}selected{% endif %}>{{ page }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-label">Date From</label>
+                                    <input type="date" class="form-control" name="date_from" value="{{ filters.date_from }}">
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-label">Date To</label>
+                                    <input type="date" class="form-control" name="date_to" value="{{ filters.date_to }}">
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons Row -->
+                            <div class="filter-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                    <span>Apply Filters</span>
+                                </button>
+                                <a href="?" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i>
+                                    <span>Clear All</span>
+                                </a>
+                                {% if not filters.show_all %}
+                                <a href="?show_all=true" class="btn btn-secondary">
+                                    <i class="fas fa-list"></i>
+                                    <span>Show All ({{ total_logs }})</span>
+                                </a>
+                                {% else %}
+                                <a href="?" class="btn btn-secondary">
+                                    <i class="fas fa-list"></i>
+                                    <span>Show Paginated</span>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Logs Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-list-alt"></i> Activity Logs
+                        </div>
+                        <span class="table-info">Showing {{ logs|length }} of {{ total_logs }}</span>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-responsive" style="border:none;border-radius:0;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="col-timestamp">Timestamp</th>
+                                        <th class="col-user">User</th>
+                                        <th class="col-action">Action</th>
+                                        <th class="col-page">Page</th>
+                                        <th class="col-object">Object</th>
+                                        <th class="col-description">Description</th>
+                                        <th class="col-ip">IP Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs %}
+                                    <tr>
+                                        <!-- Desktop table cells -->
+                                        <td class="col-timestamp" data-label="Timestamp">
+                                            <span>{{ log.timestamp|date:"d/m/y H:i:s" }}</span>
+                                        </td>
+                                        <td class="col-user" data-label="User">
+                                            <span>{{ log.user.username }}</span>
+                                        </td>
+                                        <td class="col-action" data-label="Action">
+                                            <span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span>
+                                        </td>
+                                        <td class="col-page" data-label="Page">
+                                            <span>{{ log.page|default:"-" }}</span>
+                                        </td>
+                                        <td class="col-object" data-label="Object">
+                                            <span>
+                                            {% if log.object_type and log.object_id %}
+                                                {{ log.object_type }}: {{ log.object_id }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                            </span>
+                                        </td>
+                                        <td class="col-description" data-label="Description">
+                                            <span>{{ log.description|default:"-"|truncatechars:80 }}</span>
+                                        </td>
+                                        <td class="col-ip" data-label="IP Address">
+                                            <span>{{ log.ip_address|default:"-" }}</span>
+                                        </td>
+
+                                        <!-- Mobile card content -->
+                                        <td class="mobile-row-content" style="display: none;">
+                                            <div class="mobile-row-header">
+                                                <div>
+                                                    <div class="mobile-row-field">
+                                                        <span class="mobile-row-label">Time</span>
+                                                        <span class="mobile-row-value">{{ log.timestamp|date:"d/m/y H:i:s" }}</span>
+                                                    </div>
+                                                    <div class="mobile-row-field">
+                                                        <span class="mobile-row-label">User</span>
+                                                        <span class="mobile-row-value">{{ log.user.username }}</span>
+                                                    </div>
+                                                    <div class="mobile-row-field">
+                                                        <span class="mobile-row-label">Action</span>
+                                                        <span class="mobile-row-value action-badge action-{{ log.action }}">{{ log.action|title }}</span>
+                                                    </div>
+                                                </div>
+                                                <button class="mobile-expand-btn" onclick="toggleMobileRow(this)">
+                                                    <i class="fas fa-chevron-down"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="mobile-row-expandable">
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">Page</span>
+                                                    <span class="mobile-row-value">{{ log.page|default:"-" }}</span>
+                                                </div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">Object</span>
+                                                    <span class="mobile-row-value">
+                                                        {% if log.object_type and log.object_id %}
+                                                            {{ log.object_type }}: {{ log.object_id }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">Description</span>
+                                                    <span class="mobile-row-value">{{ log.description|default:"-" }}</span>
+                                                </div>
+                                                <div class="mobile-row-field">
+                                                    <span class="mobile-row-label">IP Address</span>
+                                                    <span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr class="empty-row">
+                                        <td colspan="7" class="empty-message" style="display: table-cell;">
+                                            <i class="fas fa-list-alt" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                            <p>No system logs found.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     {% if page_obj and not filters.show_all %}
-                    <div class="pagination">
+                    <div class="pagination" style="padding: 12px 16px; border-top: 1px solid var(--border);">
                         {% if page_obj.has_previous %}
-                            <a href="?page=1{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">First</a>
-                            <a href="?page={{ page_obj.previous_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Previous</a>
+                            <a href="?page=1{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">First</a>
+                            <a href="?page={{ page_obj.previous_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Previous</a>
                         {% endif %}
-                        
+
                         <span class="page-info">
                             Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
                         </span>
-                        
+
                         {% if page_obj.has_next %}
-                            <a href="?page={{ page_obj.next_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Next</a>
-                            <a href="?page={{ page_obj.paginator.num_pages }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.page %}&page={{ filters.page }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Last</a>
+                            <a href="?page={{ page_obj.next_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Next</a>
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Last</a>
                         {% endif %}
                     </div>
                     {% endif %}
                 </div>
-                </div>
             </div>
         </div>
     </div>
-    
+
     <script>
         window.DJANGO_CONFIG = {
             csrfToken: '{{ csrf_token }}',
             serverTheme: '{{ settings.dark_mode|yesno:"dark,light" }}',
             userRole: '{{ request.user.role }}'
         };
+
+        // Inline quick stats count from rendered logs
+        (function() {
+            var today = new Date().toISOString().slice(0, 10);
+            // We'll calculate from the page data passed as JSON
+        })();
+
+        function toggleDuplicates() {
+            var body = document.getElementById('duplicate-body');
+            var chevron = document.getElementById('dupe-chevron');
+            if (body.classList.contains('show')) {
+                body.classList.remove('show');
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                body.classList.add('show');
+                chevron.style.transform = 'rotate(180deg)';
+            }
+        }
     </script>
-    <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260212"></script>
+    <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311"></script>
+    <script>
+        // Calculate today's logins and errors from visible log data
+        document.addEventListener('DOMContentLoaded', function() {
+            var rows = document.querySelectorAll('tbody tr:not(.empty-row)');
+            var today = new Date();
+            var todayStr = ('0' + today.getDate()).slice(-2) + '/' + ('0' + (today.getMonth()+1)).slice(-2) + '/' + String(today.getFullYear()).slice(-2);
+            var logins = 0, errors = 0;
+            rows.forEach(function(row) {
+                var cells = row.querySelectorAll('td:not(.mobile-row-content)');
+                if (cells.length >= 3) {
+                    var ts = cells[0].textContent.trim();
+                    var action = cells[2].textContent.trim().toUpperCase();
+                    if (ts.indexOf(todayStr) === 0) {
+                        if (action === 'LOGIN') logins++;
+                        if (action === 'ERROR') errors++;
+                    }
+                }
+            });
+            var loginEl = document.getElementById('login-count');
+            var errorEl = document.getElementById('error-count');
+            if (loginEl) loginEl.textContent = logins;
+            if (errorEl) errorEl.textContent = errors;
+        });
+    </script>
 </body>
 </html>

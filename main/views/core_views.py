@@ -17299,6 +17299,27 @@ def system_logs(request):
     actions = SystemLog.objects.values_list('action', flat=True).distinct().order_by('action')
     pages = SystemLog.objects.values_list('page', flat=True).exclude(page__isnull=True).exclude(page='').distinct().order_by('page')
     
+    # Detect duplicate inspections (same client + date + inspector, count > 1)
+    duplicate_inspections = []
+    try:
+        from ..models import FoodSafetyAgencyInspection
+        from django.db.models import Count
+        dupes = FoodSafetyAgencyInspection.objects.values(
+            'client_name', 'date_of_inspection', 'inspector_name'
+        ).annotate(
+            count=Count('id')
+        ).filter(count__gt=1).order_by('-count')[:20]
+
+        for d in dupes:
+            duplicate_inspections.append({
+                'client_name': d['client_name'],
+                'date': d['date_of_inspection'],
+                'inspector': d['inspector_name'],
+                'count': d['count'],
+            })
+    except Exception:
+        pass
+
     # Get theme settings
     try:
         from ..models import SystemSettings
@@ -17308,7 +17329,7 @@ def system_logs(request):
         })()
     except Exception:
         settings = type('Settings', (), {'dark_mode': False})()
-    
+
     context = {
         'logs': logs,
         'page_obj': page_obj,
@@ -17316,6 +17337,8 @@ def system_logs(request):
         'users': users,
         'actions': actions,
         'pages': pages,
+        'duplicate_inspections': duplicate_inspections,
+        'duplicate_count': len(duplicate_inspections),
         'filters': {
             'user': user_filter,
             'action': action_filter,
@@ -17326,7 +17349,7 @@ def system_logs(request):
         },
         'settings': settings,
     }
-    
+
     return render(request, 'main/system_logs.html', context)
 
 
