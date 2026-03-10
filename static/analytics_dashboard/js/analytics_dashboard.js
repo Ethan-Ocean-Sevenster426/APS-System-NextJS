@@ -1625,7 +1625,7 @@ function renderInspectorRadarChart() {
     }
 
     var selectedInspector = select ? select.value : 'all';
-    var radarTargets = (selectedInspector && selectedInspector !== 'all') ? getTargetsForInspector(selectedInspector) : getTargetsForInspector('');
+    var radarTargets = (selectedInspector && selectedInspector !== 'all') ? getEffectiveTarget(selectedInspector) : getEffectiveTarget('');
     var labels = ['Eggs Insp.', 'Poultry Insp.', 'RAW Insp.', 'PMP Insp.', 'RAW Samples', 'PMP Samples'];
     var targetData = [
         radarTargets.inspections.EGGS,
@@ -3652,6 +3652,7 @@ function initTargetsQuarterSelectors() {
     _loadQuarterlyTargets(now.getFullYear(), currentQ, function() {
         renderInspectorTargetsTable();
         renderProfitabilityTable();
+        renderInspectorRadarChart();
     });
 }
 
@@ -3664,6 +3665,7 @@ function onTargetsQuarterChange() {
     _loadQuarterlyTargets(y, q, function() {
         renderInspectorTargetsTable();
         renderProfitabilityTable();
+        renderInspectorRadarChart();
     });
 }
 
@@ -4121,8 +4123,8 @@ var PANEL_RENDER_MAP = {
         renderFacilityTypesOverview
     ],
     'inspectors': [
-        renderInspectorRadarChart,
         renderInspectorTargetsTable,
+        renderInspectorRadarChart,
         renderProfitabilityTable,
         renderInspectorTrendChart,
         renderDirectionsChart

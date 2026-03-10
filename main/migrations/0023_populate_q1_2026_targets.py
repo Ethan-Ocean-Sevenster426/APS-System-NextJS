@@ -13,6 +13,7 @@ INSPECTOR_SALARIES = {
     'Kutlwano Kuntwane': 21000,
     'Lwandile Dlamini': 21000,
     'Lwandile Maqina': 21000,
+    'Mokgadi Selone': 0,
     'Mpeluza Xola': 21000,
     'Nelisa Ntoyaphi': 20800,
     'Sandisiwe Dlisani': 22256,
@@ -23,34 +24,8 @@ INSPECTOR_SALARIES = {
 def populate_q1_2026_targets(apps, schema_editor):
     """Create or update QuarterlyTarget records for 2026 Q1 with the standard targets."""
     QuarterlyTarget = apps.get_model('main', 'QuarterlyTarget')
-    FoodSafetyAgencyInspection = apps.get_model('main', 'FoodSafetyAgencyInspection')
-    User = apps.get_model('main', 'User')
 
-    # Build non-inspector names to exclude (same logic as dashboard views)
-    non_inspector_names = set()
-    for u in User.objects.exclude(role='inspector'):
-        if u.first_name:
-            non_inspector_names.add(u.first_name)
-        full = f"{u.first_name} {u.last_name}".strip()
-        if full:
-            non_inspector_names.add(full)
-    non_inspector_names.discard('')
-    non_inspector_names.add('admin')
-
-    inspector_names = list(
-        FoodSafetyAgencyInspection.objects.exclude(
-            inspector_name__isnull=True
-        ).exclude(
-            inspector_name=''
-        ).exclude(
-            inspector_name='Unknown'
-        ).exclude(
-            inspector_name__in=non_inspector_names
-        ).values_list('inspector_name', flat=True).distinct()
-    )
-
-    for name in inspector_names:
-        salary = INSPECTOR_SALARIES.get(name, 0)
+    for name, salary in INSPECTOR_SALARIES.items():
         QuarterlyTarget.objects.update_or_create(
             inspector_name=name,
             year=2026,
