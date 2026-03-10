@@ -354,6 +354,35 @@ function isFiltered() {
     return f.year !== 'all' || f.month !== 'all' || f.inspector !== 'all' || f.commodity !== 'all' || f.date_from || f.date_to;
 }
 
+// Merge filtered inspectorFinancials with full inspector list, filling missing ones with 0
+function mergeAllInspectorFinancials(filtered) {
+    var allInspectors = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.inspectorFinancials) || [];
+    if (allInspectors.length === 0) return filtered;
+    var filteredMap = {};
+    filtered.forEach(function(item) { filteredMap[item.inspector_name] = item; });
+    var result = [];
+    allInspectors.forEach(function(full) {
+        var name = full.inspector_name;
+        if (filteredMap[name]) {
+            result.push(filteredMap[name]);
+        } else {
+            result.push({
+                inspector_name: name,
+                total_inspections: 0,
+                total_hours: 0,
+                total_km: 0,
+                total_samples: 0,
+                inspection_time: 0,
+                revenue_hours: 0,
+                revenue_km: 0,
+                revenue_samples: 0,
+                total_revenue: 0,
+            });
+        }
+    });
+    return result;
+}
+
 async function applyFilters() {
     console.log('Apply filters clicked');
     if (!isFiltered()) {
@@ -408,7 +437,7 @@ async function applyFilters() {
             inspectorCommodityMatrix: data.inspectorCommodityMatrix || [],
             inspectorSampleMatrix: data.inspectorSampleMatrix || [],
             approvalPerInspector: data.approvalPerInspector || [],
-            inspectorFinancials: data.inspectorFinancials || [],
+            inspectorFinancials: mergeAllInspectorFinancials(data.inspectorFinancials || []),
             financialSummary: data.financialSummary || {},
             monthlyOccurrenceTrend: data.monthlyOccurrenceTrend || [],
             monthlyTravelTrend: data.monthlyTravelTrend || [],
