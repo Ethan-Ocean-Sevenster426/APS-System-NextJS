@@ -9861,7 +9861,9 @@ def analytics_dashboard_api(request):
     doc_send_time = []
     doc_send_filtered = qs.filter(
         is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False,
-    ).exclude(sent_by__isnull=True).select_related('sent_by')
+    ).exclude(sent_by__isnull=True).exclude(
+        sent_by__role__in=('super_admin', 'developer')
+    ).select_related('sent_by')
     doc_send_by_user = {}
     for insp in doc_send_filtered:
         delta = (insp.sent_date.date() - insp.date_of_inspection).days
@@ -9880,7 +9882,9 @@ def analytics_dashboard_api(request):
     invoice_upload_time = []
     invoice_filtered = qs.filter(
         invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False,
-    ).exclude(invoice_uploaded_by__isnull=True).select_related('invoice_uploaded_by')
+    ).exclude(invoice_uploaded_by__isnull=True).exclude(
+        invoice_uploaded_by__role__in=('super_admin', 'developer')
+    ).select_related('invoice_uploaded_by')
     invoice_by_user = {}
     for insp in invoice_filtered:
         delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
