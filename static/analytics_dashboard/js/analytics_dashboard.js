@@ -816,7 +816,7 @@ function renderFinancialTable() {
         var msg = periodLabel && periodLabel !== 'All Time'
             ? 'No inspections found for <b>' + periodLabel + '</b>. Try a different period.'
             : 'No financial data';
-        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">' + msg + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--fluent-text-tertiary)">' + msg + '</td></tr>';
         return;
     }
 
@@ -833,7 +833,7 @@ function renderFinancialTable() {
 
     var KM_RATE = 4.50;
     var html = '';
-    var totals = { inspections: 0, hours: 0, km: 0, kmCost: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, totalCost: 0, profit: 0 };
+    var totals = { inspections: 0, hours: 0, km: 0, kmCost: 0, inspTime: 0, revHours: 0, revKm: 0, revSamples: 0, total: 0, salary: 0, expenses: 0, mgmtFees: 0, totalCost: 0, profit: 0 };
     var shaded = 'background:rgba(0,120,144,0.06);';
     var profitShade = 'background:rgba(16,185,129,0.06);';
 
@@ -848,7 +848,8 @@ function renderFinancialTable() {
         var tot = item.total_revenue || 0;
         var salary = getInspectorSalary(item.inspector_name);
         var expenses = getInspectorExpenses(item.inspector_name);
-        var totalCost = salary + expenses;
+        var mgmtFees = Math.round((salary + expenses) * 0.20);
+        var totalCost = salary + expenses + mgmtFees;
         var profit = totalCost ? tot - totalCost : 0;
         var profitColor = profit >= 0 ? '#10b981' : '#ef4444';
 
@@ -867,6 +868,7 @@ function renderFinancialTable() {
         totals.total += tot;
         totals.salary += salary;
         totals.expenses += expenses;
+        totals.mgmtFees += mgmtFees;
         totals.totalCost += totalCost;
         if (totalCost) totals.profit += profit;
 
@@ -883,6 +885,7 @@ function renderFinancialTable() {
             '<td class="num" style="font-weight:600;">' + formatRand(tot) + '</td>' +
             '<td class="num" style="' + shaded + '">' + (salary ? formatRand(salary) : '—') + '</td>' +
             '<td class="num" style="' + shaded + '">' + (expenses ? formatRand(expenses) : '—') + '</td>' +
+            '<td class="num" style="' + shaded + '">' + (mgmtFees ? formatRand(mgmtFees) : '—') + '</td>' +
             '<td class="num" style="' + shaded + 'font-weight:600;">' + (totalCost ? formatRand(totalCost) : '—') + '</td>' +
             '<td class="num" style="' + profitShade + '">' + (hrs > 0 ? formatRand(revPerHr) : '—') + '</td>' +
             '<td class="num" style="' + profitShade + '">' + (hrs > 0 ? formatRand(costPerHr) : '—') + '</td>' +
@@ -906,6 +909,7 @@ function renderFinancialTable() {
         '<td class="num" style="font-weight:600;">' + formatRand(totals.total) + '</td>' +
         '<td class="num" style="' + shaded + '">' + formatRand(totals.salary) + '</td>' +
         '<td class="num" style="' + shaded + '">' + formatRand(totals.expenses) + '</td>' +
+        '<td class="num" style="' + shaded + '">' + formatRand(totals.mgmtFees) + '</td>' +
         '<td class="num" style="' + shaded + 'font-weight:600;">' + formatRand(totals.totalCost) + '</td>' +
         '<td class="num" style="' + profitShade + '">' + formatRand(totRevPerHr) + '</td>' +
         '<td class="num" style="' + profitShade + '">' + formatRand(totCostPerHr) + '</td>' +
