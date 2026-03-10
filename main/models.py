@@ -1139,6 +1139,63 @@ class InspectorTarget(models.Model):
         return f"Targets: {self.inspector_name}"
 
 
+class QuarterlyTarget(models.Model):
+    """Per-inspector, per-quarter targets with adjustments and profitability fields."""
+    QUARTER_CHOICES = [(1, 'Q1'), (2, 'Q2'), (3, 'Q3'), (4, 'Q4')]
+
+    inspector_name = models.CharField(max_length=100, help_text="Inspector name matching inspection records")
+    year = models.IntegerField(help_text="Target year e.g. 2026")
+    quarter = models.IntegerField(choices=QUARTER_CHOICES, help_text="Quarter (1-4)")
+
+    # Inspection targets (per quarter)
+    eggs = models.IntegerField(default=51)
+    poultry = models.IntegerField(default=59)
+    raw = models.IntegerField(default=63)
+    pmp = models.IntegerField(default=54)
+
+    # Sample targets (per quarter)
+    raw_samples = models.IntegerField(default=58)
+    pmp_samples = models.IntegerField(default=12)
+    total_samples = models.IntegerField(default=70)
+
+    # Financial targets for profitability
+    monthly_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Monthly CTC salary")
+    quarterly_revenue_target = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Revenue target for the quarter")
+    monthly_vehicle_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Monthly vehicle/fuel allowance")
+    monthly_other_costs = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Other monthly fixed costs")
+
+    notes = models.TextField(blank=True, null=True, help_text="Adjustment notes for the quarter")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'quarterly_targets'
+        unique_together = [['inspector_name', 'year', 'quarter']]
+        ordering = ['inspector_name', 'year', 'quarter']
+
+    def __str__(self):
+        return f"{self.inspector_name} - {self.year} Q{self.quarter}"
+
+    @property
+    def total_quarterly_cost(self):
+        return float(self.monthly_salary + self.monthly_vehicle_cost + self.monthly_other_costs) * 3
+
+    def weekly_targets(self):
+        """Return weekly breakdown (quarter has ~13 weeks)."""
+        weeks = 13
+        return {
+            'eggs': round(self.eggs / weeks, 1),
+            'poultry': round(self.poultry / weeks, 1),
+            'raw': round(self.raw / weeks, 1),
+            'pmp': round(self.pmp / weeks, 1),
+            'raw_samples': round(self.raw_samples / weeks, 1),
+            'pmp_samples': round(self.pmp_samples / weeks, 1),
+            'total_samples': round(self.total_samples / weeks, 1),
+            'weekly_revenue_target': round(float(self.quarterly_revenue_target) / weeks, 2),
+            'weekly_cost': round(self.total_quarterly_cost / weeks, 2),
+        }
+
+
 class FeeHistory(models.Model):
     """
     Track historical changes to fee rates with effective dates.

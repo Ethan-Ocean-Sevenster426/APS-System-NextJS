@@ -3680,6 +3680,461 @@ function getCsrfToken() {
 }
 
 // ================================================================
+// QUARTERLY TARGETS & WEEKLY PROGRESS
+// ================================================================
+
+var quarterlyData = null;
+
+function initQuarterlySelectors() {
+    var yearSel = document.getElementById('qtYear');
+    if (!yearSel) return;
+    var now = new Date();
+    var cy = now.getFullYear();
+    yearSel.innerHTML = '';
+    for (var y = cy - 1; y <= cy + 1; y++) {
+        var opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === cy) opt.selected = true;
+        yearSel.appendChild(opt);
+    }
+    var qSel = document.getElementById('qtQuarter');
+    if (qSel) qSel.value = Math.ceil((now.getMonth() + 1) / 3);
+}
+
+function loadQuarterlyData() {
+    var year = document.getElementById('qtYear').value;
+    var quarter = document.getElementById('qtQuarter').value;
+    var loading = document.getElementById('qtLoading');
+    if (loading) loading.style.display = 'block';
+
+    fetch(window.DJANGO_CONFIG.quarterlyTargetsUrl + '?year=' + year + '&quarter=' + quarter, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (loading) loading.style.display = 'none';
+        quarterlyData = data;
+        renderQuarterlyPanel();
+    }).catch(function(err) {
+        if (loading) loading.style.display = 'none';
+        console.error('Quarterly data error:', err);
+    });
+}
+
+function renderQuarterlyPanel() {
+    if (!quarterlyData) return;
+    renderQtSummaryCards();
+    renderQtProgressTable();
+    populateWeeklyInspectorDropdown();
+    renderWeeklyBreakdown();
+    renderProfitabilityTable();
+}
+
+function renderQtSummaryCards() {
+    var container = document.getElementById('qtSummaryCards');
+    if (!container) return;
+    var d = quarterlyData;
+    var label = document.getElementById('qtPeriodLabel');
+    if (label) label.textContent = d.year + ' Q' + d.quarter + ' (' + d.q_start + ' to ' + d.q_end + ') — Week ' + d.weeks_elapsed + ' of ' + d.weeks_total;
+
+    var totalInsp = 0, totalRev = 0, totalCost = 0, inspCount = d.inspectors.length;
+    d.inspectors.forEach(function(i) {
+        totalInsp += (i.actuals.eggs + i.actuals.poultry + i.actuals.raw + i.actuals.pmp);
+        totalRev += i.financials.total_revenue;
+        totalCost += i.financials.total_cost;
+    });
+
+    function card(icon, title, value, color) {
+        return '<div style="background:' + (color || '#f0f9ff') + '; border-radius:8px; padding:14px; text-align:center;">' +
+            '<div style="font-size:11px; color:#6b7280; margin-bottom:4px;"><i class="fas fa-' + icon + '"></i> ' + title + '</div>' +
+            '<div style="font-size:20px; font-weight:700; color:#111;">' + value + '</div></div>';
+    }
+    container.innerHTML =
+        card('users', 'Active Inspectors', inspCount) +
+        card('clipboard-check', 'Total Inspections', totalInsp.toLocaleString()) +
+        card('money-bill-wave', 'Total Revenue', 'R' + totalRev.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}), '#f0fdf4') +
+        card('chart-line', 'Total Profit', 'R' + (totalRev - totalCost).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}), (totalRev - totalCost) >= 0 ? '#f0fdf4' : '#fef2f2') +
+        card('calendar-week', 'Week', d.weeks_elapsed + ' / ' + d.weeks_total, '#fffbeb') +
+        card('percentage', 'Quarter Progress', Math.round((d.weeks_elapsed / d.weeks_total) * 100) + '%', '#fffbeb');
+}
+
+function renderQtProgressTable() {
+    var header = document.getElementById('qtProgressHeader');
+    var tbody = document.getElementById('qtProgressBody');
+    if (!header || !tbody || !quarterlyData) return;
+
+    header.innerHTML =
+        '<th style="min-width:110px;">Inspector</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Eggs</th>' +
+        '<th class="num">Poultry</th><th class="num">RAW</th><th class="num">PMP</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">RAW Smp</th>' +
+        '<th class="num">PMP Smp</th><th class="num">Total Smp</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Hours</th>' +
+        '<th class="num">KM</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Overall %</th>';
+
+    function pctCell(actual, target, extraStyle) {
+        var pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+        var color = pct >= 100 ? '#166534' : pct >= 70 ? '#92400e' : '#991b1b';
+        var bg = pct >= 100 ? '#dcfce7' : pct >= 70 ? '#fef3c7' : '#fee2e2';
+        return '<td class="num" style="color:' + color + '; background:' + bg + '; font-weight:600;' + (extraStyle || '') + '">' +
+            actual + '<small style="opacity:0.7;">/' + target + ' (' + pct + '%)</small></td>';
+    }
+
+    var html = '';
+    quarterlyData.inspectors.forEach(function(insp) {
+        var t = insp.targets;
+        var a = insp.actuals;
+        // Overall % = average of commodity percentages
+        var commodityPcts = [];
+        if (t.eggs > 0) commodityPcts.push(a.eggs / t.eggs);
+        if (t.poultry > 0) commodityPcts.push(a.poultry / t.poultry);
+        if (t.raw > 0) commodityPcts.push(a.raw / t.raw);
+        if (t.pmp > 0) commodityPcts.push(a.pmp / t.pmp);
+        var overallPct = commodityPcts.length > 0 ? Math.round((commodityPcts.reduce(function(s, v) { return s + v; }, 0) / commodityPcts.length) * 100) : 0;
+        var overallColor = overallPct >= 100 ? '#166534' : overallPct >= 70 ? '#92400e' : '#991b1b';
+        var overallBg = overallPct >= 100 ? '#dcfce7' : overallPct >= 70 ? '#fef3c7' : '#fee2e2';
+
+        html += '<tr>';
+        html += '<td style="font-weight:600; white-space:nowrap;">' + insp.inspector_name;
+        if (insp.has_quarterly_target) html += ' <i class="fas fa-bullseye" style="color:#f59e0b; font-size:9px;" title="Custom quarterly target set"></i>';
+        html += '</td>';
+        html += pctCell(a.eggs, t.eggs, 'border-left:2px solid #d1d5db;');
+        html += pctCell(a.poultry, t.poultry);
+        html += pctCell(a.raw, t.raw);
+        html += pctCell(a.pmp, t.pmp);
+        html += pctCell(a.raw_samples, t.raw_samples, 'border-left:2px solid #d1d5db;');
+        html += pctCell(a.pmp_samples, t.pmp_samples);
+        html += pctCell(a.total_samples, t.total_samples);
+        html += '<td class="num" style="border-left:2px solid #d1d5db;">' + a.total_hours.toLocaleString(undefined, {maximumFractionDigits: 1}) + '</td>';
+        html += '<td class="num">' + a.total_km.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</td>';
+        html += '<td class="num" style="border-left:2px solid #d1d5db; color:' + overallColor + '; background:' + overallBg + '; font-weight:700; font-size:13px;">' + overallPct + '%</td>';
+        html += '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function populateWeeklyInspectorDropdown() {
+    var sel = document.getElementById('qtWeeklyInspector');
+    if (!sel || !quarterlyData) return;
+    sel.innerHTML = '<option value="all">All Inspectors (Totals)</option>';
+    quarterlyData.inspectors.forEach(function(insp) {
+        var opt = document.createElement('option');
+        opt.value = insp.inspector_name;
+        opt.textContent = insp.inspector_name;
+        sel.appendChild(opt);
+    });
+}
+
+function renderWeeklyBreakdown() {
+    var header = document.getElementById('qtWeeklyHeader');
+    var tbody = document.getElementById('qtWeeklyBody');
+    if (!header || !tbody || !quarterlyData) return;
+
+    var selectedInspector = (document.getElementById('qtWeeklyInspector') || {}).value || 'all';
+
+    // Build weekly data from quarterlyData.weekly_commodity
+    var weeklyMap = {};  // week -> { inspector -> { commodity -> count, samples } }
+    (quarterlyData.weekly_commodity || []).forEach(function(row) {
+        var wk = row.week.split('T')[0];
+        if (!weeklyMap[wk]) weeklyMap[wk] = {};
+        if (!weeklyMap[wk][row.inspector_name]) weeklyMap[wk][row.inspector_name] = {};
+        var comm = (row.commodity || '').toUpperCase();
+        weeklyMap[wk][row.inspector_name][comm] = { count: row.count, samples: row.samples };
+    });
+
+    // Financial weekly data
+    var weeklyFinMap = {};
+    (quarterlyData.weekly_financials || []).forEach(function(row) {
+        var wk = row.week.split('T')[0];
+        if (!weeklyFinMap[wk]) weeklyFinMap[wk] = {};
+        weeklyFinMap[wk][row.inspector_name] = {
+            hours: parseFloat(row.total_hours) || 0,
+            km: parseFloat(row.total_km) || 0
+        };
+    });
+
+    var weeks = Object.keys(weeklyMap).concat(Object.keys(weeklyFinMap));
+    weeks = Array.from(new Set(weeks)).sort();
+
+    // Get weekly targets
+    var weeklyTarget = null;
+    if (selectedInspector !== 'all') {
+        var inspData = quarterlyData.inspectors.find(function(i) { return i.inspector_name === selectedInspector; });
+        if (inspData) weeklyTarget = inspData.targets.weekly;
+    }
+
+    header.innerHTML = '<th>Week</th>' +
+        '<th class="num">Eggs</th><th class="num">Poultry</th><th class="num">RAW</th><th class="num">PMP</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Total Insp</th>' +
+        '<th class="num">Samples</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Hours</th><th class="num">KM</th>' +
+        '<th class="num" style="border-left:2px solid #d1d5db;">Est. Revenue</th>';
+
+    var rates = quarterlyData.fee_rates || {};
+    var cumulTotals = { eggs: 0, poultry: 0, raw: 0, pmp: 0, total: 0, samples: 0, hours: 0, km: 0, rev: 0 };
+
+    var html = '';
+    weeks.forEach(function(wk, idx) {
+        var weekData = weeklyMap[wk] || {};
+        var finData = weeklyFinMap[wk] || {};
+        var eggs = 0, poultry = 0, raw = 0, pmp = 0, samples = 0, hours = 0, km = 0;
+
+        var inspectors = selectedInspector === 'all'
+            ? Object.keys(Object.assign({}, weekData, finData))
+            : [selectedInspector];
+
+        inspectors.forEach(function(name) {
+            var cd = weekData[name] || {};
+            eggs += (cd['EGGS'] || cd['EGG'] || {}).count || 0;
+            poultry += (cd['POULTRY'] || {}).count || 0;
+            raw += (cd['RAW'] || {}).count || 0;
+            pmp += (cd['PMP'] || {}).count || 0;
+            Object.keys(cd).forEach(function(c) { samples += (cd[c].samples || 0); });
+            var fd = finData[name] || {};
+            hours += fd.hours || 0;
+            km += fd.km || 0;
+        });
+
+        var totalInsp = eggs + poultry + raw + pmp;
+        var estRev = (hours * (rates.hourly || 0)) + (km * (rates.km || 0)) + (samples * (rates.sample || 0));
+
+        cumulTotals.eggs += eggs; cumulTotals.poultry += poultry; cumulTotals.raw += raw; cumulTotals.pmp += pmp;
+        cumulTotals.total += totalInsp; cumulTotals.samples += samples;
+        cumulTotals.hours += hours; cumulTotals.km += km; cumulTotals.rev += estRev;
+
+        function wCell(val, target) {
+            if (!target || target <= 0) return '<td class="num">' + val + '</td>';
+            var pct = Math.round((val / target) * 100);
+            var c = pct >= 100 ? '#166534' : pct >= 70 ? '#92400e' : '#991b1b';
+            var bg = pct >= 100 ? '#dcfce7' : pct >= 70 ? '#fef3c7' : '#fee2e2';
+            return '<td class="num" style="color:' + c + '; background:' + bg + ';">' + val + '<small style="opacity:0.6;"> /' + Math.round(target) + '</small></td>';
+        }
+
+        var wt = weeklyTarget || {};
+        html += '<tr>';
+        html += '<td style="font-weight:600; white-space:nowrap;">W' + (idx + 1) + '<br><small style="color:#9ca3af;">' + wk + '</small></td>';
+        html += wCell(eggs, wt.eggs);
+        html += wCell(poultry, wt.poultry);
+        html += wCell(raw, wt.raw);
+        html += wCell(pmp, wt.pmp);
+        html += '<td class="num" style="border-left:2px solid #d1d5db; font-weight:600;">' + totalInsp + '</td>';
+        html += wCell(samples, wt.total_samples);
+        html += '<td class="num" style="border-left:2px solid #d1d5db;">' + hours.toFixed(1) + '</td>';
+        html += '<td class="num">' + km.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</td>';
+        html += '<td class="num" style="border-left:2px solid #d1d5db; font-weight:600;">R' + estRev.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</td>';
+        html += '</tr>';
+    });
+
+    // Totals row
+    html += '<tr style="border-top:2px solid #374151; font-weight:700; background:#f9fafb;">';
+    html += '<td>TOTAL</td>';
+    html += '<td class="num">' + cumulTotals.eggs + '</td>';
+    html += '<td class="num">' + cumulTotals.poultry + '</td>';
+    html += '<td class="num">' + cumulTotals.raw + '</td>';
+    html += '<td class="num">' + cumulTotals.pmp + '</td>';
+    html += '<td class="num" style="border-left:2px solid #d1d5db;">' + cumulTotals.total + '</td>';
+    html += '<td class="num">' + cumulTotals.samples + '</td>';
+    html += '<td class="num" style="border-left:2px solid #d1d5db;">' + cumulTotals.hours.toFixed(1) + '</td>';
+    html += '<td class="num">' + cumulTotals.km.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</td>';
+    html += '<td class="num" style="border-left:2px solid #d1d5db;">R' + cumulTotals.rev.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</td>';
+    html += '</tr>';
+
+    tbody.innerHTML = html;
+}
+
+function renderProfitabilityTable() {
+    var tbody = document.getElementById('qtProfitBody');
+    if (!tbody || !quarterlyData) return;
+
+    var html = '';
+    var totals = { rev: 0, proj: 0, target: 0, salary: 0, vehicle: 0, other: 0, cost: 0, profit: 0 };
+
+    quarterlyData.inspectors.forEach(function(insp) {
+        var f = insp.financials;
+        var t = insp.targets;
+        var salary3 = (t.monthly_salary || 0) * 3;
+        var vehicle3 = (t.monthly_vehicle_cost || 0) * 3;
+        var other3 = (t.monthly_other_costs || 0) * 3;
+        var totalCost = salary3 + vehicle3 + other3;
+        var profit = f.total_revenue - totalCost;
+        var margin = f.total_revenue > 0 ? Math.round((profit / f.total_revenue) * 100) : 0;
+        var revTarget = t.quarterly_revenue_target || 0;
+        var onTrack = revTarget > 0 ? (f.projected_revenue >= revTarget) : null;
+
+        totals.rev += f.total_revenue;
+        totals.proj += f.projected_revenue;
+        totals.target += revTarget;
+        totals.salary += salary3;
+        totals.vehicle += vehicle3;
+        totals.other += other3;
+        totals.cost += totalCost;
+        totals.profit += profit;
+
+        function fmtR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+
+        var profitColor = profit >= 0 ? '#166534' : '#991b1b';
+        var profitBg = profit >= 0 ? '#dcfce7' : '#fee2e2';
+        var marginColor = margin >= 20 ? '#166534' : margin >= 0 ? '#92400e' : '#991b1b';
+
+        html += '<tr>';
+        html += '<td style="font-weight:600; white-space:nowrap;">' + insp.inspector_name + '</td>';
+        html += '<td class="num">' + fmtR(f.total_revenue) + '</td>';
+        html += '<td class="num">' + fmtR(f.projected_revenue) + '</td>';
+        html += '<td class="num">' + (revTarget > 0 ? fmtR(revTarget) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (salary3 > 0 ? fmtR(salary3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (vehicle3 > 0 ? fmtR(vehicle3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num">' + (other3 > 0 ? fmtR(other3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num" style="font-weight:600;">' + (totalCost > 0 ? fmtR(totalCost) : '<span style="color:#9ca3af;">—</span>') + '</td>';
+        html += '<td class="num" style="color:' + profitColor + '; background:' + profitBg + '; font-weight:700;">' + fmtR(profit) + '</td>';
+        html += '<td class="num" style="color:' + marginColor + '; font-weight:600;">' + margin + '%</td>';
+        if (onTrack === null) {
+            html += '<td class="num" style="color:#9ca3af;">No target</td>';
+        } else if (onTrack) {
+            html += '<td class="num" style="color:#166534; background:#dcfce7; font-weight:600;"><i class="fas fa-check-circle"></i> On Track</td>';
+        } else {
+            html += '<td class="num" style="color:#991b1b; background:#fee2e2; font-weight:600;"><i class="fas fa-exclamation-triangle"></i> Behind</td>';
+        }
+        html += '</tr>';
+    });
+
+    // Totals row
+    var totalProfit = totals.rev - totals.cost;
+    var totalMargin = totals.rev > 0 ? Math.round((totalProfit / totals.rev) * 100) : 0;
+    function fmtR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+    html += '<tr style="border-top:2px solid #374151; font-weight:700; background:#f9fafb;">';
+    html += '<td>TOTAL</td>';
+    html += '<td class="num">' + fmtR(totals.rev) + '</td>';
+    html += '<td class="num">' + fmtR(totals.proj) + '</td>';
+    html += '<td class="num">' + (totals.target > 0 ? fmtR(totals.target) : '—') + '</td>';
+    html += '<td class="num">' + fmtR(totals.salary) + '</td>';
+    html += '<td class="num">' + fmtR(totals.vehicle) + '</td>';
+    html += '<td class="num">' + fmtR(totals.other) + '</td>';
+    html += '<td class="num">' + fmtR(totals.cost) + '</td>';
+    html += '<td class="num" style="color:' + (totalProfit >= 0 ? '#166534' : '#991b1b') + '; background:' + (totalProfit >= 0 ? '#dcfce7' : '#fee2e2') + ';">' + fmtR(totalProfit) + '</td>';
+    html += '<td class="num">' + totalMargin + '%</td>';
+    html += '<td class="num"></td>';
+    html += '</tr>';
+
+    tbody.innerHTML = html;
+}
+
+// Quarterly target modal
+function openQuarterlyTargetModal() {
+    var modal = document.getElementById('qtTargetModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // Populate year/quarter from main selectors
+    var yearSel = document.getElementById('qtModalYear');
+    var now = new Date();
+    var cy = now.getFullYear();
+    yearSel.innerHTML = '';
+    for (var y = cy - 1; y <= cy + 1; y++) {
+        var opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === parseInt((document.getElementById('qtYear') || {}).value || cy)) opt.selected = true;
+        yearSel.appendChild(opt);
+    }
+    document.getElementById('qtModalQuarter').value = (document.getElementById('qtQuarter') || {}).value || Math.ceil((now.getMonth() + 1) / 3);
+
+    // Populate inspector dropdown
+    var sel = document.getElementById('qtModalInspector');
+    sel.innerHTML = '<option value="">-- Select Inspector --</option>';
+    var names = new Set();
+    if (quarterlyData) {
+        quarterlyData.inspectors.forEach(function(i) { names.add(i.inspector_name); });
+    }
+    (dashboardData.travelPerInspector || []).forEach(function(i) { if (i.inspector_name) names.add(i.inspector_name); });
+    Array.from(names).sort().forEach(function(name) {
+        var opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        if (quarterlyData) {
+            var found = quarterlyData.inspectors.find(function(i) { return i.inspector_name === name; });
+            if (found && found.has_quarterly_target) opt.textContent += ' *';
+        }
+        sel.appendChild(opt);
+    });
+    document.getElementById('qtSaveStatus').textContent = '';
+}
+
+function closeQuarterlyTargetModal() {
+    var modal = document.getElementById('qtTargetModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function onQtInspectorChange() {
+    var name = document.getElementById('qtModalInspector').value;
+    if (!name) return;
+
+    // Try to load from current quarterly data
+    var inspData = quarterlyData ? quarterlyData.inspectors.find(function(i) { return i.inspector_name === name; }) : null;
+    var t = inspData ? inspData.targets : null;
+
+    // Fall back to defaults from InspectorTarget
+    if (!t) {
+        var def = (dashboardData.inspectorTargets || {})[name];
+        t = def || { eggs: 51, poultry: 59, raw: 63, pmp: 54, raw_samples: 58, pmp_samples: 12, total_samples: 70 };
+    }
+
+    document.getElementById('qtEggs').value = t.eggs || 51;
+    document.getElementById('qtPoultry').value = t.poultry || 59;
+    document.getElementById('qtRaw').value = t.raw || 63;
+    document.getElementById('qtPmp').value = t.pmp || 54;
+    document.getElementById('qtRawSamples').value = t.raw_samples || 58;
+    document.getElementById('qtPmpSamples').value = t.pmp_samples || 12;
+    document.getElementById('qtTotalSamples').value = t.total_samples || 70;
+    document.getElementById('qtSalary').value = t.monthly_salary || getInspectorSalary(name) || 0;
+    document.getElementById('qtRevTarget').value = t.quarterly_revenue_target || 0;
+    document.getElementById('qtVehicle').value = t.monthly_vehicle_cost || 0;
+    document.getElementById('qtOther').value = t.monthly_other_costs || 0;
+    document.getElementById('qtNotes').value = t.notes || '';
+}
+
+function saveQuarterlyTarget() {
+    var name = document.getElementById('qtModalInspector').value;
+    if (!name) { document.getElementById('qtSaveStatus').innerHTML = '<span style="color:#991b1b;">Select an inspector</span>'; return; }
+
+    var payload = {
+        inspector_name: name,
+        year: parseInt(document.getElementById('qtModalYear').value),
+        quarter: parseInt(document.getElementById('qtModalQuarter').value),
+        eggs: parseInt(document.getElementById('qtEggs').value) || 0,
+        poultry: parseInt(document.getElementById('qtPoultry').value) || 0,
+        raw: parseInt(document.getElementById('qtRaw').value) || 0,
+        pmp: parseInt(document.getElementById('qtPmp').value) || 0,
+        raw_samples: parseInt(document.getElementById('qtRawSamples').value) || 0,
+        pmp_samples: parseInt(document.getElementById('qtPmpSamples').value) || 0,
+        total_samples: parseInt(document.getElementById('qtTotalSamples').value) || 0,
+        monthly_salary: parseFloat(document.getElementById('qtSalary').value) || 0,
+        quarterly_revenue_target: parseFloat(document.getElementById('qtRevTarget').value) || 0,
+        monthly_vehicle_cost: parseFloat(document.getElementById('qtVehicle').value) || 0,
+        monthly_other_costs: parseFloat(document.getElementById('qtOther').value) || 0,
+        notes: document.getElementById('qtNotes').value || ''
+    };
+
+    var btn = document.getElementById('qtSaveBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    var statusEl = document.getElementById('qtSaveStatus');
+
+    fetch(window.DJANGO_CONFIG.saveQuarterlyTargetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify(payload)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        btn.disabled = false; btn.textContent = 'Save Target';
+        if (data.success) {
+            statusEl.innerHTML = '<span style="color:#166534;"><i class="fas fa-check-circle"></i> Saved!</span>';
+            // Reload data
+            loadQuarterlyData();
+        } else {
+            statusEl.innerHTML = '<span style="color:#991b1b;">' + (data.error || 'Error') + '</span>';
+        }
+    }).catch(function(err) {
+        btn.disabled = false; btn.textContent = 'Save Target';
+        statusEl.innerHTML = '<span style="color:#991b1b;">Network error</span>';
+    });
+}
+
+// ================================================================
 // PANEL SYSTEM — full-page tabbed dashboard
 // ================================================================
 
@@ -3732,13 +4187,17 @@ var PANEL_RENDER_MAP = {
         renderFinancialTable,
         renderRevenueCostChart,
         renderInspectorComparisonChart
+    ],
+    'quarterly': [
+        function() { initQuarterlySelectors(); loadQuarterlyData(); }
     ]
 };
 
 // Track which panels have been rendered after the last data load
 var panelRendered = {
     'overview': false, 'inspectors': false, 'compliance': false,
-    'operations': false, 'documents': false, 'financial': false
+    'operations': false, 'documents': false, 'financial': false,
+    'quarterly': false
 };
 
 var currentPanel = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.userRole === 'inspector') ? 'financial' : 'overview';

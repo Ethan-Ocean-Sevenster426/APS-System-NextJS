@@ -24,6 +24,7 @@ from .views.core_views import (
     reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, send_password_reset_email,
     analytics_dashboard_api,
     get_inspector_targets, update_inspector_targets,
+    get_quarterly_targets, save_quarterly_target,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
     mark_all_notifications_read, delete_notification, training_page
 )
@@ -56,6 +57,8 @@ urlpatterns = [
     path('api/analytics-dashboard/', analytics_dashboard_api, name='analytics_dashboard_api'),
     path('api/inspector-targets/get/', get_inspector_targets, name='get_inspector_targets'),
     path('api/inspector-targets/update/', update_inspector_targets, name='update_inspector_targets'),
+    path('api/quarterly-targets/', get_quarterly_targets, name='get_quarterly_targets'),
+    path('api/quarterly-targets/save/', save_quarterly_target, name='save_quarterly_target'),
     # =============================================================================
     # CLIENT MANAGEMENT URLS
     # =============================================================================
