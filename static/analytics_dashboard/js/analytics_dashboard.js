@@ -586,7 +586,7 @@ function openSalaryModal() {
     var body = document.getElementById('salaryModalBody');
     if (!modal || !body) return;
     var items = dashboardData.inspectorFinancials || [];
-    var html = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;">';
+    var inspectors = [];
     items.forEach(function(item) {
         var name = item.inspector_name || '';
         var lower = name.toLowerCase();
@@ -594,16 +594,18 @@ function openSalaryModal() {
         for (var n = 0; n < NON_INSPECTORS.length; n++) {
             if (lower.indexOf(NON_INSPECTORS[n]) !== -1) { isNonInspector = true; break; }
         }
-        if (isNonInspector) return;
+        if (!isNonInspector) inspectors.push(name);
+    });
+    var html = '<h4 style="font-size:12px; color:#007890; margin:0 0 10px; border-bottom:1px solid #e5e7eb; padding-bottom:4px;">Monthly Salary (CTC) per Inspector</h4>';
+    html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">';
+    inspectors.forEach(function(name) {
+        var lower = name.toLowerCase();
         var salary = getInspectorSalary(name);
-        html += '<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + name + '">' + name + '</label>' +
-            '<div style="position:relative;">' +
-            '<span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:#9ca3af; pointer-events:none;">R</span>' +
+        html += '<div>' +
+            '<label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:3px;">' + name + '</label>' +
             '<input type="number" step="0.01" min="0" value="' + (salary || '') + '" data-inspector="' + lower + '" class="salary-input" ' +
-            'style="width:100%; box-sizing:border-box; padding:7px 10px 7px 26px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; text-align:right; outline:none; transition:border 0.2s;" ' +
-            'onfocus="this.style.borderColor=\'#007890\'" onblur="this.style.borderColor=\'#d1d5db\'">' +
-            '</div></div>';
+            'placeholder="0.00" style="width:100%; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">' +
+            '</div>';
     });
     html += '</div>';
     body.innerHTML = html;
