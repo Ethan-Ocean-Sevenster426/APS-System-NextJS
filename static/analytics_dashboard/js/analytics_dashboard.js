@@ -1625,7 +1625,19 @@ function renderInspectorRadarChart() {
     }
 
     var selectedInspector = select ? select.value : 'all';
-    var radarTargets = (selectedInspector && selectedInspector !== 'all') ? getEffectiveTarget(selectedInspector) : getEffectiveTarget('');
+    // For "all" view, grab the first inspector's quarterly target (all share same targets)
+    var radarTargets;
+    if (selectedInspector && selectedInspector !== 'all') {
+        radarTargets = getEffectiveTarget(selectedInspector);
+    } else {
+        var qt = _currentQuarterTargets();
+        var qtKeys = Object.keys(qt);
+        if (qtKeys.length > 0) {
+            radarTargets = getEffectiveTarget(qtKeys[0]);
+        } else {
+            radarTargets = getEffectiveTarget('');
+        }
+    }
     var labels = ['Eggs Insp.', 'Poultry Insp.', 'RAW Insp.', 'PMP Insp.', 'RAW Samples', 'PMP Samples'];
     var targetData = [
         radarTargets.inspections.EGGS,
