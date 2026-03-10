@@ -9862,7 +9862,7 @@ def analytics_dashboard_api(request):
     doc_send_filtered = qs.filter(
         is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False,
     ).exclude(sent_by__isnull=True).exclude(
-        sent_by__role__in=('super_admin', 'developer')
+        sent_by__role__in=('super_admin', 'developer', 'admin')
     ).select_related('sent_by')
     doc_send_by_user = {}
     for insp in doc_send_filtered:
@@ -9870,6 +9870,8 @@ def analytics_dashboard_api(request):
         if delta < 0:
             continue
         name = f"{insp.sent_by.first_name} {insp.sent_by.last_name}".strip() or insp.sent_by.username
+        if name in non_inspector_names:
+            continue
         if name not in doc_send_by_user:
             doc_send_by_user[name] = {'total_days': 0, 'count': 0}
         doc_send_by_user[name]['total_days'] += delta
@@ -9883,7 +9885,7 @@ def analytics_dashboard_api(request):
     invoice_filtered = qs.filter(
         invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False,
     ).exclude(invoice_uploaded_by__isnull=True).exclude(
-        invoice_uploaded_by__role__in=('super_admin', 'developer')
+        invoice_uploaded_by__role__in=('super_admin', 'developer', 'admin')
     ).select_related('invoice_uploaded_by')
     invoice_by_user = {}
     for insp in invoice_filtered:
@@ -9891,6 +9893,8 @@ def analytics_dashboard_api(request):
         if delta < 0:
             continue
         name = f"{insp.invoice_uploaded_by.first_name} {insp.invoice_uploaded_by.last_name}".strip() or insp.invoice_uploaded_by.username
+        if name in non_inspector_names:
+            continue
         if name not in invoice_by_user:
             invoice_by_user[name] = {'total_days': 0, 'count': 0}
         invoice_by_user[name]['total_days'] += delta
