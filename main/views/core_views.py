@@ -2625,6 +2625,44 @@ def shipment_list(request):
                     if key_name not in _client_email_map and emails:
                         _client_email_map[key_name] = emails
             
+            # Fallback: for client names not matched by iexact, try compact matching
+            matched_norms = set(list(_client_map.keys()) + list(_client_id_map.keys()) + list(_client_email_map.keys()))
+            unmatched = [cn for cn in client_names_on_page if _norm(cn) not in matched_norms]
+            if unmatched:
+                def _compact(text):
+                    return _norm(text).replace(" ", "")
+                compact_targets = {_compact(cn): cn for cn in unmatched}
+                if compact_targets:
+                    for _c in _Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email').prefetch_related('additional_emails'):
+                        c_compact_name = _compact(_c.name)
+                        c_compact_id = _compact(_c.client_id)
+                        matched_cn = compact_targets.get(c_compact_name) or compact_targets.get(c_compact_id)
+                        if matched_cn:
+                            key = _norm(matched_cn)
+                            emails = []
+                            if _c.email:
+                                for _e in _c.email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'primary', 'removable': True})
+                            if _c.manual_email:
+                                for _e in _c.manual_email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'manual', 'removable': True})
+                            for additional_email in _c.additional_emails.all():
+                                emails.append({'email': additional_email.email, 'type': 'additional', 'removable': True, 'label': additional_email.label})
+                            if emails and key not in _client_email_map:
+                                _client_email_map[key] = emails
+                            if _c.internal_account_code and key not in _client_map:
+                                _client_map[key] = _c.internal_account_code
+                            if key not in _client_id_map:
+                                _client_id_map[key] = _c.client_id
+                            # Remove from targets once matched
+                            compact_targets = {k: v for k, v in compact_targets.items() if v != matched_cn}
+                            if not compact_targets:
+                                break
+
             client_data = {
                 'client_map': _client_map,
                 'client_id_map': _client_id_map,
@@ -16073,6 +16111,47 @@ def get_client_email(client_name, inspection_group_id=None):
                     email = _extract_email(c)
                     if email:
                         return email
+
+        # 5. Try additional_email from InspectionGroup
+        if inspection_group_id:
+            from ..models import InspectionGroup
+            ig_email = InspectionGroup.objects.filter(
+                id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if ig_email:
+                # Take first email if comma-separated
+                first_email = ig_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 6. Try additional_email from FoodSafetyAgencyInspection
+        if inspection_group_id:
+            insp_email = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if insp_email:
+                first_email = insp_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 7. Try email fields from Inspection model (legacy)
+        from ..models import Inspection
+        insp_legacy = Inspection.objects.filter(
+            facility_client_name__iexact=client_name
+        ).first()
+        if insp_legacy:
+            for field in ['email', 'additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                val = getattr(insp_legacy, field, None)
+                if val and val.strip():
+                    return val.strip()
 
         return None
 
