@@ -33,21 +33,6 @@
     <style>
         :root { --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2"); }
 
-        /* ===== Analytics-style stat cards ===== */
-        .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:10px; }
-        .stat-card {
-            background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
-            padding:16px 18px; display:flex; align-items:center; gap:14px;
-            box-shadow:0 1px 3px rgba(0,0,0,0.06); transition:transform 0.15s, box-shadow 0.15s;
-        }
-        .stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-        .stat-icon {
-            width:44px; height:44px; border-radius:12px; display:flex;
-            align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
-        }
-        .stat-value { font-size:1.6rem; font-weight:700; line-height:1; color:var(--text); }
-        .stat-label { font-size:0.65rem; color:var(--text-light); text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; font-weight:500; }
-
         /* ===== Duplicate section ===== */
         .dup-section {
             background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
@@ -248,38 +233,6 @@
                 </div>
                 {% endif %}
 
-                <!-- ===== Summary Stats ===== -->
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(0,120,144,0.1);color:#007890;"><i class="fas fa-list-alt"></i></div>
-                        <div>
-                            <div class="stat-value">{{ total_logs }}</div>
-                            <div class="stat-label">Total Logs</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(239,68,68,0.1);color:#dc2626;"><i class="fas fa-copy"></i></div>
-                        <div>
-                            <div class="stat-value" style="color:#dc2626;">{{ duplicate_count }}</div>
-                            <div class="stat-label">Duplicate Groups</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;"><i class="fas fa-clone"></i></div>
-                        <div>
-                            <div class="stat-value" style="color:#f59e0b;">{{ total_extra_copies }}</div>
-                            <div class="stat-label">Extra Copies</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981;"><i class="fas fa-sign-in-alt"></i></div>
-                        <div>
-                            <div class="stat-value" id="login-count">-</div>
-                            <div class="stat-label">Logins Today</div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ===== Duplicate Inspections Deep Dive ===== -->
                 {% if duplicate_inspections %}
                 <div class="dup-section">
@@ -411,6 +364,11 @@
                                     <i class="fas fa-list"></i> Show Paginated
                                 </a>
                                 {% endif %}
+                                {% if duplicate_count > 0 %}
+                                <button type="button" onclick="toggleSection('dup-main'); document.getElementById('dup-main-body').parentElement.scrollIntoView({behavior:'smooth'});" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s; margin-left:auto;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                    <i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})
+                                </button>
+                                {% endif %}
                             </div>
                         </form>
                     </div>
@@ -519,22 +477,7 @@
     <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311b"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Count logins today from visible rows
-            var rows = document.querySelectorAll('tbody tr:not(.empty-row)');
-            var today = new Date();
-            var dd = ('0'+today.getDate()).slice(-2), mm = ('0'+(today.getMonth()+1)).slice(-2), yy = String(today.getFullYear()).slice(-2);
-            var todayStr = dd+'/'+mm+'/'+yy;
-            var logins = 0;
-            rows.forEach(function(row) {
-                var cells = row.querySelectorAll('td:not(.mobile-row-content)');
-                if (cells.length >= 3) {
-                    var ts = cells[0].textContent.trim();
-                    var action = cells[2].textContent.trim().toUpperCase();
-                    if (ts.indexOf(todayStr) === 0 && action === 'LOGIN') logins++;
-                }
-            });
-            var el = document.getElementById('login-count');
-            if (el) el.textContent = logins;
+            // page ready
         });
     </script>
 </body>
