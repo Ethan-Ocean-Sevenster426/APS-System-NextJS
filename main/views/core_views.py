@@ -17294,11 +17294,65 @@ def system_logs(request):
         page_obj = None
         logs = logs[:1000]  # Limit to 1000 logs when showing all
     
+    # One-time fix: update old-style descriptions to human-readable format
+    try:
+        from main.middleware import ActivityLoggingMiddleware
+        page_names = ActivityLoggingMiddleware.PAGE_NAMES
+        old_logs = SystemLog.objects.filter(description__startswith='Viewed /') | \
+                   SystemLog.objects.filter(description__startswith='Navigated to /') | \
+                   SystemLog.objects.filter(description__startswith='User logged in via') | \
+                   SystemLog.objects.filter(description__startswith='User logged out via') | \
+                   SystemLog.objects.filter(description__startswith='Created new record via') | \
+                   SystemLog.objects.filter(description__startswith='Updated record via') | \
+                   SystemLog.objects.filter(description__startswith='Deleted record via') | \
+                   SystemLog.objects.filter(description__startswith='Data synchronization via') | \
+                   SystemLog.objects.filter(description__startswith='Data export via') | \
+                   SystemLog.objects.filter(description__startswith='Data import via') | \
+                   SystemLog.objects.filter(description__startswith='Search/filter operation via')
+        if old_logs.exists():
+            for log in old_logs.select_related('user')[:500]:
+                username = log.user.get_full_name() or log.user.username
+                page = log.page or ''
+                friendly = page_names.get(page)
+                if not friendly:
+                    for url, name in page_names.items():
+                        if url.rstrip('/') in page:
+                            friendly = name
+                            break
+                if not friendly:
+                    friendly = page.strip('/').replace('-', ' ').replace('_', ' ').title() or page
+                desc = log.description or ''
+                if desc.startswith('Viewed '):
+                    log.description = f"{username} viewed {friendly}"
+                elif desc.startswith('Navigated to '):
+                    log.description = f"{username} went to {friendly}"
+                elif desc.startswith('User logged in'):
+                    log.description = f"{username} logged in"
+                elif desc.startswith('User logged out'):
+                    log.description = f"{username} logged out"
+                elif desc.startswith('Created new record'):
+                    log.description = f"{username} created a new record on {friendly}"
+                elif desc.startswith('Updated record'):
+                    log.description = f"{username} updated a record on {friendly}"
+                elif desc.startswith('Deleted record'):
+                    log.description = f"{username} deleted a record on {friendly}"
+                elif desc.startswith('Data synchronization'):
+                    log.description = f"{username} synced data on {friendly}"
+                elif desc.startswith('Data export'):
+                    log.description = f"{username} exported data from {friendly}"
+                elif desc.startswith('Data import'):
+                    log.description = f"{username} imported data to {friendly}"
+                elif desc.startswith('Search/filter'):
+                    log.description = f"{username} searched on {friendly}"
+                log.save(update_fields=['description'])
+    except Exception:
+        pass
+
     # Get unique values for filter dropdowns
     users = User.objects.filter(system_logs__isnull=False).distinct().order_by('username')
     actions = SystemLog.objects.values_list('action', flat=True).distinct().order_by('action')
     pages = SystemLog.objects.values_list('page', flat=True).exclude(page__isnull=True).exclude(page='').distinct().order_by('page')
-    
+
     # Detect duplicate inspections (same client + date + inspector, count > 1)
     duplicate_inspections = []
     total_extra_copies = 0
