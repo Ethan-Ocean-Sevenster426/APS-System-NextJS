@@ -2754,7 +2754,11 @@ function renderAll() {
 // ================================================================
 // EXPORT CSV
 // ================================================================
-function extractReport() {
+async function extractReport() {
+    // Auto-apply filters first if any filters are set
+    if (isFiltered()) {
+        await applyFilters();
+    }
     var items = dashboardData.inspectionsList || [];
     if (items.length === 0) { alert('No data to export.'); return; }
     var headers = ['Date', 'Inspector', 'Client', 'Commodity', 'Facility', 'Sample Taken', 'Status', 'Town'];
@@ -2770,22 +2774,41 @@ function extractReport() {
             '"' + (row.town || '').replace(/"/g, '""') + '"',
         ].join(',');
     });
+    // Build filename with filter period
+    var filterTag = getFilterFilenameTag();
     var csv = headers.join(',') + '\n' + rows.join('\n');
     var blob = new Blob([csv], { type: 'text/csv' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'analytics_report_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.download = 'analytics_report' + filterTag + '_' + new Date().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 
+function getFilterFilenameTag() {
+    var f = getFilterValues();
+    var parts = [];
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    if (f.month !== 'all') parts.push(monthNames[parseInt(f.month) - 1]);
+    if (f.year !== 'all') parts.push(f.year);
+    if (f.inspector !== 'all') parts.push(f.inspector.replace(/\s+/g, '_'));
+    if (f.date_from) parts.push('from_' + f.date_from);
+    if (f.date_to) parts.push('to_' + f.date_to);
+    return parts.length > 0 ? '_' + parts.join('_') : '';
+}
+
 // ================================================================
 // EXPORT PDF
 // ================================================================
 async function exportDashboardPDF() {
+    // Auto-apply filters first if any filters are set
+    if (isFiltered()) {
+        await applyFilters();
+    }
+
     var overlay = document.getElementById('pdfExportOverlay');
     var progressEl = document.getElementById('pdfExportProgress');
     if (overlay) overlay.style.display = 'flex';
@@ -3424,7 +3447,8 @@ async function exportDashboardPDF() {
         }
 
         prog('Saving...');
-        pdf.save('FSA_Analytics_Report_' + new Date().toISOString().slice(0, 10) + '.pdf');
+        var pdfFilterTag = getFilterFilenameTag();
+        pdf.save('FSA_Analytics_Report' + pdfFilterTag + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
 
     } catch (err) {
         console.error('PDF export error:', err);
