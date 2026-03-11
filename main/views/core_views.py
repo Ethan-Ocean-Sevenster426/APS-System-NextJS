@@ -17356,52 +17356,31 @@ def system_logs(request):
     actions = SystemLog.objects.values_list('action', flat=True).distinct().order_by('action')
     pages = SystemLog.objects.values_list('page', flat=True).exclude(page__isnull=True).exclude(page='').distinct().order_by('page')
 
-    # Detect duplicate inspections (same client + date + inspector, count > 1)
+    # Detect duplicate inspection groups (same client + date + inspector, multiple groups)
     duplicate_inspections = []
     total_extra_copies = 0
     try:
         from ..models import FoodSafetyAgencyInspection
         from django.db.models import Count, Min, Max
+        # Count distinct inspection_group_id per client+date+inspector
         dupes = FoodSafetyAgencyInspection.objects.values(
             'client_name', 'date_of_inspection', 'inspector_name'
         ).annotate(
-            count=Count('id'),
+            group_count=Count('inspection_group_id', distinct=True),
             first_id=Min('id'),
             last_id=Max('id'),
-        ).filter(count__gt=1).order_by('-count')[:30]
+        ).filter(group_count__gt=1).order_by('-group_count')[:30]
 
         for d in dupes:
-            # Get all individual inspections in this duplicate group
-            group_inspections = FoodSafetyAgencyInspection.objects.filter(
-                client_name=d['client_name'],
-                date_of_inspection=d['date_of_inspection'],
-                inspector_name=d['inspector_name'],
-            ).order_by('id').values(
-                'id', 'commodity', 'town', 'is_sent', 'sent_date',
-                'created_at', 'inspection_group_id',
-            )
-            items = []
-            for gi in group_inspections:
-                items.append({
-                    'id': gi['id'],
-                    'commodity': gi['commodity'] or '-',
-                    'town': gi['town'] or '-',
-                    'is_sent': gi['is_sent'],
-                    'sent_date': gi['sent_date'],
-                    'created_at': gi['created_at'],
-                    'group_id': gi['inspection_group_id'],
-                })
-
-            extras = d['count'] - 1  # first one is the original
+            extras = d['group_count'] - 1
             total_extra_copies += extras
             duplicate_inspections.append({
                 'client_name': d['client_name'],
                 'date': d['date_of_inspection'],
                 'inspector': d['inspector_name'],
-                'count': d['count'],
+                'count': d['group_count'],
                 'first_id': d['first_id'],
                 'last_id': d['last_id'],
-                'items': items,
             })
     except Exception:
         pass
