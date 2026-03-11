@@ -151,6 +151,7 @@ Chart.register({
 
         // --- SINGLE-DATASET BAR & HORIZONTAL BAR: label each bar ---
         ctx.font = 'bold 9px sans-serif';
+        var zeroX = isHoriz && chart.scales.x ? chart.scales.x.getPixelForValue(0) : 0;
         chart.data.datasets.forEach(function(ds, di) {
             var meta = chart.getDatasetMeta(di);
             if (meta.hidden) return;
@@ -162,9 +163,9 @@ Chart.register({
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#1e293b';
                     if (val < 0) {
-                        // Negative bars: place label to the right of bar tip (outside)
-                        ctx.textAlign = 'right';
-                        ctx.fillText(label, el.x - 4, el.y);
+                        // Negative bars: place label to the right of the zero line (in white space)
+                        ctx.textAlign = 'left';
+                        ctx.fillText(label, zeroX + 4, el.y);
                     } else {
                         // Positive bars: place label to the right of bar end
                         ctx.textAlign = 'left';
@@ -2729,6 +2730,7 @@ function renderInspectorComparisonChart() {
                 ctx.font = 'bold 10px sans-serif';
                 ctx.fillStyle = '#1e293b';
                 ctx.textBaseline = 'middle';
+                var zeroX = chart.scales.x ? chart.scales.x.getPixelForValue(0) : 0;
                 meta.data.forEach(function(bar, idx) {
                     var val = chart.data.datasets[0].data[idx];
                     if (val == null) return;
@@ -2738,8 +2740,9 @@ function renderInspectorComparisonChart() {
                     else if (_revenueMetric === 'total_hours' || _revenueMetric === 'inspection_time') label = val.toFixed(1) + ' hrs';
                     else label = Math.round(val).toLocaleString();
                     if (val < 0) {
-                        ctx.textAlign = 'right';
-                        ctx.fillText(label, bar.x - 4, bar.y);
+                        // Place label in the white space to the right of the zero line
+                        ctx.textAlign = 'left';
+                        ctx.fillText(label, zeroX + 4, bar.y);
                     } else {
                         ctx.textAlign = 'left';
                         ctx.fillText(label, bar.x + 4, bar.y);
