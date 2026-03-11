@@ -174,48 +174,6 @@
                 </div>
                 {% endif %}
 
-                <!-- Duplicate Inspections Table (hidden by default, toggled by button) -->
-                {% if duplicate_inspections %}
-                <div id="duplicates-table" class="log-table-wrap" style="display:none;">
-                    <div class="log-table-header">
-                        <h3><i class="fas fa-copy" style="color:#dc2626;"></i> Duplicate Inspections</h3>
-                        <span class="showing">{{ duplicate_count }} duplicated, {{ total_extra_copies }} extra groups</span>
-                    </div>
-                    <div class="table-responsive" style="border:none;border-radius:0;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Groups</th>
-                                    <th>Client / Facility</th>
-                                    <th>Inspector</th>
-                                    <th>Date</th>
-                                    <th>ID Range</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dupe in duplicate_inspections %}
-                                <tr>
-                                    <td>
-                                        <span class="dup-badge {% if dupe.count >= 10 %}dup-badge-red{% elif dupe.count >= 5 %}dup-badge-amber{% else %}dup-badge-grey{% endif %}">{{ dupe.count }}x</span>
-                                    </td>
-                                    <td style="font-weight:500;">{{ dupe.client_name }}</td>
-                                    <td>{{ dupe.inspector }}</td>
-                                    <td>{{ dupe.date|date:"d M Y" }}</td>
-                                    <td style="font-size:11px;color:var(--text-light);">#{{ dupe.first_id }} - #{{ dupe.last_id }}</td>
-                                    <td>
-                                        <a href="{% url 'shipment_list' %}?client={{ dupe.client_name|urlencode }}&inspection_date_from={{ dupe.date|date:'Y-m-d' }}&inspection_date_to={{ dupe.date|date:'Y-m-d' }}" style="padding:4px 10px; border:none; border-radius:4px; background:#007890; color:white; font-size:11px; font-weight:500; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="View all inspections for this client on {{ dupe.date|date:'d M Y' }}">
-                                            <i class="fas fa-external-link-alt"></i> View
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
-
                 <!-- ===== Filter Card ===== -->
                 <div class="card" style="border-radius:10px;">
                     <div class="card-header" style="padding:12px 20px;">
@@ -277,7 +235,7 @@
                                 </a>
                                 {% endif %}
                                 {% if duplicate_count > 0 %}
-                                <button type="button" onclick="var el=document.getElementById('duplicates-table'); el.style.display=el.style.display==='none'?'block':'none'; if(el.style.display==='block') el.scrollIntoView({behavior:'smooth'});" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <button type="button" id="dup-toggle-btn" onclick="toggleDuplicatesView()" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                     <i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})
                                 </button>
                                 {% endif %}
@@ -286,13 +244,14 @@
                     </div>
                 </div>
 
-                <!-- ===== Activity Logs Table ===== -->
+                <!-- ===== Activity Logs / Duplicates Table ===== -->
                 <div class="log-table-wrap">
                     <div class="log-table-header">
-                        <h3><i class="fas fa-list-alt" style="color:#007890;"></i> Activity Logs</h3>
-                        <span class="showing">Showing {{ logs|length }} of {{ total_logs }}</span>
+                        <h3 id="table-title"><i class="fas fa-list-alt" style="color:#007890;"></i> Activity Logs</h3>
+                        <span class="showing" id="table-showing">Showing {{ logs|length }} of {{ total_logs }}</span>
                     </div>
-                    <div class="table-responsive" style="border:none;border-radius:0;">
+                    <!-- Activity Logs content -->
+                    <div id="logs-content" class="table-responsive" style="border:none;border-radius:0;">
                         <table>
                             <thead>
                                 <tr>
@@ -341,9 +300,42 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Duplicates content (hidden by default, shown in same table) -->
+                    <div id="dupes-content" class="table-responsive" style="display:none;border:none;border-radius:0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Groups</th>
+                                    <th>Client / Facility</th>
+                                    <th>Inspector</th>
+                                    <th>Date</th>
+                                    <th>ID Range</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dupe in duplicate_inspections %}
+                                <tr>
+                                    <td><span class="dup-badge {% if dupe.count >= 10 %}dup-badge-red{% elif dupe.count >= 5 %}dup-badge-amber{% else %}dup-badge-grey{% endif %}">{{ dupe.count }}x</span></td>
+                                    <td style="font-weight:500;">{{ dupe.client_name }}</td>
+                                    <td>{{ dupe.inspector }}</td>
+                                    <td>{{ dupe.date|date:"d M Y" }}</td>
+                                    <td style="font-size:11px;color:var(--text-light);">#{{ dupe.first_id }} - #{{ dupe.last_id }}</td>
+                                    <td>
+                                        <a href="{% url 'shipment_list' %}?client={{ dupe.client_name|urlencode }}&inspection_date_from={{ dupe.date|date:'Y-m-d' }}&inspection_date_to={{ dupe.date|date:'Y-m-d' }}" style="padding:4px 10px;border:none;border-radius:4px;background:#007890;color:white;font-size:11px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                                            <i class="fas fa-external-link-alt"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">No duplicate inspection groups found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {% if page_obj and not filters.show_all %}
-                    <div class="pagination" style="padding:12px 20px; border-top:1px solid var(--border);">
+                    <div id="logs-pagination" class="pagination" style="padding:12px 20px; border-top:1px solid var(--border);">
                         {% if page_obj.has_previous %}
                             <a href="?page=1{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">First</a>
                             <a href="?page={{ page_obj.previous_page_number }}{% if filters.user %}&user={{ filters.user }}{% endif %}{% if filters.action %}&action={{ filters.action }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}" class="btn btn-sm btn-secondary">Previous</a>
@@ -368,6 +360,38 @@
             userRole: '{{ request.user.role }}'
         };
 
+        var showingDupes = false;
+        function toggleDuplicatesView() {
+            var logsContent = document.getElementById('logs-content');
+            var dupesContent = document.getElementById('dupes-content');
+            var title = document.getElementById('table-title');
+            var showing = document.getElementById('table-showing');
+            var pagination = document.getElementById('logs-pagination');
+            var btn = document.getElementById('dup-toggle-btn');
+
+            showingDupes = !showingDupes;
+            if (showingDupes) {
+                logsContent.style.display = 'none';
+                dupesContent.style.display = 'block';
+                if (pagination) pagination.style.display = 'none';
+                title.innerHTML = '<i class="fas fa-copy" style="color:#dc2626;"></i> Duplicate Inspections';
+                showing.textContent = '{{ duplicate_count }} duplicated, {{ total_extra_copies }} extra groups';
+                btn.innerHTML = '<i class="fas fa-list-alt"></i> Activity Logs';
+                btn.style.background = '#007890';
+                btn.onmouseover = function(){ this.style.background='#006070'; };
+                btn.onmouseout = function(){ this.style.background='#007890'; };
+            } else {
+                logsContent.style.display = 'block';
+                dupesContent.style.display = 'none';
+                if (pagination) pagination.style.display = '';
+                title.innerHTML = '<i class="fas fa-list-alt" style="color:#007890;"></i> Activity Logs';
+                showing.textContent = 'Showing {{ logs|length }} of {{ total_logs }}';
+                btn.innerHTML = '<i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})';
+                btn.style.background = '#dc2626';
+                btn.onmouseover = function(){ this.style.background='#b91c1c'; };
+                btn.onmouseout = function(){ this.style.background='#dc2626'; };
+            }
+        }
     </script>
     <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311b"></script>
     <script>
