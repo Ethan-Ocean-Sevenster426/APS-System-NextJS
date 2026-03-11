@@ -159,16 +159,17 @@ Chart.register({
                 if (val == null || val === 0 || typeof val !== 'number') return;
                 var label = fmtFn ? fmtFn(val) : String(Math.round(val).toLocaleString());
                 if (isHoriz) {
-                    ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
-                    var lx = el.x + 4;
-                    // White outline for readability
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 3;
-                    ctx.lineJoin = 'round';
-                    ctx.strokeText(label, lx, el.y);
                     ctx.fillStyle = '#1e293b';
-                    ctx.fillText(label, lx, el.y);
+                    if (val < 0) {
+                        // Negative bars: place label to the right of bar tip (outside)
+                        ctx.textAlign = 'right';
+                        ctx.fillText(label, el.x - 4, el.y);
+                    } else {
+                        // Positive bars: place label to the right of bar end
+                        ctx.textAlign = 'left';
+                        ctx.fillText(label, el.x + 4, el.y);
+                    }
                 } else {
                     ctx.fillStyle = '#1e293b';
                     ctx.textAlign = 'center';
@@ -2736,8 +2737,13 @@ function renderInspectorComparisonChart() {
                     else if (_revenueMetric === 'total_km') label = Math.round(val).toLocaleString() + ' km';
                     else if (_revenueMetric === 'total_hours' || _revenueMetric === 'inspection_time') label = val.toFixed(1) + ' hrs';
                     else label = Math.round(val).toLocaleString();
-                    ctx.textAlign = 'left';
-                    ctx.fillText(label, bar.x + 4, bar.y);
+                    if (val < 0) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(label, bar.x - 4, bar.y);
+                    } else {
+                        ctx.textAlign = 'left';
+                        ctx.fillText(label, bar.x + 4, bar.y);
+                    }
                 });
                 ctx.restore();
             }
