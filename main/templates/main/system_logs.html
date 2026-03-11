@@ -204,7 +204,7 @@
                                     <td>{{ dupe.date|date:"d M Y" }}</td>
                                     <td style="font-size:11px;color:var(--text-light);">#{{ dupe.first_id }} - #{{ dupe.last_id }}</td>
                                     <td>
-                                        <a href="{% url 'shipment_list' %}?client={{ dupe.client_name|urlencode }}" style="padding:4px 10px; border:none; border-radius:4px; background:#007890; color:white; font-size:11px; font-weight:500; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="View all inspections for this client">
+                                        <a href="{% url 'shipment_list' %}?client={{ dupe.client_name|urlencode }}&inspection_date_from={{ dupe.date|date:'Y-m-d' }}&inspection_date_to={{ dupe.date|date:'Y-m-d' }}" style="padding:4px 10px; border:none; border-radius:4px; background:#007890; color:white; font-size:11px; font-weight:500; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="View all inspections for this client on {{ dupe.date|date:'d M Y' }}">
                                             <i class="fas fa-external-link-alt"></i> View
                                         </a>
                                     </td>
