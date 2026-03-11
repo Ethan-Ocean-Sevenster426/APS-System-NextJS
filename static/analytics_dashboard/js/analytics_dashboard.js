@@ -151,7 +151,6 @@ Chart.register({
 
         // --- SINGLE-DATASET BAR & HORIZONTAL BAR: label each bar ---
         ctx.font = 'bold 9px sans-serif';
-        ctx.fillStyle = '#1e293b';
         chart.data.datasets.forEach(function(ds, di) {
             var meta = chart.getDatasetMeta(di);
             if (meta.hidden) return;
@@ -162,8 +161,16 @@ Chart.register({
                 if (isHoriz) {
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(label, el.x + 4, el.y);
+                    var lx = el.x + 4;
+                    // White outline for readability
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3;
+                    ctx.lineJoin = 'round';
+                    ctx.strokeText(label, lx, el.y);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillText(label, lx, el.y);
                 } else {
+                    ctx.fillStyle = '#1e293b';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
                     ctx.fillText(label, el.x, el.y - 2);
@@ -2973,9 +2980,9 @@ async function exportDashboardPDF() {
 
             // Reduce bar thickness for dense horizontal bar charts in PDF
             var origBarThickness = null;
-            if (canvasId === 'inspectorTrendChart' && inst.data.datasets[0]) {
+            if ((canvasId === 'inspectorTrendChart' || canvasId === 'inspectorComparisonChart') && inst.data.datasets[0]) {
                 origBarThickness = inst.data.datasets[0].barThickness;
-                inst.data.datasets[0].barThickness = 10;
+                inst.data.datasets[0].barThickness = canvasId === 'inspectorComparisonChart' ? 14 : 10;
             }
 
             // Compact for PDF: zero layout padding, tight legend
@@ -3391,8 +3398,8 @@ async function exportDashboardPDF() {
             { id: 'approvalTimeChart', label: 'Avg Days - Approval', section: 'Timelines' },
             { id: 'approvalTrendChart', label: 'Approval Trend', section: 'Timelines' },
             { id: 'inspectorTrendChart', label: 'Inspector Comparison (Weekly)', section: 'Financial', ownPage: true },
-            { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial', stackWith: 'inspectorComparisonChart' },
-            { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial' },
+            { id: 'revenueCostChart', label: 'Revenue & Cost Breakdown', section: 'Financial' },
+            { id: 'inspectorComparisonChart', label: 'Inspector Comparison (Revenue)', section: 'Financial', ownPage: true },
         ];
 
         // Sections that use 2-column paired layout (bar + trend side by side)
