@@ -34,7 +34,7 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="{% static 'user_management/css/user_management.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'user_management/css/user_management.css' %}?v=20260311">
     <style>
         :root {
             --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
@@ -226,18 +226,11 @@
                 </div>
                 {% endif %}
 
-                <div class="action-bar">
-                    <!-- Add New User Button -->
-                    <button onclick="showAddUserModal()" class="btn btn-success">
-                        <i class="fas fa-user-plus"></i> Add New User
-                    </button>
-                </div>
-
                 <!-- Filter Card -->
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">
-                            <i class="fas fa-filter"></i> Filter Users (Real-Time)
+                            <i class="fas fa-filter"></i> Filters
                         </div>
                     </div>
                     <div class="card-body">
@@ -270,10 +263,10 @@
 
                         <div class="form-actions">
                             <button type="button" class="btn btn-primary" onclick="filterTable()">
-                                <i class="fas fa-filter"></i> Apply Filters
+                                <i class="fas fa-filter"></i> Apply
                             </button>
                             <button type="button" class="btn btn-secondary" onclick="clearFilters()">
-                                <i class="fas fa-times"></i> Clear All Filters
+                                <i class="fas fa-times"></i> Clear
                             </button>
                         </div>
                     </div>
@@ -283,15 +276,14 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">
-                            <i class="fas fa-users"></i> Current Users
+                            <i class="fas fa-users"></i> Users
+                            <span class="table-info" style="margin-left: 6px; margin-top: 0;">({{ users|length }})</span>
                         </div>
+                        <button onclick="showAddUserModal()" class="btn btn-success">
+                            <i class="fas fa-user-plus"></i> Add User
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div class="table-controls" style="margin-bottom: 1rem;">
-                            <div class="table-info">
-                                Showing {{ users|length }} user{{ users|length|pluralize }}
-                            </div>
-                        </div>
+                    <div class="card-body" style="padding: 0;">
 
                         {% if users %}
                         <div class="table-responsive">
@@ -321,23 +313,25 @@
                                             {% endif %}
                                         </td>
                                         <td class="col-role">
+                                            <span class="role-badge role-{{ user.role|default:'inspector' }}">
                                             {% if user.role == 'inspector' %}Inspector
-                                            {% elif user.role == 'admin' %}Administrator
+                                            {% elif user.role == 'admin' %}Admin
                                             {% elif user.role == 'super_admin' %}Super Admin
                                             {% elif user.role == 'financial' %}Financial
-                                            {% elif user.role == 'lab_technician' %}Lab Technician
+                                            {% elif user.role == 'lab_technician' %}Lab Tech
                                             {% elif user.role == 'developer' %}Developer
                                             {% else %}Inspector{% endif %}
+                                            </span>
                                         </td>
                                         <td class="col-status">
                                             {% if user.is_active %}
-                                                <span style="color: #10b981; font-weight: 600;">Active</span>
+                                                <span class="status-badge status-active">Active</span>
                                             {% else %}
-                                                <span style="color: #ef4444; font-weight: 600;">Inactive</span>
+                                                <span class="status-badge status-inactive">Inactive</span>
                                             {% endif %}
                                         </td>
                                         <td class="col-actions">
-                                            <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                                            <div class="action-btn-group">
                                                 <button class="btn btn-xs btn-primary edit-user-btn"
                                                         data-user-id="{{ user.id }}"
                                                         data-username="{{ user.username }}"
@@ -644,6 +638,6 @@
             }
         };
     </script>
-    <script src="{% static 'user_management/js/user_management.js' %}?v=20260212"></script>
+    <script src="{% static 'user_management/js/user_management.js' %}?v=20260311"></script>
 </body>
 </html>
