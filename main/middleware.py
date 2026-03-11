@@ -168,7 +168,7 @@ class ActivityLoggingMiddleware(MiddlewareMixin):
             return 'LOGOUT'
         
         # Navigation actions
-        elif method == 'GET' and not path.startswith('/static/') and not path.startswith('/media/'):
+        elif method == 'GET' and not path.startswith('/static/') and not path.startswith('/media/') and not path.startswith('/api/'):
             if 'home' in path:
                 return 'NAVIGATE'
             elif 'settings' in path:
@@ -213,7 +213,7 @@ class ActivityLoggingMiddleware(MiddlewareMixin):
         '/inspections/': 'Inspection Records',
         '/system-logs/': 'System Logs',
         '/analytics-dashboard/': 'Analytics Dashboard',
-        '/api/analytics-dashboard/': 'Analytics Dashboard API',
+        '/api/analytics-dashboard/': 'Analytics Dashboard',
         '/settings/': 'Settings',
         '/user-management/': 'User Management',
         '/clients/': 'Clients',

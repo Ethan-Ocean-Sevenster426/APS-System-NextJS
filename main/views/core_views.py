@@ -17308,7 +17308,8 @@ def system_logs(request):
                    SystemLog.objects.filter(description__startswith='Data synchronization via') | \
                    SystemLog.objects.filter(description__startswith='Data export via') | \
                    SystemLog.objects.filter(description__startswith='Data import via') | \
-                   SystemLog.objects.filter(description__startswith='Search/filter operation via')
+                   SystemLog.objects.filter(description__startswith='Search/filter operation via') | \
+                   SystemLog.objects.filter(description__contains='Analytics Dashboard API')
         if old_logs.exists():
             for log in old_logs.select_related('user')[:500]:
                 username = log.user.get_full_name() or log.user.username
@@ -17344,6 +17345,8 @@ def system_logs(request):
                     log.description = f"{username} imported data to {friendly}"
                 elif desc.startswith('Search/filter'):
                     log.description = f"{username} searched on {friendly}"
+                elif 'Analytics Dashboard API' in desc:
+                    log.description = f"{username} viewed Analytics Dashboard"
                 log.save(update_fields=['description'])
     except Exception:
         pass
