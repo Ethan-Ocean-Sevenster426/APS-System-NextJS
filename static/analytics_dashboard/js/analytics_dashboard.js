@@ -383,6 +383,67 @@ function mergeAllInspectorFinancials(filtered) {
     return result;
 }
 
+// Fetch filtered data without rendering (used by export functions)
+async function fetchFilteredData() {
+    if (!isFiltered()) return;
+    var f = getFilterValues();
+    var params = new URLSearchParams();
+    if (f.year !== 'all') params.set('year', f.year);
+    if (f.month !== 'all') params.set('month', f.month);
+    if (f.inspector !== 'all') params.set('inspector', f.inspector);
+    if (f.commodity !== 'all') params.set('commodity', f.commodity);
+    if (f.date_from) params.set('date_from', f.date_from);
+    if (f.date_to) params.set('date_to', f.date_to);
+    try {
+        var resp = await fetch(window.DJANGO_CONFIG.apiUrl + '?' + params.toString());
+        if (!resp.ok) throw new Error('API error');
+        var data = await resp.json();
+        dashboardData = {
+            totalInspections: data.totalInspections,
+            complianceRate: data.complianceRate,
+            activeInspectors: data.activeInspectors,
+            totalHours: parseFloat(data.totalHours || 0),
+            avgHours: parseFloat(data.avgHours || 0),
+            complianceByCommodity: data.complianceByCommodity || [],
+            commodityAnalysis: data.commodityAnalysis || [],
+            samplesByCommodity: data.samplesByCommodity || [],
+            facilityTypeDistribution: data.facilityTypeDistribution || [],
+            monthlyCommodityTrends: data.monthlyCommodityTrends || [],
+            monthlyComplianceTrend: data.monthlyComplianceTrend || [],
+            dailyComplianceTrend: data.dailyComplianceTrend || [],
+            timeAllocation: data.timeAllocation || [],
+            inspectionsList: data.inspectionsList || [],
+            inspectorPerformance: data.inspectorPerformance || [],
+            occurrenceReports: data.occurrenceReports || [],
+            totalOccurrenceReports: data.totalOccurrenceReports || 0,
+            directionsPerInspector: data.directionsPerInspector || [],
+            travelPerInspector: data.travelPerInspector || [],
+            inspectorCommodityMatrix: data.inspectorCommodityMatrix || [],
+            inspectorSampleMatrix: data.inspectorSampleMatrix || [],
+            approvalPerInspector: data.approvalPerInspector || [],
+            inspectorFinancials: mergeAllInspectorFinancials(data.inspectorFinancials || []),
+            financialSummary: data.financialSummary || {},
+            monthlyOccurrenceTrend: data.monthlyOccurrenceTrend || [],
+            monthlyTravelTrend: data.monthlyTravelTrend || [],
+            monthlyDocSendTrend: data.monthlyDocSendTrend || [],
+            monthlyInvoiceTrend: data.monthlyInvoiceTrend || [],
+            monthlyInspectionsTrend: data.monthlyInspectionsTrend || [],
+            monthlyCoaTrend: data.monthlyCoaTrend || [],
+            monthlyApprovalTrend: data.monthlyApprovalTrend || [],
+            monthlyTravelHoursTrend: data.monthlyTravelHoursTrend || [],
+            monthlyInspectorTrend: data.monthlyInspectorTrend || [],
+            inspectorTargets: dashboardData.inspectorTargets || {},
+            docSendTime: data.docSendTime || [],
+            invoiceUploadTime: data.invoiceUploadTime || [],
+            coaAnalysisTime: data.coaAnalysisTime || [],
+            approvalTime: data.approvalTime || [],
+            travelTimePerInspector: data.travelTimePerInspector || [],
+        };
+    } catch (err) {
+        console.error('Error fetching filtered data:', err);
+    }
+}
+
 async function applyFilters() {
     console.log('Apply filters clicked');
     if (!isFiltered()) {
@@ -2755,9 +2816,9 @@ function renderAll() {
 // EXPORT CSV
 // ================================================================
 async function extractReport() {
-    // Auto-apply filters first if any filters are set
+    // Ensure filtered data is loaded before exporting
     if (isFiltered()) {
-        await applyFilters();
+        await fetchFilteredData();
     }
     var items = dashboardData.inspectionsList || [];
     if (items.length === 0) { alert('No data to export.'); return; }
@@ -2804,9 +2865,9 @@ function getFilterFilenameTag() {
 // EXPORT PDF
 // ================================================================
 async function exportDashboardPDF() {
-    // Auto-apply filters first if any filters are set
+    // Ensure filtered data is loaded before exporting
     if (isFiltered()) {
-        await applyFilters();
+        await fetchFilteredData();
     }
 
     var overlay = document.getElementById('pdfExportOverlay');
