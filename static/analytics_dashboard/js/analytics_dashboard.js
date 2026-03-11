@@ -2728,7 +2728,6 @@ function renderInspectorComparisonChart() {
                 if (!meta || meta.hidden) return;
                 ctx.save();
                 ctx.font = 'bold 10px sans-serif';
-                ctx.fillStyle = '#1e293b';
                 ctx.textBaseline = 'middle';
                 var zeroX = chart.scales.x ? chart.scales.x.getPixelForValue(0) : 0;
                 meta.data.forEach(function(bar, idx) {
@@ -2739,13 +2738,33 @@ function renderInspectorComparisonChart() {
                     else if (_revenueMetric === 'total_km') label = Math.round(val).toLocaleString() + ' km';
                     else if (_revenueMetric === 'total_hours' || _revenueMetric === 'inspection_time') label = val.toFixed(1) + ' hrs';
                     else label = Math.round(val).toLocaleString();
+                    // Measure bar width to decide if label fits inside
+                    var barWidth = Math.abs(bar.x - zeroX);
+                    var textWidth = ctx.measureText(label).width;
+                    ctx.fillStyle = '#ffffff';
                     if (val < 0) {
-                        // Place label in the white space to the right of the zero line
-                        ctx.textAlign = 'left';
-                        ctx.fillText(label, zeroX + 4, bar.y);
+                        // Negative bar extends left from zero
+                        if (barWidth > textWidth + 8) {
+                            // Fits inside: place near the tip (left end) of the bar
+                            ctx.textAlign = 'left';
+                            ctx.fillText(label, bar.x + 4, bar.y);
+                        } else {
+                            // Too small: place outside to the left
+                            ctx.fillStyle = '#1e293b';
+                            ctx.textAlign = 'right';
+                            ctx.fillText(label, bar.x - 4, bar.y);
+                        }
                     } else {
-                        ctx.textAlign = 'left';
-                        ctx.fillText(label, bar.x + 4, bar.y);
+                        if (barWidth > textWidth + 8) {
+                            // Fits inside: place near the tip (right end) of the bar
+                            ctx.textAlign = 'right';
+                            ctx.fillText(label, bar.x - 4, bar.y);
+                        } else {
+                            // Too small: place outside to the right
+                            ctx.fillStyle = '#1e293b';
+                            ctx.textAlign = 'left';
+                            ctx.fillText(label, bar.x + 4, bar.y);
+                        }
                     }
                 });
                 ctx.restore();
