@@ -300,7 +300,6 @@
                                     <th class="col-user">User</th>
                                     <th class="col-action">Action</th>
                                     <th class="col-page">Page</th>
-                                    <th class="col-object">Object</th>
                                     <th class="col-description">Description</th>
                                     <th class="col-ip">IP Address</th>
                                 </tr>
@@ -312,7 +311,6 @@
                                     <td class="col-user" data-label="User"><span>{{ log.user.username }}</span></td>
                                     <td class="col-action" data-label="Action"><span class="action-badge action-{{ log.action }}">{{ log.action|title }}</span></td>
                                     <td class="col-page" data-label="Page"><span>{{ log.page|default:"-" }}</span></td>
-                                    <td class="col-object" data-label="Object"><span>{% if log.object_type and log.object_id %}{{ log.object_type }}: {{ log.object_id }}{% else %}-{% endif %}</span></td>
                                     <td class="col-description" data-label="Description"><span>{{ log.description|default:"-"|truncatechars:80 }}</span></td>
                                     <td class="col-ip" data-label="IP Address"><span>{{ log.ip_address|default:"-" }}</span></td>
 
@@ -327,7 +325,6 @@
                                         </div>
                                         <div class="mobile-row-expandable">
                                             <div class="mobile-row-field"><span class="mobile-row-label">Page</span><span class="mobile-row-value">{{ log.page|default:"-" }}</span></div>
-                                            <div class="mobile-row-field"><span class="mobile-row-label">Object</span><span class="mobile-row-value">{% if log.object_type and log.object_id %}{{ log.object_type }}: {{ log.object_id }}{% else %}-{% endif %}</span></div>
                                             <div class="mobile-row-field"><span class="mobile-row-label">Description</span><span class="mobile-row-value">{{ log.description|default:"-" }}</span></div>
                                             <div class="mobile-row-field"><span class="mobile-row-label">IP</span><span class="mobile-row-value">{{ log.ip_address|default:"-" }}</span></div>
                                         </div>
@@ -335,7 +332,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr class="empty-row">
-                                    <td colspan="7" class="empty-message" style="display:table-cell;">
+                                    <td colspan="6" class="empty-message" style="display:table-cell;">
                                         <i class="fas fa-list-alt" style="font-size:2rem;margin-bottom:1rem;opacity:0.5;"></i>
                                         <p>No system logs found.</p>
                                     </td>

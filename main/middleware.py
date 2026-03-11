@@ -207,34 +207,71 @@ class ActivityLoggingMiddleware(MiddlewareMixin):
         
         return None
     
+    # Friendly page names for human-readable descriptions
+    PAGE_NAMES = {
+        '/home/': 'Home',
+        '/inspections/': 'Inspection Records',
+        '/system-logs/': 'System Logs',
+        '/analytics-dashboard/': 'Analytics Dashboard',
+        '/api/analytics-dashboard/': 'Analytics Dashboard API',
+        '/settings/': 'Settings',
+        '/user-management/': 'User Management',
+        '/clients/': 'Clients',
+        '/client-allocation/': 'Client Allocation Sheet',
+        '/client-allocation-sheet/': 'Client Allocation Sheet',
+        '/debtors/': 'Debtors',
+        '/training/': 'Training',
+        '/fsa-operations-board/': 'FSA Operations Board',
+        '/submit-ticket/': 'Submit Ticket',
+        '/onedrive/': 'OneDrive',
+        '/server-view/': 'Server View',
+    }
+
+    def _get_page_name(self, path):
+        """Get friendly page name from URL path"""
+        if path in self.PAGE_NAMES:
+            return self.PAGE_NAMES[path]
+        # Try partial matches
+        for url, name in self.PAGE_NAMES.items():
+            if url.rstrip('/') in path:
+                return name
+        # Fallback: clean up the path
+        clean = path.strip('/').replace('-', ' ').replace('_', ' ').title()
+        return clean if clean else path
+
     def _get_description(self, request, action):
-        """Generate a description for the logged action"""
+        """Generate a human-readable description for the logged action"""
         path = request.path
-        method = request.method
-        
+        username = request.user.get_full_name() or request.user.username
+        page_name = self._get_page_name(path)
+
         if action == 'LOGIN':
-            return f"User logged in via {path}"
+            return f"{username} logged in"
         elif action == 'LOGOUT':
-            return f"User logged out via {path}"
+            return f"{username} logged out"
         elif action == 'NAVIGATE':
-            return f"Navigated to {path}"
+            return f"{username} went to {page_name}"
         elif action == 'VIEW':
-            return f"Viewed {path}"
+            return f"{username} viewed {page_name}"
+        elif action == 'SETTINGS':
+            return f"{username} opened Settings"
+        elif action == 'USER_MANAGEMENT':
+            return f"{username} opened User Management"
         elif action == 'CREATE':
-            return f"Created new record via {path}"
+            return f"{username} created a new record on {page_name}"
         elif action == 'UPDATE':
-            return f"Updated record via {path}"
+            return f"{username} updated a record on {page_name}"
         elif action == 'DELETE':
-            return f"Deleted record via {path}"
+            return f"{username} deleted a record on {page_name}"
         elif action == 'SYNC':
-            return f"Data synchronization via {path}"
+            return f"{username} synced data on {page_name}"
         elif action == 'EXPORT':
-            return f"Data export via {path}"
+            return f"{username} exported data from {page_name}"
         elif action == 'IMPORT':
-            return f"Data import via {path}"
+            return f"{username} imported data to {page_name}"
         elif action == 'FILE_UPLOAD':
-            return f"File upload via {path}"
+            return f"{username} uploaded a file on {page_name}"
         elif action == 'SEARCH':
-            return f"Search/filter operation via {path}"
+            return f"{username} searched on {page_name}"
         else:
-            return f"{method} request to {path}"
+            return f"{username} accessed {page_name}"
