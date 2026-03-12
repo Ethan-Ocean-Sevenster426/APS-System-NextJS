@@ -16015,7 +16015,9 @@ def send_group_documents(request):
 
         # Get sender display name
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-        sent_time = timezone.now().strftime('%d %b %Y %H:%M')
+        import pytz
+        sast = pytz.timezone('Africa/Johannesburg')
+        sent_time = timezone.now().astimezone(sast).strftime('%d %b %Y %H:%M')
 
         cc_msg = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
         to_msg = ', '.join(to_emails)
