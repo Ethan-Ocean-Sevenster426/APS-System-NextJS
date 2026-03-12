@@ -3877,7 +3877,6 @@ function initTargetsQuarterSelectors() {
     // Load quarterly targets for current period so table shows correct values
     _loadQuarterlyTargets(now.getFullYear(), currentQ, function() {
         renderInspectorTargetsTable();
-        renderProfitabilityTable();
         renderInspectorRadarChart();
     });
 }
@@ -3890,7 +3889,6 @@ function onTargetsQuarterChange() {
     if (title) title.textContent = 'Inspector Quarterly Targets & Activity (' + y + ' ' + qNames[q] + ')';
     _loadQuarterlyTargets(y, q, function() {
         renderInspectorTargetsTable();
-        renderProfitabilityTable();
         renderInspectorRadarChart();
     });
 }
@@ -4004,113 +4002,6 @@ renderInspectorTargetsTable = function() {
     });
     tbody.innerHTML = html;
 };
-
-// Profitability table
-function renderProfitabilityTable() {
-    var tbody = document.getElementById('profitBody');
-    if (!tbody) return;
-    var label = document.getElementById('profitQuarterLabel');
-    var y = (document.getElementById('targetsYear') || {}).value || new Date().getFullYear();
-    var q = (document.getElementById('targetsQuarter') || {}).value || Math.ceil((new Date().getMonth() + 1) / 3);
-    var qNames = ['', 'Q1', 'Q2', 'Q3', 'Q4'];
-    if (label) label.textContent = y + ' ' + qNames[q] + ' — Weekly target = quarterly / 13 weeks';
-
-    var inspectors = getInspectorData();
-    var inspCountLookup = {};
-    var hoursLookup = {};
-    var kmLookup = {};
-    (dashboardData.travelPerInspector || []).forEach(function(item) {
-        inspCountLookup[item.inspector_name] = item.inspection_count || 0;
-        hoursLookup[item.inspector_name] = item.total_hours || 0;
-        kmLookup[item.inspector_name] = item.total_km || 0;
-    });
-    Object.keys(inspCountLookup).forEach(function(name) {
-        if (!inspectors[name]) inspectors[name] = { inspections: {}, samples: {} };
-    });
-
-    var financialData = dashboardData.inspectorFinancials || [];
-    var finMap = {};
-    financialData.forEach(function(f) { finMap[f.inspector_name] = f; });
-
-    // Weeks elapsed in the quarter
-    var now = new Date();
-    var qStartMonth = (parseInt(q) - 1) * 3;
-    var qStart = new Date(parseInt(y), qStartMonth, 1);
-    var qEnd = new Date(parseInt(y), qStartMonth + 3, 0);
-    var weeksElapsed = 1;
-    if (now >= qStart && now <= qEnd) {
-        weeksElapsed = Math.max(1, Math.ceil((now - qStart) / (7 * 86400000)));
-    } else if (now > qEnd) {
-        weeksElapsed = 13;
-    }
-
-    var html = '';
-    var totals = { rev: 0, target: 0, salary: 0, vehicle: 0, other: 0, mgmt: 0, cost: 0, profit: 0 };
-    var inspectorNames = Object.keys(inspectors).sort();
-
-    inspectorNames.forEach(function(name) {
-        var d = inspectors[name];
-        var t = getEffectiveTarget(name);
-        var fin = finMap[name] || {};
-        var qt = (t.financial || {});
-
-        var totalRevenue = fin.total_revenue || 0;
-        var salary3 = (qt.monthly_salary || getInspectorSalary(name) || 0) * 3;
-        var vehicle3 = (qt.monthly_vehicle_cost || 0) * 3;
-        var other3 = (qt.monthly_other_costs || 0) * 3;
-        var mgmtFee = Math.round((salary3 + vehicle3 + other3) * 0.20);
-        var totalCost = salary3 + vehicle3 + other3 + mgmtFee;
-        var profit = totalRevenue - totalCost;
-        var margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 100) : 0;
-        var revTarget = qt.quarterly_revenue_target || 0;
-        var weeklyTarget = revTarget > 0 ? Math.round(revTarget / 13) : 0;
-        var weeklyActual = weeksElapsed > 0 ? Math.round(totalRevenue / weeksElapsed) : 0;
-
-        totals.rev += totalRevenue; totals.target += revTarget;
-        totals.salary += salary3; totals.vehicle += vehicle3; totals.other += other3;
-        totals.mgmt += mgmtFee; totals.cost += totalCost; totals.profit += profit;
-
-        function fR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
-        var pColor = profit >= 0 ? '#166534' : '#991b1b';
-        var pBg = profit >= 0 ? '#dcfce7' : '#fee2e2';
-        var wColor = weeklyTarget > 0 ? (weeklyActual >= weeklyTarget ? '#166534' : '#991b1b') : '#6b7280';
-        var wBg = weeklyTarget > 0 ? (weeklyActual >= weeklyTarget ? '#dcfce7' : '#fee2e2') : 'transparent';
-
-        html += '<tr>';
-        html += '<td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
-        html += '<td class="num">' + fR(totalRevenue) + '</td>';
-        html += '<td class="num">' + (revTarget > 0 ? fR(revTarget) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num">' + (salary3 > 0 ? fR(salary3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num">' + (vehicle3 > 0 ? fR(vehicle3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num">' + (other3 > 0 ? fR(other3) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num">' + (mgmtFee > 0 ? fR(mgmtFee) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num" style="font-weight:600;">' + (totalCost > 0 ? fR(totalCost) : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num" style="color:' + pColor + '; background:' + pBg + '; font-weight:700;">' + fR(profit) + '</td>';
-        html += '<td class="num" style="color:' + (margin >= 20 ? '#166534' : margin >= 0 ? '#92400e' : '#991b1b') + '; font-weight:600;">' + margin + '%</td>';
-        html += '<td class="num">' + (weeklyTarget > 0 ? fR(weeklyTarget) + '/wk' : '<span style="color:#9ca3af;">—</span>') + '</td>';
-        html += '<td class="num" style="color:' + wColor + '; background:' + wBg + '; font-weight:600;">' + fR(weeklyActual) + '/wk</td>';
-        html += '</tr>';
-    });
-
-    // Totals
-    function fR(v) { return 'R' + v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
-    var tpColor = totals.profit >= 0 ? '#166534' : '#991b1b';
-    var tMargin = totals.rev > 0 ? Math.round((totals.profit / totals.rev) * 100) : 0;
-    html += '<tr style="border-top:2px solid #374151; font-weight:700; background:#f9fafb;">';
-    html += '<td>TOTAL</td>';
-    html += '<td class="num">' + fR(totals.rev) + '</td>';
-    html += '<td class="num">' + (totals.target > 0 ? fR(totals.target) : '—') + '</td>';
-    html += '<td class="num">' + fR(totals.salary) + '</td>';
-    html += '<td class="num">' + fR(totals.vehicle) + '</td>';
-    html += '<td class="num">' + fR(totals.other) + '</td>';
-    html += '<td class="num">' + fR(totals.mgmt) + '</td>';
-    html += '<td class="num">' + fR(totals.cost) + '</td>';
-    html += '<td class="num" style="color:' + tpColor + ';">' + fR(totals.profit) + '</td>';
-    html += '<td class="num">' + tMargin + '%</td>';
-    html += '<td class="num"></td><td class="num"></td><td class="num"></td>';
-    html += '</tr>';
-    tbody.innerHTML = html;
-}
 
 function openTargetsModal() {
     var modal = document.getElementById('targetsModal');
@@ -4271,7 +4162,6 @@ function saveInspectorTarget() {
             statusEl.innerHTML = '<span style="color:#166534;"><i class="fas fa-check-circle"></i> Saved for ' + year + ' Q' + quarter + '!</span>';
             renderInspectorTargetsTable();
             renderInspectorRadarChart();
-            renderProfitabilityTable();
             var opt = document.querySelector('#targetInspectorSelect option[value="' + name + '"]');
             if (opt && opt.textContent.indexOf('*') === -1) opt.textContent += ' *';
         } else {
@@ -4343,7 +4233,6 @@ function saveTargetAllInspectors() {
         }
         renderInspectorTargetsTable();
         renderInspectorRadarChart();
-        renderProfitabilityTable();
     });
 }
 
@@ -4372,7 +4261,6 @@ var PANEL_RENDER_MAP = {
     'inspectors': [
         renderInspectorTargetsTable,
         renderInspectorRadarChart,
-        renderProfitabilityTable,
         renderInspectorTrendChart,
         renderDirectionsChart
     ],
