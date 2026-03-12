@@ -1070,6 +1070,7 @@ body.bg-loaded::before {
 /* Canvas responsiveness inside cards */
 .card-body canvas {
     max-width: 100%;
+    display: block;
 }
 
 /* ================================================================
