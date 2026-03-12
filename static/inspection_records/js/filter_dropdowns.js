@@ -14,13 +14,7 @@
                                                 selectAllCb.checked = checked.length === allCbs.length;
                                             }
                                         }
-                                        document.addEventListener('click', function(e) {
-                                            var dropdown = document.getElementById('inspectorDropdown');
-                                            var btn = document.getElementById('inspectorDropdownBtn');
-                                            if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-                                                dropdown.style.display = 'none';
-                                            }
-                                        });
+                                        // Inspector close handler is in inspection_records.js
                                         function updateLabSelectText() {
                                             var checked = document.querySelectorAll('.lab-checkbox:checked');
                                             var textEl = document.getElementById('labSelectText');
