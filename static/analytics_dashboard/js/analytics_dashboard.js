@@ -188,7 +188,12 @@ Chart.register({
 // ================================================================
 var COMMODITY_COLORS = { 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'POULTRY': '#107c10', 'RAW': '#d13438' };
 var DEFAULT_COLOR = '#616161';
-var CHART_PALETTE = ['#0078d4', '#107c10', '#f59e0b', '#d13438', '#8764b8', '#e3008c', '#00b7c3', '#7fba00'];
+var CHART_PALETTE = [
+    '#0078d4', '#107c10', '#f59e0b', '#d13438', '#8764b8',
+    '#e3008c', '#00b7c3', '#7fba00', '#ff6f00', '#6a1b9a',
+    '#00897b', '#c62828', '#2e7d32', '#1565c0', '#ef6c00',
+    '#ad1457', '#00838f', '#4e342e', '#37474f', '#827717'
+];
 
 function getCommodityColor(c) { return c ? (COMMODITY_COLORS[c.toUpperCase()] || DEFAULT_COLOR) : DEFAULT_COLOR; }
 function getCommodityCSSClass(c) {
