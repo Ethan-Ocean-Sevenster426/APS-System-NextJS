@@ -4390,6 +4390,7 @@ function switchPanel(panelId) {
         panelRendered[currentPanel] = true;
         // Always keep KPIs updated regardless of active panel
         try { renderKPIs(); } catch(e) {}
+        try { renderSecondaryKPIs(); } catch(e) {}
     };
 })();
 
