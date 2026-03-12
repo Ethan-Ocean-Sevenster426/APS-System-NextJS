@@ -830,6 +830,7 @@ body.bg-loaded::before {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
+    align-items: start;
 }
 
 .dashboard-stacked {
