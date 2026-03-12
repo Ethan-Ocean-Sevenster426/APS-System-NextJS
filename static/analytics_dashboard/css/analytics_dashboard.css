@@ -830,7 +830,7 @@ body.bg-loaded::before {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .dashboard-grid-3col {
@@ -838,7 +838,7 @@ body.bg-loaded::before {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .dashboard-stacked {

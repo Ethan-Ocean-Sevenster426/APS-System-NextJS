@@ -574,7 +574,7 @@
 
         <!-- Row 2: Weekly Compliance | Samples Taken | Facility Types -->
         <div class="dashboard-grid-3col">
-            <div class="card">
+            <div class="card" style="display:flex; flex-direction:column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
@@ -583,81 +583,83 @@
                            id="complianceTrendInfo" title="Inspection breakdown by commodity"></i>
                     </div>
                 </div>
-                <div class="card-body" style="height: 280px;">
+                <div class="card-body" style="flex:1; min-height:280px;">
                     <canvas id="complianceTrendChart"></canvas>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" style="display:flex; flex-direction:column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-vial"></i>
                         <span>Samples Taken</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 280px;">
+                <div class="card-body" style="flex:1; min-height:280px;">
                     <canvas id="samplesTakenChart"></canvas>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" style="display:flex; flex-direction:column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-building"></i>
                         <span>Facility Types</span>
                     </div>
                 </div>
-                <div class="card-body" style="height: 280px;">
+                <div class="card-body" style="flex:1; min-height:280px;">
                     <canvas id="facilityTypesChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Row 3: Commodity Count | Time Allocation | Occurrence Reports -->
-        <div class="dashboard-grid-3col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-chart-pie"></i>
-                        <span>Commodity Count</span>
-                    </div>
-                </div>
-                <div class="card-body" style="height: 280px; position: relative;">
-                    <canvas id="commodityCountChart"></canvas>
-                </div>
-            </div>
-            <div class="card">
+        <!-- Row 3: Time Allocation | Occurrence Reports (both tall, matched) -->
+        <div class="dashboard-grid-2col">
+            <div class="card" style="display:flex; flex-direction:column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-clock"></i>
                         <span>Time Allocation (Billable Hours)</span>
                     </div>
                 </div>
-                <div class="card-body" style="min-height: 280px;">
+                <div class="card-body" style="flex:1; min-height:280px;">
                     <canvas id="timeAllocationChart"></canvas>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" style="display:flex; flex-direction:column;">
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fas fa-file-alt"></i>
                         <span>Occurrence Reports ({{ total_occurrence_reports }})</span>
                     </div>
                 </div>
-                <div class="card-body" style="min-height: 280px;">
+                <div class="card-body" style="flex:1; min-height:280px;">
                     <canvas id="occurrenceReportsChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Row 4: Occurrence Reports Monthly Trend (full width) -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Occurrence Reports Monthly Trend</span>
+        <!-- Row 4: Commodity Count | Occurrence Reports Monthly Trend -->
+        <div class="dashboard-grid-2col">
+            <div class="card" style="display:flex; flex-direction:column;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Commodity Count</span>
+                    </div>
+                </div>
+                <div class="card-body" style="flex:1; min-height:280px; position:relative;">
+                    <canvas id="commodityCountChart"></canvas>
                 </div>
             </div>
-            <div class="card-body" style="height: 240px;">
-                <canvas id="occurrenceTrendChart"></canvas>
+            <div class="card" style="display:flex; flex-direction:column;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Occurrence Reports Monthly Trend</span>
+                    </div>
+                </div>
+                <div class="card-body" style="flex:1; min-height:240px;">
+                    <canvas id="occurrenceTrendChart"></canvas>
+                </div>
             </div>
         </div>
 
