@@ -833,6 +833,14 @@ body.bg-loaded::before {
     align-items: start;
 }
 
+.dashboard-grid-3col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: start;
+}
+
 .dashboard-stacked {
     display: flex;
     flex-direction: column;
@@ -1007,6 +1015,9 @@ body.bg-loaded::before {
     }
     .dashboard-grid-2col {
         grid-template-columns: 1fr;
+    }
+    .dashboard-grid-3col {
+        grid-template-columns: 1fr 1fr;
     }
     .filter-bar-inner {
         flex-direction: column;
@@ -1475,6 +1486,9 @@ body.bg-loaded::before {
 /* Cards and grids on tablet */
 @media (max-width: 900px) {
     .dashboard-grid-2col {
+        grid-template-columns: 1fr;
+    }
+    .dashboard-grid-3col {
         grid-template-columns: 1fr;
     }
     .kpi-grid {
