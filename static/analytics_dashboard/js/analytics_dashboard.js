@@ -1372,13 +1372,18 @@ function renderTimeAllocationChart() {
     var labels = items.map(function(i) { return i.inspector_name || 'Unknown'; });
     var data = items.map(function(i) { return parseFloat(i.total_hours || 0); });
 
+    // Dynamically size canvas so every inspector gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['timeAllocationChart'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'Hours', data: data, backgroundColor: '#0078d4', borderRadius: 3, barThickness: 14 }] },
+        data: { labels: labels, datasets: [{ label: 'Hours', data: data, backgroundColor: '#0078d4', borderRadius: 4, barPercentage: 0.55, categoryPercentage: 0.8 }] },
         options: {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
