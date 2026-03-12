@@ -27,7 +27,7 @@
 
     <!-- CRITICAL: Define core functions in HEAD so they're available for onclick handlers -->
     <script>window.DJANGO_CSRF = '{{ csrf_token|escapejs }}';</script>
-    <script src="{% static 'inspection_records/js/head_functions.js' %}?v=20260226"></script>
+    <script src="{% static 'inspection_records/js/head_functions.js' %}?v=20260312"></script>
 </head>
 
 <body class="user-role-{{ request.user.role }}">
@@ -620,7 +620,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <script src="{% static 'inspection_records/js/filter_dropdowns.js' %}?v=20260212"></script>
+                                    <script src="{% static 'inspection_records/js/filter_dropdowns.js' %}?v=20260312"></script>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Needs Retest</label>
@@ -1948,7 +1948,7 @@
             window.toggleSentStatus = toggleSentStatus;
             </script>
             <!-- Load clean upload functions -->
-            <script src="{% static 'inspection_records/js/upload_functions.js'%}?v=20260125-V1"></script>
+            <script src="{% static 'inspection_records/js/upload_functions.js'%}?v=20260312-toast"></script>
             <!-- Load bought sample functionality -->
             <script src="{% static 'inspection_records/js/bought_sample.js' %}?v=20251003-FINAL-FIX"></script>
             <!-- Load KM and Hours functions fix (before main JS to ensure functions are available) -->
@@ -1965,7 +1965,7 @@
                     syncStatusUrl: '{% url "check_sync_status" %}'
                 };
             </script>
-            <script src="{% static 'inspection_records/js/inspection_records.js' %}?v=20260305-classfix"></script>
+            <script src="{% static 'inspection_records/js/inspection_records.js' %}?v=20260312-toast"></script>
 
 </body>
 
