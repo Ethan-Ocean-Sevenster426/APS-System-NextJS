@@ -4664,8 +4664,8 @@
                 // Inspection-level upload functions
                 // ============================================
 
-                // Upload Lab/COA for a specific inspection
-                window.uploadLabForInspection = function (productId, groupId) {
+                // Upload Lab/COA for a specific inspection (only define if not already defined by head_functions.js)
+                window.uploadLabForInspection = window.uploadLabForInspection || function (productId, groupId) {
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
                     fileInput.accept = '.pdf';
