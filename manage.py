@@ -7,7 +7,7 @@ import socket
 
 def main():
     """Run administrative tasks."""
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'mysite.settings'
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
     socket.setdefaulttimeout(300)  # 5 minutes timeout
     try:
         from django.core.management import execute_from_command_line

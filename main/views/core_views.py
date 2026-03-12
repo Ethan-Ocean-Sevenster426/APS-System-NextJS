@@ -9572,6 +9572,9 @@ def analytics_dashboard_api(request):
     if commodity and commodity != 'all':
         qs = qs.filter(commodity=commodity)
 
+    # Flag whether any date-related filter was applied
+    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
+
     # Build matching InspectionGroup filter for group-level metrics (km, hours)
     group_qs = InspectionGroup.objects.all()
     if date_from:
@@ -9642,11 +9645,13 @@ def analytics_dashboard_api(request):
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
     # Monthly commodity trends
-    twelve_months_ago = datetime.now() - timedelta(days=365)
-    trends_qs = qs.exclude(
+    _base_trends_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(date_of_inspection__gte=twelve_months_ago)
-    monthly_commodity_trends = list(trends_qs.annotate(
+    )
+    if not _has_date_filter:
+        twelve_months_ago = datetime.now() - timedelta(days=365)
+        _base_trends_qs = _base_trends_qs.filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(_base_trends_qs.annotate(
         month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
 
@@ -9662,14 +9667,15 @@ def analytics_dashboard_api(request):
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
-    # Daily compliance trend per commodity (last 30 days)
+    # Daily compliance trend per commodity (last 30 days, or user's filtered range)
     from django.db.models.functions import TruncDay
     thirty_days_ago = datetime.now() - timedelta(days=30)
-    daily_compliance_trend = list(qs.exclude(
+    _daily_base_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        date_of_inspection__gte=thirty_days_ago
-    ).exclude(date_of_inspection__isnull=True).annotate(
+    )
+    if not _has_date_filter:
+        _daily_base_qs = _daily_base_qs.filter(date_of_inspection__gte=thirty_days_ago)
+    daily_compliance_trend = list(_daily_base_qs.exclude(date_of_inspection__isnull=True).annotate(
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
@@ -9701,7 +9707,6 @@ def analytics_dashboard_api(request):
     ).order_by('-total_inspections')[:15])
 
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
-    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
     _inspector_trend_base = qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True)
