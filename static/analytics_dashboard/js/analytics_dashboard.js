@@ -2398,6 +2398,12 @@ function renderCoaTimeChart() {
     if (!canvas) return;
     var items = dashboardData.coaAnalysisTime || [];
     if (!items.length) return;
+
+    // Dynamic height so every commodity gets enough space
+    var barH = 32;
+    var minHeight = Math.max(280, items.length * barH + 60);
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['coaTimeChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2407,12 +2413,15 @@ function renderCoaTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#10b981',
                 borderRadius: 4,
+                barPercentage: 0.55,
+                categoryPercentage: 0.8
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
-            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
