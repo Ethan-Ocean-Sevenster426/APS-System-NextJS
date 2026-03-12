@@ -177,6 +177,70 @@
                                     });
                                 }
 
+                                // Update Lab/COA buttons to green (desktop + mobile)
+                                if (documentType === 'lab' || documentType === 'coa') {
+                                    // Update desktop button by data-upload-btn
+                                    const labBtn = document.querySelector('[data-upload-btn="lab-' + productId + '"]');
+                                    if (labBtn) {
+                                        labBtn.style.backgroundColor = '#22c55e';
+                                        labBtn.style.background = '#22c55e';
+                                        labBtn.style.borderColor = '#22c55e';
+                                        labBtn.style.color = 'white';
+                                        labBtn.style.cursor = 'not-allowed';
+                                        labBtn.disabled = true;
+                                        labBtn.innerHTML = '<i class="fas fa-check mr-1"></i> COA/Lab ✓';
+                                        labBtn.title = 'COA/Lab file uploaded';
+                                        labBtn.onclick = null;
+                                        console.log('✅ Updated Lab desktop button to GREEN');
+                                    }
+                                    // Also try by onclick attribute
+                                    const labBtnAlt = document.querySelector('button[onclick*="uploadLabFile"][onclick*="' + productId + '"]') ||
+                                                      document.querySelector('button[onclick*="uploadLabForInspection"][onclick*="' + productId + '"]');
+                                    if (labBtnAlt && labBtnAlt !== labBtn) {
+                                        labBtnAlt.style.backgroundColor = '#22c55e';
+                                        labBtnAlt.style.background = '#22c55e';
+                                        labBtnAlt.style.borderColor = '#22c55e';
+                                        labBtnAlt.style.color = 'white';
+                                        labBtnAlt.style.cursor = 'not-allowed';
+                                        labBtnAlt.disabled = true;
+                                        labBtnAlt.innerHTML = '<i class="fas fa-check mr-1"></i> Lab ✓';
+                                        labBtnAlt.title = 'Lab file uploaded';
+                                        labBtnAlt.onclick = null;
+                                        console.log('✅ Updated Lab mobile/alt button to GREEN');
+                                    }
+                                }
+
+                                // Update Retest buttons to green (desktop + mobile)
+                                if (documentType === 'retest') {
+                                    const retestBtn = document.querySelector('[data-upload-btn="retest-' + productId + '"]');
+                                    if (retestBtn) {
+                                        retestBtn.style.backgroundColor = '#22c55e';
+                                        retestBtn.style.background = '#22c55e';
+                                        retestBtn.style.borderColor = '#22c55e';
+                                        retestBtn.style.color = 'white';
+                                        retestBtn.style.cursor = 'not-allowed';
+                                        retestBtn.disabled = true;
+                                        retestBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Retest ✓';
+                                        retestBtn.title = 'Retest file uploaded';
+                                        retestBtn.onclick = null;
+                                        console.log('✅ Updated Retest desktop button to GREEN');
+                                    }
+                                    const retestBtnAlt = document.querySelector('button[onclick*="uploadRetestFile"][onclick*="' + productId + '"]') ||
+                                                         document.querySelector('button[onclick*="uploadRetestForInspection"][onclick*="' + productId + '"]');
+                                    if (retestBtnAlt && retestBtnAlt !== retestBtn) {
+                                        retestBtnAlt.style.backgroundColor = '#22c55e';
+                                        retestBtnAlt.style.background = '#22c55e';
+                                        retestBtnAlt.style.borderColor = '#22c55e';
+                                        retestBtnAlt.style.color = 'white';
+                                        retestBtnAlt.style.cursor = 'not-allowed';
+                                        retestBtnAlt.disabled = true;
+                                        retestBtnAlt.innerHTML = '<i class="fas fa-check mr-1"></i> Retest ✓';
+                                        retestBtnAlt.title = 'Retest file uploaded';
+                                        retestBtnAlt.onclick = null;
+                                        console.log('✅ Updated Retest mobile/alt button to GREEN');
+                                    }
+                                }
+
                                 // Update sample compliance badge immediately for COA/Lab uploads
                                 if (documentType === 'lab' || documentType === 'coa') {
                                     const badge = document.getElementById('sample-badge-' + productId);

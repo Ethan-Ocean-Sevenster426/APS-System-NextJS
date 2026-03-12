@@ -926,14 +926,54 @@ function uploadLab(inspectionId) {
                         alert(data.message || 'COA uploaded successfully!');
                         console.log('COA upload successful:', data);
 
-                        // Update button to green success state
-                        const buttonId = 'lab-' + inspectionId;
-                        let button = document.getElementById(buttonId);
-                        if (button) {
-                            button.classList.add('uploaded');
-                            button.innerHTML = 'Upload';
-                            button.disabled = true;
-                            button.title = 'COA uploaded';
+                        // Update ALL Lab/COA buttons to green success state
+                        // Try data-upload-btn selector (desktop table buttons)
+                        const desktopBtn = document.querySelector('[data-upload-btn="lab-' + inspectionId + '"]');
+                        if (desktopBtn) {
+                            desktopBtn.style.backgroundColor = '#28a745';
+                            desktopBtn.style.background = '#22c55e';
+                            desktopBtn.style.borderColor = '#28a745';
+                            desktopBtn.style.color = 'white';
+                            desktopBtn.style.opacity = '1';
+                            desktopBtn.style.cursor = 'not-allowed';
+                            desktopBtn.disabled = true;
+                            desktopBtn.innerHTML = '<i class="fas fa-check mr-1"></i> COA/Lab';
+                            desktopBtn.title = 'COA file uploaded';
+                            desktopBtn.onclick = null;
+                            console.log('✅ Updated desktop Lab button to green');
+                        }
+
+                        // Try onclick selector (mobile card buttons)
+                        const mobileBtn = document.querySelector('button[onclick*="uploadLabFile"][onclick*="' + inspectionId + '"]') ||
+                                          document.querySelector('button[onclick*="uploadLabForInspection"][onclick*="' + inspectionId + '"]');
+                        if (mobileBtn) {
+                            mobileBtn.style.backgroundColor = '#28a745';
+                            mobileBtn.style.background = '#22c55e';
+                            mobileBtn.style.borderColor = '#28a745';
+                            mobileBtn.style.color = 'white';
+                            mobileBtn.style.opacity = '1';
+                            mobileBtn.style.cursor = 'not-allowed';
+                            mobileBtn.disabled = true;
+                            mobileBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Lab';
+                            mobileBtn.title = 'Lab file uploaded';
+                            mobileBtn.onclick = null;
+                            console.log('✅ Updated mobile Lab button to green');
+                        }
+
+                        // Also try by element ID
+                        const idBtn = document.getElementById('lab-' + inspectionId);
+                        if (idBtn) {
+                            idBtn.style.backgroundColor = '#28a745';
+                            idBtn.style.background = '#22c55e';
+                            idBtn.style.borderColor = '#28a745';
+                            idBtn.style.color = 'white';
+                            idBtn.style.opacity = '1';
+                            idBtn.style.cursor = 'not-allowed';
+                            idBtn.disabled = true;
+                            idBtn.innerHTML = '<i class="fas fa-check mr-1"></i> COA/Lab';
+                            idBtn.title = 'COA file uploaded';
+                            idBtn.onclick = null;
+                            console.log('✅ Updated Lab button (by ID) to green');
                         }
 
                         // Trigger delayed color update

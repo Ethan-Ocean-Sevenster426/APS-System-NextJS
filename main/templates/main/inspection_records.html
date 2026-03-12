@@ -1226,7 +1226,8 @@
                                                         {% if product.commodity|upper != 'POULTRY' and product.commodity|upper != 'EGGS' %}
                                                         <div class="grid grid-cols-2 gap-2">
                                                             <button
-                                                                class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
+                                                                style="background: {% if product.coa_uploaded %}#22c55e{% endif %};"
+                                                                class="{% if product.coa_uploaded %}text-white{% else %}bg-gray-400 text-white{% endif %} py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200
                                                                {% if not product.is_sample_taken %}opacity-50 cursor-not-allowed{% endif %}"
                                                                 {% if not product.is_sample_taken %}disabled
                                                                 title="No sample taken - lab upload disabled" {% endif %}
@@ -1234,7 +1235,8 @@
                                                                 <i class="fas fa-flask mr-1"></i> Lab
                                                             </button>
                                                             <button
-                                                                class="bg-gray-400 text-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-gray-500 transition-colors duration-200
+                                                                style="background: {% if product.retest_uploaded %}#22c55e{% endif %};"
+                                                                class="{% if product.retest_uploaded %}text-white{% else %}bg-gray-400 text-white{% endif %} py-2 px-3 rounded-lg text-xs font-medium hover:opacity-80 transition-colors duration-200
                                                                {% if not product.is_sample_taken or product.needs_retest == 'no' or product.needs_retest == 'NO' %}opacity-50 cursor-not-allowed{% endif %}"
                                                                 {% if not product.is_sample_taken or product.needs_retest == 'no' or product.needs_retest == 'NO' %}disabled
                                                                 title="{% if not product.is_sample_taken %}No sample taken - retest upload disabled{% else %}Needs retest is 'No' - retest upload disabled{% endif %}"
