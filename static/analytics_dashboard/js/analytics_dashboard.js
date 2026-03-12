@@ -2310,15 +2310,17 @@ function renderDocSendTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyDocSendTrend || [];
     if (!items.length) { return; }
+    var useBar = items.length <= 1;
     chartInstances['docSendTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Send',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#0078d4', backgroundColor: 'rgba(0,120,212,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#0078d4'
+                borderColor: '#0078d4', backgroundColor: useBar ? '#0078d4' : 'rgba(0,120,212,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#0078d4',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2369,15 +2371,17 @@ function renderInvoiceTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyInvoiceTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['invoiceTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Upload Invoice',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#f59e0b'
+                borderColor: '#f59e0b', backgroundColor: useBar ? '#f59e0b' : 'rgba(245,158,11,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#f59e0b',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2490,15 +2494,17 @@ function renderCoaTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyCoaTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['coaTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days (Sample to COA)',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#10b981'
+                borderColor: '#10b981', backgroundColor: useBar ? '#10b981' : 'rgba(16,185,129,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#10b981',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2521,15 +2527,17 @@ function renderApprovalTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyApprovalTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['approvalTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Approval',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#8764b8', backgroundColor: 'rgba(135,100,184,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#8764b8'
+                borderColor: '#8764b8', backgroundColor: useBar ? '#8764b8' : 'rgba(135,100,184,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#8764b8',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
