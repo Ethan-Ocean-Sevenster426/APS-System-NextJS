@@ -3190,7 +3190,7 @@ async function extractAndOrganizeZip(fileName) {
         closeZipViewer();
         
         // Show success message
-        alert(`SUCCESS Successfully extracted and organized ${totalFiles} files!\n\n- ${window.currentZipAnalysis.matchedFiles.length} files placed in individual inspection folders\n- ${window.currentZipAnalysis.unmatchedFiles.length} files placed in general compliance folder`);
+        showUploadToast('Successfully extracted and organized ' + totalFiles + ' files!');
         
         // Refresh the files popup to show new files
         setTimeout(() => {

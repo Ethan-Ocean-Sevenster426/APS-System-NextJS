@@ -383,7 +383,11 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert(documentType.toUpperCase() + ' document uploaded successfully!');
+                            var toast = document.createElement('div');
+                            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                            toast.textContent = documentType.toUpperCase() + ' document uploaded successfully!';
+                            document.body.appendChild(toast);
+                            setTimeout(function() { toast.remove(); }, 3000);
                             // Optionally refresh the page or update UI
                             location.reload();
                         } else {

@@ -498,7 +498,11 @@
                     var detailRow = document.getElementById('detail-' + groupId);
                     if (detailRow) detailRow.remove();
                     if (row) row.remove();
-                    alert('Inspection deleted successfully.');
+                    var toast = document.createElement('div');
+                    toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                    toast.textContent = 'Inspection deleted successfully.';
+                    document.body.appendChild(toast);
+                    setTimeout(function() { toast.remove(); }, 3000);
                 } else {
                     alert('Error deleting inspection: ' + (data.error || 'Unknown error'));
                     if (row) {

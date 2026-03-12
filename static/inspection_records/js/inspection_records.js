@@ -3290,7 +3290,7 @@
                             sendButton.disabled = false;
 
                             // Show success message
-                            alert('✅ Documents sent successfully!\n\nSent to: ' + result.recipients + '\nDocuments: ' + result.documents_sent + '\nEmail ID: ' + result.email_id || 'N/A');
+                            showUploadToast('Documents sent successfully to ' + result.recipients);
                         } else {
                             // Restore button on error
                             sendButton.innerHTML = originalText;
@@ -4972,7 +4972,7 @@
                                         // Turn button back to grey
                                         const btn = document.querySelector('.upload-btn[data-type="' + docType + '"][data-id="' + productId + '"]');
                                         if (btn) btn.style.background = '#6b7280';
-                                        alert(docType.charAt(0).toUpperCase() + docType.slice(1) + ' document deleted successfully!');
+                                        showUploadToast(docType.charAt(0).toUpperCase() + docType.slice(1) + ' document deleted successfully!');
                                     } else {
                                         console.error('❌ Error deleting ' + docType + ':', deleteData.error);
                                         alert('Error deleting ' + docType + ': ' + (deleteData.error || 'Unknown error'));
