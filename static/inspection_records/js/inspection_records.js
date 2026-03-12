@@ -2306,12 +2306,7 @@
                 }
 
                 function showStatusCheckProgress() {
-                    // Show a subtle progress indicator
-                    const progressDiv = document.createElement('div');
-                    progressDiv.id = 'statusCheckProgress';
-                    progressDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #3b82f6; color: white; padding: 0.5rem 1rem; border-radius: 4px; z-index: 9999; font-size: 0.875rem;';
-                    progressDiv.innerHTML = '<i class="fas fa-sync fa-spin"></i> Checking file status...';
-                    document.body.appendChild(progressDiv);
+                    // Silent - no visual indicator needed
                 }
 
                 function hideStatusCheckProgress() {
@@ -3734,12 +3729,7 @@
                     }
 
                     allViewFilesButtons.forEach(button => {
-                        const icon = button.querySelector('i');
-                        if (icon) {
-                            icon.className = 'fas fa-sync fa-spin';
-                            icon.style.color = '#6b7280';
-                        }
-                        button.title = 'Checking file status...';
+                        // Silent check - no visual change on buttons
                     });
 
                     // Get all client data from the current page
