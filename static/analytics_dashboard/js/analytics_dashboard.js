@@ -2291,8 +2291,7 @@ function renderDocSendChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#0078d4',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2352,8 +2351,7 @@ function renderInvoiceUploadChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#f59e0b',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2413,8 +2411,7 @@ function renderCoaTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#10b981',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2447,8 +2444,7 @@ function renderApprovalTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#8764b8',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
