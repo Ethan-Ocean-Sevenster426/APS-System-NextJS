@@ -1356,7 +1356,7 @@ function renderCommodityCountChart() {
     chartInstances['commodityCountChart'] = new Chart(canvas, {
         type: 'doughnut',
         data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: bg }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: txtColor(), padding: 10 } } }, cutout: '60%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: txtColor(), padding: 10, boxWidth: 12 } } }, cutout: '60%' }
     });
 }
 
@@ -2552,15 +2552,17 @@ function renderTravelHoursTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyTravelHoursTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['travelHoursTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Total Travel Hours',
                 data: items.map(function(d) { return d.total_hours; }),
-                borderColor: '#00b7c3', backgroundColor: 'rgba(0,183,195,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#00b7c3'
+                borderColor: '#00b7c3', backgroundColor: useBar ? '#00b7c3' : 'rgba(0,183,195,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#00b7c3',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2608,15 +2610,17 @@ function renderTravelTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyTravelTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['travelTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
             datasets: [{
                 label: 'Total KM',
                 data: items.map(function(d) { return parseFloat(d.total_km) || 0; }),
-                borderColor: '#107c10', backgroundColor: 'rgba(16,124,16,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#107c10'
+                borderColor: '#107c10', backgroundColor: useBar ? '#107c10' : 'rgba(16,124,16,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#107c10',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
