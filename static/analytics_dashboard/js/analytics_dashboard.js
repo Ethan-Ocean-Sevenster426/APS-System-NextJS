@@ -1428,10 +1428,15 @@ function renderOccurrenceReportsChart() {
     var items = dashboardData.occurrenceReports || [];
     if (items.length === 0) return;
 
+    // Dynamically size canvas so every item gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['occurrenceReportsChart'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'Reports', data: items.map(function(i) { return i.count || 0; }), backgroundColor: '#8764b8', borderRadius: 3, barThickness: 14 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), stepSize: 1, precision: 0 } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } } }
+        data: { labels: items.map(function(i) { return i.inspector_name; }), datasets: [{ label: 'Reports', data: items.map(function(i) { return i.count || 0; }), backgroundColor: '#8764b8', borderRadius: 4, barPercentage: 0.55, categoryPercentage: 0.8 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor(), stepSize: 1, precision: 0 } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } } }
     });
 }
 
@@ -1651,6 +1656,11 @@ function renderFacilityTypesChart() {
     var labels = items.map(function(i) { return i.facility_type || 'Unknown'; });
     var data = items.map(function(i) { return i.count || 0; });
 
+    // Dynamically size canvas so every item gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['facilityTypesChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -1659,8 +1669,9 @@ function renderFacilityTypesChart() {
                 label: 'Count',
                 data: data,
                 backgroundColor: '#0078d4',
-                borderRadius: 3,
-                barThickness: 14
+                borderRadius: 4,
+                barPercentage: 0.55,
+                categoryPercentage: 0.8
             }]
         },
         options: {
@@ -1670,7 +1681,7 @@ function renderFacilityTypesChart() {
             plugins: { legend: { display: false } },
             scales: {
                 x: { grid: { color: gridColor() }, ticks: { color: txtColor() }, beginAtZero: true },
-                y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } }
+                y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } }
             }
         }
     });
@@ -2265,6 +2276,12 @@ function renderDocSendChart() {
     if (!canvas) return;
     var items = dashboardData.docSendTime || [];
     if (!items.length) return;
+
+    // Dynamically size canvas so every item gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['docSendChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2274,13 +2291,15 @@ function renderDocSendChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#0078d4',
                 borderRadius: 4,
+                barPercentage: 0.55,
+                categoryPercentage: 0.8
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
-            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
@@ -2316,6 +2335,12 @@ function renderInvoiceUploadChart() {
     if (!canvas) return;
     var items = dashboardData.invoiceUploadTime || [];
     if (!items.length) return;
+
+    // Dynamically size canvas so every item gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['invoiceUploadChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2325,13 +2350,15 @@ function renderInvoiceUploadChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#f59e0b',
                 borderRadius: 4,
+                barPercentage: 0.55,
+                categoryPercentage: 0.8
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
-            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
@@ -2392,6 +2419,12 @@ function renderApprovalTimeChart() {
     if (!canvas) return;
     var items = dashboardData.approvalTime || [];
     if (!items.length) return;
+
+    // Dynamically size canvas so every item gets enough space
+    var barH = 32;
+    var minHeight = items.length * barH + 60;
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['approvalTimeChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2401,13 +2434,15 @@ function renderApprovalTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#8764b8',
                 borderRadius: 4,
+                barPercentage: 0.55,
+                categoryPercentage: 0.8
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
-            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 } } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
