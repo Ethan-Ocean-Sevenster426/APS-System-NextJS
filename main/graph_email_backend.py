@@ -175,14 +175,19 @@ class GraphEmailBackend(BaseEmailBackend):
                 logger.error(f"[GRAPH SEND FAIL] HTTP {response.status_code} for TO={message.to}, CC={message.cc}")
                 logger.error(f"[GRAPH SEND FAIL] Response: {error_body}")
                 logger.error(f"[GRAPH SEND FAIL] Attachments: {len(message.attachments)} files")
+                err_code = 'Unknown'
+                err_msg = error_body
                 try:
                     err_json = response.json()
                     err_code = err_json.get('error', {}).get('code', 'Unknown')
-                    err_msg = err_json.get('error', {}).get('message', 'Unknown')
+                    err_msg = err_json.get('error', {}).get('message', error_body)
                     logger.error(f"[GRAPH SEND FAIL] Error code: {err_code}, message: {err_msg}")
                 except Exception:
                     pass
-                response.raise_for_status()
+                raise requests.exceptions.HTTPError(
+                    f"Graph API error {response.status_code} ({err_code}): {err_msg}",
+                    response=response
+                )
 
         except requests.exceptions.HTTPError as e:
             logger.error(f"HTTP Error sending email: {e.response.status_code} - {e.response.text[:500]}")

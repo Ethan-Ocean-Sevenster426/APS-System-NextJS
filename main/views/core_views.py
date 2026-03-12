@@ -15977,6 +15977,18 @@ def send_group_documents(request):
             if mgmt_email not in cc_emails:
                 cc_emails.append(mgmt_email)
 
+        # Strip syntactically broken addresses so Graph doesn't reject the whole request.
+        # Valid-looking addresses are sent as-is; Exchange handles NDRs naturally.
+        import re as _re
+        _email_re = _re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        to_emails = [e for e in to_emails if _email_re.match(e)]
+        cc_emails = [e for e in cc_emails if _email_re.match(e)]
+        if not to_emails:
+            return JsonResponse({
+                'success': False,
+                'error': f'No valid recipient email address found for {client_name}. Please correct the client email in the system.'
+            })
+
         email = EmailMessage(
             subject=subject,
             body=html_message,
