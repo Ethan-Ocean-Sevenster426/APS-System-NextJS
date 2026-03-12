@@ -1,6 +1,15 @@
                 // CACHE BUST: 2025-10-28 - Email functions fix - MUST SEE THIS
                 console.log('🚀 SCRIPT LOADED - Cache busted at:', new Date().toISOString());
 
+                // Toast notification helper - non-intrusive success feedback
+                function showUploadToast(message) {
+                    var toast = document.createElement('div');
+                    toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                    toast.textContent = message;
+                    document.body.appendChild(toast);
+                    setTimeout(function() { toast.remove(); }, 3000);
+                }
+
                 // Set global CSRF token for upload functions
                 try {
                     window.csrfToken = window.DJANGO_CONFIG.csrfToken;
@@ -4613,7 +4622,7 @@
                                 .then(data => {
                                     console.log('Retest upload response:', data);
                                     if (data.success) {
-                                        alert(data.message || 'Retest document uploaded successfully!');
+                                        showUploadToast(data.message || 'Retest document uploaded successfully!');
                                         console.log('✅ Retest report uploaded successfully!');
 
                                         // Update button to green
@@ -4690,7 +4699,7 @@
                                         // Turn button green
                                         const btn = document.querySelector('.upload-btn[data-type="lab"][data-id="' + productId + '"]');
                                         if (btn) btn.style.background = '#22c55e';
-                                        alert('Lab/COA document uploaded successfully!');
+                                        showUploadToast('Lab/COA document uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading lab:', data.error);
                                         alert('Error uploading lab/COA: ' + (data.error || 'Unknown error'));
@@ -4741,7 +4750,7 @@
                                         // Turn button green
                                         const btn = document.querySelector('.upload-btn[data-type="occurrence"][data-id="' + productId + '"]');
                                         if (btn) btn.style.background = '#22c55e';
-                                        alert('Occurrence uploaded successfully!');
+                                        showUploadToast('Occurrence uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading occurrence:', data.error);
                                         alert('Error uploading occurrence: ' + (data.error || 'Unknown error'));
@@ -4806,7 +4815,7 @@
                                         } catch (e) {
                                             console.error('Error saving lab form upload status:', e);
                                         }
-                                        alert('Lab Form uploaded successfully!');
+                                        showUploadToast('Lab Form uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading lab form:', data.error);
                                         alert('Error uploading lab form: ' + (data.error || 'Unknown error'));
@@ -4860,7 +4869,7 @@
                                             btn.style.cursor = 'pointer';
                                             btn.title = 'Other file exists - click to upload more';
                                         }
-                                        alert('File uploaded successfully!');
+                                        showUploadToast('File uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading file:', data.error);
                                         alert('Error uploading file: ' + (data.error || 'Unknown error'));
@@ -7220,7 +7229,7 @@
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.success) {
-                                        alert('Retest file uploaded successfully!');
+                                        showUploadToast('Retest file uploaded successfully!');
                                         console.log('[MOBILE] Retest upload successful:', data);
                                         // Refresh the page to show updated status
                                         location.reload();
@@ -7267,7 +7276,7 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                alert('Lab form generated successfully!');
+                                showUploadToast('Lab form generated successfully!');
                                 console.log('[MOBILE] Lab form generation successful:', data);
                                 // Optionally refresh the page or update UI
                                 location.reload();

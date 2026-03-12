@@ -7,6 +7,15 @@ try {
     console.error('Error loading upload functions:', error);
 }
 
+// Toast notification helper - non-intrusive success feedback
+function showUploadToast(message) {
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
+}
+
 // Get CSRF token function
 function getCSRFToken() {
     const token = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -73,7 +82,7 @@ function uploadRFI(groupId) {
                     alert = originalAlert; // Restore alert
                     uploadInProgress = false; // Clear upload flag
                         if (data.success) {
-                            alert(data.message || 'RFI document uploaded successfully!');
+                            showUploadToast(data.message || 'RFI document uploaded successfully!');
                             console.log('Upload successful:', data);
                             
                             // Update button directly to show username
@@ -447,7 +456,7 @@ function uploadComposition(groupId) {
                     alert = originalAlert; // Restore alert
                     uploadInProgress = false; // Clear upload flag
                         if (data.success) {
-                            alert(data.message || 'Composition document uploaded successfully!');
+                            showUploadToast(data.message || 'Composition document uploaded successfully!');
                             console.log('Upload successful:', data);
 
                             // Update button directly to show username
@@ -607,7 +616,7 @@ function uploadInvoice(groupId) {
                 .then(data => {
                     uploadInProgress = false; // Clear upload flag
                     if (data.success) {
-                        alert(data.message || 'Invoice uploaded successfully!');
+                        showUploadToast(data.message || 'Invoice uploaded successfully!');
                         console.log('Invoice upload successful:', data);
 
                         // CRITICAL: Update BOTH desktop and mobile Invoice buttons
@@ -786,7 +795,7 @@ function uploadRetest(groupId, inspectionId) {
                 .then(data => {
                     uploadInProgress = false;
                     if (data.success) {
-                        alert(data.message || 'Retest document uploaded successfully!');
+                        showUploadToast(data.message || 'Retest document uploaded successfully!');
                         console.log('Retest upload successful:', data);
 
                         // Update BOTH desktop and mobile Retest buttons
@@ -923,7 +932,7 @@ function uploadLab(inspectionId) {
                 .then(data => {
                     uploadInProgress = false;
                     if (data.success) {
-                        alert(data.message || 'COA uploaded successfully!');
+                        showUploadToast(data.message || 'COA uploaded successfully!');
                         console.log('COA upload successful:', data);
 
                         // Update ALL Lab/COA buttons to green success state
@@ -1044,7 +1053,7 @@ function uploadLabForm(inspectionId) {
                 .then(data => {
                     uploadInProgress = false;
                     if (data.success) {
-                        alert(data.message || 'Lab form uploaded successfully!');
+                        showUploadToast(data.message || 'Lab form uploaded successfully!');
                         console.log('Lab form upload successful:', data);
 
                         // Update button to green success state - try multiple selectors
