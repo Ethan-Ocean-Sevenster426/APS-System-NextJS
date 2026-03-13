@@ -24,7 +24,7 @@ else:
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-@=2jh*jwvj#7=oh+4+ae2)y9j4ixy@f4l^5sf-3iv$2elvp4y#')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DEBUG', default=True)  # Set to True for demo
+DEBUG = True  # Temporary: enabled for debugging 500 error
 
 LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
