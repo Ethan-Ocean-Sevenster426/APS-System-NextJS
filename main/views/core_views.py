@@ -8562,7 +8562,7 @@ def analytics_dashboard(request):
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled'),
         last_inspection=Max('date_of_inspection')
-    ).order_by('-total_inspections')[:15]
+    ).order_by('-total_inspections')
 
     # Calculate compliance rate for each inspector
     for inspector in inspector_performance:
@@ -8827,7 +8827,7 @@ def analytics_dashboard(request):
         Q(hours__isnull=True) | Q(hours=0)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours')
-    ).order_by('-total_hours')[:15])
+    ).order_by('-total_hours'))
 
     # === INSPECTIONS LIST (for table) ===
     inspections_list_qs = FoodSafetyAgencyInspection.objects.order_by('-date_of_inspection').values(
@@ -9507,7 +9507,7 @@ def analytics_dashboard(request):
         'invoice_upload_time_list': invoice_upload_time,
         'coa_analysis_time_list': coa_analysis_time,
         'approval_time_list': approval_time,
-        'travel_time_list': travel_time_per_inspector[:15],
+        'travel_time_list': travel_time_per_inspector,
 
         # Theme settings
         'settings': settings,
@@ -9727,7 +9727,7 @@ def analytics_dashboard_api(request):
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
-    ).order_by('-total_hours')[:15])
+    ).order_by('-total_hours'))
 
     # Inspections list
     inspections_list = list(qs.order_by('-date_of_inspection').values(
@@ -9742,7 +9742,7 @@ def analytics_dashboard_api(request):
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
         non_compliant=Count('id', filter=Q(approved_status='PENDING')),
-    ).order_by('-total_inspections')[:15])
+    ).order_by('-total_inspections'))
 
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
     _inspector_trend_base = qs.exclude(
