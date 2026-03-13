@@ -1880,6 +1880,10 @@ def delete_inspection_group(request):
             insp.delete()
             deleted_count += 1
 
+        # Clear cache so the page reloads fresh data
+        from django.core.cache import cache
+        cache.clear()
+
         return JsonResponse({
             'success': True,
             'message': f'Successfully deleted {deleted_count} inspection(s)'
