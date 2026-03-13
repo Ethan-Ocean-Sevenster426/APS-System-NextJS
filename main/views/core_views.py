@@ -1799,7 +1799,7 @@ def delete_fsa_inspection(request, pk):
 
 @csrf_exempt
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector', 'inspector_manager'])
 def delete_inspection_group(request):
     """Delete all inspections in a group (same client and date) via AJAX."""
     import json
@@ -1859,6 +1859,20 @@ def delete_inspection_group(request):
 
         if not matching_inspections:
             return JsonResponse({'success': False, 'error': 'No inspections found for this group'})
+
+        # Inspectors can only delete their own inspections
+        if request.user.role in ('inspector', 'inspector_manager'):
+            from ..models import InspectorMapping
+            mapping = InspectorMapping.objects.filter(
+                inspector_name=request.user.get_full_name() or request.user.username
+            ).first() or InspectorMapping.objects.filter(
+                inspector_name=request.user.username
+            ).first()
+            inspector_id = mapping.inspector_id if mapping else None
+            inspector_name = mapping.inspector_name if mapping else None
+            for insp in matching_inspections:
+                if insp.inspector_id != inspector_id and insp.inspector_name != inspector_name:
+                    return JsonResponse({'success': False, 'error': 'You can only delete your own inspections'})
 
         # Delete all matching inspections
         deleted_count = 0
