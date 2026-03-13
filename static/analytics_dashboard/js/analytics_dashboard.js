@@ -1173,24 +1173,35 @@ function renderComplianceTrendChart() {
     destroyChart('complianceTrendChart');
     var canvas = document.getElementById('complianceTrendChart');
     if (!canvas) return;
-    var items = dashboardData.monthlyComplianceTrend || [];
+    var items = dashboardData.dailyComplianceTrend || [];
     if (items.length === 0) return;
 
     var brandColors = { 'POULTRY': '#107c10', 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'RAW': '#d13438' };
     var commodityData = {};
     var weeksSet = new Set();
 
+    // Aggregate daily data into weekly buckets
     items.forEach(function(item) {
         var comm = item.commodity;
-        // Handle week format (YYYY-MM-DD for week start)
-        var weekStr = typeof item.month === 'string' ? item.month.substring(0, 10) : '';
-        if (!weekStr && item.month && item.month.getFullYear) {
-            var d = new Date(item.month);
-            weekStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        var dayStr = typeof item.day === 'string' ? item.day.substring(0, 10) : '';
+        if (!dayStr && item.day) {
+            var d = new Date(item.day);
+            dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
+        // Get week start (Monday)
+        var date = new Date(dayStr);
+        var day = date.getDay();
+        var diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        date.setDate(diff);
+        var weekStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
         weeksSet.add(weekStr);
         if (!commodityData[comm]) commodityData[comm] = {};
-        commodityData[comm][weekStr] = item.compliance_rate;
+        if (!commodityData[comm][weekStr]) commodityData[comm][weekStr] = { total: 0, compliant: 0 };
+        // Back-calculate compliant count from rate
+        var total = item.total || 1;
+        var compliant = Math.round((item.compliance_rate / 100) * total);
+        commodityData[comm][weekStr].total += total;
+        commodityData[comm][weekStr].compliant += compliant;
     });
 
     var weeks = Array.from(weeksSet).sort();
@@ -1204,7 +1215,11 @@ function renderComplianceTrendChart() {
     Object.keys(commodityData).sort().forEach(function(comm) {
         datasets.push({
             label: comm,
-            data: weeks.map(function(w) { return commodityData[comm][w] || null; }),
+            data: weeks.map(function(w) {
+                var bucket = commodityData[comm][w];
+                if (!bucket || bucket.total === 0) return null;
+                return Math.round((bucket.compliant / bucket.total) * 100 * 10) / 10;
+            }),
             borderColor: brandColors[comm] || '#616161',
             backgroundColor: 'transparent',
             borderWidth: 2.5,
@@ -1546,14 +1561,13 @@ function renderCommodityTrendChart() {
     destroyChart('commodityTrendChart');
     var canvas = document.getElementById('commodityTrendChart');
     if (!canvas) return;
-    var trends = dashboardData.monthlyCommodityTrends || [];
+    var trends = dashboardData.dailyComplianceTrend || [];
     if (trends.length === 0) return;
 
     var commodityMap = {};
     var dateSet = new Set();
     trends.forEach(function(item) {
-        // Handle daily data format (YYYY-MM-DD)
-        var date = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 10) : '') : 'Unknown';
+        var date = item.day ? (typeof item.day === 'string' ? item.day.substring(0, 10) : '') : 'Unknown';
         var commodity = item.commodity || 'Unknown';
         dateSet.add(date);
         if (!commodityMap[commodity]) commodityMap[commodity] = {};
