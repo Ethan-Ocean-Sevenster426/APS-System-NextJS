@@ -2402,23 +2402,16 @@ def shipment_list(request):
         # Get the inspector ID and name for the current user
         inspector_id = None
         inspector_name = None
-        try:
-            inspector_mapping = InspectorMapping.objects.get(
-                inspector_name=request.user.get_full_name() or request.user.username
-            )
+        inspector_mapping = InspectorMapping.objects.filter(
+            inspector_name=request.user.get_full_name() or request.user.username
+        ).first()
+        if not inspector_mapping:
+            inspector_mapping = InspectorMapping.objects.filter(
+                inspector_name=request.user.username
+            ).first()
+        if inspector_mapping:
             inspector_id = inspector_mapping.inspector_id
             inspector_name = inspector_mapping.inspector_name
-        except InspectorMapping.DoesNotExist:
-            # If no mapping found, try to find by username
-            try:
-                inspector_mapping = InspectorMapping.objects.get(
-                    inspector_name=request.user.username
-                )
-                inspector_id = inspector_mapping.inspector_id
-                inspector_name = inspector_mapping.inspector_name
-            except InspectorMapping.DoesNotExist:
-                inspector_id = None
-                inspector_name = None
 
         # Build filter for own inspections
         q_filter = Q()
