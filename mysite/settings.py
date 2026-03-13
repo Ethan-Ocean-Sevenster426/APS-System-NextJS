@@ -115,14 +115,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
 # Database Configuration - See DATABASE_README.md for all available configs
-# Currently active: Production PostgreSQL (master branch)
+# Currently active: Dev PostgreSQL (dev branch - 82.25.97.159)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'v4_inspection',
+        'NAME': 'inspection_system',
         'USER': 'inspection_user',
         'PASSWORD': 'InspectionTest2026',
-        'HOST': '167.88.43.168',
+        'HOST': '82.25.97.159',
         'PORT': '5432',
     },
 }
