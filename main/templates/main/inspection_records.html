@@ -663,6 +663,19 @@
                                     <i class="fas fa-list"></i> Show Paginated
                                 </a>
                                 {% endif %}
+                                {% if request.user.role == 'inspector' or request.user.role == 'inspector_manager' %}
+                                {% if show_duplicates %}
+                                <a href="?" class="btn btn-secondary"
+                                    style="padding: 8px 16px; font-size: 14px; background: #dc2626; color: #fff; border-color: #dc2626;">
+                                    <i class="fas fa-times"></i> Clear Duplicates
+                                </a>
+                                {% else %}
+                                <a href="?show_duplicates=true" class="btn btn-secondary"
+                                    style="padding: 8px 16px; font-size: 14px; background: #f59e0b; color: #fff; border-color: #f59e0b;">
+                                    <i class="fas fa-copy"></i> View Duplicates
+                                </a>
+                                {% endif %}
+                                {% endif %}
 
                                 <!-- Mobile-only action buttons -->
                                 <div class="mobile-action-buttons">

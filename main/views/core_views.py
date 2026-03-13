@@ -2523,6 +2523,24 @@ def shipment_list(request):
     #         # Only show groups that have at least one inspection without Lab Form uploaded
     #         groups_queryset = groups_queryset.filter(has_no_lab_form_inspections__gt=0)
 
+    # FILTER FOR DUPLICATES: Show groups where same client+date appears in more than one group
+    show_duplicates = request.GET.get('show_duplicates') == 'true'
+    if show_duplicates:
+        from django.db.models import Count as DupCount
+        dup_pairs = list(
+            inspections.values('client_name', 'date_of_inspection')
+            .annotate(group_count=DupCount('inspection_group', distinct=True))
+            .filter(group_count__gt=1)
+            .values_list('client_name', 'date_of_inspection')
+        )
+        if dup_pairs:
+            dup_q = Q()
+            for dup_client, dup_date in dup_pairs:
+                dup_q |= Q(client_name=dup_client, date_of_inspection=dup_date)
+            groups_queryset = groups_queryset.filter(dup_q)
+        else:
+            groups_queryset = groups_queryset.none()
+
     # Check for show_all parameter
     show_all = request.GET.get('show_all', 'false').lower() == 'true'
 
@@ -3310,6 +3328,7 @@ def shipment_list(request):
         'paginator': paginator,
         'page_obj': page_obj,
         'show_all': show_all,  # Pass actual show_all value to template
+        'show_duplicates': show_duplicates,  # Pass duplicate filter state to template
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }
