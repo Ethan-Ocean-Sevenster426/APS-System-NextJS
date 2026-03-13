@@ -1370,6 +1370,7 @@
                                     {% with fallback_group_id=client_slug|add:"_"|add:date_str %}
                                     <tr class="group-row shipment-row bg-white hover:bg-gray-50 border-b border-gray-200 cursor-pointer"
                                         data-group-id="{{ fallback_group_id }}"
+                                        data-precise-group-id="{{ shipment.group_id }}"
                                         data-client-name="{{ shipment.client_name }}"
                                         data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif %} onclick="toggleGroup(event, '{{ fallback_group_id|escapejs }}')">
                                         <td class="px-3 py-2">
@@ -1488,7 +1489,7 @@
                                         {% endif %}
                                     </tr>
                                     <!-- Expandable detail rows - Horizontal Block Layout -->
-                                    <tr class="detail-row" id="detail-{{ fallback_group_id }}" style="display: none;">
+                                    <tr class="detail-row" id="detail-{{ fallback_group_id }}" data-precise-detail-id="{{ shipment.group_id }}" style="display: none;">
                                         <td colspan="{% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'inspector' %}12{% else %}11{% endif %}"
                                             class="detail-cell" style="padding: 0;">
                                             <div class="detail-content" style="background: #f8fafc;">
