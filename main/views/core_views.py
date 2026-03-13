@@ -2283,8 +2283,8 @@ def shipment_list(request):
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
-    # Manual refresh option (clears all cache)
-    if request.GET.get('refresh') == 'true':
+    # Manual refresh option (clears all cache); also bypass when _bust param present (post-delete redirect)
+    if request.GET.get('refresh') == 'true' or request.GET.get('_bust'):
         safe_print("MANUAL CACHE REFRESH requested - clearing ALL cache...")
         cache.clear()  # Clear ALL cache to ensure fresh data
 
