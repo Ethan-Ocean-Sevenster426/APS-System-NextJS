@@ -673,6 +673,11 @@
                                 <a href="?show_duplicates=true" class="btn btn-secondary"
                                     style="padding: 8px 16px; font-size: 14px; background: #f59e0b; color: #fff; border-color: #f59e0b;">
                                     <i class="fas fa-copy"></i> View Duplicates
+                                    {% if duplicate_groups_count > 0 %}
+                                    <span style="background:#fff; color:#f59e0b; border-radius:999px; padding:1px 7px; font-weight:700; margin-left:4px; font-size:12px;">{{ duplicate_groups_count }}</span>
+                                    {% else %}
+                                    <span style="background:#fff; color:#9ca3af; border-radius:999px; padding:1px 7px; font-weight:700; margin-left:4px; font-size:12px;">0</span>
+                                    {% endif %}
                                 </a>
                                 {% endif %}
                                 {% endif %}
@@ -1469,12 +1474,12 @@
                                                     onmouseout="this.style.background='#3b82f6'" title="Edit Inspection">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
+                                                {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' or show_duplicates %}
                                                 <button type="button"
                                                     onclick="event.stopPropagation(); deleteInspectionGroup('{{ shipment.group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
                                                     style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;"
                                                     onmouseover="this.style.background='#dc2626'"
-                                                    onmouseout="this.style.background='#ef4444'" title="Delete Inspection">
+                                                    onmouseout="this.style.background='#ef4444'" title="{% if show_duplicates %}Delete Duplicate{% else %}Delete Inspection{% endif %}">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                                 {% endif %}

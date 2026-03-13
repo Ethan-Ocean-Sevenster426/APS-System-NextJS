@@ -2523,21 +2523,23 @@ def shipment_list(request):
     #         # Only show groups that have at least one inspection without Lab Form uploaded
     #         groups_queryset = groups_queryset.filter(has_no_lab_form_inspections__gt=0)
 
-    # FILTER FOR DUPLICATES: Show groups where same client+date appears in more than one group
+    # DUPLICATES: Always compute count for badge, then optionally filter the view
+    from django.db.models import Count as DupCount
+    _dup_pairs = list(
+        inspections.values('client_name', 'date_of_inspection')
+        .annotate(_gc=DupCount('inspection_group', distinct=True))
+        .filter(_gc__gt=1)
+        .values_list('client_name', 'date_of_inspection')
+    )
+    _dup_q = Q()
+    for _dc, _dd in _dup_pairs:
+        _dup_q |= Q(client_name=_dc, date_of_inspection=_dd)
+    duplicate_groups_count = groups_queryset.filter(_dup_q).count() if _dup_q else 0
+
     show_duplicates = request.GET.get('show_duplicates') == 'true'
     if show_duplicates:
-        from django.db.models import Count as DupCount
-        dup_pairs = list(
-            inspections.values('client_name', 'date_of_inspection')
-            .annotate(group_count=DupCount('inspection_group', distinct=True))
-            .filter(group_count__gt=1)
-            .values_list('client_name', 'date_of_inspection')
-        )
-        if dup_pairs:
-            dup_q = Q()
-            for dup_client, dup_date in dup_pairs:
-                dup_q |= Q(client_name=dup_client, date_of_inspection=dup_date)
-            groups_queryset = groups_queryset.filter(dup_q)
+        if _dup_q:
+            groups_queryset = groups_queryset.filter(_dup_q)
         else:
             groups_queryset = groups_queryset.none()
 
@@ -3329,6 +3331,7 @@ def shipment_list(request):
         'page_obj': page_obj,
         'show_all': show_all,  # Pass actual show_all value to template
         'show_duplicates': show_duplicates,  # Pass duplicate filter state to template
+        'duplicate_groups_count': duplicate_groups_count,  # Count for badge on button
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }
