@@ -8439,16 +8439,120 @@ def inspector_dashboard(request):
     else:
         forecast_data = []
     
+    # -------------------------------------------------------------------------
+    # KPI: Compare actual inspections this quarter against targets
+    # -------------------------------------------------------------------------
+    from ..models import InspectorTarget, QuarterlyTarget
+    import calendar
+
+    today = date.today()
+    current_quarter = (today.month - 1) // 3 + 1  # 1-4
+    quarter_start_month = (current_quarter - 1) * 3 + 1
+    quarter_end_month = quarter_start_month + 2
+    quarter_start = date(today.year, quarter_start_month, 1)
+    last_day = calendar.monthrange(today.year, quarter_end_month)[1]
+    quarter_end = date(today.year, quarter_end_month, last_day)
+    total_quarter_days = (quarter_end - quarter_start).days + 1
+    days_elapsed = (today - quarter_start).days + 1
+    quarter_progress_pct = days_elapsed / total_quarter_days  # e.g. 0.80
+
+    # Fetch targets (prefer QuarterlyTarget, fall back to InspectorTarget)
+    qt = QuarterlyTarget.objects.filter(
+        inspector_name__iexact=inspector_name,
+        year=today.year,
+        quarter=current_quarter
+    ).first()
+    it = InspectorTarget.objects.filter(inspector_name__iexact=inspector_name).first()
+
+    def _t(quarterly_val, annual_val, default=0):
+        """Return quarterly target, then annual, then default."""
+        if quarterly_val is not None and quarterly_val > 0:
+            return quarterly_val
+        if annual_val is not None and annual_val > 0:
+            return annual_val
+        return default
+
+    kpi_targets = {
+        'POULTRY': _t(getattr(qt, 'poultry', None), getattr(it, 'poultry', None)),
+        'RAW':     _t(getattr(qt, 'raw', None),     getattr(it, 'raw', None)),
+        'PMP':     _t(getattr(qt, 'pmp', None),     getattr(it, 'pmp', None)),
+        'EGGS':    _t(getattr(qt, 'eggs', None),    getattr(it, 'eggs', None)),
+    }
+    kpi_total_target = _t(
+        sum(getattr(qt, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if qt else 0,
+        sum(getattr(it, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if it else 0,
+    )
+
+    # Actual per commodity this quarter
+    q_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=quarter_start,
+        date_of_inspection__lte=today,
+    )
+    kpi_actual = {}
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        kpi_actual[commodity] = q_inspections.filter(commodity__iexact=commodity).count()
+    kpi_actual_total = q_inspections.count()
+
+    # Build per-commodity KPI rows
+    COMMODITY_LABELS = {'POULTRY': 'Poultry', 'RAW': 'Raw Meat', 'PMP': 'PMP', 'EGGS': 'Eggs'}
+    kpi_rows = []
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        target = kpi_targets[commodity]
+        actual = kpi_actual[commodity]
+        expected_by_now = round(target * quarter_progress_pct) if target else 0
+        if target > 0:
+            pct_of_target = round(actual / target * 100)
+            pct_of_expected = round(actual / expected_by_now * 100) if expected_by_now else 100
+        else:
+            pct_of_target = 0
+            pct_of_expected = 0
+
+        if target == 0:
+            status = 'no_target'
+        elif pct_of_expected >= 100:
+            status = 'on_track'
+        elif pct_of_expected >= 75:
+            status = 'slightly_behind'
+        else:
+            status = 'behind'
+
+        kpi_rows.append({
+            'commodity': commodity,
+            'label': COMMODITY_LABELS[commodity],
+            'target': target,
+            'actual': actual,
+            'expected_by_now': expected_by_now,
+            'pct_of_target': min(pct_of_target, 100),
+            'pct_of_expected': pct_of_expected,
+            'status': status,
+        })
+
+    # Overall KPI status
+    if kpi_total_target == 0:
+        kpi_overall_status = 'no_target'
+    else:
+        expected_total = round(kpi_total_target * quarter_progress_pct)
+        overall_pct = round(kpi_actual_total / expected_total * 100) if expected_total else 100
+        if overall_pct >= 100:
+            kpi_overall_status = 'on_track'
+        elif overall_pct >= 75:
+            kpi_overall_status = 'slightly_behind'
+        else:
+            kpi_overall_status = 'behind'
+
+    quarter_label = f"Q{current_quarter} {today.year}"
+    quarter_progress_display = round(quarter_progress_pct * 100)
+
     # Debug: Print some values to see what's happening
     print(f"Debug - Inspector: {inspector_name}")
     print(f"Debug - Total inspections for inspector: {total_inspections}")
     print(f"Debug - Monthly inspections count: {len(monthly_inspections)}")
     print(f"Debug - Compliance rate: {compliance_rate:.1f}%")
-    
+
     # Convert QuerySets to lists for proper JSON serialization
     import json
     from django.core.serializers.json import DjangoJSONEncoder
-    
+
     context = {
         'inspector_name': inspector_name,
         'total_inspections': total_inspections,
@@ -8463,6 +8567,14 @@ def inspector_dashboard(request):
         'non_compliant_inspections': non_compliant_inspections,
         'compliance_rate': round(compliance_rate, 1),
         'recent_inspections_list': recent_inspections_list,
+        # KPI
+        'kpi_rows': kpi_rows,
+        'kpi_overall_status': kpi_overall_status,
+        'kpi_actual_total': kpi_actual_total,
+        'kpi_total_target': kpi_total_target,
+        'quarter_label': quarter_label,
+        'quarter_progress_display': quarter_progress_display,
+        'has_targets': kpi_total_target > 0,
     }
     
     return render(request, 'main/inspector_dashboard.html', context)

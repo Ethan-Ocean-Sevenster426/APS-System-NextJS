@@ -165,6 +165,85 @@
                     </div>
                 </div>
 
+                <!-- KPI Tracker -->
+                {% if has_targets %}
+                <div class="card p-5">
+                    <!-- Header row -->
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div class="section-title mb-0"><i class="fas fa-bullseye text-primary"></i> {{ quarter_label }} KPI Tracker</div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-xs text-gray-500">Quarter progress: <span class="font-bold text-gray-700">{{ quarter_progress_display }}%</span></div>
+                            {% if kpi_overall_status == 'on_track' %}
+                            <span style="background:#dcfce7; color:#166534; padding:4px 14px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i class="fas fa-check-circle mr-1"></i> On Track</span>
+                            {% elif kpi_overall_status == 'slightly_behind' %}
+                            <span style="background:#fef9c3; color:#854d0e; padding:4px 14px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i class="fas fa-exclamation-circle mr-1"></i> Slightly Behind</span>
+                            {% elif kpi_overall_status == 'behind' %}
+                            <span style="background:#fee2e2; color:#991b1b; padding:4px 14px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i class="fas fa-times-circle mr-1"></i> Falling Behind</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Quarter total bar -->
+                    {% if kpi_total_target > 0 %}
+                    <div class="mb-5 p-3 rounded-lg" style="background:#f8fafc; border:1px solid #e5e7eb;">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="font-semibold text-gray-700">Total Inspections This Quarter</span>
+                            <span class="font-bold text-gray-700">{{ kpi_actual_total }} / {{ kpi_total_target }}</span>
+                        </div>
+                        <div class="progress-bar" style="height:10px;">
+                            <div class="progress-fill {% if kpi_overall_status == 'on_track' %}bg-green-500{% elif kpi_overall_status == 'slightly_behind' %}bg-yellow-400{% else %}bg-red-500{% endif %}"
+                                style="width:{% widthratio kpi_actual_total kpi_total_target 100 %}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>0</span>
+                            <span>Expected by now: ~{{ quarter_progress_display }}% of target</span>
+                            <span>{{ kpi_total_target }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Per-commodity rows -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {% for row in kpi_rows %}
+                        {% if row.target > 0 %}
+                        <div class="rounded-lg p-3" style="border:1px solid #e5e7eb; background:#fff;">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">{{ row.label }}</span>
+                                {% if row.status == 'on_track' %}
+                                <span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">On Track</span>
+                                {% elif row.status == 'slightly_behind' %}
+                                <span style="background:#fef9c3; color:#854d0e; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">Slightly Behind</span>
+                                {% else %}
+                                <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">Behind</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-2xl font-bold text-gray-800 mb-0.5">{{ row.actual }}</div>
+                            <div class="text-xs text-gray-500 mb-2">of <strong>{{ row.target }}</strong> target &middot; <span class="text-gray-400">expected ~{{ row.expected_by_now }}</span></div>
+                            <div class="progress-bar">
+                                <div class="progress-fill {% if row.status == 'on_track' %}bg-green-500{% elif row.status == 'slightly_behind' %}bg-yellow-400{% else %}bg-red-500{% endif %}"
+                                    style="width:{{ row.pct_of_target }}%"></div>
+                            </div>
+                            <div class="text-xs text-right mt-1 font-semibold {% if row.status == 'on_track' %}text-green-600{% elif row.status == 'slightly_behind' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                {{ row.pct_of_target }}%
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <!-- No targets set yet — show a notice -->
+                <div class="card p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="stat-icon bg-yellow-50 text-yellow-500 flex-shrink-0"><i class="fas fa-bullseye"></i></div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700">{{ quarter_label }} KPI targets not set yet</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Your manager has not yet configured quarterly targets for your account. Once set, your KPI progress will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Charts Row -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
