@@ -2625,6 +2625,44 @@ def shipment_list(request):
                     if key_name not in _client_email_map and emails:
                         _client_email_map[key_name] = emails
             
+            # Fallback: for client names not matched by iexact, try compact matching
+            matched_norms = set(list(_client_map.keys()) + list(_client_id_map.keys()) + list(_client_email_map.keys()))
+            unmatched = [cn for cn in client_names_on_page if _norm(cn) not in matched_norms]
+            if unmatched:
+                def _compact(text):
+                    return _norm(text).replace(" ", "")
+                compact_targets = {_compact(cn): cn for cn in unmatched}
+                if compact_targets:
+                    for _c in _Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email').prefetch_related('additional_emails'):
+                        c_compact_name = _compact(_c.name)
+                        c_compact_id = _compact(_c.client_id)
+                        matched_cn = compact_targets.get(c_compact_name) or compact_targets.get(c_compact_id)
+                        if matched_cn:
+                            key = _norm(matched_cn)
+                            emails = []
+                            if _c.email:
+                                for _e in _c.email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'primary', 'removable': True})
+                            if _c.manual_email:
+                                for _e in _c.manual_email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'manual', 'removable': True})
+                            for additional_email in _c.additional_emails.all():
+                                emails.append({'email': additional_email.email, 'type': 'additional', 'removable': True, 'label': additional_email.label})
+                            if emails and key not in _client_email_map:
+                                _client_email_map[key] = emails
+                            if _c.internal_account_code and key not in _client_map:
+                                _client_map[key] = _c.internal_account_code
+                            if key not in _client_id_map:
+                                _client_id_map[key] = _c.client_id
+                            # Remove from targets once matched
+                            compact_targets = {k: v for k, v in compact_targets.items() if v != matched_cn}
+                            if not compact_targets:
+                                break
+
             client_data = {
                 'client_map': _client_map,
                 'client_id_map': _client_id_map,
@@ -13273,7 +13311,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
         if client_name and client_name.startswith('btn-'):
             client_name = client_name[4:]
 
-        # Parse date
+        # Parse date (strip whitespace that may come from template formatting)
+        if inspection_date:
+            inspection_date = inspection_date.strip()
         date_obj = None
         date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y%m%d']
         for fmt in date_formats:
@@ -15787,9 +15827,12 @@ def send_group_documents(request):
 
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
-        inspection_group_id = data.get('inspection_group_id', '')
-        client_name = data.get('client_name', '')
-        inspection_date = data.get('inspection_date', '')
+        inspection_group_id = data.get('inspection_group_id', '') or group_id
+        client_name = data.get('client_name', '').strip()
+        inspection_date = data.get('inspection_date', '').strip()
+
+        print(f"[SEND DEBUG] Received: client_name='{client_name}', inspection_date='{inspection_date}', group_id='{group_id}', inspection_group_id='{inspection_group_id}'")
+        print(f"[SEND DEBUG] client_name bytes: {[hex(ord(c)) for c in client_name]}")
 
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
@@ -15805,6 +15848,31 @@ def send_group_documents(request):
                     if os.path.isfile(full_path):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+
+        # Fallback: if no files found by name+date, try lookup by inspection_group_id
+        if not attachments and inspection_group_id:
+            print(f"[SEND DEBUG] Name+date lookup found 0 files. Trying fallback via inspection_group_id={inspection_group_id}")
+            from main.models import FoodSafetyAgencyInspection
+            CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
+            fallback_inspections = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).select_related('client')
+            print(f"[SEND DEBUG] Fallback found {fallback_inspections.count()} inspection(s) by group_id")
+            docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+            for insp in fallback_inspections:
+                client_obj = insp.client
+                if client_obj:
+                    docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
+                    print(f"[SEND DEBUG] Fallback checking path: {docs_path} exists={os.path.exists(docs_path)}")
+                    if os.path.exists(docs_path):
+                        for category in CATEGORIES:
+                            cat_path = os.path.join(docs_path, category)
+                            if os.path.exists(cat_path):
+                                for filename in os.listdir(cat_path):
+                                    file_path = os.path.join(cat_path, filename)
+                                    if os.path.isfile(file_path):
+                                        attachments.append(file_path)
+                                        documents_found.append(f"{category}/{filename}")
 
         if not attachments:
             return JsonResponse({
@@ -15867,6 +15935,11 @@ def send_group_documents(request):
         for category, file_list in files_by_category.items():
             if file_list:
                 attached_categories.add(category)
+        # Also include categories from fallback-found documents
+        for doc_entry in documents_found:
+            cat = doc_entry.split('/')[0] if '/' in doc_entry else ''
+            if cat:
+                attached_categories.add(cat)
 
         documents_lines = ''
         for cat_key, cat_label in category_display.items():
@@ -15983,6 +16056,18 @@ def send_group_documents(request):
             if mgmt_email not in cc_emails:
                 cc_emails.append(mgmt_email)
 
+        # Strip syntactically broken addresses so Graph doesn't reject the whole request.
+        # Valid-looking addresses are sent as-is; Exchange handles NDRs naturally.
+        import re as _re
+        _email_re = _re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        to_emails = [e for e in to_emails if _email_re.match(e)]
+        cc_emails = [e for e in cc_emails if _email_re.match(e)]
+        if not to_emails:
+            return JsonResponse({
+                'success': False,
+                'error': f'No valid recipient email address found for {client_name}. Please correct the client email in the system.'
+            })
+
         email = EmailMessage(
             subject=subject,
             body=html_message,
@@ -16021,7 +16106,9 @@ def send_group_documents(request):
 
         # Get sender display name
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-        sent_time = timezone.now().strftime('%d %b %Y %H:%M')
+        import pytz
+        sast = pytz.timezone('Africa/Johannesburg')
+        sent_time = timezone.now().astimezone(sast).strftime('%d %b %Y %H:%M')
 
         cc_msg = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
         to_msg = ', '.join(to_emails)
@@ -16097,13 +16184,67 @@ def get_client_email(client_name, inspection_group_id=None):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
 
+        def _compact(text):
+            """Remove all spaces for compact comparison (e.g. 'Super Spar' == 'SuperSpar')"""
+            return _norm(text).replace(" ", "")
+
         norm_name = _norm(client_name)
+        compact_name = _compact(client_name)
         if norm_name:
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
-                if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
+                c_norm = _norm(c.name)
+                c_cid_norm = _norm(c.client_id)
+                # Exact normalized match
+                if c_cid_norm == norm_name or c_norm == norm_name:
                     email = _extract_email(c)
                     if email:
                         return email
+                # Compact match (ignores spaces: "Super Spar" == "SuperSpar")
+                if _compact(c.name) == compact_name or _compact(c.client_id) == compact_name:
+                    email = _extract_email(c)
+                    if email:
+                        return email
+
+        # 5. Try additional_email from InspectionGroup
+        if inspection_group_id:
+            from ..models import InspectionGroup
+            ig_email = InspectionGroup.objects.filter(
+                id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if ig_email:
+                # Take first email if comma-separated
+                first_email = ig_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 6. Try additional_email from FoodSafetyAgencyInspection
+        if inspection_group_id:
+            insp_email = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if insp_email:
+                first_email = insp_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 7. Try email fields from Inspection model (legacy)
+        from ..models import Inspection
+        insp_legacy = Inspection.objects.filter(
+            facility_client_name__iexact=client_name
+        ).first()
+        if insp_legacy:
+            for field in ['email', 'additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                val = getattr(insp_legacy, field, None)
+                if val and val.strip():
+                    return val.strip()
 
         return None
 

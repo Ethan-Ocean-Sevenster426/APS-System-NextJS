@@ -838,7 +838,7 @@ class SystemLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='system_logs', verbose_name="User")
     
     # Activity details
-    action = models.CharField(max_length=50, choices=[
+    action = models.CharField(max_length=200, choices=[
         ('LOGIN', 'User Login'),
         ('LOGOUT', 'User Logout'),
         ('CREATE', 'Create Record'),

@@ -114,70 +114,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
-# Local SQLite database (commented out)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db_local.sqlite3',
-#     },
-# }
-
-# Local MySQL database (commented out)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'inspection_system',
-#         'USER': 'inspection_user',
-#         'PASSWORD': 'inspection_pass_2026',
-#         'HOST': '127.0.0.1',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     },
-# }
-
-# Production MySQL database (master branch)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'v4_worksheet',
-#         'USER': 'v4_user',
-#         'PASSWORD': 'V4_Secure@2024!',
-#         'HOST': '167.88.43.168',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     },
-# }
-
-# Dev PostgreSQL database (82.25.97.159)
+# Database Configuration - See DATABASE_README.md for all available configs
+# Currently active: Production PostgreSQL (master branch)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inspection_system',
+        'NAME': 'v4_inspection',
         'USER': 'inspection_user',
         'PASSWORD': 'InspectionTest2026',
-        'HOST': '82.25.97.159',
+        'HOST': '167.88.43.168',
         'PORT': '5432',
     },
 }
-
-# Remote MySQL database (commented out)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': env('DB_ENGINE', default='django.db.backends.mysql'),
-#         'NAME': env('DB_NAME', default='v4_worksheet'),
-#         'USER': env('DB_USER', default='v4_user'),
-#         'PASSWORD': env('DB_PASSWORD', default='V4_Secure@2024!'),
-#         'HOST': env('DB_HOST', default='localhost'),
-#         'PORT': env('DB_PORT', default='3306'),
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     },
-# }
 
 # Use local memory cache for development (no Redis dependency)
 CACHES = {
@@ -206,7 +154,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Johannesburg'
 USE_I18N = True
 USE_TZ = True
 

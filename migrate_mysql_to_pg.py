@@ -19,9 +19,9 @@ MYSQL = {
 
 PG = {
     'host': 'localhost',
-    'user': 'v4_prod_user',
-    'password': 'V4ProdSecure2026',
-    'dbname': 'v4_worksheet_prod',
+    'user': 'v4_user',
+    'password': 'V4Inspect2026',
+    'dbname': 'v4_inspection',
     'port': 5432,
 }
 
@@ -45,6 +45,7 @@ TABLES = [
     'inspection_fee_history',
     'inspector_mappings',
     'inspector_manager_allocations',
+    'inspector_targets',
     'client_allocation',
     'fsa_tickets',
     'notifications',
@@ -52,6 +53,8 @@ TABLES = [
     'main_settings',
     'main_shipment',
     'main_systemsettings',
+    'main_xerotoken',
+    'main_xeroinvoice',
 ]
 
 

@@ -447,14 +447,14 @@
                                         <div id="inspectorDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-height: 250px; overflow-y: auto;">
                                             <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" id="selectAllInspectors" onclick="var cbs=document.querySelectorAll('.inspector-checkbox'); cbs.forEach(function(cb){cb.checked=this.checked;}.bind(this)); updateInspectorSelectText();">
+                                                    <input type="checkbox" id="selectAllInspectors">
                                                     <span style="font-weight: 600;">Select All</span>
                                                 </label>
                                             </div>
                                             {% for inspector in inspectors %}
                                             <div style="padding: 6px 8px;">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox" onclick="updateInspectorSelectText();">
+                                                    <input type="checkbox" name="branch" value="{{ inspector }}" class="inspector-checkbox">
                                                     <span>{{ inspector }}</span>
                                                 </label>
                                             </div>
@@ -640,6 +640,9 @@
                                 </div>
                             </div>
                             {% endif %}
+
+                            <!-- Load filter dropdown JS for ALL roles (inspector checkboxes, lab, test type) -->
+                            <script src="{% static 'inspection_records/js/filter_dropdowns.js' %}?v=20260306"></script>
 
                             <!-- Action Buttons Row -->
                             <div class="filter-actions">
@@ -844,12 +847,15 @@
                                             <i class="fas fa-edit mr-2"></i> Edit Inspection
                                         </a>
                                         {% endif %}
-                                        <button id="view-files-mobile-{{ fallback_group_id }}" class="btn btn-sm btn-view-files w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200 {% if shipment.file_status == 'complete' %}btn-files-complete{% elif shipment.file_status == 'compliance_only' or shipment.file_status == 'partial' %}btn-files-partial{% elif shipment.file_status == 'no_compliance' %}btn-files-none{% else %}btn-files-checking{% endif %}"
+                                        <button id="view-files-mobile-{{ fallback_group_id }}" class="btn btn-sm btn-view-files w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200"
                                             data-group-id="{{ fallback_group_id }}"
                                             data-client-name="{{ shipment.client_name }}"
                                             data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
+                                            style="background: #f59e0b; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer;"
+                                            onmouseover="this.style.background='#d97706'"
+                                            onmouseout="this.style.background='#f59e0b'"
                                             onclick="if(typeof openFilesPopup === 'function') { openFilesPopup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d"|escapejs }}'); } else { console.warn('openFilesPopup not loaded yet'); }">
-                                            <i class="fas fa-eye mr-2"></i> View Files
+                                            View Files
                                         </button>
 
                                         <!-- Comment (view only on mobile) -->
@@ -873,12 +879,20 @@
                                                 {% with all_emails=shipment|get_unique_emails %}
                                                 {% if all_emails %}
                                                     {% for email in all_emails %}
+                                                    {% if email|is_valid_email %}
                                                     <div class="bg-blue-50 p-2 rounded border border-blue-200">
                                                         <span class="text-xs text-blue-700 additional-emails-display"
                                                             style="display: block; word-break: break-word; max-width: 100%;"
                                                             title="{{ email }}"
                                                             data-emails="{{ email }}">{{ email }}</span>
                                                     </div>
+                                                    {% else %}
+                                                    <div class="bg-red-50 p-2 rounded border border-red-200">
+                                                        <span class="text-xs text-red-600"
+                                                            style="display: block; word-break: break-word; max-width: 100%;"
+                                                            title="Invalid email: {{ email }}">⚠️ {{ email }}</span>
+                                                    </div>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 {% else %}
                                                     <span class="text-gray-400 text-xs">No emails</span>
@@ -1399,7 +1413,11 @@
                                             {% with unique_emails=shipment|get_unique_emails %}
                                             {% if unique_emails %}
                                                 {% for email in unique_emails %}
+                                                {% if email|is_valid_email %}
                                                 <div style="white-space: nowrap; font-size: 0.65rem;" title="{{ email }}">{{ email }}</div>
+                                                {% else %}
+                                                <div style="white-space: nowrap; font-size: 0.65rem; color: #dc2626;" title="Invalid email: {{ email }}">⚠️ {{ email }}</div>
+                                                {% endif %}
                                                 {% endfor %}
                                             {% else %}
                                                 <div>-</div>
@@ -1440,7 +1458,7 @@
                                                 </a>
                                                 {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                                                 <button type="button"
-                                                    onclick="event.stopPropagation(); deleteInspectionGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
+                                                    onclick="event.stopPropagation(); deleteInspectionGroup('{{ shipment.group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
                                                     style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;"
                                                     onmouseover="this.style.background='#dc2626'"
                                                     onmouseout="this.style.background='#ef4444'" title="Delete Inspection">
@@ -1522,7 +1540,11 @@
                                                             {% with unique_emails=shipment|get_unique_emails %}
                                                             {% if unique_emails %}
                                                                 {% for email in unique_emails %}
+                                                                {% if email|is_valid_email %}
                                                                 <div style="font-size: 8px; color: #3b82f6; word-break: break-all;">{{ email }}</div>
+                                                                {% else %}
+                                                                <div style="font-size: 8px; color: #dc2626; word-break: break-all;">⚠️ {{ email }}</div>
+                                                                {% endif %}
                                                                 {% endfor %}
                                                             {% else %}
                                                                 <div style="font-size: 8px; color: #6b7280;">-</div>

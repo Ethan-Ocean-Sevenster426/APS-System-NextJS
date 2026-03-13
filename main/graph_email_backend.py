@@ -13,6 +13,10 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Graph API inline attachment limit: 3MB (4MB request limit with base64 overhead)
+LARGE_ATTACHMENT_THRESHOLD = 3 * 1024 * 1024  # 3MB in bytes
+UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks for upload sessions
+
 
 class GraphEmailBackend(BaseEmailBackend):
     """
@@ -84,16 +88,55 @@ class GraphEmailBackend(BaseEmailBackend):
 
         return num_sent
 
+    def _build_message_payload(self, message, content_type, content):
+        """Build the base Graph API message payload (no attachments)."""
+        payload = {
+            "subject": message.subject,
+            "body": {
+                "contentType": content_type,
+                "content": content
+            },
+            "toRecipients": [
+                {"emailAddress": {"address": recipient}} for recipient in message.to
+            ],
+            "from": {
+                "emailAddress": {
+                    "address": self.from_email
+                }
+            }
+        }
+        if message.cc:
+            payload["ccRecipients"] = [
+                {"emailAddress": {"address": recipient}} for recipient in message.cc
+            ]
+        if message.bcc:
+            payload["bccRecipients"] = [
+                {"emailAddress": {"address": recipient}} for recipient in message.bcc
+            ]
+        return payload
+
+    def _get_attachments(self, message):
+        """
+        Return list of (filename, bytes_content, mimetype) for all attachments.
+        """
+        result = []
+        for attachment in message.attachments:
+            if isinstance(attachment, tuple):
+                filename, content, mimetype = attachment
+                if isinstance(content, str):
+                    content = content.encode('utf-8')
+                result.append((filename, content, mimetype or "application/octet-stream"))
+        return result
+
     def _send_message(self, message):
         """
         Send a single EmailMessage using Microsoft Graph API.
+        Uses inline attachments for small emails, upload sessions for large ones.
         """
-        # Check if there's an HTML alternative (for emails with both text and HTML versions)
         content_type = "Text"
         content = message.body
 
         if hasattr(message, 'alternatives') and message.alternatives:
-            # Use HTML version if available
             for alternative_content, alternative_type in message.alternatives:
                 if alternative_type == 'text/html':
                     content_type = "HTML"
@@ -102,79 +145,176 @@ class GraphEmailBackend(BaseEmailBackend):
         elif message.content_subtype == 'html':
             content_type = "HTML"
 
-        # Build the email payload
+        attachments = self._get_attachments(message) if message.attachments else []
+        total_size = sum(len(c) for _, c, _ in attachments)
+
+        if total_size >= LARGE_ATTACHMENT_THRESHOLD:
+            return self._send_via_draft(message, content_type, content, attachments)
+        else:
+            return self._send_inline(message, content_type, content, attachments)
+
+    def _send_inline(self, message, content_type, content, attachments):
+        """Send email with all attachments inline (for small emails < 3MB total)."""
         email_data = {
-            "message": {
-                "subject": message.subject,
-                "body": {
-                    "contentType": content_type,
-                    "content": content
-                },
-                "toRecipients": [
-                    {"emailAddress": {"address": recipient}} for recipient in message.to
-                ],
-                "from": {
-                    "emailAddress": {
-                        "address": self.from_email
-                    }
-                }
-            },
+            "message": self._build_message_payload(message, content_type, content),
             "saveToSentItems": "true"
         }
 
-        # Add CC recipients if any
-        if message.cc:
-            email_data["message"]["ccRecipients"] = [
-                {"emailAddress": {"address": recipient}} for recipient in message.cc
+        if attachments:
+            email_data["message"]["attachments"] = [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": filename,
+                    "contentType": mimetype,
+                    "contentBytes": base64.b64encode(file_content).decode('utf-8')
+                }
+                for filename, file_content, mimetype in attachments
             ]
 
-        # Add BCC recipients if any
-        if message.bcc:
-            email_data["message"]["bccRecipients"] = [
-                {"emailAddress": {"address": recipient}} for recipient in message.bcc
-            ]
-
-        # Add attachments if any
-        if message.attachments:
-            graph_attachments = []
-            for attachment in message.attachments:
-                if isinstance(attachment, tuple):
-                    # (filename, content, mimetype) tuple from attach() or attach_file()
-                    filename, content, mimetype = attachment
-                    if isinstance(content, str):
-                        content = content.encode('utf-8')
-                    graph_attachments.append({
-                        "@odata.type": "#microsoft.graph.fileAttachment",
-                        "name": filename,
-                        "contentType": mimetype or "application/octet-stream",
-                        "contentBytes": base64.b64encode(content).decode('utf-8')
-                    })
-            if graph_attachments:
-                email_data["message"]["attachments"] = graph_attachments
-
-        # Send email using Graph API
         graph_url = f"https://graph.microsoft.com/v1.0/users/{self.from_email}/sendMail"
-
         headers = {
             'Authorization': f'Bearer {self.access_token}',
             'Content-Type': 'application/json'
         }
 
-        try:
-            response = requests.post(graph_url, headers=headers, json=email_data, timeout=30)
-            response.raise_for_status()
+        response = requests.post(graph_url, headers=headers, json=email_data, timeout=60)
 
-            logger.info(f"Successfully sent email to {', '.join(message.to)}")
-            logger.info(f"Subject: {message.subject}")
+        if response.status_code == 202:
+            logger.info(f"Successfully sent email (inline) to {', '.join(message.to)}")
             return True
+        else:
+            self._raise_graph_error(response, message)
 
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP Error sending email: {e.response.status_code} - {e.response.text}")
-            if not self.fail_silently:
-                raise
-            return False
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request Error sending email: {str(e)}")
-            if not self.fail_silently:
-                raise
-            return False
+    def _send_via_draft(self, message, content_type, content, attachments):
+        """
+        Send email with large attachments using draft + upload session approach.
+        Required when total attachment size >= 3MB.
+        """
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        base_url = f"https://graph.microsoft.com/v1.0/users/{self.from_email}"
+
+        # Step 1: Create draft
+        draft_payload = self._build_message_payload(message, content_type, content)
+        response = requests.post(
+            f"{base_url}/messages",
+            headers=headers,
+            json=draft_payload,
+            timeout=30
+        )
+        if response.status_code not in (200, 201):
+            self._raise_graph_error(response, message, context="creating draft")
+
+        message_id = response.json()['id']
+        logger.info(f"Created draft message id={message_id}")
+
+        # Step 2: Attach each file
+        for filename, file_content, mimetype in attachments:
+            if len(file_content) < LARGE_ATTACHMENT_THRESHOLD:
+                # Small enough for inline attachment on draft
+                attach_payload = {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": filename,
+                    "contentType": mimetype,
+                    "contentBytes": base64.b64encode(file_content).decode('utf-8')
+                }
+                r = requests.post(
+                    f"{base_url}/messages/{message_id}/attachments",
+                    headers=headers,
+                    json=attach_payload,
+                    timeout=30
+                )
+                if r.status_code not in (200, 201):
+                    self._raise_graph_error(r, message, context=f"attaching {filename}")
+                logger.info(f"Attached {filename} inline to draft")
+            else:
+                # Use upload session for large files
+                self._upload_large_attachment(
+                    base_url, message_id, filename, file_content, mimetype, headers
+                )
+
+        # Step 3: Send the draft
+        response = requests.post(
+            f"{base_url}/messages/{message_id}/send",
+            headers=headers,
+            timeout=60
+        )
+        if response.status_code == 202:
+            logger.info(f"Successfully sent email (draft+upload) to {', '.join(message.to)}")
+            return True
+        else:
+            self._raise_graph_error(response, message, context="sending draft")
+
+    def _upload_large_attachment(self, base_url, message_id, filename, file_content, mimetype, headers):
+        """Upload a large attachment using a Graph API upload session."""
+        file_size = len(file_content)
+
+        # Create upload session
+        session_payload = {
+            "AttachmentItem": {
+                "attachmentType": "file",
+                "name": filename,
+                "size": file_size,
+                "contentType": mimetype
+            }
+        }
+        r = requests.post(
+            f"{base_url}/messages/{message_id}/attachments/createUploadSession",
+            headers=headers,
+            json=session_payload,
+            timeout=30
+        )
+        if r.status_code not in (200, 201):
+            raise requests.exceptions.HTTPError(
+                f"Failed to create upload session for {filename}: {r.status_code} {r.text[:300]}",
+                response=r
+            )
+
+        upload_url = r.json()['uploadUrl']
+        logger.info(f"Upload session created for {filename} ({file_size} bytes)")
+
+        # Upload in chunks
+        offset = 0
+        while offset < file_size:
+            chunk = file_content[offset:offset + UPLOAD_CHUNK_SIZE]
+            chunk_len = len(chunk)
+            end = offset + chunk_len - 1
+
+            upload_headers = {
+                'Content-Type': 'application/octet-stream',
+                'Content-Length': str(chunk_len),
+                'Content-Range': f'bytes {offset}-{end}/{file_size}'
+            }
+            r = requests.put(upload_url, headers=upload_headers, data=chunk, timeout=120)
+
+            if r.status_code not in (200, 201, 202):
+                raise requests.exceptions.HTTPError(
+                    f"Chunk upload failed for {filename} at offset {offset}: {r.status_code} {r.text[:300]}",
+                    response=r
+                )
+            offset += chunk_len
+            logger.info(f"Uploaded {filename}: {min(offset, file_size)}/{file_size} bytes")
+
+        logger.info(f"Large attachment {filename} uploaded successfully")
+
+    def _raise_graph_error(self, response, message, context=""):
+        """Log and raise a Graph API error."""
+        error_body = response.text[:1000]
+        ctx = f" [{context}]" if context else ""
+        logger.error(f"[GRAPH SEND FAIL]{ctx} HTTP {response.status_code} for TO={message.to}")
+        logger.error(f"[GRAPH SEND FAIL] Response: {error_body}")
+        err_code = 'Unknown'
+        err_msg = error_body
+        try:
+            err_json = response.json()
+            err_code = err_json.get('error', {}).get('code', 'Unknown')
+            err_msg = err_json.get('error', {}).get('message', error_body)
+            logger.error(f"[GRAPH SEND FAIL] Error code: {err_code}, message: {err_msg}")
+        except Exception:
+            pass
+        raise requests.exceptions.HTTPError(
+            f"Graph API error {response.status_code} ({err_code}): {err_msg}",
+            response=response
+        )
