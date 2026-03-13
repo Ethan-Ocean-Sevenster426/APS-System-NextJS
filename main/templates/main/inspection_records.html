@@ -849,12 +849,15 @@
                                             <i class="fas fa-edit mr-2"></i> Edit Inspection
                                         </a>
                                         {% endif %}
-                                        <button id="view-files-mobile-{{ fallback_group_id }}" class="btn btn-sm btn-view-files w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200 {% if shipment.file_status == 'complete' %}btn-files-complete{% elif shipment.file_status == 'compliance_only' or shipment.file_status == 'partial' %}btn-files-partial{% elif shipment.file_status == 'no_compliance' %}btn-files-none{% else %}btn-files-checking{% endif %}"
+                                        <button id="view-files-mobile-{{ fallback_group_id }}" class="btn btn-sm btn-view-files w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors duration-200"
                                             data-group-id="{{ fallback_group_id }}"
                                             data-client-name="{{ shipment.client_name }}"
                                             data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
+                                            style="background: #f59e0b; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer;"
+                                            onmouseover="this.style.background='#d97706'"
+                                            onmouseout="this.style.background='#f59e0b'"
                                             onclick="if(typeof openFilesPopup === 'function') { openFilesPopup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}', '{{ shipment.date_of_inspection|date:"Y-m-d"|escapejs }}'); } else { console.warn('openFilesPopup not loaded yet'); }">
-                                            <i class="fas fa-eye mr-2"></i> View Files
+                                            View Files
                                         </button>
 
                                         <!-- Comment (view only on mobile) -->
