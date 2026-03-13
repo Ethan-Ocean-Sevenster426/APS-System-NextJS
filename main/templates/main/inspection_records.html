@@ -1455,7 +1455,7 @@
                                                 </a>
                                                 {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                                                 <button type="button"
-                                                    onclick="event.stopPropagation(); deleteInspectionGroup('{{ fallback_group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
+                                                    onclick="event.stopPropagation(); deleteInspectionGroup('{{ shipment.group_id|escapejs }}', '{{ shipment.client_name|escapejs }}');"
                                                     style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;"
                                                     onmouseover="this.style.background='#dc2626'"
                                                     onmouseout="this.style.background='#ef4444'" title="Delete Inspection">
