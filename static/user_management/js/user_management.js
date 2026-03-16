@@ -295,7 +295,7 @@
             const mappings = window.DJANGO_CONFIG.inspectorMappings || [];
             const allocated = (window.DJANGO_CONFIG.managerAllocations || {})[userId] || [];
             if (mappings.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-light); font-style: italic; margin: 0;">No inspectors available. Add inspectors via Inspector Mappings first.</p>';
+                list.innerHTML = '<p style="color: var(--text-light); font-style: italic; margin: 0;">No inspector users found. Add users with the Inspector role first.</p>';
                 return;
             }
             list.innerHTML = mappings.map(m => `

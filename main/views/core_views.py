@@ -17164,11 +17164,11 @@ def user_management(request):
                         if role == 'inspector_manager':
                             allocated_ids = request.POST.getlist('allocated_inspector_ids')
                             InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
-                            for mapping_id in allocated_ids:
+                            for inspector_user_id in allocated_ids:
                                 try:
-                                    im = InspectorMapping.objects.get(id=int(mapping_id))
-                                    InspectorManagerAllocation.objects.create(manager=user_to_edit, inspector_mapping=im)
-                                except (InspectorMapping.DoesNotExist, ValueError):
+                                    inspector_user = User.objects.get(id=int(inspector_user_id))
+                                    InspectorManagerAllocation.objects.create(manager=user_to_edit, inspector=inspector_user)
+                                except (User.DoesNotExist, ValueError):
                                     pass
 
                         messages.success(request, f"User '{user_to_edit.username}' information updated successfully.")
@@ -17212,13 +17212,17 @@ def user_management(request):
         ('developer', 'Developer'),  # Hidden role
     ]
 
-    # Build allocations map: {user_id: [inspector_mapping_id, ...]}
+    # Build allocations map: {manager_user_id: [inspector_user_id, ...]}
     import json as _json
+    inspector_users = User.objects.filter(role='inspector').order_by('first_name', 'last_name', 'username')
+    inspector_users_json = _json.dumps([
+        {'id': u.id, 'name': u.get_full_name() or u.username}
+        for u in inspector_users
+    ])
     all_allocations = InspectorManagerAllocation.objects.all()
     manager_allocations = {}
     for alloc in all_allocations:
-        manager_allocations.setdefault(alloc.manager_id, []).append(alloc.inspector_mapping_id)
-    inspector_mappings_json = _json.dumps([{'id': m.id, 'name': m.inspector_name} for m in inspector_mappings])
+        manager_allocations.setdefault(alloc.manager_id, []).append(alloc.inspector_id)
     manager_allocations_json = _json.dumps(manager_allocations)
     
     # Get theme settings
@@ -17236,7 +17240,7 @@ def user_management(request):
         'inspector_mappings': inspector_mappings,
         'role_choices': role_choices,
         'settings': settings,
-        'inspector_mappings_json': inspector_mappings_json,
+        'inspector_users_json': inspector_users_json,
         'manager_allocations_json': manager_allocations_json,
     }
     

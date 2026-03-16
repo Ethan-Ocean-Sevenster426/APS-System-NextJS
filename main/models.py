@@ -52,22 +52,34 @@ def is_inspector_manager(self):
     return getattr(self, 'role', 'inspector') == 'inspector_manager'
 
 def get_managed_inspector_ids(self):
-    """Return list of inspector_ids that this inspector_manager manages."""
+    """Return list of server inspector_ids for inspectors this manager manages (via InspectorMapping name lookup)."""
     if getattr(self, 'role', None) != 'inspector_manager':
         return []
-    return list(
-        InspectorManagerAllocation.objects.filter(manager=self)
-        .values_list('inspector_mapping__inspector_id', flat=True)
-    )
+    names = get_managed_inspector_names(self)
+    ids = []
+    for name in names:
+        try:
+            mapping = InspectorMapping.objects.get(inspector_name=name)
+            ids.append(mapping.inspector_id)
+        except InspectorMapping.DoesNotExist:
+            pass
+    return ids
 
 def get_managed_inspector_names(self):
-    """Return list of inspector names that this inspector_manager manages."""
+    """Return list of inspector full names that this inspector_manager manages."""
     if getattr(self, 'role', None) != 'inspector_manager':
         return []
-    return list(
+    inspectors = (
         InspectorManagerAllocation.objects.filter(manager=self)
-        .values_list('inspector_mapping__inspector_name', flat=True)
+        .select_related('inspector')
+        .values_list('inspector__first_name', 'inspector__last_name', 'inspector__username')
     )
+    names = []
+    for first, last, username in inspectors:
+        full_name = f"{first} {last}".strip() if (first or last) else username
+        if full_name:
+            names.append(full_name)
+    return names
 
 def has_role_permission(self, required_role):
     """Check if user has the required role or higher"""
@@ -137,25 +149,26 @@ class InspectorMapping(models.Model):
 
 
 class InspectorManagerAllocation(models.Model):
-    """Maps inspector managers to the inspectors they manage."""
+    """Maps inspector managers to the inspector users they manage."""
     manager = models.ForeignKey(
         'auth.User',
         on_delete=models.CASCADE,
         related_name='managed_inspectors',
     )
-    inspector_mapping = models.ForeignKey(
-        'InspectorMapping',
+    inspector = models.ForeignKey(
+        'auth.User',
         on_delete=models.CASCADE,
-        related_name='manager_allocations',
+        related_name='inspector_managers',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'inspector_manager_allocations'
-        unique_together = [['manager', 'inspector_mapping']]
+        unique_together = [['manager', 'inspector']]
 
     def __str__(self):
-        return f"{self.manager.get_full_name()} manages {self.inspector_mapping.inspector_name}"
+        inspector_name = self.inspector.get_full_name() or self.inspector.username
+        return f"{self.manager.get_full_name()} manages {inspector_name}"
 
 
 class SystemSettings(models.Model):

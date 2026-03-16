@@ -647,10 +647,10 @@
             urls: {
                 sendPasswordResetEmail: '{% url "send_password_reset_email" %}'
             },
-            inspectorMappings: {{ inspector_mappings_json|default:"[]"|safe }},
+            inspectorMappings: {{ inspector_users_json|default:"[]"|safe }},
             managerAllocations: {{ manager_allocations_json|default:"{}"|safe }}
         };
     </script>
-    <script src="{% static 'user_management/js/user_management.js' %}?v=20260316"></script>
+    <script src="{% static 'user_management/js/user_management.js' %}?v=20260317"></script>
 </body>
 </html>
