@@ -219,6 +219,12 @@
                 });
             });
 
+            // Show/hide inspector allocation section when role changes
+            document.getElementById('edit_role').addEventListener('change', function() {
+                const userId = parseInt(document.getElementById('edit_user_id').value);
+                buildInspectorCheckboxes(userId, this.value);
+            });
+
             // Handle window resize
             window.addEventListener('resize', handleResize);
         });
@@ -278,6 +284,28 @@
             document.getElementById('addUserForm').reset();
         }
 
+        function buildInspectorCheckboxes(userId, selectedRole) {
+            const section = document.getElementById('inspectorAllocationSection');
+            const list = document.getElementById('inspectorCheckboxList');
+            if (selectedRole !== 'inspector_manager') {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            const mappings = window.DJANGO_CONFIG.inspectorMappings || [];
+            const allocated = (window.DJANGO_CONFIG.managerAllocations || {})[userId] || [];
+            if (mappings.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-light); font-style: italic; margin: 0;">No inspectors available. Add inspectors via Inspector Mappings first.</p>';
+                return;
+            }
+            list.innerHTML = mappings.map(m => `
+                <label style="display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer;">
+                    <input type="checkbox" name="allocated_inspector_ids" value="${m.id}" ${allocated.includes(m.id) ? 'checked' : ''}>
+                    <span>${m.name}</span>
+                </label>
+            `).join('');
+        }
+
         function showEditUserModal(userId, username, email, firstName, lastName, role) {
             document.getElementById('edit_user_id').value = userId;
             document.getElementById('edit_username').value = username;
@@ -285,6 +313,7 @@
             document.getElementById('edit_first_name').value = firstName;
             document.getElementById('edit_last_name').value = lastName;
             document.getElementById('edit_role').value = role;
+            buildInspectorCheckboxes(parseInt(userId), role);
             document.getElementById('editUserModal').classList.add('show');
         }
 

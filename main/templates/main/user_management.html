@@ -240,6 +240,7 @@
                                 <select id="roleFilter" class="form-control">
                                     <option value="">All Roles</option>
                                     <option value="inspector">Inspector</option>
+                                    <option value="inspector_manager">Inspector Manager</option>
                                     <option value="admin">Administrator</option>
                                     <option value="super_admin">Super Admin</option>
                                     <option value="financial">Financial Administrator</option>
@@ -315,6 +316,7 @@
                                         <td class="col-role">
                                             <span class="role-badge role-{{ user.role|default:'inspector' }}">
                                             {% if user.role == 'inspector' %}Inspector
+                                            {% elif user.role == 'inspector_manager' %}Inspector Manager
                                             {% elif user.role == 'admin' %}Admin
                                             {% elif user.role == 'super_admin' %}Super Admin
                                             {% elif user.role == 'financial' %}Financial
@@ -524,12 +526,20 @@
                     <label class="form-label">Role</label>
                     <select name="edit_role" id="edit_role" class="form-control" required>
                         <option value="inspector">Inspector</option>
+                        <option value="inspector_manager">Inspector Manager</option>
                         <option value="admin">Administrator</option>
                         <option value="super_admin">Super Admin</option>
                         <option value="financial">Financial Administrator</option>
                         <option value="lab_technician">Lab Technician</option>
                         <option value="developer">Developer</option>
                     </select>
+                </div>
+
+                <div id="inspectorAllocationSection" style="display:none; margin-bottom: 15px;">
+                    <label class="form-label">Allocated Inspectors</label>
+                    <div id="inspectorCheckboxList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 10px; background: var(--card-bg, #fff);">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
 
                 <div class="modal-actions">
@@ -586,6 +596,7 @@
                     <label class="form-label">Role *</label>
                     <select name="new_role" class="form-control" required>
                         <option value="inspector">Inspector</option>
+                        <option value="inspector_manager">Inspector Manager</option>
                         <option value="admin">Administrator</option>
                         <option value="super_admin">Super Admin</option>
                         <option value="financial">Financial Administrator</option>
@@ -635,7 +646,9 @@
             userRole: '{{ request.user.role }}',
             urls: {
                 sendPasswordResetEmail: '{% url "send_password_reset_email" %}'
-            }
+            },
+            inspectorMappings: {{ inspector_mappings_json|safe }},
+            managerAllocations: {{ manager_allocations_json|safe }}
         };
     </script>
     <script src="{% static 'user_management/js/user_management.js' %}?v=20260311"></script>

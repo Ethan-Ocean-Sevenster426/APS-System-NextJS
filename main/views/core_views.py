@@ -103,7 +103,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.paginator import Paginator
 from django.db.models import Q
 from ..forms import LoginForm, RegisterForm, ClientForm, InspectionForm, InspectorMappingForm, FoodSafetyAgencyInspectionForm
-from ..models import Client, Inspection, Shipment, Settings, FoodSafetyAgencyInspection, SystemLog, InspectorMapping
+from ..models import Client, Inspection, Shipment, Settings, FoodSafetyAgencyInspection, SystemLog, InspectorMapping, InspectorManagerAllocation
 from django.views.decorators.csrf import csrf_exempt
 from ..decorators import role_required, inspector_restricted, financial_only, scientist_only, inspector_only_inspections, no_inspector_scientist
 @login_required
@@ -17159,7 +17159,18 @@ def user_management(request):
                             if not created:
                                 mapping.inspector_id = int(inspector_id)
                                 mapping.save()
-                        
+
+                        # Handle inspector manager allocations
+                        if role == 'inspector_manager':
+                            allocated_ids = request.POST.getlist('allocated_inspector_ids')
+                            InspectorManagerAllocation.objects.filter(manager=user_to_edit).delete()
+                            for mapping_id in allocated_ids:
+                                try:
+                                    im = InspectorMapping.objects.get(id=int(mapping_id))
+                                    InspectorManagerAllocation.objects.create(manager=user_to_edit, inspector_mapping=im)
+                                except (InspectorMapping.DoesNotExist, ValueError):
+                                    pass
+
                         messages.success(request, f"User '{user_to_edit.username}' information updated successfully.")
                         
             except User.DoesNotExist:
@@ -17197,8 +17208,18 @@ def user_management(request):
         ('financial', 'Financial Administrator'),
         ('lab_technician', 'Lab Technician'),
         ('inspector', 'Inspector'),
+        ('inspector_manager', 'Inspector Manager'),
         ('developer', 'Developer'),  # Hidden role
     ]
+
+    # Build allocations map: {user_id: [inspector_mapping_id, ...]}
+    import json as _json
+    all_allocations = InspectorManagerAllocation.objects.all()
+    manager_allocations = {}
+    for alloc in all_allocations:
+        manager_allocations.setdefault(alloc.manager_id, []).append(alloc.inspector_mapping_id)
+    inspector_mappings_json = _json.dumps([{'id': m.id, 'name': m.inspector_name} for m in inspector_mappings])
+    manager_allocations_json = _json.dumps(manager_allocations)
     
     # Get theme settings
     try:
@@ -17215,6 +17236,8 @@ def user_management(request):
         'inspector_mappings': inspector_mappings,
         'role_choices': role_choices,
         'settings': settings,
+        'inspector_mappings_json': inspector_mappings_json,
+        'manager_allocations_json': manager_allocations_json,
     }
     
     # Ensure CSRF token is properly generated and available
