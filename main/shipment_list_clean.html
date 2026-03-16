@@ -3425,7 +3425,7 @@
                             <!-- Main grouped row -->
                             <tr class="group-row shipment-row {% if shipment.is_complete and not shipment.is_sent %}inspection-complete{% endif %} {% if shipment.client_name|slice:':3' == 'New' %}greyed-out-group{% endif %}"
                                 data-group-id="{{ fallback_group_id }}" data-client-name="{{ shipment.client_name }}"
-                                data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}" {% if
+                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if
                                 shipment.sent_date %}data-sent-timestamp="{{ shipment.sent_date|date:'c' }}" {% endif
                                 %}>
                                 <td class="col-expand">
@@ -3473,7 +3473,7 @@
                                                btn-files-checking
                                            {% endif %}" data-group-id="{{ fallback_group_id|escapejs }}"
                                         data-client-name="{{ shipment.client_name|escapejs }}"
-                                        data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d"|escapejs }}"
+                                        data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d"|escapejs }}"
                                         onclick="if(typeof openFilesPopup === 'function') { openFilesPopup(this.dataset.groupId, this.dataset.clientName, this.dataset.inspectionDate); } else { console.warn('openFilesPopup not loaded yet'); }"
                                         title="View Files - 
                                            {% if shipment.compliance_status == 'complete' %}All required files present
@@ -3496,7 +3496,7 @@
                                     <button class="btn btn-sm btn-secondary" id="rfi-{{ fallback_group_id }}"
                                         onclick="uploadRFI('{{ fallback_group_id|escapejs }}')" title="Upload RFI"
                                         data-client-name="{{ shipment.client_name }}"
-                                        data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}">
+                                        data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}">
                                         RFI
                                     </button>
                                     {% endif %}
@@ -3532,7 +3532,7 @@
                                     <button class="btn btn-sm btn-secondary" id="invoice-{{ fallback_group_id }}"
                                         onclick="uploadInvoice('{{ fallback_group_id|escapejs }}')"
                                         title="Upload Invoice" data-client-name="{{ shipment.client_name }}"
-                                        data-inspection-date="{{ shipment.date_of_inspection|date:" Y-m-d" }}">
+                                        data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}">
                                         Invoice
                                     </button>
                                     {% endif %}
@@ -3973,8 +3973,7 @@
                                                                 id="lab-{{ product.remote_id }}"
                                                                 data-group-id="{{ fallback_group_id }}"
                                                                 data-client-name="{{ shipment.client_name }}"
-                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"
-                                                                Y-m-d" }}"
+                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                                 onclick="uploadLab('{{ product.remote_id|escapejs }}')"
                                                                 title="Lab result upload available">
                                                                 <i class="fas fa-flask"></i> Lab
@@ -3983,8 +3982,7 @@
                                                                 id="lab-form-{{ product.remote_id }}"
                                                                 data-group-id="{{ fallback_group_id }}"
                                                                 data-client-name="{{ shipment.client_name }}"
-                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"
-                                                                Y-m-d" }}"
+                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}"
                                                                 onclick="uploadLabForm('{{ product.remote_id|escapejs }}')"
                                                                 title="Lab form submission upload available">
                                                                 <i class="fas fa-file-alt"></i> Lab Form
@@ -3993,8 +3991,7 @@
                                                                 id="retest-{{ product.remote_id }}"
                                                                 data-group-id="{{ fallback_group_id }}"
                                                                 data-client-name="{{ shipment.client_name }}"
-                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"
-                                                                Y-m-d" }}" {% if product.needs_retest !='YES' %}disabled
+                                                                data-inspection-date="{{ shipment.date_of_inspection|date:"Y-m-d" }}" {% if product.needs_retest !='YES' %}disabled
                                                                 style="opacity: 0.5; cursor: not-allowed;" {% endif %}
                                                                 {% if product.needs_retest=='YES'
                                                                 %}onclick="uploadRetest('{{ product.remote_id|escapejs }}')"

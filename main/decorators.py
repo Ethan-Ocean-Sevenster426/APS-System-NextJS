@@ -88,8 +88,7 @@ def inspector_only_inspections(view_func):
         user_role = getattr(request.user, 'role', 'inspector')
         
         # If user is an inspector or lab technician, redirect to inspections page
-        if user_role == 'inspector' or user_role == 'lab_technician':
-            role_display = "Inspector" if user_role == 'inspector' else "Lab Technician"
+        if user_role in ('inspector', 'inspector_manager', 'lab_technician'):
             return redirect('shipment_list')
         
         # Allow access for all other roles
@@ -135,7 +134,7 @@ def no_inspector_lab_tech(view_func):
         user_role = getattr(request.user, 'role', 'inspector')
 
         # Block inspectors and lab technicians from accessing this function
-        if user_role in ['inspector', 'lab_technician']:
+        if user_role in ['inspector', 'inspector_manager', 'lab_technician']:
             from django.http import JsonResponse
             return JsonResponse({
                 'success': False,

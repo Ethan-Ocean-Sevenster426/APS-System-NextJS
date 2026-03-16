@@ -1799,7 +1799,7 @@ def delete_fsa_inspection(request, pk):
 
 @csrf_exempt
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer'])
+@role_required(['admin', 'super_admin', 'developer', 'inspector', 'inspector_manager'])
 def delete_inspection_group(request):
     """Delete all inspections in a group (same client and date) via AJAX."""
     import json
@@ -1860,11 +1860,29 @@ def delete_inspection_group(request):
         if not matching_inspections:
             return JsonResponse({'success': False, 'error': 'No inspections found for this group'})
 
+        # Inspectors can only delete their own inspections
+        if request.user.role in ('inspector', 'inspector_manager'):
+            from ..models import InspectorMapping
+            mapping = InspectorMapping.objects.filter(
+                inspector_name=request.user.get_full_name() or request.user.username
+            ).first() or InspectorMapping.objects.filter(
+                inspector_name=request.user.username
+            ).first()
+            inspector_id = mapping.inspector_id if mapping else None
+            inspector_name = mapping.inspector_name if mapping else None
+            for insp in matching_inspections:
+                if insp.inspector_id != inspector_id and insp.inspector_name != inspector_name:
+                    return JsonResponse({'success': False, 'error': 'You can only delete your own inspections'})
+
         # Delete all matching inspections
         deleted_count = 0
         for insp in matching_inspections:
             insp.delete()
             deleted_count += 1
+
+        # Clear cache so the page reloads fresh data
+        from django.core.cache import cache
+        cache.clear()
 
         return JsonResponse({
             'success': True,
@@ -2265,8 +2283,8 @@ def shipment_list(request):
     cache_key = f"shipment_list_{request.user.id}_{getattr(request.user, 'role', 'unknown')}_page_{page_number}_{filter_params}"
     cache_timestamp_key = f"{cache_key}_timestamp"
 
-    # Manual refresh option (clears all cache)
-    if request.GET.get('refresh') == 'true':
+    # Manual refresh option (clears all cache); also bypass when _bust param present (post-delete redirect)
+    if request.GET.get('refresh') == 'true' or request.GET.get('_bust'):
         safe_print("MANUAL CACHE REFRESH requested - clearing ALL cache...")
         cache.clear()  # Clear ALL cache to ensure fresh data
 
@@ -2402,23 +2420,16 @@ def shipment_list(request):
         # Get the inspector ID and name for the current user
         inspector_id = None
         inspector_name = None
-        try:
-            inspector_mapping = InspectorMapping.objects.get(
-                inspector_name=request.user.get_full_name() or request.user.username
-            )
+        inspector_mapping = InspectorMapping.objects.filter(
+            inspector_name=request.user.get_full_name() or request.user.username
+        ).first()
+        if not inspector_mapping:
+            inspector_mapping = InspectorMapping.objects.filter(
+                inspector_name=request.user.username
+            ).first()
+        if inspector_mapping:
             inspector_id = inspector_mapping.inspector_id
             inspector_name = inspector_mapping.inspector_name
-        except InspectorMapping.DoesNotExist:
-            # If no mapping found, try to find by username
-            try:
-                inspector_mapping = InspectorMapping.objects.get(
-                    inspector_name=request.user.username
-                )
-                inspector_id = inspector_mapping.inspector_id
-                inspector_name = inspector_mapping.inspector_name
-            except InspectorMapping.DoesNotExist:
-                inspector_id = None
-                inspector_name = None
 
         # Build filter for own inspections
         q_filter = Q()
@@ -2530,6 +2541,26 @@ def shipment_list(request):
     #         # Only show groups that have at least one inspection without Lab Form uploaded
     #         groups_queryset = groups_queryset.filter(has_no_lab_form_inspections__gt=0)
 
+    # DUPLICATES: Always compute count for badge, then optionally filter the view
+    from django.db.models import Count as DupCount
+    _dup_pairs = list(
+        inspections.values('client_name', 'date_of_inspection')
+        .annotate(_gc=DupCount('inspection_group', distinct=True))
+        .filter(_gc__gt=1)
+        .values_list('client_name', 'date_of_inspection')
+    )
+    _dup_q = Q()
+    for _dc, _dd in _dup_pairs:
+        _dup_q |= Q(client_name=_dc, date_of_inspection=_dd)
+    duplicate_groups_count = groups_queryset.filter(_dup_q).count() if _dup_q else 0
+
+    show_duplicates = request.GET.get('show_duplicates') == 'true'
+    if show_duplicates:
+        if _dup_q:
+            groups_queryset = groups_queryset.filter(_dup_q)
+        else:
+            groups_queryset = groups_queryset.none()
+
     # Check for show_all parameter
     show_all = request.GET.get('show_all', 'false').lower() == 'true'
 
@@ -2625,6 +2656,44 @@ def shipment_list(request):
                     if key_name not in _client_email_map and emails:
                         _client_email_map[key_name] = emails
             
+            # Fallback: for client names not matched by iexact, try compact matching
+            matched_norms = set(list(_client_map.keys()) + list(_client_id_map.keys()) + list(_client_email_map.keys()))
+            unmatched = [cn for cn in client_names_on_page if _norm(cn) not in matched_norms]
+            if unmatched:
+                def _compact(text):
+                    return _norm(text).replace(" ", "")
+                compact_targets = {_compact(cn): cn for cn in unmatched}
+                if compact_targets:
+                    for _c in _Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email').prefetch_related('additional_emails'):
+                        c_compact_name = _compact(_c.name)
+                        c_compact_id = _compact(_c.client_id)
+                        matched_cn = compact_targets.get(c_compact_name) or compact_targets.get(c_compact_id)
+                        if matched_cn:
+                            key = _norm(matched_cn)
+                            emails = []
+                            if _c.email:
+                                for _e in _c.email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'primary', 'removable': True})
+                            if _c.manual_email:
+                                for _e in _c.manual_email.split(','):
+                                    _e = _e.strip()
+                                    if _e:
+                                        emails.append({'email': _e, 'type': 'manual', 'removable': True})
+                            for additional_email in _c.additional_emails.all():
+                                emails.append({'email': additional_email.email, 'type': 'additional', 'removable': True, 'label': additional_email.label})
+                            if emails and key not in _client_email_map:
+                                _client_email_map[key] = emails
+                            if _c.internal_account_code and key not in _client_map:
+                                _client_map[key] = _c.internal_account_code
+                            if key not in _client_id_map:
+                                _client_id_map[key] = _c.client_id
+                            # Remove from targets once matched
+                            compact_targets = {k: v for k, v in compact_targets.items() if v != matched_cn}
+                            if not compact_targets:
+                                break
+
             client_data = {
                 'client_map': _client_map,
                 'client_id_map': _client_id_map,
@@ -3279,6 +3348,8 @@ def shipment_list(request):
         'paginator': paginator,
         'page_obj': page_obj,
         'show_all': show_all,  # Pass actual show_all value to template
+        'show_duplicates': show_duplicates,  # Pass duplicate filter state to template
+        'duplicate_groups_count': duplicate_groups_count,  # Count for badge on button
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }
@@ -8368,16 +8439,120 @@ def inspector_dashboard(request):
     else:
         forecast_data = []
     
+    # -------------------------------------------------------------------------
+    # KPI: Compare actual inspections this quarter against targets
+    # -------------------------------------------------------------------------
+    from ..models import InspectorTarget, QuarterlyTarget
+    import calendar
+
+    today = date.today()
+    current_quarter = (today.month - 1) // 3 + 1  # 1-4
+    quarter_start_month = (current_quarter - 1) * 3 + 1
+    quarter_end_month = quarter_start_month + 2
+    quarter_start = date(today.year, quarter_start_month, 1)
+    last_day = calendar.monthrange(today.year, quarter_end_month)[1]
+    quarter_end = date(today.year, quarter_end_month, last_day)
+    total_quarter_days = (quarter_end - quarter_start).days + 1
+    days_elapsed = (today - quarter_start).days + 1
+    quarter_progress_pct = days_elapsed / total_quarter_days  # e.g. 0.80
+
+    # Fetch targets (prefer QuarterlyTarget, fall back to InspectorTarget)
+    qt = QuarterlyTarget.objects.filter(
+        inspector_name__iexact=inspector_name,
+        year=today.year,
+        quarter=current_quarter
+    ).first()
+    it = InspectorTarget.objects.filter(inspector_name__iexact=inspector_name).first()
+
+    def _t(quarterly_val, annual_val, default=0):
+        """Return quarterly target, then annual, then default."""
+        if quarterly_val is not None and quarterly_val > 0:
+            return quarterly_val
+        if annual_val is not None and annual_val > 0:
+            return annual_val
+        return default
+
+    kpi_targets = {
+        'POULTRY': _t(getattr(qt, 'poultry', None), getattr(it, 'poultry', None)),
+        'RAW':     _t(getattr(qt, 'raw', None),     getattr(it, 'raw', None)),
+        'PMP':     _t(getattr(qt, 'pmp', None),     getattr(it, 'pmp', None)),
+        'EGGS':    _t(getattr(qt, 'eggs', None),    getattr(it, 'eggs', None)),
+    }
+    kpi_total_target = _t(
+        sum(getattr(qt, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if qt else 0,
+        sum(getattr(it, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if it else 0,
+    )
+
+    # Actual per commodity this quarter
+    q_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=quarter_start,
+        date_of_inspection__lte=today,
+    )
+    kpi_actual = {}
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        kpi_actual[commodity] = q_inspections.filter(commodity__iexact=commodity).count()
+    kpi_actual_total = q_inspections.count()
+
+    # Build per-commodity KPI rows
+    COMMODITY_LABELS = {'POULTRY': 'Poultry', 'RAW': 'Raw Meat', 'PMP': 'PMP', 'EGGS': 'Eggs'}
+    kpi_rows = []
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        target = kpi_targets[commodity]
+        actual = kpi_actual[commodity]
+        expected_by_now = round(target * quarter_progress_pct) if target else 0
+        if target > 0:
+            pct_of_target = round(actual / target * 100)
+            pct_of_expected = round(actual / expected_by_now * 100) if expected_by_now else 100
+        else:
+            pct_of_target = 0
+            pct_of_expected = 0
+
+        if target == 0:
+            status = 'no_target'
+        elif pct_of_expected >= 100:
+            status = 'on_track'
+        elif pct_of_expected >= 75:
+            status = 'slightly_behind'
+        else:
+            status = 'behind'
+
+        kpi_rows.append({
+            'commodity': commodity,
+            'label': COMMODITY_LABELS[commodity],
+            'target': target,
+            'actual': actual,
+            'expected_by_now': expected_by_now,
+            'pct_of_target': min(pct_of_target, 100),
+            'pct_of_expected': pct_of_expected,
+            'status': status,
+        })
+
+    # Overall KPI status
+    if kpi_total_target == 0:
+        kpi_overall_status = 'no_target'
+    else:
+        expected_total = round(kpi_total_target * quarter_progress_pct)
+        overall_pct = round(kpi_actual_total / expected_total * 100) if expected_total else 100
+        if overall_pct >= 100:
+            kpi_overall_status = 'on_track'
+        elif overall_pct >= 75:
+            kpi_overall_status = 'slightly_behind'
+        else:
+            kpi_overall_status = 'behind'
+
+    quarter_label = f"Q{current_quarter} {today.year}"
+    quarter_progress_display = round(quarter_progress_pct * 100)
+
     # Debug: Print some values to see what's happening
     print(f"Debug - Inspector: {inspector_name}")
     print(f"Debug - Total inspections for inspector: {total_inspections}")
     print(f"Debug - Monthly inspections count: {len(monthly_inspections)}")
     print(f"Debug - Compliance rate: {compliance_rate:.1f}%")
-    
+
     # Convert QuerySets to lists for proper JSON serialization
     import json
     from django.core.serializers.json import DjangoJSONEncoder
-    
+
     context = {
         'inspector_name': inspector_name,
         'total_inspections': total_inspections,
@@ -8392,6 +8567,14 @@ def inspector_dashboard(request):
         'non_compliant_inspections': non_compliant_inspections,
         'compliance_rate': round(compliance_rate, 1),
         'recent_inspections_list': recent_inspections_list,
+        # KPI
+        'kpi_rows': kpi_rows,
+        'kpi_overall_status': kpi_overall_status,
+        'kpi_actual_total': kpi_actual_total,
+        'kpi_total_target': kpi_total_target,
+        'quarter_label': quarter_label,
+        'quarter_progress_display': quarter_progress_display,
+        'has_targets': kpi_total_target > 0,
     }
     
     return render(request, 'main/inspector_dashboard.html', context)
@@ -8524,7 +8707,7 @@ def analytics_dashboard(request):
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled'),
         last_inspection=Max('date_of_inspection')
-    ).order_by('-total_inspections')[:15]
+    ).order_by('-total_inspections')
 
     # Calculate compliance rate for each inspector
     for inspector in inspector_performance:
@@ -8789,7 +8972,7 @@ def analytics_dashboard(request):
         Q(hours__isnull=True) | Q(hours=0)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours')
-    ).order_by('-total_hours')[:15])
+    ).order_by('-total_hours'))
 
     # === INSPECTIONS LIST (for table) ===
     inspections_list_qs = FoodSafetyAgencyInspection.objects.order_by('-date_of_inspection').values(
@@ -9469,7 +9652,7 @@ def analytics_dashboard(request):
         'invoice_upload_time_list': invoice_upload_time,
         'coa_analysis_time_list': coa_analysis_time,
         'approval_time_list': approval_time,
-        'travel_time_list': travel_time_per_inspector[:15],
+        'travel_time_list': travel_time_per_inspector,
 
         # Theme settings
         'settings': settings,
@@ -9572,6 +9755,9 @@ def analytics_dashboard_api(request):
     if commodity and commodity != 'all':
         qs = qs.filter(commodity=commodity)
 
+    # Flag whether any date-related filter was applied
+    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
+
     # Build matching InspectionGroup filter for group-level metrics (km, hours)
     group_qs = InspectionGroup.objects.all()
     if date_from:
@@ -9642,11 +9828,13 @@ def analytics_dashboard_api(request):
     ).values('facility_type').annotate(count=Count('id')).order_by('-count'))
 
     # Monthly commodity trends
-    twelve_months_ago = datetime.now() - timedelta(days=365)
-    trends_qs = qs.exclude(
+    _base_trends_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(date_of_inspection__gte=twelve_months_ago)
-    monthly_commodity_trends = list(trends_qs.annotate(
+    )
+    if not _has_date_filter:
+        twelve_months_ago = datetime.now() - timedelta(days=365)
+        _base_trends_qs = _base_trends_qs.filter(date_of_inspection__gte=twelve_months_ago)
+    monthly_commodity_trends = list(_base_trends_qs.annotate(
         month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(count=Count('id')).order_by('month', 'commodity'))
 
@@ -9662,14 +9850,15 @@ def analytics_dashboard_api(request):
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
-    # Daily compliance trend per commodity (last 30 days)
+    # Daily compliance trend per commodity (last 30 days, or user's filtered range)
     from django.db.models.functions import TruncDay
     thirty_days_ago = datetime.now() - timedelta(days=30)
-    daily_compliance_trend = list(qs.exclude(
+    _daily_base_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
-    ).filter(
-        date_of_inspection__gte=thirty_days_ago
-    ).exclude(date_of_inspection__isnull=True).annotate(
+    )
+    if not _has_date_filter:
+        _daily_base_qs = _daily_base_qs.filter(date_of_inspection__gte=thirty_days_ago)
+    daily_compliance_trend = list(_daily_base_qs.exclude(date_of_inspection__isnull=True).annotate(
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
@@ -9683,7 +9872,7 @@ def analytics_dashboard_api(request):
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
-    ).order_by('-total_hours')[:15])
+    ).order_by('-total_hours'))
 
     # Inspections list
     inspections_list = list(qs.order_by('-date_of_inspection').values(
@@ -9698,10 +9887,9 @@ def analytics_dashboard_api(request):
         total_inspections=Count('id'),
         compliant=Count('id', filter=Q(approved_status='APPROVED')),
         non_compliant=Count('id', filter=Q(approved_status='PENDING')),
-    ).order_by('-total_inspections')[:15])
+    ).order_by('-total_inspections'))
 
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
-    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
     _inspector_trend_base = qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True)
@@ -13268,7 +13456,9 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
         if client_name and client_name.startswith('btn-'):
             client_name = client_name[4:]
 
-        # Parse date
+        # Parse date (strip whitespace that may come from template formatting)
+        if inspection_date:
+            inspection_date = inspection_date.strip()
         date_obj = None
         date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y%m%d']
         for fmt in date_formats:
@@ -15782,9 +15972,12 @@ def send_group_documents(request):
 
         data = json.loads(request.body)
         group_id = data.get('group_id', '')
-        inspection_group_id = data.get('inspection_group_id', '')
-        client_name = data.get('client_name', '')
-        inspection_date = data.get('inspection_date', '')
+        inspection_group_id = data.get('inspection_group_id', '') or group_id
+        client_name = data.get('client_name', '').strip()
+        inspection_date = data.get('inspection_date', '').strip()
+
+        print(f"[SEND DEBUG] Received: client_name='{client_name}', inspection_date='{inspection_date}', group_id='{group_id}', inspection_group_id='{inspection_group_id}'")
+        print(f"[SEND DEBUG] client_name bytes: {[hex(ord(c)) for c in client_name]}")
 
         # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
         files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
@@ -15800,6 +15993,31 @@ def send_group_documents(request):
                     if os.path.isfile(full_path):
                         attachments.append(full_path)
                         documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+
+        # Fallback: if no files found by name+date, try lookup by inspection_group_id
+        if not attachments and inspection_group_id:
+            print(f"[SEND DEBUG] Name+date lookup found 0 files. Trying fallback via inspection_group_id={inspection_group_id}")
+            from main.models import FoodSafetyAgencyInspection
+            CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
+            fallback_inspections = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).select_related('client')
+            print(f"[SEND DEBUG] Fallback found {fallback_inspections.count()} inspection(s) by group_id")
+            docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
+            for insp in fallback_inspections:
+                client_obj = insp.client
+                if client_obj:
+                    docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
+                    print(f"[SEND DEBUG] Fallback checking path: {docs_path} exists={os.path.exists(docs_path)}")
+                    if os.path.exists(docs_path):
+                        for category in CATEGORIES:
+                            cat_path = os.path.join(docs_path, category)
+                            if os.path.exists(cat_path):
+                                for filename in os.listdir(cat_path):
+                                    file_path = os.path.join(cat_path, filename)
+                                    if os.path.isfile(file_path):
+                                        attachments.append(file_path)
+                                        documents_found.append(f"{category}/{filename}")
 
         if not attachments:
             return JsonResponse({
@@ -15862,6 +16080,11 @@ def send_group_documents(request):
         for category, file_list in files_by_category.items():
             if file_list:
                 attached_categories.add(category)
+        # Also include categories from fallback-found documents
+        for doc_entry in documents_found:
+            cat = doc_entry.split('/')[0] if '/' in doc_entry else ''
+            if cat:
+                attached_categories.add(cat)
 
         documents_lines = ''
         for cat_key, cat_label in category_display.items():
@@ -15978,6 +16201,18 @@ def send_group_documents(request):
             if mgmt_email not in cc_emails:
                 cc_emails.append(mgmt_email)
 
+        # Strip syntactically broken addresses so Graph doesn't reject the whole request.
+        # Valid-looking addresses are sent as-is; Exchange handles NDRs naturally.
+        import re as _re
+        _email_re = _re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+        to_emails = [e for e in to_emails if _email_re.match(e)]
+        cc_emails = [e for e in cc_emails if _email_re.match(e)]
+        if not to_emails:
+            return JsonResponse({
+                'success': False,
+                'error': f'No valid recipient email address found for {client_name}. Please correct the client email in the system.'
+            })
+
         email = EmailMessage(
             subject=subject,
             body=html_message,
@@ -16016,7 +16251,9 @@ def send_group_documents(request):
 
         # Get sender display name
         sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-        sent_time = timezone.now().strftime('%d %b %Y %H:%M')
+        import pytz
+        sast = pytz.timezone('Africa/Johannesburg')
+        sent_time = timezone.now().astimezone(sast).strftime('%d %b %Y %H:%M')
 
         cc_msg = f' (CC: {", ".join(cc_emails)})' if cc_emails else ''
         to_msg = ', '.join(to_emails)
@@ -16092,13 +16329,67 @@ def get_client_email(client_name, inspection_group_id=None):
             cleaned = re.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
             return re.sub(r"\s+", " ", cleaned).strip().lower()
 
+        def _compact(text):
+            """Remove all spaces for compact comparison (e.g. 'Super Spar' == 'SuperSpar')"""
+            return _norm(text).replace(" ", "")
+
         norm_name = _norm(client_name)
+        compact_name = _compact(client_name)
         if norm_name:
             for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
-                if _norm(c.client_id) == norm_name or _norm(c.name) == norm_name:
+                c_norm = _norm(c.name)
+                c_cid_norm = _norm(c.client_id)
+                # Exact normalized match
+                if c_cid_norm == norm_name or c_norm == norm_name:
                     email = _extract_email(c)
                     if email:
                         return email
+                # Compact match (ignores spaces: "Super Spar" == "SuperSpar")
+                if _compact(c.name) == compact_name or _compact(c.client_id) == compact_name:
+                    email = _extract_email(c)
+                    if email:
+                        return email
+
+        # 5. Try additional_email from InspectionGroup
+        if inspection_group_id:
+            from ..models import InspectionGroup
+            ig_email = InspectionGroup.objects.filter(
+                id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if ig_email:
+                # Take first email if comma-separated
+                first_email = ig_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 6. Try additional_email from FoodSafetyAgencyInspection
+        if inspection_group_id:
+            insp_email = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(
+                additional_email__isnull=True
+            ).exclude(
+                additional_email__exact=''
+            ).values_list('additional_email', flat=True).first()
+            if insp_email:
+                first_email = insp_email.split(',')[0].strip()
+                if first_email:
+                    return first_email
+
+        # 7. Try email fields from Inspection model (legacy)
+        from ..models import Inspection
+        insp_legacy = Inspection.objects.filter(
+            facility_client_name__iexact=client_name
+        ).first()
+        if insp_legacy:
+            for field in ['email', 'additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                val = getattr(insp_legacy, field, None)
+                if val and val.strip():
+                    return val.strip()
 
         return None
 

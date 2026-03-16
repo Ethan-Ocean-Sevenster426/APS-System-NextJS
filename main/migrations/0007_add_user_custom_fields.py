@@ -10,8 +10,11 @@ def add_user_columns(apps, schema_editor):
     if db_engine == 'mysql':
         cursor.execute("SHOW COLUMNS FROM auth_user")
         existing = {row[0] for row in cursor.fetchall()}
+    elif db_engine == 'sqlite':
+        cursor.execute("PRAGMA table_info(auth_user)")
+        existing = {row[1] for row in cursor.fetchall()}
     else:
-        # PostgreSQL / SQLite
+        # PostgreSQL
         cursor.execute(
             "SELECT column_name FROM information_schema.columns "
             "WHERE table_name = 'auth_user'"
@@ -25,7 +28,11 @@ def add_user_columns(apps, schema_editor):
     if 'department' not in existing:
         cursor.execute("ALTER TABLE auth_user ADD COLUMN department VARCHAR(100) NULL")
     if 'employee_id' not in existing:
-        cursor.execute("ALTER TABLE auth_user ADD COLUMN employee_id VARCHAR(50) NULL UNIQUE")
+        if db_engine == 'sqlite':
+            cursor.execute("ALTER TABLE auth_user ADD COLUMN employee_id VARCHAR(50) NULL")
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS auth_user_employee_id_uniq ON auth_user(employee_id)")
+        else:
+            cursor.execute("ALTER TABLE auth_user ADD COLUMN employee_id VARCHAR(50) NULL UNIQUE")
 
 
 class Migration(migrations.Migration):

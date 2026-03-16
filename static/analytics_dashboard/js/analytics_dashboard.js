@@ -1173,24 +1173,35 @@ function renderComplianceTrendChart() {
     destroyChart('complianceTrendChart');
     var canvas = document.getElementById('complianceTrendChart');
     if (!canvas) return;
-    var items = dashboardData.monthlyComplianceTrend || [];
+    var items = dashboardData.dailyComplianceTrend || [];
     if (items.length === 0) return;
 
     var brandColors = { 'POULTRY': '#107c10', 'EGG': '#f59e0b', 'EGGS': '#f59e0b', 'PMP': '#0078d4', 'RAW': '#d13438' };
     var commodityData = {};
     var weeksSet = new Set();
 
+    // Aggregate daily data into weekly buckets
     items.forEach(function(item) {
         var comm = item.commodity;
-        // Handle week format (YYYY-MM-DD for week start)
-        var weekStr = typeof item.month === 'string' ? item.month.substring(0, 10) : '';
-        if (!weekStr && item.month && item.month.getFullYear) {
-            var d = new Date(item.month);
-            weekStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        var dayStr = typeof item.day === 'string' ? item.day.substring(0, 10) : '';
+        if (!dayStr && item.day) {
+            var d = new Date(item.day);
+            dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
+        // Get week start (Monday)
+        var date = new Date(dayStr);
+        var day = date.getDay();
+        var diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        date.setDate(diff);
+        var weekStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
         weeksSet.add(weekStr);
         if (!commodityData[comm]) commodityData[comm] = {};
-        commodityData[comm][weekStr] = item.compliance_rate;
+        if (!commodityData[comm][weekStr]) commodityData[comm][weekStr] = { total: 0, compliant: 0 };
+        // Back-calculate compliant count from rate
+        var total = item.total || 1;
+        var compliant = Math.round((item.compliance_rate / 100) * total);
+        commodityData[comm][weekStr].total += total;
+        commodityData[comm][weekStr].compliant += compliant;
     });
 
     var weeks = Array.from(weeksSet).sort();
@@ -1204,7 +1215,11 @@ function renderComplianceTrendChart() {
     Object.keys(commodityData).sort().forEach(function(comm) {
         datasets.push({
             label: comm,
-            data: weeks.map(function(w) { return commodityData[comm][w] || null; }),
+            data: weeks.map(function(w) {
+                var bucket = commodityData[comm][w];
+                if (!bucket || bucket.total === 0) return null;
+                return Math.round((bucket.compliant / bucket.total) * 100 * 10) / 10;
+            }),
             borderColor: brandColors[comm] || '#616161',
             backgroundColor: 'transparent',
             borderWidth: 2.5,
@@ -1356,7 +1371,7 @@ function renderCommodityCountChart() {
     chartInstances['commodityCountChart'] = new Chart(canvas, {
         type: 'doughnut',
         data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 2, borderColor: bg }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: txtColor(), padding: 10 } } }, cutout: '60%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: txtColor(), padding: 10, boxWidth: 12 } } }, cutout: '60%' }
     });
 }
 
@@ -1546,14 +1561,13 @@ function renderCommodityTrendChart() {
     destroyChart('commodityTrendChart');
     var canvas = document.getElementById('commodityTrendChart');
     if (!canvas) return;
-    var trends = dashboardData.monthlyCommodityTrends || [];
+    var trends = dashboardData.dailyComplianceTrend || [];
     if (trends.length === 0) return;
 
     var commodityMap = {};
     var dateSet = new Set();
     trends.forEach(function(item) {
-        // Handle daily data format (YYYY-MM-DD)
-        var date = item.month ? (typeof item.month === 'string' ? item.month.substring(0, 10) : '') : 'Unknown';
+        var date = item.day ? (typeof item.day === 'string' ? item.day.substring(0, 10) : '') : 'Unknown';
         var commodity = item.commodity || 'Unknown';
         dateSet.add(date);
         if (!commodityMap[commodity]) commodityMap[commodity] = {};
@@ -2291,8 +2305,7 @@ function renderDocSendChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#0078d4',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2310,15 +2323,17 @@ function renderDocSendTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyDocSendTrend || [];
     if (!items.length) { return; }
+    var useBar = items.length <= 1;
     chartInstances['docSendTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Send',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#0078d4', backgroundColor: 'rgba(0,120,212,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#0078d4'
+                borderColor: '#0078d4', backgroundColor: useBar ? '#0078d4' : 'rgba(0,120,212,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#0078d4',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2350,8 +2365,7 @@ function renderInvoiceUploadChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#f59e0b',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2369,15 +2383,17 @@ function renderInvoiceTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyInvoiceTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['invoiceTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Upload Invoice',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#f59e0b'
+                borderColor: '#f59e0b', backgroundColor: useBar ? '#f59e0b' : 'rgba(245,158,11,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#f59e0b',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2394,6 +2410,12 @@ function renderCoaTimeChart() {
     if (!canvas) return;
     var items = dashboardData.coaAnalysisTime || [];
     if (!items.length) return;
+
+    // Dynamic height so every commodity gets enough space
+    var barH = 32;
+    var minHeight = Math.max(280, items.length * barH + 60);
+    canvas.parentElement.style.minHeight = minHeight + 'px';
+
     chartInstances['coaTimeChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -2403,12 +2425,14 @@ function renderCoaTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#10b981',
                 borderRadius: 4,
+                barThickness: 20
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { var item = items[ctx.dataIndex]; return ctx.raw + ' days (' + item.count + ' records)'; } } } },
-            scales: { x: { grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } } }
+            scales: { x: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: txtColor() } }, y: { grid: { display: false }, ticks: { color: txtColor(), font: { size: 10 }, autoSkip: false } } }
         }
     });
 }
@@ -2434,8 +2458,7 @@ function renderApprovalTimeChart() {
                 data: items.map(function(d) { return d.avg_days; }),
                 backgroundColor: '#8764b8',
                 borderRadius: 4,
-                barPercentage: 0.55,
-                categoryPercentage: 0.8
+                barThickness: 20
             }]
         },
         options: {
@@ -2490,15 +2513,17 @@ function renderCoaTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyCoaTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['coaTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days (Sample to COA)',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#10b981'
+                borderColor: '#10b981', backgroundColor: useBar ? '#10b981' : 'rgba(16,185,129,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#10b981',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2521,15 +2546,17 @@ function renderApprovalTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyApprovalTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['approvalTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Avg Days to Approval',
                 data: items.map(function(d) { return d.avg_days; }),
-                borderColor: '#8764b8', backgroundColor: 'rgba(135,100,184,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#8764b8'
+                borderColor: '#8764b8', backgroundColor: useBar ? '#8764b8' : 'rgba(135,100,184,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#8764b8',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2552,15 +2579,17 @@ function renderTravelHoursTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyTravelHoursTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['travelHoursTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return d.month; }),
             datasets: [{
                 label: 'Total Travel Hours',
                 data: items.map(function(d) { return d.total_hours; }),
-                borderColor: '#00b7c3', backgroundColor: 'rgba(0,183,195,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#00b7c3'
+                borderColor: '#00b7c3', backgroundColor: useBar ? '#00b7c3' : 'rgba(0,183,195,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#00b7c3',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
@@ -2608,15 +2637,17 @@ function renderTravelTrendChart() {
     if (!canvas) return;
     var items = dashboardData.monthlyTravelTrend || [];
     if (!items.length) return;
+    var useBar = items.length <= 1;
     chartInstances['travelTrendChart'] = new Chart(canvas, {
-        type: 'line',
+        type: useBar ? 'bar' : 'line',
         data: {
             labels: items.map(function(d) { return typeof d.month === 'string' ? d.month.substring(0, 7) : new Date(d.month).toLocaleDateString('en', {year:'numeric', month:'short'}); }),
             datasets: [{
                 label: 'Total KM',
                 data: items.map(function(d) { return parseFloat(d.total_km) || 0; }),
-                borderColor: '#107c10', backgroundColor: 'rgba(16,124,16,0.1)',
-                tension: 0.3, fill: true, pointRadius: 4, pointBackgroundColor: '#107c10'
+                borderColor: '#107c10', backgroundColor: useBar ? '#107c10' : 'rgba(16,124,16,0.1)',
+                tension: 0.3, fill: !useBar, pointRadius: 4, pointBackgroundColor: '#107c10',
+                borderRadius: useBar ? 4 : 0
             }]
         },
         options: {
