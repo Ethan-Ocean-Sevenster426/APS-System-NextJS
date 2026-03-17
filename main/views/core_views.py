@@ -10488,6 +10488,48 @@ def save_quarterly_target(request):
 
 
 @login_required
+def get_inspector_salaries(request):
+    """Return all inspector salaries as JSON."""
+    from ..models import InspectorSalary
+    salaries = InspectorSalary.objects.all()
+    data = {}
+    for s in salaries:
+        data[s.inspector_name.lower()] = {
+            'salary': float(s.monthly_salary),
+            'employee_number': s.employee_number,
+        }
+    return JsonResponse({'salaries': data})
+
+
+@login_required
+def save_inspector_salaries(request):
+    """Save inspector salaries from the modal form."""
+    import json
+    from ..models import InspectorSalary
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    if request.user.role not in ('developer', 'super_admin'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        data = json.loads(request.body)
+        entries = data.get('salaries', {})
+        for name, val in entries.items():
+            salary_val = float(val) if not isinstance(val, dict) else float(val.get('salary', 0))
+            emp_num = val.get('employee_number', '') if isinstance(val, dict) else ''
+            InspectorSalary.objects.update_or_create(
+                inspector_name=name.lower(),
+                defaults={
+                    'monthly_salary': salary_val,
+                    'employee_number': emp_num,
+                    'updated_by': request.user,
+                }
+            )
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def export_analytics(request, format_type):
     """Export analytics data in various formats"""
     if request.method != 'POST':
@@ -17349,8 +17391,8 @@ def fetch_store_first_10_matched_docs(request):
 @role_required(['admin', 'super_admin', 'developer'])
 def user_management(request):
     """User management page for administrators"""
-    from main.models import InspectorMapping
-    
+    from main.models import InspectorMapping, InspectorSalary
+
     # Check if user has admin, super_admin, or developer role
     if not (request.user.has_role_permission('admin') or request.user.has_role_permission('super_admin') or request.user.has_role_permission('developer') or request.user.is_staff):
         messages.error(request, "You don't have permission to access user management.")
@@ -17369,7 +17411,8 @@ def user_management(request):
             last_name = request.POST.get('new_last_name', '')
             role = request.POST.get('new_role', 'inspector')
             inspector_id = request.POST.get('new_inspector_id', '')
-            
+            monthly_salary = request.POST.get('new_monthly_salary', '').strip()
+
             # Only developers can create other developers
             if role == 'developer' and request.user.role != 'developer':
                 messages.error(request, "Only developers can create users with developer status.")
@@ -17410,6 +17453,18 @@ def user_management(request):
                             messages.success(request, f"User '{username}' created successfully with role '{role}' and inspector ID '{inspector_id}'.")
                         else:
                             messages.success(request, f"User '{username}' created successfully with role '{role}'.")
+
+                        # Create salary record if provided
+                        if monthly_salary:
+                            salary_name = last_name.lower() if last_name else username.lower()
+                            InspectorSalary.objects.update_or_create(
+                                inspector_name=salary_name,
+                                defaults={
+                                    'monthly_salary': float(monthly_salary),
+                                    'employee_number': inspector_id or '',
+                                    'updated_by': request.user,
+                                }
+                            )
                     except Exception as e:
                         messages.error(request, f"Error creating user: {str(e)}")
             else:
@@ -17424,6 +17479,19 @@ def user_management(request):
                     # Set role
                     user.role = role
                     user.save()
+
+                    # Create salary record if provided
+                    if monthly_salary:
+                        salary_name = last_name.lower() if last_name else username.lower()
+                        InspectorSalary.objects.update_or_create(
+                            inspector_name=salary_name,
+                            defaults={
+                                'monthly_salary': float(monthly_salary),
+                                'employee_number': '',
+                                'updated_by': request.user,
+                            }
+                        )
+
                     messages.success(request, f"User '{username}' created successfully with role '{role}'.")
                 except Exception as e:
                     messages.error(request, f"Error creating user: {str(e)}")
@@ -17616,6 +17684,18 @@ def user_management(request):
         {'id': u.id, 'name': u.get_full_name() or u.username}
         for u in inspector_users
     ])
+
+    # Build salary lookup keyed by lowercase last_name for the inspector salary panel
+    salary_lookup = {s.inspector_name.lower(): s for s in InspectorSalary.objects.all()}
+    inspectors_with_salary = []
+    for u in inspector_users:
+        last = (u.last_name or '').strip().lower()
+        first = (u.first_name or '').strip().lower()
+        salary_obj = salary_lookup.get(last) or salary_lookup.get(first)
+        inspectors_with_salary.append({
+            'user': u,
+            'salary': salary_obj,
+        })
     all_allocations = InspectorManagerAllocation.objects.all()
     manager_allocations = {}
     for alloc in all_allocations:
@@ -17639,6 +17719,7 @@ def user_management(request):
         'settings': settings,
         'inspector_users_json': inspector_users_json,
         'manager_allocations_json': manager_allocations_json,
+        'inspectors_with_salary': inspectors_with_salary,
     }
     
     # Ensure CSRF token is properly generated and available
