@@ -100,47 +100,32 @@ def fetch_undeliverable_emails(force_refresh=False):
 
     bounced_emails = set()
 
-    # Search for undeliverable/bounce messages in the inbox
-    # NDR messages typically have subjects containing "Undeliverable" or "Delivery Status Notification"
-    search_filters = [
-        "subject eq 'Undeliverable'",
-        "contains(subject, 'Undeliverable')",
-    ]
-
+    # Use $search (not $filter) as Graph API doesn't support contains() on subject for inbox
     base_url = f"https://graph.microsoft.com/v1.0/users/{from_email}/mailFolders/inbox/messages"
 
-    for search_filter in search_filters:
-        try:
-            params = {
-                '$filter': search_filter,
-                '$select': 'subject,body,receivedDateTime,from',
-                '$top': 200,
-                '$orderby': 'receivedDateTime desc'
-            }
+    try:
+        params = {
+            '$search': '"Undeliverable"',
+            '$select': 'subject,bodyPreview,receivedDateTime',
+            '$top': 200,
+        }
 
-            response = requests.get(base_url, headers=headers, params=params, timeout=30)
+        response = requests.get(base_url, headers=headers, params=params, timeout=30)
 
-            if response.status_code != 200:
-                logger.warning(f"Graph inbox query failed ({response.status_code}): {response.text[:200]}")
-                continue
-
+        if response.status_code != 200:
+            logger.warning(f"Graph inbox search failed ({response.status_code}): {response.text[:200]}")
+        else:
             messages = response.json().get('value', [])
-            logger.info(f"Found {len(messages)} undeliverable messages with filter: {search_filter}")
+            logger.info(f"Found {len(messages)} undeliverable messages")
 
             for msg in messages:
-                body_content = msg.get('body', {}).get('content', '')
-                # Strip HTML tags for easier parsing
-                clean_body = re.sub(r'<[^>]+>', ' ', body_content)
-                found_emails = _extract_bounced_emails(clean_body)
+                # Use bodyPreview (plain text) to avoid heavy HTML parsing
+                preview = msg.get('bodyPreview', '')
+                found_emails = _extract_bounced_emails(preview)
                 bounced_emails.update(found_emails)
 
-            # If first filter returns results, skip the second to avoid duplicates
-            if messages:
-                break
-
-        except Exception as e:
-            logger.error(f"Error fetching undeliverable emails: {e}")
-            continue
+    except Exception as e:
+        logger.error(f"Error fetching undeliverable emails: {e}")
 
     logger.info(f"Total unique bounced email addresses found: {len(bounced_emails)}")
     cache.set(UNDELIVERABLE_CACHE_KEY, bounced_emails, UNDELIVERABLE_CACHE_TTL)
