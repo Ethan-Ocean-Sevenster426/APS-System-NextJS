@@ -236,10 +236,50 @@
             }
         });
 
+        // Multi-select dropdown helpers
+        function toggleMultiSelect(type) {
+            const panel = document.getElementById(type + 'DropdownPanel');
+            const arrow = document.getElementById(type + 'Arrow');
+            const isOpen = panel.classList.contains('open');
+            // Close all panels first
+            document.querySelectorAll('.multi-select-panel').forEach(p => p.classList.remove('open'));
+            document.querySelectorAll('.multi-select-arrow').forEach(a => a.classList.remove('open'));
+            if (!isOpen) {
+                panel.classList.add('open');
+                arrow.classList.add('open');
+            }
+        }
+
+        function updateMultiSelectLabel(type) {
+            const panel = document.getElementById(type + 'DropdownPanel');
+            const checked = Array.from(panel.querySelectorAll('input[type=checkbox]:checked'));
+            const label = document.getElementById(type + 'DropdownLabel');
+            if (checked.length === 0) {
+                label.textContent = type === 'role' ? 'All Roles' : 'All Status';
+            } else if (checked.length === 1) {
+                label.textContent = checked[0].parentElement.textContent.trim();
+            } else {
+                label.textContent = checked.length + ' selected';
+            }
+        }
+
+        function getMultiSelectValues(type) {
+            const panel = document.getElementById(type + 'DropdownPanel');
+            return Array.from(panel.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.multi-select-wrapper')) {
+                document.querySelectorAll('.multi-select-panel').forEach(p => p.classList.remove('open'));
+                document.querySelectorAll('.multi-select-arrow').forEach(a => a.classList.remove('open'));
+            }
+        });
+
         // User Management Functions
         function filterTable() {
-            const roleFilter = document.getElementById('roleFilter').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+            const roleFilters = getMultiSelectValues('role');
+            const statusFilters = getMultiSelectValues('status');
             const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
             const table = document.getElementById('usersTable');
             const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
@@ -252,11 +292,11 @@
 
                 let showRow = true;
 
-                if (roleFilter && role !== roleFilter) {
+                if (roleFilters.length > 0 && !roleFilters.includes(role)) {
                     showRow = false;
                 }
 
-                if (statusFilter && status !== statusFilter) {
+                if (statusFilters.length > 0 && !statusFilters.includes(status)) {
                     showRow = false;
                 }
 
@@ -266,13 +306,58 @@
 
                 row.style.display = showRow ? '' : 'none';
             }
+            updateSelectAllState();
         }
 
         function clearFilters() {
-            document.getElementById('roleFilter').value = '';
-            document.getElementById('statusFilter').value = '';
+            document.querySelectorAll('#roleDropdownPanel input[type=checkbox], #statusDropdownPanel input[type=checkbox]').forEach(cb => cb.checked = false);
+            updateMultiSelectLabel('role');
+            updateMultiSelectLabel('status');
             document.getElementById('searchFilter').value = '';
             filterTable();
+        }
+
+        // Row selection helpers
+        function toggleSelectAll(masterCb) {
+            const table = document.getElementById('usersTable');
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i].style.display !== 'none') {
+                    const cb = rows[i].querySelector('.row-checkbox');
+                    if (cb) cb.checked = masterCb.checked;
+                }
+            }
+            updateBulkBar();
+        }
+
+        function updateSelectAllState() {
+            const table = document.getElementById('usersTable');
+            const rows = Array.from(table.getElementsByTagName('tbody')[0].getElementsByTagName('tr')).filter(r => r.style.display !== 'none');
+            const master = document.getElementById('selectAllRows');
+            if (!master) return;
+            const checked = rows.filter(r => r.querySelector('.row-checkbox') && r.querySelector('.row-checkbox').checked);
+            master.checked = rows.length > 0 && checked.length === rows.length;
+            master.indeterminate = checked.length > 0 && checked.length < rows.length;
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            const checked = document.querySelectorAll('#usersTable .row-checkbox:checked');
+            const bar = document.getElementById('bulkActionBar');
+            const count = document.getElementById('selectedCount');
+            if (checked.length > 0) {
+                bar.style.display = 'flex';
+                count.textContent = checked.length + ' row' + (checked.length > 1 ? 's' : '') + ' selected';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function clearRowSelection() {
+            document.querySelectorAll('#usersTable .row-checkbox').forEach(cb => cb.checked = false);
+            const master = document.getElementById('selectAllRows');
+            if (master) { master.checked = false; master.indeterminate = false; }
+            updateBulkBar();
         }
 
         function showAddUserModal() {

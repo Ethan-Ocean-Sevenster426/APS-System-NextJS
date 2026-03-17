@@ -235,26 +235,38 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group">
+                            <!-- Role multi-select -->
                             <div class="form-field">
                                 <label class="form-label">Role</label>
-                                <select id="roleFilter" class="form-control">
-                                    <option value="">All Roles</option>
-                                    <option value="inspector">Inspector</option>
-                                    <option value="inspector_manager">Inspector Manager</option>
-                                    <option value="admin">Administrator</option>
-                                    <option value="super_admin">Super Admin</option>
-                                    <option value="financial">Financial Administrator</option>
-                                    <option value="lab_technician">Lab Technician</option>
-                                    <option value="developer">Developer</option>
-                                </select>
+                                <div class="multi-select-wrapper" id="roleDropdownWrapper">
+                                    <button type="button" class="multi-select-btn form-control" id="roleDropdownBtn" onclick="toggleMultiSelect('role')">
+                                        <span id="roleDropdownLabel">All Roles</span>
+                                        <i class="fas fa-chevron-down multi-select-arrow" id="roleArrow"></i>
+                                    </button>
+                                    <div class="multi-select-panel" id="roleDropdownPanel">
+                                        <label class="multi-select-option"><input type="checkbox" value="inspector" onchange="updateMultiSelectLabel('role')"> Inspector</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="inspector_manager" onchange="updateMultiSelectLabel('role')"> Inspector Manager</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="admin" onchange="updateMultiSelectLabel('role')"> Administrator</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="super_admin" onchange="updateMultiSelectLabel('role')"> Super Admin</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="financial" onchange="updateMultiSelectLabel('role')"> Financial Administrator</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="lab_technician" onchange="updateMultiSelectLabel('role')"> Lab Technician</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="developer" onchange="updateMultiSelectLabel('role')"> Developer</label>
+                                    </div>
+                                </div>
                             </div>
+                            <!-- Status multi-select -->
                             <div class="form-field">
                                 <label class="form-label">Status</label>
-                                <select id="statusFilter" class="form-control">
-                                    <option value="">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
+                                <div class="multi-select-wrapper" id="statusDropdownWrapper">
+                                    <button type="button" class="multi-select-btn form-control" id="statusDropdownBtn" onclick="toggleMultiSelect('status')">
+                                        <span id="statusDropdownLabel">All Status</span>
+                                        <i class="fas fa-chevron-down multi-select-arrow" id="statusArrow"></i>
+                                    </button>
+                                    <div class="multi-select-panel" id="statusDropdownPanel">
+                                        <label class="multi-select-option"><input type="checkbox" value="active" onchange="updateMultiSelectLabel('status')"> Active</label>
+                                        <label class="multi-select-option"><input type="checkbox" value="inactive" onchange="updateMultiSelectLabel('status')"> Inactive</label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-field search-field">
                                 <label class="form-label">Search</label>
@@ -271,6 +283,14 @@
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <!-- Bulk Action Bar -->
+                <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+                    <span id="selectedCount">0 selected</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearRowSelection()">
+                        <i class="fas fa-times"></i> Clear Selection
+                    </button>
                 </div>
 
                 <!-- Users Table -->
@@ -291,6 +311,7 @@
                             <table id="usersTable">
                                 <thead>
                                     <tr>
+                                        <th class="col-select"><input type="checkbox" id="selectAllRows" onchange="toggleSelectAll(this)" title="Select all"></th>
                                         <th class="col-username">Username</th>
                                         <th class="col-email">Email</th>
                                         <th class="col-name">Full Name</th>
@@ -302,6 +323,7 @@
                                 <tbody>
                                     {% for user in users %}
                                     <tr data-role="{{ user.role|default:"inspector" }}" data-status="{% if user.is_active %}active{% else %}inactive{% endif %}" data-search="{{ user.username|lower }} {{ user.email|lower }} {{ user.first_name|lower }} {{ user.last_name|lower }}">
+                                        <td class="col-select"><input type="checkbox" class="row-checkbox" onchange="updateSelectAllState()"></td>
                                         <td class="col-username">
                                             <strong>{{ user.username }}</strong>
                                         </td>
@@ -603,6 +625,12 @@
                         <option value="lab_technician">Lab Technician</option>
                         <option value="developer">Developer</option>
                     </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label class="form-label">Monthly Salary (Optional)</label>
+                    <input type="number" name="new_monthly_salary" class="form-control" step="0.01" min="0" placeholder="e.g. 21000.00">
+                    <small style="color: #888;">Optional — can be set later in the Analytics Dashboard.</small>
                 </div>
 
                 <div class="modal-actions">
