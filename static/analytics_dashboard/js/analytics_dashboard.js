@@ -447,7 +447,11 @@ function isFiltered() {
 }
 
 // Merge filtered inspectorFinancials with full inspector list, filling missing ones with 0
+// Only merges when NO inspector filter is active (so date-only filters still show all inspectors)
 function mergeAllInspectorFinancials(filtered) {
+    var inspFilter = document.getElementById('filterInspector');
+    var hasInspectorFilter = inspFilter && inspFilter.value && inspFilter.value !== 'all';
+    if (hasInspectorFilter) return filtered; // Inspector filter active: show only filtered inspectors
     var allInspectors = (window.DJANGO_CONFIG && window.DJANGO_CONFIG.inspectorFinancials) || [];
     if (allInspectors.length === 0) return filtered;
     var filteredMap = {};
