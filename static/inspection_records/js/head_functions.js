@@ -503,10 +503,10 @@
                     toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
                     toast.textContent = 'Inspection deleted successfully. Refreshing...';
                     document.body.appendChild(toast);
-                    var currentUrl = window.location.href.split('?')[0];
                     var params = new URLSearchParams(window.location.search);
+                    params.delete('page');
                     params.set('_bust', Date.now());
-                    setTimeout(function() { window.location.href = currentUrl + '?' + params.toString(); }, 1000);
+                    setTimeout(function() { window.location.href = window.location.pathname + '?' + params.toString(); }, 1000);
                 } else {
                     alert('Error deleting inspection: ' + (data.error || 'Unknown error'));
                     if (row) {
