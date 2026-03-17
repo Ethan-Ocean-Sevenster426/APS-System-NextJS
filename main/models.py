@@ -1366,3 +1366,18 @@ class XeroInvoice(models.Model):
             return '91-120'
         return '120+'
 
+
+class InspectorSalary(models.Model):
+    """Stores the current monthly salary (CTC) for each inspector."""
+    inspector_name = models.CharField(max_length=100, unique=True)
+    monthly_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employee_number = models.CharField(max_length=50, blank=True, default='')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'inspector_salaries'
+        ordering = ['inspector_name']
+
+    def __str__(self):
+        return f"{self.inspector_name}: R{self.monthly_salary:,.2f}"
