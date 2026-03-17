@@ -285,14 +285,6 @@
                     </div>
                 </div>
 
-                <!-- Bulk Action Bar -->
-                <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
-                    <span id="selectedCount">0 selected</span>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearRowSelection()">
-                        <i class="fas fa-times"></i> Clear Selection
-                    </button>
-                </div>
-
                 <!-- Users Table -->
                 <div class="card">
                     <div class="card-header">
@@ -311,7 +303,6 @@
                             <table id="usersTable">
                                 <thead>
                                     <tr>
-                                        <th class="col-select"><input type="checkbox" id="selectAllRows" onchange="toggleSelectAll(this)" title="Select all"></th>
                                         <th class="col-username">Username</th>
                                         <th class="col-email">Email</th>
                                         <th class="col-name">Full Name</th>
@@ -323,7 +314,6 @@
                                 <tbody>
                                     {% for user in users %}
                                     <tr data-role="{{ user.role|default:"inspector" }}" data-status="{% if user.is_active %}active{% else %}inactive{% endif %}" data-search="{{ user.username|lower }} {{ user.email|lower }} {{ user.first_name|lower }} {{ user.last_name|lower }}">
-                                        <td class="col-select"><input type="checkbox" class="row-checkbox" onchange="updateSelectAllState()"></td>
                                         <td class="col-username">
                                             <strong>{{ user.username }}</strong>
                                         </td>

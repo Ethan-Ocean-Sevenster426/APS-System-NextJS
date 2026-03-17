@@ -306,7 +306,6 @@
 
                 row.style.display = showRow ? '' : 'none';
             }
-            updateSelectAllState();
         }
 
         function clearFilters() {
@@ -315,49 +314,6 @@
             updateMultiSelectLabel('status');
             document.getElementById('searchFilter').value = '';
             filterTable();
-        }
-
-        // Row selection helpers
-        function toggleSelectAll(masterCb) {
-            const table = document.getElementById('usersTable');
-            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-            for (let i = 0; i < rows.length; i++) {
-                if (rows[i].style.display !== 'none') {
-                    const cb = rows[i].querySelector('.row-checkbox');
-                    if (cb) cb.checked = masterCb.checked;
-                }
-            }
-            updateBulkBar();
-        }
-
-        function updateSelectAllState() {
-            const table = document.getElementById('usersTable');
-            const rows = Array.from(table.getElementsByTagName('tbody')[0].getElementsByTagName('tr')).filter(r => r.style.display !== 'none');
-            const master = document.getElementById('selectAllRows');
-            if (!master) return;
-            const checked = rows.filter(r => r.querySelector('.row-checkbox') && r.querySelector('.row-checkbox').checked);
-            master.checked = rows.length > 0 && checked.length === rows.length;
-            master.indeterminate = checked.length > 0 && checked.length < rows.length;
-            updateBulkBar();
-        }
-
-        function updateBulkBar() {
-            const checked = document.querySelectorAll('#usersTable .row-checkbox:checked');
-            const bar = document.getElementById('bulkActionBar');
-            const count = document.getElementById('selectedCount');
-            if (checked.length > 0) {
-                bar.style.display = 'flex';
-                count.textContent = checked.length + ' row' + (checked.length > 1 ? 's' : '') + ' selected';
-            } else {
-                bar.style.display = 'none';
-            }
-        }
-
-        function clearRowSelection() {
-            document.querySelectorAll('#usersTable .row-checkbox').forEach(cb => cb.checked = false);
-            const master = document.getElementById('selectAllRows');
-            if (master) { master.checked = false; master.indeterminate = false; }
-            updateBulkBar();
         }
 
         function showAddUserModal() {
