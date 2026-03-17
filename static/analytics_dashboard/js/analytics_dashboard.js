@@ -290,10 +290,88 @@ function populateFilterOptions() {
     var opts = window.DJANGO_CONFIG.filterOptions || {};
     var yearSel = document.getElementById('filterYear');
     if (yearSel && opts.years) opts.years.forEach(function(y) { var o = document.createElement('option'); o.value = y; o.textContent = y; yearSel.appendChild(o); });
-    var inspSel = document.getElementById('filterInspector');
-    if (inspSel && opts.inspectors) opts.inspectors.forEach(function(n) { var o = document.createElement('option'); o.value = n; o.textContent = n; inspSel.appendChild(o); });
-    var commSel = document.getElementById('filterCommodity');
-    if (commSel && opts.commodities) opts.commodities.forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; commSel.appendChild(o); });
+
+    // Multi-select: Inspectors
+    var inspContainer = document.getElementById('inspectorOptions');
+    if (inspContainer && opts.inspectors) {
+        opts.inspectors.forEach(function(n) {
+            var div = document.createElement('div');
+            div.className = 'multi-select-option';
+            div.setAttribute('data-value', n);
+            div.innerHTML = '<input type="checkbox" value="' + n + '"><span>' + n + '</span>';
+            div.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'INPUT') div.querySelector('input').checked = !div.querySelector('input').checked;
+                div.classList.toggle('selected', div.querySelector('input').checked);
+                updateMultiSelectValue('inspectorMultiSelect', 'filterInspector', 'All Inspectors');
+            });
+            inspContainer.appendChild(div);
+        });
+    }
+
+    // Multi-select: Commodities
+    var commContainer = document.getElementById('commodityOptions');
+    if (commContainer && opts.commodities) {
+        opts.commodities.forEach(function(c) {
+            var div = document.createElement('div');
+            div.className = 'multi-select-option';
+            div.setAttribute('data-value', c);
+            div.innerHTML = '<input type="checkbox" value="' + c + '"><span>' + c + '</span>';
+            div.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'INPUT') div.querySelector('input').checked = !div.querySelector('input').checked;
+                div.classList.toggle('selected', div.querySelector('input').checked);
+                updateMultiSelectValue('commodityMultiSelect', 'filterCommodity', 'All Commodities');
+            });
+            commContainer.appendChild(div);
+        });
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.multi-select-wrapper').forEach(function(w) {
+            if (!w.contains(e.target)) w.querySelector('.multi-select-dropdown').style.display = 'none';
+        });
+    });
+}
+
+function toggleMultiSelect(wrapperId) {
+    var wrapper = document.getElementById(wrapperId);
+    var dd = wrapper.querySelector('.multi-select-dropdown');
+    var isOpen = dd.style.display !== 'none';
+    // Close all others first
+    document.querySelectorAll('.multi-select-dropdown').forEach(function(d) { d.style.display = 'none'; });
+    dd.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+        var searchInput = dd.querySelector('.multi-select-search input');
+        if (searchInput) { searchInput.value = ''; filterMultiSelectOptions(searchInput, wrapperId); searchInput.focus(); }
+    }
+}
+
+function filterMultiSelectOptions(input, wrapperId) {
+    var query = input.value.toLowerCase();
+    var wrapper = document.getElementById(wrapperId);
+    wrapper.querySelectorAll('.multi-select-option').forEach(function(opt) {
+        var text = opt.querySelector('span').textContent.toLowerCase();
+        opt.style.display = text.indexOf(query) !== -1 ? '' : 'none';
+    });
+}
+
+function updateMultiSelectValue(wrapperId, hiddenId, allLabel) {
+    var wrapper = document.getElementById(wrapperId);
+    var hidden = document.getElementById(hiddenId);
+    var checked = wrapper.querySelectorAll('.multi-select-option input:checked');
+    var display = wrapper.querySelector('.multi-select-text');
+    if (checked.length === 0) {
+        hidden.value = 'all';
+        display.textContent = allLabel;
+    } else if (checked.length === 1) {
+        hidden.value = checked[0].value;
+        display.textContent = checked[0].value;
+    } else {
+        var vals = [];
+        checked.forEach(function(cb) { vals.push(cb.value); });
+        hidden.value = vals.join(',');
+        display.innerHTML = vals[0] + ' <span class="multi-select-badge">+' + (vals.length - 1) + '</span>';
+    }
 }
 
 // Period filter - show/hide custom date fields
@@ -568,6 +646,13 @@ function resetFilters() {
     if (els.month) els.month.value = 'all';
     if (els.inspector) els.inspector.value = 'all';
     if (els.commodity) els.commodity.value = 'all';
+    // Reset multi-select checkboxes and display text
+    document.querySelectorAll('.multi-select-option input').forEach(function(cb) { cb.checked = false; });
+    document.querySelectorAll('.multi-select-option').forEach(function(opt) { opt.classList.remove('selected'); });
+    var inspText = document.querySelector('#inspectorMultiSelect .multi-select-text');
+    if (inspText) inspText.textContent = 'All Inspectors';
+    var commText = document.querySelector('#commodityMultiSelect .multi-select-text');
+    if (commText) commText.textContent = 'All Commodities';
     if (els.customFrom) els.customFrom.style.display = 'none';
     if (els.customTo) els.customTo.style.display = 'none';
     if (els.dateFrom) els.dateFrom.value = '';

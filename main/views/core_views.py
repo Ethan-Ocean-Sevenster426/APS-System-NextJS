@@ -9802,10 +9802,19 @@ def analytics_dashboard_api(request):
         qs = qs.filter(date_of_inspection__year=int(year))
     if month and month != 'all':
         qs = qs.filter(date_of_inspection__month=int(month))
+    # Support multi-select: comma-separated inspector/commodity values
     if inspector and inspector != 'all':
-        qs = qs.filter(inspector_name=inspector)
+        inspector_list = [i.strip() for i in inspector.split(',') if i.strip()]
+        if len(inspector_list) == 1:
+            qs = qs.filter(inspector_name=inspector_list[0])
+        else:
+            qs = qs.filter(inspector_name__in=inspector_list)
     if commodity and commodity != 'all':
-        qs = qs.filter(commodity=commodity)
+        commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
+        if len(commodity_list) == 1:
+            qs = qs.filter(commodity=commodity_list[0])
+        else:
+            qs = qs.filter(commodity__in=commodity_list)
 
     # Flag whether any date-related filter was applied
     _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
@@ -9822,7 +9831,11 @@ def analytics_dashboard_api(request):
     if month and month != 'all':
         all_qs = all_qs.filter(date_of_inspection__month=int(month))
     if commodity and commodity != 'all':
-        all_qs = all_qs.filter(commodity=commodity)
+        commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
+        if len(commodity_list) == 1:
+            all_qs = all_qs.filter(commodity=commodity_list[0])
+        else:
+            all_qs = all_qs.filter(commodity__in=commodity_list)
 
     # Build matching InspectionGroup filter for group-level metrics (km, hours)
     group_qs = InspectionGroup.objects.all()
@@ -9835,9 +9848,17 @@ def analytics_dashboard_api(request):
     if month and month != 'all':
         group_qs = group_qs.filter(date_of_inspection__month=int(month))
     if inspector and inspector != 'all':
-        group_qs = group_qs.filter(inspector_name=inspector)
+        inspector_list = [i.strip() for i in inspector.split(',') if i.strip()]
+        if len(inspector_list) == 1:
+            group_qs = group_qs.filter(inspector_name=inspector_list[0])
+        else:
+            group_qs = group_qs.filter(inspector_name__in=inspector_list)
     if commodity and commodity != 'all':
-        group_qs = group_qs.filter(inspections__commodity=commodity).distinct()
+        commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
+        if len(commodity_list) == 1:
+            group_qs = group_qs.filter(inspections__commodity=commodity_list[0]).distinct()
+        else:
+            group_qs = group_qs.filter(inspections__commodity__in=commodity_list).distinct()
 
     # all_group_qs: same date/commodity filters but WITHOUT inspector filter
     all_group_qs = InspectionGroup.objects.all()
@@ -9850,7 +9871,11 @@ def analytics_dashboard_api(request):
     if month and month != 'all':
         all_group_qs = all_group_qs.filter(date_of_inspection__month=int(month))
     if commodity and commodity != 'all':
-        all_group_qs = all_group_qs.filter(inspections__commodity=commodity).distinct()
+        commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
+        if len(commodity_list) == 1:
+            all_group_qs = all_group_qs.filter(inspections__commodity=commodity_list[0]).distinct()
+        else:
+            all_group_qs = all_group_qs.filter(inspections__commodity__in=commodity_list).distinct()
 
     # Total inspections
     total_inspections = qs.count()

@@ -284,15 +284,32 @@
             </div>
             <div class="filter-group">
                 <label>Inspector</label>
-                <select id="filterInspector" class="form-control">
-                    <option value="all">All Inspectors</option>
-                </select>
+                <div class="multi-select-wrapper" id="inspectorMultiSelect">
+                    <div class="multi-select-display" onclick="toggleMultiSelect('inspectorMultiSelect')">
+                        <span class="multi-select-text">All Inspectors</span>
+                        <i class="fas fa-chevron-down" style="font-size:10px;color:#6b7280;"></i>
+                    </div>
+                    <div class="multi-select-dropdown" style="display:none;">
+                        <div class="multi-select-search">
+                            <input type="text" placeholder="Search..." oninput="filterMultiSelectOptions(this, 'inspectorMultiSelect')">
+                        </div>
+                        <div class="multi-select-options" id="inspectorOptions"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="filterInspector" value="all">
             </div>
             <div class="filter-group">
                 <label>Commodity</label>
-                <select id="filterCommodity" class="form-control">
-                    <option value="all">All Commodities</option>
-                </select>
+                <div class="multi-select-wrapper" id="commodityMultiSelect">
+                    <div class="multi-select-display" onclick="toggleMultiSelect('commodityMultiSelect')">
+                        <span class="multi-select-text">All Commodities</span>
+                        <i class="fas fa-chevron-down" style="font-size:10px;color:#6b7280;"></i>
+                    </div>
+                    <div class="multi-select-dropdown" style="display:none;">
+                        <div class="multi-select-options" id="commodityOptions"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="filterCommodity" value="all">
             </div>
             <div class="filter-actions">
                 <button id="applyFilters" class="btn btn-primary btn-sm">
@@ -1043,22 +1060,22 @@
                     <thead>
                         <tr>
                             <th class="fin-col-inspector fin-sticky-col">Inspector</th>
-                            <th class="num">Inspections</th>
-                            <th class="num">Billable Hrs</th>
-                            <th class="num">KM</th>
-                            <th class="num">R/km</th>
-                            <th class="num">On-Site Hrs</th>
-                            <th class="num">Rev (Hours)</th>
-                            <th class="num">Rev (KM)</th>
-                            <th class="num">Rev (Samples)</th>
-                            <th class="num">Total Revenue</th>
-                            <th class="num fin-col-cost">Salary (CTC)</th>
-                            <th class="num fin-col-cost">Expenses</th>
-                            <th class="num fin-col-cost">Management Fees</th>
-                            <th class="num fin-col-cost">Total Cost</th>
-                            <th class="num fin-col-profit">Rev/Hr</th>
-                            <th class="num fin-col-profit">Cost/Hr</th>
-                            <th class="num fin-col-profit">Profit</th>
+                            <th class="num" title="Total inspections completed">Inspections</th>
+                            <th class="num" title="Total hours billed from inspection groups">Billable Hrs</th>
+                            <th class="num" title="Total kilometres driven">KM</th>
+                            <th class="num" title="Rate per kilometre charged">R/km</th>
+                            <th class="num" title="Time on-site (travel start to end)">On-Site Hrs</th>
+                            <th class="num" title="Revenue from billable hours (Hrs × hourly rate)">Rev (Hours)</th>
+                            <th class="num" title="Revenue from kilometres (KM × km rate)">Rev (KM)</th>
+                            <th class="num" title="Revenue from samples collected (samples × sample rate)">Rev (Samples)</th>
+                            <th class="num" title="Sum of all revenue: hours + KM + samples">Total Revenue</th>
+                            <th class="num fin-col-cost" title="Monthly salary cost-to-company">Salary (CTC)</th>
+                            <th class="num fin-col-cost" title="Logged expenses for this inspector">Expenses</th>
+                            <th class="num fin-col-cost" title="20% of (salary + expenses)">Management Fees</th>
+                            <th class="num fin-col-cost" title="Salary + Expenses + Management Fees">Total Cost</th>
+                            <th class="num fin-col-profit" title="Total Revenue ÷ Billable Hours">Rev/Hr</th>
+                            <th class="num fin-col-profit" title="Total Cost ÷ Billable Hours">Cost/Hr</th>
+                            <th class="num fin-col-profit" title="Total Revenue − Total Cost">Profit</th>
                         </tr>
                     </thead>
                     <tbody id="financialTableBody">
