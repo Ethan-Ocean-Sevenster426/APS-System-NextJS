@@ -307,9 +307,59 @@
                 <button id="exportPdfBtn" class="btn btn-primary btn-sm" style="background:#d13438;">
                     <i class="fas fa-file-pdf"></i> PDF
                 </button>
+                <button id="infoToggleBtn" class="btn btn-primary btn-sm" style="background:#6366f1;" onclick="toggleInfoPanel()">
+                    <i class="fas fa-info-circle"></i> Info
+                </button>
             </div>
         </div>
     </div>
+
+    <!-- Info Panel -->
+    <div id="infoPanel" style="display:none; background:linear-gradient(135deg,#f0f9ff,#eff6ff); border:1px solid #bfdbfe; border-radius:10px; padding:20px 24px; margin:0 0 16px; position:relative;">
+        <button onclick="toggleInfoPanel()" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:18px; color:#6b7280; cursor:pointer;">&times;</button>
+        <h3 style="margin:0 0 12px; font-size:15px; color:#1e40af; font-weight:700;"><i class="fas fa-info-circle"></i> Analytics Dashboard Guide</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; font-size:12px; color:#374151; line-height:1.6;">
+            <div>
+                <h4 style="font-size:13px; color:#1e40af; margin:0 0 4px; font-weight:700;">Overview Panel</h4>
+                <p style="margin:0;"><b>Total Inspections</b> — All recorded inspections across all inspectors.<br>
+                <b>Compliance Rate</b> — Percentage of inspections marked as Approved.<br>
+                <b>Active Inspectors</b> — Inspectors with at least one inspection in the filtered period.<br>
+                <b>Occurrence Reports</b> — Non-compliance incidents raised by inspectors.<br>
+                <b>Avg Days: Doc Send</b> — Average days between inspection date and documents being emailed to client.<br>
+                <b>Avg Days: Approval</b> — Average days between inspection date and approval.</p>
+            </div>
+            <div>
+                <h4 style="font-size:13px; color:#1e40af; margin:0 0 4px; font-weight:700;">Inspectors Panel</h4>
+                <p style="margin:0;"><b>Quarterly Targets</b> — Set per-inspector targets for each commodity per quarter. Click "Set Targets" to configure. Shows actual vs target with color coding (green = met, red = behind).<br>
+                <b>Performance Trend</b> — Monthly inspection count per inspector over time.<br>
+                <b>Compliance Per Inspector</b> — Breakdown of approved vs pending per inspector.<br>
+                <b>Directions Issued</b> — Inspectors who issued directions (good inspector work identifying client issues).</p>
+            </div>
+            <div>
+                <h4 style="font-size:13px; color:#1e40af; margin:0 0 4px; font-weight:700;">Compliance Panel</h4>
+                <p style="margin:0;"><b>Compliance Per Commodity</b> — Approval rate for each commodity type (RAW, PMP, EGGS, POULTRY).<br>
+                <b>Daily/Weekly Trends</b> — Compliance rate changes over time per commodity.<br>
+                <b>Samples Taken</b> — Count of lab samples collected per commodity.</p>
+            </div>
+            <div>
+                <h4 style="font-size:13px; color:#1e40af; margin:0 0 4px; font-weight:700;">Operations & Financial</h4>
+                <p style="margin:0;"><b>Operations</b> — Travel distance (KM), hours worked, and efficiency metrics per inspector.<br>
+                <b>Timelines</b> — Document sending turnaround times and approval speeds.<br>
+                <b>Financial</b> — Revenue tracking, inspection fees, and cost analysis per inspector.</p>
+            </div>
+            <div style="grid-column: 1 / -1; padding-top:8px; border-top:1px solid #bfdbfe;">
+                <h4 style="font-size:13px; color:#1e40af; margin:0 0 4px; font-weight:700;">Filters</h4>
+                <p style="margin:0;">Use the filters at the top to narrow data by <b>date range</b>, <b>year</b>, <b>month</b>, <b>inspector</b>, or <b>commodity</b>. Click <b>Apply</b> to refresh all charts and KPIs. Click <b>Reset</b> to clear all filters. <b>Extract</b> downloads data as CSV. <b>PDF</b> exports the current view as a PDF report.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function toggleInfoPanel() {
+        var panel = document.getElementById('infoPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+    </script>
 
     <!-- ============================================================
          PANEL 1: OVERVIEW
