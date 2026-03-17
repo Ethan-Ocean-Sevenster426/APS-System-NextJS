@@ -359,7 +359,7 @@
             // Show salary for inspectors
             const salarySection = document.getElementById('inspectorSalarySection');
             if (role === 'inspector') {
-                const salaryData = (window.USER_MGMT_CONFIG.inspectorSalaryMap || {})[userId];
+                const salaryData = (window.DJANGO_CONFIG.inspectorSalaryMap || {})[userId];
                 const salaryEl = document.getElementById('edit_monthly_salary');
                 const empEl = document.getElementById('edit_employee_number');
                 if (salaryData) {
