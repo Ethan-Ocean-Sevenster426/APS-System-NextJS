@@ -4052,9 +4052,7 @@ renderInspectorTargetsTable = function() {
 
         var isQtTarget = !!_currentQuarterTargets()[name];
 
-        html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name;
-        if (isQtTarget) html += ' <i class="fas fa-bullseye" style="color:#f59e0b; font-size:9px;" title="Quarterly target set"></i>';
-        html += '</td>';
+        html += '<tr><td style="font-weight:600; white-space:nowrap;">' + name + '</td>';
         html += '<td class="num" style="font-weight:700;">' + totalInsp + '</td>';
         html += cell(eggs, t.inspections.EGGS, 'border-left:2px solid #d1d5db;');
         html += cell(poultry, t.inspections.POULTRY);
