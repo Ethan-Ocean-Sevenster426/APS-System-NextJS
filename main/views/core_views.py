@@ -17685,11 +17685,12 @@ def user_management(request):
         for u in inspector_users
     ])
 
-    # Build salary lookup keyed by lowercase last_name for the inspector salary panel
+    # Build salary lookup keyed by lowercase last_name for inspectors and inspector managers
     salary_lookup = {s.inspector_name.lower(): s for s in InspectorSalary.objects.all()}
     inspectors_with_salary = []
     inspector_salary_map = {}
-    for u in inspector_users:
+    salary_users = User.objects.filter(role__in=['inspector', 'inspector_manager']).order_by('first_name', 'last_name', 'username')
+    for u in salary_users:
         last = (u.last_name or '').strip().lower()
         first = (u.first_name or '').strip().lower()
         salary_obj = salary_lookup.get(last) or salary_lookup.get(first)
