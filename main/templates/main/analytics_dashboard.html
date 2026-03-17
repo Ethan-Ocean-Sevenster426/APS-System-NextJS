@@ -421,6 +421,10 @@
                 <div class="card-title">
                     <i class="fas fa-shield-alt"></i>
                     <span>Compliance Per Commodity</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Approval rate breakdown by commodity type (RAW, PMP, EGGS, POULTRY) for the selected period.</span>
+                    </span>
                 </div>
             </div>
             <div class="card-body" id="complianceBarsContainer">
@@ -434,6 +438,10 @@
                 <div class="card-title">
                     <i class="fas fa-chart-line"></i>
                     <span>Daily Compliance Trend by Commodity</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Daily compliance percentage trends across all commodity types over time.</span>
+                    </span>
                 </div>
             </div>
             <div class="card-body" style="height: 260px;">
@@ -448,6 +456,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-bar"></i>
                         <span>Monthly Inspections</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Total number of inspections completed each month.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 200px;">
@@ -459,6 +471,10 @@
                     <div class="card-title">
                         <i class="fas fa-check-double"></i>
                         <span>Approval Rate</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Percentage of inspections approved per month.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 200px;">
@@ -470,6 +486,10 @@
                     <div class="card-title">
                         <i class="fas fa-exclamation-triangle"></i>
                         <span>Occurrence Trend</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly trend of occurrence reports (non-compliance incidents) filed.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 200px;">
@@ -485,6 +505,10 @@
                     <div class="card-title">
                         <i class="fas fa-vial"></i>
                         <span>Samples Taken by Commodity</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Number of laboratory samples collected, broken down by commodity type.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 220px;">
@@ -496,6 +520,10 @@
                     <div class="card-title">
                         <i class="fas fa-building"></i>
                         <span>Facility Types</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Distribution of inspections across different facility types (e.g. abattoir, farm, processor).</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 220px;">
@@ -516,6 +544,10 @@
                 <div class="card-title">
                     <i class="fas fa-bullseye"></i>
                     <span>Inspector Performance vs Targets (Q1: Jan-Mar)</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Radar chart comparing each inspector's actual performance against quarterly targets across all metrics.</span>
+                    </span>
                 </div>
                 <select id="radarInspectorSelect" onchange="renderInspectorRadarChart()" style="font-size: 11px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
                     <option value="all">All Inspectors</option>
@@ -532,6 +564,10 @@
                 <div class="card-title">
                     <i class="fas fa-clipboard-check"></i>
                     <span id="targetsCardTitle">Inspector Quarterly Targets & Activity</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Table showing each inspector's progress toward quarterly commodity targets with actual vs target counts.</span>
+                    </span>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <select id="targetsYear" onchange="onTargetsQuarterChange()" style="font-size:11px; padding:5px 8px; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer;"></select>
@@ -564,6 +600,10 @@
                 <div class="card-title">
                     <i class="fas fa-chart-line"></i>
                     <span>Inspector Performance Trend</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Monthly trend of inspector activity — toggle between inspections, KM, hours, or samples.</span>
+                    </span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <div id="inspectorTrendChartTypeToggle" style="display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 500;">
@@ -593,6 +633,10 @@
                 <div class="card-title">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Compliance Per Inspector</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Directions issued and non-compliance findings per inspector. More directions = more thorough inspections.</span>
+                    </span>
                 </div>
                 <div style="font-size: 0.7rem; color: var(--text-light); font-style: italic;">
                     Directions issued = good inspector work identifying client issues
@@ -615,6 +659,10 @@
                 <div class="card-title">
                     <i class="fas fa-chart-line"></i>
                     <span>Commodity Compliance Trend (%)</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Monthly compliance rate trend for each commodity type as a percentage.</span>
+                    </span>
                 </div>
             </div>
             <div class="card-body" style="height: 240px;">
@@ -629,8 +677,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Weekly Compliance Trend</span>
-                        <i class="fas fa-info-circle" style="font-size: 14px; color: #888; margin-left: 6px; cursor: help;"
-                           id="complianceTrendInfo" title="Inspection breakdown by commodity"></i>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Weekly inspection breakdown by commodity showing compliance trends over time.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -642,6 +692,10 @@
                     <div class="card-title">
                         <i class="fas fa-vial"></i>
                         <span>Samples Taken</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Total lab samples collected per commodity type.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -653,6 +707,10 @@
                     <div class="card-title">
                         <i class="fas fa-building"></i>
                         <span>Facility Types</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Breakdown of inspections by facility type.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -668,6 +726,10 @@
                     <div class="card-title">
                         <i class="fas fa-clock"></i>
                         <span>Time Allocation (Billable Hours)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Distribution of billable hours worked across all inspectors.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -679,6 +741,10 @@
                     <div class="card-title">
                         <i class="fas fa-file-alt"></i>
                         <span>Occurrence Reports ({{ total_occurrence_reports }})</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Number of occurrence reports filed per inspector.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -694,6 +760,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-pie"></i>
                         <span>Commodity Count</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Total inspection count per commodity type.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px; position:relative;">
@@ -705,6 +775,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Occurrence Reports Monthly Trend</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly trend showing how occurrence report volume changes over time.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:240px;">
@@ -727,6 +801,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-area"></i>
                         <span>Monthly Travel Distance (km)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Total kilometres driven by all inspectors each month.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -738,6 +816,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Travel Hours Trend (Monthly)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly trend of hours spent travelling by all inspectors.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -752,6 +834,10 @@
                 <div class="card-title">
                     <i class="fas fa-route"></i>
                     <span>Travel Distance Per Inspector</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Total kilometres driven by each inspector for the selected period.</span>
+                    </span>
                 </div>
             </div>
             <div class="card-body" style="min-height: 300px;">
@@ -765,6 +851,10 @@
                 <div class="card-title">
                     <i class="fas fa-car"></i>
                     <span>Travel Time Per Inspector (Hours)</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Total travel hours logged by each inspector.</span>
+                    </span>
                 </div>
             </div>
             <div class="card-body" style="min-height: 300px;">
@@ -785,6 +875,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Doc Send Time Trend (Monthly)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly average days between inspection and document dispatch.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -796,6 +890,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Invoice Upload Time Trend (Monthly)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly average days between inspection and invoice upload.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -809,6 +907,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>COA Upload Time Trend (Monthly)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly average days from sample collection to Certificate of Analysis upload.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -820,6 +922,10 @@
                     <div class="card-title">
                         <i class="fas fa-chart-line"></i>
                         <span>Approval Time Trend (Monthly)</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Monthly average days from document submission to final approval.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="height: 180px;">
@@ -835,6 +941,10 @@
                     <div class="card-title">
                         <i class="fas fa-paper-plane"></i>
                         <span>Avg Days to Send Documents</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Average days each inspector takes to send documents after an inspection.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -846,6 +956,10 @@
                     <div class="card-title">
                         <i class="fas fa-file-invoice-dollar"></i>
                         <span>Avg Days to Upload Invoice</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Average days each inspector takes to upload their invoice.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -859,6 +973,10 @@
                     <div class="card-title">
                         <i class="fas fa-flask"></i>
                         <span>Avg Days: Sample to COA Upload</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Average days from sample collection to COA upload per inspector.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -870,6 +988,10 @@
                     <div class="card-title">
                         <i class="fas fa-hourglass-half"></i>
                         <span>Avg Days to Approval</span>
+                        <span class="info-tooltip">
+                            <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                            <span class="info-tooltip-text">Average days from submission to approval per inspector.</span>
+                        </span>
                     </div>
                 </div>
                 <div class="card-body" style="flex:1; min-height:280px;">
@@ -890,6 +1012,10 @@
                 <div class="card-title">
                     <i class="fas fa-money-bill-wave"></i>
                     <span>Revenue Per Inspector</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Detailed revenue, cost, and profit breakdown per inspector including hours, KM, and samples revenue.</span>
+                    </span>
                 </div>
                 <div class="financial-actions">
                     <select id="financialPeriod" onchange="applyFinancialPeriod()" style="font-size:11px; padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; background:white; color:#374151; cursor:pointer; min-width:130px;">
@@ -949,6 +1075,10 @@
                 <div class="card-title">
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Xero - Outstanding Invoices</span>
+                    <span class="info-tooltip">
+                        <i class="fas fa-info-circle" style="color:#9ca3af;font-size:13px;"></i>
+                        <span class="info-tooltip-text">Outstanding invoices synced from Xero accounting, with aging summary.</span>
+                    </span>
                 </div>
                 <div class="financial-actions">
                     <span id="xeroStatus" style="font-size:11px; padding:4px 10px; border-radius:12px; font-weight:500;"></span>
