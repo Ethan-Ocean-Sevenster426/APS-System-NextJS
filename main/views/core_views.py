@@ -2561,6 +2561,56 @@ def shipment_list(request):
         else:
             groups_queryset = groups_queryset.none()
 
+    # UNDELIVERABLE EMAILS: Fetch bounced emails and find matching inspection groups
+    undeliverable_count = 0
+    show_undeliverable = request.GET.get('show_undeliverable') == 'true'
+    _undeliverable_client_names = set()
+    if user_role in ('admin', 'super_admin', 'developer'):
+        try:
+            from ..graph_inbox_reader import fetch_undeliverable_emails
+            from ..models import Client as _UndelClient
+            _bounced_emails = fetch_undeliverable_emails()
+            if _bounced_emails:
+                # Find client names whose emails match bounced addresses
+                _bounced_lower = {e.lower() for e in _bounced_emails}
+                _undel_clients = _UndelClient.objects.all().only('name', 'email', 'manual_email').prefetch_related('additional_emails')
+                for _uc in _undel_clients:
+                    _uc_emails = set()
+                    if _uc.email:
+                        for _e in _uc.email.split(','):
+                            _e = _e.strip().lower()
+                            if _e:
+                                _uc_emails.add(_e)
+                    if _uc.manual_email:
+                        for _e in _uc.manual_email.split(','):
+                            _e = _e.strip().lower()
+                            if _e:
+                                _uc_emails.add(_e)
+                    for _ae in _uc.additional_emails.all():
+                        if _ae.email:
+                            _uc_emails.add(_ae.email.strip().lower())
+                    if _uc_emails & _bounced_lower:
+                        _undeliverable_client_names.add(_uc.name)
+
+                if _undeliverable_client_names:
+                    _undel_q = Q()
+                    for _ucn in _undeliverable_client_names:
+                        _undel_q |= Q(client_name=_ucn)
+                    undeliverable_count = groups_queryset.filter(_undel_q).count()
+
+                    if show_undeliverable:
+                        groups_queryset = groups_queryset.filter(_undel_q)
+                else:
+                    if show_undeliverable:
+                        groups_queryset = groups_queryset.none()
+            else:
+                if show_undeliverable:
+                    groups_queryset = groups_queryset.none()
+        except Exception as e:
+            print(f"[WARN] Undeliverable email check failed: {e}")
+            if show_undeliverable:
+                groups_queryset = groups_queryset.none()
+
     # Check for show_all parameter
     show_all = request.GET.get('show_all', 'false').lower() == 'true'
 
@@ -3350,6 +3400,8 @@ def shipment_list(request):
         'show_all': show_all,  # Pass actual show_all value to template
         'show_duplicates': show_duplicates,  # Pass duplicate filter state to template
         'duplicate_groups_count': duplicate_groups_count,  # Count for badge on button
+        'show_undeliverable': show_undeliverable,  # Pass undeliverable filter state to template
+        'undeliverable_count': undeliverable_count,  # Count for undeliverable badge
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }

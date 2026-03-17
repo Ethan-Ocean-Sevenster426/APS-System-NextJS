@@ -682,6 +682,25 @@
                                 {% endif %}
                                 {% endif %}
 
+                                {% if request.user.role == 'admin' or request.user.role == 'super_admin' or request.user.role == 'developer' %}
+                                {% if show_undeliverable %}
+                                <a href="?" class="btn btn-secondary"
+                                    style="padding: 8px 16px; font-size: 14px; background: #dc2626; color: #fff; border-color: #dc2626;">
+                                    <i class="fas fa-times"></i> Clear Undeliverable
+                                </a>
+                                {% else %}
+                                <a href="?show_undeliverable=true" class="btn btn-secondary"
+                                    style="padding: 8px 16px; font-size: 14px; background: #ef4444; color: #fff; border-color: #ef4444;">
+                                    <i class="fas fa-envelope-open-text"></i> Undeliverable Emails
+                                    {% if undeliverable_count > 0 %}
+                                    <span style="background:#fff; color:#ef4444; border-radius:999px; padding:1px 7px; font-weight:700; margin-left:4px; font-size:12px;">{{ undeliverable_count }}</span>
+                                    {% else %}
+                                    <span style="background:#fff; color:#9ca3af; border-radius:999px; padding:1px 7px; font-weight:700; margin-left:4px; font-size:12px;">0</span>
+                                    {% endif %}
+                                </a>
+                                {% endif %}
+                                {% endif %}
+
                                 <!-- Mobile-only action buttons -->
                                 <div class="mobile-action-buttons">
                                     {% if request.user.role == 'inspector' %}
