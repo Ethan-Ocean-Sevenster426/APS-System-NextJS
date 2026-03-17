@@ -2608,7 +2608,15 @@ function renderOccurrenceTrendChart() {
     var canvas = document.getElementById('occurrenceTrendChart');
     if (!canvas) return;
     var items = dashboardData.monthlyOccurrenceTrend || [];
-    if (!items.length) return;
+    if (!items.length) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '13px sans-serif';
+        ctx.fillStyle = '#9ca3af';
+        ctx.textAlign = 'center';
+        ctx.fillText('No occurrence reports for the selected period', canvas.width / 2, canvas.height / 2);
+        return;
+    }
     chartInstances['occurrenceTrendChart'] = new Chart(canvas, {
         type: 'bar',
         data: {

@@ -9947,7 +9947,7 @@ def analytics_dashboard_api(request):
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
     # Time allocation
-    time_allocation = list(all_qs.exclude(
+    time_allocation = list(qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
@@ -10001,11 +10001,12 @@ def analytics_dashboard_api(request):
         'timeAllocation': time_allocation,
         'inspectionsList': inspections_list,
         'inspectorPerformance': inspector_performance,
-        # Inspector metrics (always show ALL inspectors using all_qs)
-        'occurrenceReports': list(all_qs.filter(is_occurrence_report=True).exclude(
+        # Occurrence reports (respects inspector filter)
+        'occurrenceReports': list(qs.filter(is_occurrence_report=True).exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(count=Count('id')).order_by('-count')),
         'totalOccurrenceReports': qs.filter(is_occurrence_report=True).count(),
+        # Inspectors panel: always show ALL inspectors
         'directionsPerInspector': list(all_qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).values('inspector_name').annotate(
@@ -10013,7 +10014,8 @@ def analytics_dashboard_api(request):
             directions=Count('id', filter=Q(is_direction_present_for_this_inspection=True)),
             non_compliant_products=Count('id', filter=Q(is_product_compliant=False)),
         ).order_by('-total')),
-        'travelPerInspector': _api_travel_per_inspector(all_group_qs, all_qs, non_inspector_names),
+        # Operations panel: respects inspector filter
+        'travelPerInspector': _api_travel_per_inspector(group_qs, qs, non_inspector_names),
         'inspectorCommodityMatrix': list(all_qs.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
         ).exclude(Q(commodity__isnull=True) | Q(commodity='')).values(
@@ -10049,9 +10051,8 @@ def analytics_dashboard_api(request):
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to end) per inspector
-    # Always show ALL inspectors using all_group_qs
     inspection_times = {}
-    for _grp in all_group_qs.exclude(
+    for _grp in group_qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
@@ -10068,9 +10069,8 @@ def analytics_dashboard_api(request):
             inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
 
     # Get hours/km from InspectionGroup (group-level) to avoid double-counting
-    # Always show ALL inspectors
     _api_fin_group = {}
-    for _row in all_group_qs.exclude(
+    for _row in group_qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_hours=Sum('hours'), total_km=Sum('km_traveled'),
@@ -10080,8 +10080,7 @@ def analytics_dashboard_api(request):
             'total_km': float(_row['total_km'] or 0),
         }
 
-    # Always show ALL inspectors in financial table
-    inspector_financials_qs = all_qs.exclude(
+    inspector_financials_qs = qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
@@ -10127,9 +10126,9 @@ def analytics_dashboard_api(request):
 
     # Phase 2: Time-based analytics (filtered)
 
-    # 1. Doc send time (always show ALL inspectors)
+    # 1. Doc send time
     doc_send_time = []
-    doc_send_filtered = all_qs.filter(
+    doc_send_filtered = qs.filter(
         is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False,
     ).exclude(sent_by__isnull=True).select_related('sent_by')
     doc_send_by_user = {}
@@ -10146,9 +10145,9 @@ def analytics_dashboard_api(request):
         doc_send_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
     data['docSendTime'] = doc_send_time
 
-    # 2. Invoice upload time (always show ALL inspectors)
+    # 2. Invoice upload time
     invoice_upload_time = []
-    invoice_filtered = all_qs.filter(
+    invoice_filtered = qs.filter(
         invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False,
     ).exclude(invoice_uploaded_by__isnull=True).select_related('invoice_uploaded_by')
     invoice_by_user = {}
@@ -10165,9 +10164,9 @@ def analytics_dashboard_api(request):
         invoice_upload_time.append({'name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
     data['invoiceUploadTime'] = invoice_upload_time
 
-    # 3. COA analysis time (always show ALL inspectors)
+    # 3. COA analysis time
     coa_analysis_time = []
-    coa_filtered = all_qs.filter(
+    coa_filtered = qs.filter(
         is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False,
     ).exclude(Q(commodity__isnull=True) | Q(commodity=''))
     coa_by_commodity = {}
@@ -10184,9 +10183,9 @@ def analytics_dashboard_api(request):
         coa_analysis_time.append({'commodity': comm, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
     data['coaAnalysisTime'] = coa_analysis_time
 
-    # 4. Approval time (always show ALL inspectors)
+    # 4. Approval time
     approval_time = []
-    approval_filtered = all_qs.filter(
+    approval_filtered = qs.filter(
         approved_status='APPROVED', date_of_inspection__isnull=False,
     ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names))
     approval_by_inspector = {}
@@ -10206,9 +10205,9 @@ def analytics_dashboard_api(request):
         approval_time.append({'inspector_name': name, 'avg_days': round(d['total_days'] / d['count'], 1) if d['count'] > 0 else 0, 'count': d['count']})
     data['approvalTime'] = approval_time
 
-    # 5. Travel time per inspector (always show ALL inspectors)
+    # 5. Travel time per inspector
     travel_time_per_inspector = []
-    travel_time_filtered = all_qs.exclude(
+    travel_time_filtered = qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
         Q(inspection_group__isnull=True)
