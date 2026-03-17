@@ -355,6 +355,26 @@
             document.getElementById('edit_last_name').value = lastName;
             document.getElementById('edit_role').value = role;
             buildInspectorCheckboxes(parseInt(userId), role);
+
+            // Show salary for inspectors
+            const salarySection = document.getElementById('inspectorSalarySection');
+            if (role === 'inspector') {
+                const salaryData = (window.USER_MGMT_CONFIG.inspectorSalaryMap || {})[userId];
+                const salaryEl = document.getElementById('edit_monthly_salary');
+                const empEl = document.getElementById('edit_employee_number');
+                if (salaryData) {
+                    const amount = parseFloat(salaryData.monthly_salary).toLocaleString('en-ZA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    salaryEl.value = 'R ' + amount;
+                    empEl.value = salaryData.employee_number || '-';
+                } else {
+                    salaryEl.value = '';
+                    empEl.value = '';
+                }
+                salarySection.style.display = 'block';
+            } else {
+                salarySection.style.display = 'none';
+            }
+
             document.getElementById('editUserModal').classList.add('show');
         }
 

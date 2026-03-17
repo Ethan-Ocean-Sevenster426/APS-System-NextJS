@@ -17688,6 +17688,7 @@ def user_management(request):
     # Build salary lookup keyed by lowercase last_name for the inspector salary panel
     salary_lookup = {s.inspector_name.lower(): s for s in InspectorSalary.objects.all()}
     inspectors_with_salary = []
+    inspector_salary_map = {}
     for u in inspector_users:
         last = (u.last_name or '').strip().lower()
         first = (u.first_name or '').strip().lower()
@@ -17696,6 +17697,12 @@ def user_management(request):
             'user': u,
             'salary': salary_obj,
         })
+        if salary_obj:
+            inspector_salary_map[u.id] = {
+                'monthly_salary': str(salary_obj.monthly_salary),
+                'employee_number': salary_obj.employee_number,
+            }
+    inspector_salary_map_json = _json.dumps(inspector_salary_map)
     all_allocations = InspectorManagerAllocation.objects.all()
     manager_allocations = {}
     for alloc in all_allocations:
@@ -17720,6 +17727,7 @@ def user_management(request):
         'inspector_users_json': inspector_users_json,
         'manager_allocations_json': manager_allocations_json,
         'inspectors_with_salary': inspectors_with_salary,
+        'inspector_salary_map_json': inspector_salary_map_json,
     }
     
     # Ensure CSRF token is properly generated and available

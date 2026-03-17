@@ -589,6 +589,19 @@
                     </select>
                 </div>
 
+                <!-- Salary info — only shown for inspectors -->
+                <div id="inspectorSalarySection" style="display:none; margin-bottom: 15px;">
+                    <label class="form-label">Monthly Salary</label>
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <input type="text" id="edit_monthly_salary" class="form-control" readonly style="background-color:#f5f5f5; font-weight:600; color:var(--primary);" placeholder="No salary on record">
+                        </div>
+                        <div style="flex:1;">
+                            <input type="text" id="edit_employee_number" class="form-control" readonly style="background-color:#f5f5f5;" placeholder="Employee #">
+                        </div>
+                    </div>
+                </div>
+
                 <div id="inspectorAllocationSection" style="display:none; margin-bottom: 15px;">
                     <label class="form-label">Allocated Inspectors</label>
                     <div id="inspectorCheckboxList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 10px; background: var(--card-bg, #fff);">
@@ -708,7 +721,8 @@
                 sendPasswordResetEmail: '{% url "send_password_reset_email" %}'
             },
             inspectorMappings: {{ inspector_users_json|default:"[]"|safe }},
-            managerAllocations: {{ manager_allocations_json|default:"{}"|safe }}
+            managerAllocations: {{ manager_allocations_json|default:"{}"|safe }},
+            inspectorSalaryMap: {{ inspector_salary_map_json|default:"{}"|safe }}
         };
     </script>
     <script src="{% static 'user_management/js/user_management.js' %}?v=20260317"></script>
