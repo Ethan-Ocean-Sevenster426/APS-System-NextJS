@@ -2565,7 +2565,7 @@ def shipment_list(request):
     undeliverable_count = 0
     show_undeliverable = request.GET.get('show_undeliverable') == 'true'
     _undeliverable_client_names = set()
-    if user_role in ('admin', 'super_admin', 'developer'):
+    if getattr(request.user, 'role', '') in ('admin', 'super_admin', 'developer'):
         try:
             from ..graph_inbox_reader import fetch_undeliverable_emails
             from ..models import Client as _UndelClient
