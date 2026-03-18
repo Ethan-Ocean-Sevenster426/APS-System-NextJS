@@ -43,35 +43,82 @@ def _get_access_token():
 
 def _extract_bounced_emails(body_text):
     """
-    Extract email addresses from an undeliverable bounce message body.
-    Looks for email patterns in the bounce notification text.
+    Extract the actual failed recipient email address(es) from an NDR bounce message.
+    Uses targeted patterns specific to Exchange/Outlook NDR format to avoid false
+    positives from sender, CC, or other addresses mentioned in the bounce body.
     """
     if not body_text:
         return set()
 
     emails = set()
-    # Common patterns in NDR messages
-    # "Delivery has failed to these recipients or groups: user@domain.com"
-    # "user@domain.com Remote Server returned..."
-    # "<user@domain.com>"
-    email_pattern = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
-    found = email_pattern.findall(body_text.lower())
 
+    # Strip HTML tags for plain-text pattern matching
+    clean_text = re.sub(r'<[^>]+>', ' ', body_text)
+    clean_text = re.sub(r'&[a-z]+;', ' ', clean_text)  # unescape HTML entities
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+
+    email_re = r'[\w.+-]+@[\w-]+\.[\w.-]+'
+
+    # --- Targeted patterns that identify the actual failed recipient ---
+
+    # Pattern 1 (Exchange NDR): "Delivery has failed to these recipients or groups:"
+    # immediately followed by the failed email address
+    for m in re.finditer(
+        r'Delivery has failed to these recipients[^:]*:\s*(' + email_re + r')',
+        clean_text, re.IGNORECASE
+    ):
+        emails.add(m.group(1).lower())
+
+    # Pattern 2 (MIME DSN header): "Final-Recipient: rfc822; user@domain.com"
+    for m in re.finditer(
+        r'Final-Recipient\s*:\s*rfc822\s*;\s*(' + email_re + r')',
+        body_text, re.IGNORECASE
+    ):
+        emails.add(m.group(1).lower())
+
+    # Pattern 3: email address on its own line/section followed by SMTP error text
+    # e.g. "user@domain.com\n\nRemote Server returned '550..."
+    for m in re.finditer(
+        r'(' + email_re + r')\s{0,10}(?:Remote Server|couldn\'t be delivered|SMTP|550|551|552|553|554)',
+        clean_text, re.IGNORECASE
+    ):
+        emails.add(m.group(1).lower())
+
+    # Pattern 4: "The following recipient(s) cannot be reached: user@domain.com"
+    for m in re.finditer(
+        r'recipient[s]?\s+cannot be reached\s*[:\s]+(' + email_re + r')',
+        clean_text, re.IGNORECASE
+    ):
+        emails.add(m.group(1).lower())
+
+    # If none of the targeted patterns matched, log a warning but do NOT fall back
+    # to extracting all emails — that causes false positives.
+    if not emails:
+        logger.warning("NDR body did not match any targeted patterns; no emails extracted to avoid false positives")
+        return set()
+
+    # Filter out system/infrastructure addresses that should never be flagged
     from_email = (getattr(settings, 'DEFAULT_FROM_EMAIL', '') or '').lower()
+    skip_fragments = [
+        'postmaster@', 'mailer-daemon@', 'noreply@', 'no-reply@',
+        'microsoftonline', 'microsoft.com', 'protection.outlook.com',
+        'prod.outlook.com',  # Exchange internal message routing IDs
+    ]
+    # Also skip our own internal sending domains to avoid flagging staff addresses
+    internal_domains = [d.strip().lower() for d in getattr(settings, 'GRAPH_INTERNAL_DOMAINS', '').split(',') if d.strip()]
 
-    for email in found:
-        # Skip our own sending address and common system addresses
+    filtered = set()
+    for email in emails:
         if email == from_email:
             continue
-        if any(skip in email for skip in [
-            'postmaster@', 'mailer-daemon@', 'noreply@',
-            'no-reply@', 'microsoftonline', 'microsoft.com',
-            'protection.outlook.com'
-        ]):
+        if any(frag in email for frag in skip_fragments):
             continue
-        emails.add(email)
+        domain = email.split('@')[-1] if '@' in email else ''
+        if domain and domain in internal_domains:
+            continue
+        filtered.add(email)
 
-    return emails
+    return filtered
 
 
 def fetch_undeliverable_emails(force_refresh=False):

@@ -210,6 +210,9 @@ DEFAULT_FROM_EMAIL = 'foodsafetyagency.aps@afsq.co.za'
 GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
 GRAPH_CLIENT_SECRET = env('GRAPH_CLIENT_SECRET', default='')
 GRAPH_TENANT_ID = env('GRAPH_TENANT_ID', default='')
+# Comma-separated list of internal domains whose addresses should never be
+# flagged as bounced (e.g. staff sender/CC addresses extracted from NDR bodies)
+GRAPH_INTERNAL_DOMAINS = env('GRAPH_INTERNAL_DOMAINS', default='fsa-pty.co.za,moc-pty.com,afsq.co.za')
 
 # Xero Accounting Integration (Web App - created March 5, 2026)
 XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='CD1AB8B76E8D43B99547973C9BB25CF0')
