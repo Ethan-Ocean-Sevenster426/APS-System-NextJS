@@ -1,11 +1,10 @@
 """
 KPI Email Service
-Computes quarterly KPI data for each inspector and sends a personalised
-HTML email summarising their progress, what they still need to do, and
-their profitability position.
+Computes quarterly KPI data for each inspector and sends a professional
+plain-format HTML email summarising their progress.
 """
 import logging
-from datetime import date, timedelta
+from datetime import date
 from django.conf import settings
 from django.core.mail import EmailMessage
 
@@ -21,30 +20,29 @@ COMMODITIES = list(COMMODITY_LABELS.keys())
 
 
 # ---------------------------------------------------------------------------
-# KPI data computation
+# Quarter helpers
 # ---------------------------------------------------------------------------
 
 def get_quarter_bounds(today=None):
+    import calendar
     today = today or date.today()
     q = (today.month - 1) // 3 + 1
     q_start_month = (q - 1) * 3 + 1
+    q_end_month   = q_start_month + 2
     q_start = date(today.year, q_start_month, 1)
-    last_month = q_start_month + 2
-    last_day = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][last_month - 1]
-    if last_month == 2 and today.year % 4 == 0:
-        last_day = 29
-    q_end = date(today.year, last_month, last_day)
-    total_days = (q_end - q_start).days + 1
+    last_day = calendar.monthrange(today.year, q_end_month)[1]
+    q_end = date(today.year, q_end_month, last_day)
+    total_days   = (q_end - q_start).days + 1
     days_elapsed = (today - q_start).days + 1
     progress_pct = min(days_elapsed / total_days, 1.0)
     return q, today.year, q_start, q_end, progress_pct
 
 
+# ---------------------------------------------------------------------------
+# KPI data computation
+# ---------------------------------------------------------------------------
+
 def compute_inspector_kpi(inspector_name, all_names=None):
-    """
-    Returns a dict with KPI + profitability data for one inspector.
-    `all_names` is a list of name variants (aliases) to aggregate inspections across.
-    """
     from django.db.models import Q, Sum
     from ..models import (
         FoodSafetyAgencyInspection, InspectionGroup,
@@ -60,7 +58,6 @@ def compute_inspector_kpi(inspector_name, all_names=None):
         if n:
             name_q |= Q(inspector_name__iexact=n)
 
-    # Quarterly inspections
     q_inspections = FoodSafetyAgencyInspection.objects.filter(
         name_q,
         date_of_inspection__gte=q_start,
@@ -70,7 +67,6 @@ def compute_inspector_kpi(inspector_name, all_names=None):
     kpi_actual = {c: q_inspections.filter(commodity__iexact=c).count() for c in COMMODITIES}
     kpi_actual_total = q_inspections.count()
 
-    # Targets
     qt = QuarterlyTarget.objects.filter(
         inspector_name__iexact=inspector_name, year=year, quarter=quarter
     ).first()
@@ -83,7 +79,6 @@ def compute_inspector_kpi(inspector_name, all_names=None):
     }
     kpi_total_target = sum(kpi_targets.values())
 
-    # Per-commodity rows
     rows = []
     for commodity in COMMODITIES:
         target = kpi_targets[commodity]
@@ -92,7 +87,7 @@ def compute_inspector_kpi(inspector_name, all_names=None):
         still_needed = max(target - actual, 0)
 
         if target == 0:
-            pct = 0
+            pct    = 0
             status = 'no_target'
         else:
             pct = min(round(actual / target * 100), 100)
@@ -105,17 +100,16 @@ def compute_inspector_kpi(inspector_name, all_names=None):
                 status = 'behind'
 
         rows.append({
-            'commodity': commodity,
-            'label': COMMODITY_LABELS[commodity],
-            'target': target,
-            'actual': actual,
-            'still_needed': still_needed,
+            'commodity':       commodity,
+            'label':           COMMODITY_LABELS[commodity],
+            'target':          target,
+            'actual':          actual,
+            'still_needed':    still_needed,
             'expected_by_now': expected_by_now,
-            'pct': pct,
-            'status': status,
+            'pct':             pct,
+            'status':          status,
         })
 
-    # Overall status
     if kpi_total_target > 0:
         expected_total = round(kpi_total_target * progress_pct)
         pct_of_expected = round(kpi_actual_total / expected_total * 100) if expected_total else 100
@@ -170,19 +164,20 @@ def compute_inspector_kpi(inspector_name, all_names=None):
     rev_pct     = round(actual_rev / rev_target_q * 100, 1) if rev_target_q > 0 else 0
 
     return {
-        'inspector_name': inspector_name,
-        'quarter_label':  f'Q{quarter} {year}',
-        'quarter_pct':    round(progress_pct * 100),
-        'q_start':        q_start,
-        'q_end':          q_end,
-        # KPI
+        'inspector_name':   inspector_name,
+        'quarter_label':    f'Q{quarter} {year}',
+        'quarter_pct':      round(progress_pct * 100),
+        'q_start':          q_start,
+        'q_end':            q_end,
         'rows':             rows,
         'kpi_actual_total': kpi_actual_total,
         'kpi_total_target': kpi_total_target,
         'overall_status':   overall_status,
         'has_targets':      kpi_total_target > 0,
-        # Profitability
         'actual_revenue':   actual_rev,
+        'rev_hours':        rev_hours,
+        'rev_km':           rev_km,
+        'rev_samples':      rev_samples,
         'rev_target':       rev_target_q,
         'rev_pct':          min(rev_pct, 100),
         'q_costs':          q_costs,
@@ -191,185 +186,192 @@ def compute_inspector_kpi(inspector_name, all_names=None):
         'monthly_salary':   monthly_salary,
         'hourly_rate':      hourly_rate,
         'km_rate':          km_rate,
+        'sample_rate':      sample_rate,
         'total_hours':      round(prof_hours, 1),
         'total_km':         round(prof_km, 1),
+        'total_samples':    prof_samples,
     }
 
 
 # ---------------------------------------------------------------------------
-# HTML email builder
+# Professional plain-format email builder
 # ---------------------------------------------------------------------------
 
-_STATUS_COLOR = {
-    'on_track':       ('#166534', '#dcfce7', 'On Track'),
-    'slightly_behind': ('#854d0e', '#fef9c3', 'Slightly Behind'),
-    'behind':         ('#991b1b', '#fee2e2', 'Behind'),
-    'no_target':      ('#374151', '#f3f4f6', 'No Targets Set'),
+_STATUS_LABEL = {
+    'on_track':        'On Track',
+    'slightly_behind': 'Slightly Behind',
+    'behind':          'Behind Schedule',
+    'no_target':       'No Targets Set',
 }
-_STATUS_ICON = {
-    'on_track':        '✅',
-    'slightly_behind': '⚠️',
-    'behind':          '🔴',
-    'no_target':       'ℹ️',
-}
+
 _STATUS_MESSAGE = {
     'on_track': (
-        "You're doing great!",
-        "You're on track to meet your quarterly targets. Keep up the excellent work and "
-        "push a little harder over the remaining days to make sure you cross the finish line strong."
+        "Well done — you are on track to meet your quarterly targets.",
+        "Please maintain your current pace over the remaining days to ensure you finish the quarter strongly.",
     ),
     'slightly_behind': (
-        "Almost there — push a little harder!",
-        "You're slightly behind pace for this quarter. With some extra focus over the remaining "
-        "days you can still meet your targets. Every inspection counts — let's close that gap!"
+        "You are slightly behind pace for this quarter.",
+        "With additional focus over the remaining days you can still meet your targets. "
+        "Please prioritise scheduling inspections in the commodities where you are furthest behind.",
     ),
     'behind': (
-        "Time to step it up!",
-        "You're currently falling behind on your quarterly targets. Don't worry — there's still "
-        "time to turn it around. Focus on the commodities where you're furthest behind and aim "
-        "to book additional inspections this week."
+        "You are currently behind on your quarterly targets and this requires urgent attention.",
+        "Please review your schedule and aim to complete additional inspections this week. "
+        "Contact your manager if you need assistance prioritising your workload.",
     ),
     'no_target': (
-        "Your quarterly targets haven't been configured yet.",
-        "No formal KPI targets have been set for you this quarter. Ask your manager to configure "
-        "your targets so you can track your progress going forward. Your actual inspection counts "
-        "are shown below for reference."
+        "No formal KPI targets have been configured for you this quarter.",
+        "Please contact your manager to have your targets set so that your progress can be "
+        "tracked going forward. Your actual inspection counts are listed below for reference.",
     ),
 }
-
-
-def _commodity_rows_html(rows):
-    cols = []
-    for row in rows:
-        color, bg, _ = _STATUS_COLOR.get(row['status'], _STATUS_COLOR['no_target'])
-        icon = _STATUS_ICON.get(row['status'], '')
-        if row['still_needed'] > 0:
-            need_html = f'<p style="margin:4px 0 0;font-size:12px;color:#dc2626;font-weight:600;">Need {row["still_needed"]} more</p>'
-        elif row['target'] > 0:
-            need_html = '<p style="margin:4px 0 0;font-size:12px;color:#166534;font-weight:600;">✓ Target reached!</p>'
-        else:
-            need_html = '<p style="margin:4px 0 0;font-size:12px;color:#6b7280;">No target set</p>'
-
-        bar_width = row['pct']
-        bar_color = '#22c55e' if row['status'] == 'on_track' else '#f59e0b' if row['status'] == 'slightly_behind' else '#ef4444'
-
-        cols.append(f'''
-        <td style="width:25%;padding:6px;vertical-align:top;">
-          <div style="background:{bg};border:1px solid {color}33;border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:11px;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">{icon} {row["label"]}</div>
-            <div style="font-size:32px;font-weight:900;color:{color};line-height:1;">{row["actual"]}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">of <strong>{row["target"]}</strong> target</div>
-            {need_html}
-            <div style="background:#e5e7eb;border-radius:4px;height:6px;margin-top:10px;overflow:hidden;">
-              <div style="background:{bar_color};height:100%;width:{bar_width}%;border-radius:4px;"></div>
-            </div>
-            <div style="font-size:11px;color:{color};font-weight:700;margin-top:4px;">{bar_width}%</div>
-            <div style="font-size:10px;color:#9ca3af;margin-top:3px;">Expected by now: ~{row["expected_by_now"]}</div>
-          </div>
-        </td>''')
-    return ''.join(cols)
 
 
 def build_kpi_email_html(data, first_name):
-    color, bg, status_label = _STATUS_COLOR.get(data['overall_status'], _STATUS_COLOR['no_target'])
-    icon = _STATUS_ICON.get(data['overall_status'], '')
+    status_label = _STATUS_LABEL.get(data['overall_status'], 'Unknown')
     headline, body_msg = _STATUS_MESSAGE.get(data['overall_status'], _STATUS_MESSAGE['no_target'])
+    net_sign = '+' if data['net_profit'] >= 0 else ''
+    profitability_note = 'Profitable' if data['is_profitable'] else 'Not Profitable'
 
-    # Profitability block
-    profit_color = '#166534' if data['is_profitable'] else '#991b1b'
-    profit_bg    = '#dcfce7' if data['is_profitable'] else '#fee2e2'
-    profit_label = 'Profitable' if data['is_profitable'] else 'Not Profitable'
-    net_sign     = '+' if data['net_profit'] >= 0 else ''
+    # Commodity table rows
+    commodity_rows = ''
+    for row in data['rows']:
+        if row['target'] > 0:
+            progress_note = (
+                'Target reached'
+                if row['still_needed'] == 0
+                else f"Requires {row['still_needed']} more inspection(s) to reach target"
+            )
+            commodity_rows += f"""
+      <tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">{row['label']}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">{row['actual']}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">{row['target']}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">{row['expected_by_now']}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">{row['pct']}%</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">{progress_note}</td>
+      </tr>"""
+        else:
+            commodity_rows += f"""
+      <tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">{row['label']}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">{row['actual']}</td>
+        <td colspan="4" style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#9ca3af;font-style:italic;">No target set</td>
+      </tr>"""
 
-    commodity_html = _commodity_rows_html(data['rows'])
+    total_expected_now = round(data['kpi_total_target'] * data['quarter_pct'] / 100) if data['kpi_total_target'] else 0
+    total_pct = round(data['kpi_actual_total'] / data['kpi_total_target'] * 100) if data['kpi_total_target'] else 0
 
     return f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{data['quarter_label']} KPI Update</title></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:30px 0;">
-<tr><td align="center">
-<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{data['quarter_label']} KPI Report — {data['inspector_name']}</title>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<div style="max-width:660px;margin:0 auto;padding:30px 20px;font-family:Calibri,Arial,sans-serif;font-size:14px;color:#222222;line-height:1.6;">
 
-  <!-- Header -->
-  <tr><td style="background:linear-gradient(135deg,#007890 0%,#005f73 100%);padding:32px 40px;text-align:center;">
-    <div style="font-size:13px;color:rgba(255,255,255,0.8);font-weight:500;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;">Food Safety Agency (Pty) Ltd</div>
-    <div style="font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">{data['quarter_label']} KPI Update</div>
-    <div style="margin-top:12px;display:inline-block;background:rgba(255,255,255,0.2);border-radius:999px;padding:6px 18px;">
-      <span style="font-size:13px;color:#ffffff;font-weight:600;">{icon} {status_label}</span>
-    </div>
-  </td></tr>
+  <!-- Letterhead -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #007890;padding-bottom:14px;margin-bottom:24px;">
+    <tr>
+      <td>
+        <div style="font-size:16px;font-weight:700;color:#007890;">Food Safety Agency (Pty) Ltd</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">Agricultural Products Standards</div>
+      </td>
+      <td align="right" style="vertical-align:bottom;">
+        <div style="font-size:12px;color:#6b7280;">{data['quarter_label']} KPI Report</div>
+        <div style="font-size:12px;color:#6b7280;">{data['q_start'].strftime('%d %B')} – {data['q_end'].strftime('%d %B %Y')}</div>
+      </td>
+    </tr>
+  </table>
 
-  <!-- Greeting -->
-  <tr><td style="padding:32px 40px 16px;">
-    <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#111827;">Hi {first_name},</p>
-    <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:{color};">{headline}</p>
-    <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.6;">{body_msg}</p>
-  </td></tr>
+  <!-- Salutation -->
+  <p style="margin:0 0 12px;">Dear {first_name},</p>
+  <p style="margin:0 0 16px;">
+    We trust this correspondence finds you well. Please find below your quarterly KPI progress report for
+    <strong>{data['quarter_label']}</strong>. The quarter is currently <strong>{data['quarter_pct']}%</strong> complete.
+  </p>
 
-  <!-- Quarter progress bar -->
-  <tr><td style="padding:0 40px 24px;">
-    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">
-        <span>Quarter Progress</span>
-        <span>{data['quarter_pct']}% through {data['quarter_label']}</span>
-      </div>
-      <div style="background:#e5e7eb;border-radius:6px;height:10px;overflow:hidden;">
-        <div style="background:#007890;height:100%;width:{data['quarter_pct']}%;border-radius:6px;"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;margin-top:4px;">
-        <span>{data['q_start'].strftime('%d %b')}</span>
-        <span>Total: <strong style="color:#111827;">{data['kpi_actual_total']} / {data['kpi_total_target']}</strong> inspections</span>
-        <span>{data['q_end'].strftime('%d %b')}</span>
-      </div>
-    </div>
-  </td></tr>
+  <!-- Overall Status -->
+  <p style="margin:0 0 6px;"><strong>Overall KPI Status: {status_label}</strong></p>
+  <p style="margin:0 0 20px;">{headline} {body_msg}</p>
 
-  <!-- Commodity breakdown -->
-  <tr><td style="padding:0 40px 24px;">
-    <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">Inspection Targets by Commodity</div>
-    <table width="100%" cellpadding="0" cellspacing="0">
-      <tr>{commodity_html}</tr>
-    </table>
-  </td></tr>
+  <!-- Inspection Summary -->
+  <p style="margin:0 0 6px;"><strong>Inspection Summary</strong></p>
+  <p style="margin:0 0 4px;">
+    Inspections completed this quarter: <strong>{data['kpi_actual_total']}</strong> of <strong>{data['kpi_total_target']}</strong> ({total_pct}% of quarterly target).
+  </p>
+  <p style="margin:0 0 20px;">
+    Expected at this stage of the quarter: approximately <strong>{total_expected_now}</strong> inspections.
+  </p>
+
+  <!-- Commodity Table -->
+  <p style="margin:0 0 8px;"><strong>Breakdown by Commodity</strong></p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:24px;">
+    <thead>
+      <tr style="background:#f8fafc;">
+        <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Commodity</th>
+        <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Done</th>
+        <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Target</th>
+        <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Expected by Now</th>
+        <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Progress</th>
+        <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;text-transform:uppercase;letter-spacing:0.04em;">Notes</th>
+      </tr>
+    </thead>
+    <tbody>{commodity_rows}
+    </tbody>
+  </table>
 
   <!-- Profitability -->
-  <tr><td style="padding:0 40px 28px;">
-    <div style="background:{profit_bg};border:1px solid {profit_color}33;border-radius:10px;padding:16px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-size:13px;font-weight:700;color:{profit_color};text-transform:uppercase;letter-spacing:0.05em;">Profitability</span>
-        <span style="background:{profit_color};color:#fff;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;">{profit_label}</span>
-      </div>
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="font-size:13px;color:#374151;">Revenue ({data['total_hours']}h × R{data['hourly_rate']} + {data['total_km']}km × R{data['km_rate']})</td>
-          <td align="right" style="font-size:13px;font-weight:700;color:#166534;">R {data['actual_revenue']:,.2f}</td>
-        </tr>
-        <tr>
-          <td style="font-size:13px;color:#374151;padding-top:4px;">Costs (Salary R{data['monthly_salary']:,.0f} × 3)</td>
-          <td align="right" style="font-size:13px;font-weight:700;color:#991b1b;padding-top:4px;">R {data['q_costs']:,.2f}</td>
-        </tr>
-        <tr>
-          <td colspan="2"><div style="border-top:1px solid {profit_color}33;margin:10px 0;"></div></td>
-        </tr>
-        <tr>
-          <td style="font-size:15px;font-weight:700;color:{profit_color};">Net Profit / Loss</td>
-          <td align="right" style="font-size:22px;font-weight:900;color:{profit_color};">{net_sign}R {data['net_profit']:,.2f}</td>
-        </tr>
-      </table>
-    </div>
-  </td></tr>
+  <p style="margin:0 0 8px;"><strong>Profitability — {data['quarter_label']}</strong></p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:24px;">
+    <tr>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;">Inspection Hours &nbsp;({data['total_hours']} hrs × R{data['hourly_rate']}/hr)</td>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;text-align:right;">R {data['rev_hours']:,.2f}</td>
+    </tr>
+    <tr style="background:#f8fafc;">
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;">Travel &nbsp;({data['total_km']} km × R{data['km_rate']}/km)</td>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;text-align:right;">R {data['rev_km']:,.2f}</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;">Samples &nbsp;({data['total_samples']} × R{data['sample_rate']})</td>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;text-align:right;">R {data['rev_samples']:,.2f}</td>
+    </tr>
+    <tr style="background:#f8fafc;">
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;font-weight:700;">Total Revenue</td>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;font-weight:700;text-align:right;">R {data['actual_revenue']:,.2f}</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;">Operational Expense &nbsp;(R {data['monthly_salary']:,.0f}/month × 3 months)</td>
+      <td style="padding:7px 12px;font-size:13px;border-bottom:1px solid #e5e7eb;text-align:right;">R {data['q_costs']:,.2f}</td>
+    </tr>
+    <tr style="background:#f8fafc;">
+      <td style="padding:7px 12px;font-size:13px;font-weight:700;">Net Result &nbsp;({profitability_note})</td>
+      <td style="padding:7px 12px;font-size:13px;font-weight:700;text-align:right;">{net_sign}R {data['net_profit']:,.2f}</td>
+    </tr>
+  </table>
 
-  <!-- Footer -->
-  <tr><td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
-    <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">This is an automated KPI report from the Food Safety Agency portal.</p>
-    <p style="margin:0;font-size:12px;color:#6b7280;">For queries contact your manager or visit the portal at <a href="https://portal.fsa-pty.co.za" style="color:#007890;">portal.fsa-pty.co.za</a></p>
-  </td></tr>
+  <!-- Closing -->
+  <p style="margin:0 0 16px;">
+    Should you have any queries regarding this report or your targets, please do not hesitate to contact your manager directly.
+    We appreciate your continued dedication and commitment to food safety compliance.
+  </p>
 
-</table>
-</td></tr></table>
-</body></html>"""
+  <p style="margin:0 0 4px;">Kind Regards / Vriendelike Groete</p>
+  <p style="margin:0 0 2px;font-weight:700;">Food Safety Agency (Pty) Ltd</p>
+  <p style="margin:0 0 2px;font-size:12px;color:#6b7280;">Agricultural Products Standards</p>
+  <p style="margin:0 0 2px;font-size:12px;color:#6b7280;">Tel: (012) 361-1937</p>
+  <p style="margin:0 0 2px;font-size:12px;color:#6b7280;">Email: <a href="mailto:Info@afsq.co.za" style="color:#007890;">Info@afsq.co.za</a></p>
+
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px;">
+  <p style="margin:0;font-size:11px;color:#9ca3af;">
+    Automated KPI report &nbsp;|&nbsp; Inspector: <strong>{data['inspector_name']}</strong> &nbsp;|&nbsp; Period: {data['quarter_label']}
+  </p>
+
+</div>
+</body>
+</html>"""
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +384,7 @@ def send_kpi_email_to_inspector(user):
         return False, f'{user.username} has no email address configured'
 
     name = user.get_full_name() or user.username
-    first_name = user.first_name or name.split()[0] if name else 'Inspector'
+    first_name = user.first_name or (name.split()[0] if name else 'Inspector')
 
     try:
         data = compute_inspector_kpi(name)
@@ -390,8 +392,22 @@ def send_kpi_email_to_inspector(user):
         logger.exception('KPI compute failed for %s', name)
         return False, f'Failed to compute KPI for {name}: {e}'
 
-    subject = f"{data['quarter_label']} KPI Update — {_STATUS_COLOR[data['overall_status']][2]}"
+    status_label = _STATUS_LABEL.get(data['overall_status'], '')
+    subject = f"{data['quarter_label']} KPI Report — {name} ({status_label})"
     html_body = build_kpi_email_html(data, first_name)
+
+    # CC inspector's manager(s)
+    cc_emails = []
+    try:
+        from ..models import InspectorManagerAllocation
+        manager_allocs = InspectorManagerAllocation.objects.filter(
+            inspector=user
+        ).select_related('manager')
+        for alloc in manager_allocs:
+            if alloc.manager.email:
+                cc_emails.append(alloc.manager.email)
+    except Exception:
+        pass
 
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '')
     try:
@@ -400,6 +416,7 @@ def send_kpi_email_to_inspector(user):
             body=html_body,
             from_email=from_email,
             to=[user.email],
+            cc=cc_emails if cc_emails else None,
         )
         msg.content_subtype = 'html'
         msg.send()
@@ -415,10 +432,6 @@ def send_kpi_email_to_inspector(user):
 # ---------------------------------------------------------------------------
 
 def send_kpi_emails_to_all(inspector_users=None):
-    """
-    Send KPI emails to all inspector users (or a provided queryset).
-    Returns a list of result dicts: [{name, email, success, message}]
-    """
     from django.contrib.auth import get_user_model
     User = get_user_model()
 

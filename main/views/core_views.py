@@ -16428,7 +16428,17 @@ def send_group_documents(request):
             if inspector_user and inspector_user.email:
                 cc_emails.append(inspector_user.email)
 
-        # CC management
+        # CC the inspector's manager(s) via InspectorManagerAllocation
+        if inspector_user:
+            from main.models import InspectorManagerAllocation
+            for alloc in InspectorManagerAllocation.objects.filter(
+                inspector=inspector_user
+            ).select_related('manager'):
+                mgr_email = alloc.manager.email
+                if mgr_email and mgr_email not in cc_emails:
+                    cc_emails.append(mgr_email)
+
+        # CC fixed management addresses
         management_cc = [
             'simphiwe.mathenjwa@afsq.co.za',
         ]
