@@ -18,13 +18,14 @@ from .views.core_views import (
     download_first_10_compliance_by_commodity,
     save_system_settings, get_system_settings, start_daily_compliance_sync, stop_daily_compliance_sync, daily_compliance_sync_status, performance_monitor, server_directory_tree, server_status,
     check_compliance_documents_batch, populate_six_month_files, pull_six_month_data_from_google_drive, get_client_all_files, get_page_clients_files, get_page_clients_file_status, update_sent_status, client_autocomplete_api, onedrive_callback, inspector_dashboard, analytics_dashboard,
-    scheduled_backup_service_status, start_scheduled_backup_service, stop_scheduled_backup_service, run_manual_backup,
+    scheduled_backup_service_status, start_scheduled_backup_service, stop_scheduled_backup_service, run_manual_backup, download_backup,
     master_service_control_status, start_all_services, stop_all_services,
     onedrive_service_status, start_onedrive_service, stop_onedrive_service, test_onedrive_connection,
     reauthenticate_onedrive, get_onedrive_auth_url, onedrive_auth, export_sheet, export_to_google_sheets, update_invoice_number, send_password_reset_email,
     analytics_dashboard_api,
     get_inspector_targets, update_inspector_targets,
     get_quarterly_targets, save_quarterly_target,
+    get_inspector_salaries, save_inspector_salaries,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
     mark_all_notifications_read, delete_notification, training_page
 )
@@ -59,6 +60,8 @@ urlpatterns = [
     path('api/inspector-targets/update/', update_inspector_targets, name='update_inspector_targets'),
     path('api/quarterly-targets/', get_quarterly_targets, name='get_quarterly_targets'),
     path('api/quarterly-targets/save/', save_quarterly_target, name='save_quarterly_target'),
+    path('api/inspector-salaries/', get_inspector_salaries, name='get_inspector_salaries'),
+    path('api/inspector-salaries/save/', save_inspector_salaries, name='save_inspector_salaries'),
     # =============================================================================
     # CLIENT MANAGEMENT URLS
     # =============================================================================
@@ -215,6 +218,7 @@ urlpatterns = [
     path('scheduled-backup/start/', start_scheduled_backup_service, name='start_scheduled_backup_service'),
     path('scheduled-backup/stop/', stop_scheduled_backup_service, name='stop_scheduled_backup_service'),
     path('scheduled-backup/manual/', run_manual_backup, name='run_manual_backup'),
+    path('scheduled-backup/download/', download_backup, name='download_backup'),
     
     # =============================================================================
     # MASTER SERVICE CONTROL URLS

@@ -19026,9 +19026,36 @@ def run_manual_backup(request):
         
         success, message = run_manual_backup()
         return JsonResponse({'success': success, 'message': message})
-        
+
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def download_backup(request):
+    """Download a backup file by name. Super admin / developer only."""
+    import mimetypes
+    from django.http import FileResponse, Http404
+    from pathlib import Path
+    from django.conf import settings as django_settings
+
+    if request.user.role not in ('super_admin', 'developer'):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    filename = request.GET.get('file', '')
+    if not filename or '/' in filename or '..' in filename:
+        raise Http404
+
+    base_dir = Path(getattr(django_settings, 'BASE_DIR', '/var/inspection-system')) / 'backups'
+    # Search both subdirs
+    for subdir in ('db', 'excel'):
+        candidate = base_dir / subdir / filename
+        if candidate.exists() and candidate.is_file():
+            content_type, _ = mimetypes.guess_type(str(candidate))
+            response = FileResponse(open(candidate, 'rb'), content_type=content_type or 'application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    raise Http404
 
 
 # =============================================================================
