@@ -6,16 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Settings - Food Safety Agency</title>
 
-    <!-- Favicon - Food Safety Agency Logo -->
     <link rel="icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'img/Food safetyagencylogo.png' %}">
     <link rel="apple-touch-icon" href="{% static 'img/Food safetyagencylogo.png' %}">
 
-    <!-- Preconnect to CDNs for faster loading -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
 
-    <!-- Async Font Awesome loading for better performance -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
 
@@ -37,22 +34,81 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="{% static 'settings/css/settings.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'settings/css/settings.css' %}?v=20260317">
     <style>
-        :root {
-            --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
+        :root { --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2"); }
+
+        .backup-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .backup-table th {
+            background: #f3f4f6; color: #374151;
+            padding: 8px 12px; text-align: left;
+            font-weight: 600; border-bottom: 2px solid #e5e7eb;
         }
+        .backup-table td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .backup-table tr:hover td { background: #f9fafb; }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 99px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-red   { background: #fee2e2; color: #991b1b; }
+        .badge-gray  { background: #f3f4f6; color: #6b7280; }
+        .btn-primary {
+            background: #007890; color: #fff; border: none;
+            padding: 9px 20px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 7px; transition: background .2s;
+        }
+        .btn-primary:hover { background: #005f73; }
+        .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+        .btn-danger {
+            background: #ef4444; color: #fff; border: none;
+            padding: 9px 20px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 7px; transition: background .2s;
+        }
+        .btn-danger:hover { background: #dc2626; }
+        .status-dot {
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; margin-right: 6px;
+        }
+        .status-dot.running { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+        .status-dot.stopped { background: #9ca3af; }
+        .tab-btn {
+            padding: 8px 18px; border-radius: 6px 6px 0 0;
+            font-weight: 600; font-size: 0.875rem; cursor: pointer;
+            border: 1px solid #e5e7eb; border-bottom: none;
+            background: #f9fafb; color: #6b7280; transition: .15s;
+        }
+        .tab-btn.active { background: #fff; color: #007890; border-bottom: 2px solid #fff; margin-bottom: -1px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        #backupToast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: #1e293b; color: #fff;
+            padding: 12px 20px; border-radius: 8px;
+            font-size: 0.875rem; z-index: 9999;
+            display: none; max-width: 380px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        #backupToast.show { display: flex; align-items: center; gap: 10px; }
+        #backupToast.success { background: #065f46; }
+        #backupToast.error   { background: #991b1b; }
+        .spinner {
+            width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin .7s linear infinite; display: none;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-row td { color: #9ca3af; font-style: italic; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
-    <!-- Mobile Menu Button -->
     <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle menu">
         <i class="fas fa-bars text-xl"></i>
     </button>
-    
-    <!-- Sidebar Overlay -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
-    
+
     <div class="page-container">
         <!-- Sidebar -->
         <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col fixed left-0 top-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
@@ -60,267 +116,399 @@
                 <div class="mb-2">
                     <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
                 </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
-                    Food Safety Agency (Pty) Ltd
-                </div>
+                <div class="text-sidebar-text text-sm font-semibold text-center">Food Safety Agency (Pty) Ltd</div>
             </div>
 
             <div class="flex-1 flex flex-col justify-between overflow-y-auto">
                 <ul class="px-2 py-2 space-y-1">
                     <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
+                        <a href="{% url 'home' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-home mr-2 w-4 text-center"></i>Home Center
                         </a>
                     </li>
                     {% if request.user.role == 'inspector' %}
                     <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
+                        <a href="{% url 'inspector_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>My Analytics
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
+                        <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>Inspections
                         </a>
                     </li>
                     {% else %}
                     <li>
-                        <a href="{% url 'client_allocation_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
-                            Client Allocation Sheet
+                        <a href="{% url 'client_allocation_sheet' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>Client Allocation Sheet
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
+                        <a href="{% url 'shipment_list' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>Inspection Records
                         </a>
                     </li>
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
+                        <a href="{% url 'user_management' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>User Management
                         </a>
                     </li>
                     {% endif %}
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
+                        <a href="{% url 'system_logs' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>System Logs
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
+                        <a href="{% url 'fsa_operations_board' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>Support Tickets
                         </a>
                     </li>
                     {% endif %}
                     <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
+                        <a href="{% url 'submit_ticket' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>Submit Ticket
                         </a>
                     </li>
                     {% if request.user.role == 'developer' %}
                     <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
+                        <a href="{% url 'onedrive_view' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>OneDrive View
                         </a>
                     </li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
+                        <a href="{% url 'server_view' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>Server View
                         </a>
                     </li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
                     <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
+                        <a href="{% url 'export_sheet' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>Export Sheet
                         </a>
                     </li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
                     <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
+                        <a href="{% url 'analytics_dashboard' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>Inspector Analytics
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'debtors_page' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>
-                            Debtors
+                        <a href="{% url 'debtors_page' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
+                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>Debtors
                         </a>
                     </li>
                     {% endif %}
                     <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
+                        <a href="{% url 'settings' %}" class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
+                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>Settings
                         </a>
                     </li>
                 </ul>
             </div>
 
-            <!-- Logout Button -->
             <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
                 <form action="{% url 'logout' %}" method="post" class="inline w-full">
                     {% csrf_token %}
                     <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
+                        <i class="fas fa-sign-out-alt"></i>Logout
                     </button>
                 </form>
             </div>
         </div>
-        
+
         <!-- Main Content -->
         <div class="main-content">
-            
             <div class="header">
                 <h1>Food Safety Agency (Pty) Ltd</h1>
-                <h2>System Settings</h2>
+                <h2>Settings</h2>
             </div>
-            
-            <!-- Messages Section -->
-            {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
+
+            <div class="settings-grid" style="max-width: 900px;">
+
+                <!-- ── Data Backup ─────────────────────────────────────── -->
+                <div class="settings-card" style="grid-column: 1 / -1;">
+                    <h3 style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <span>
+                            <i class="fas fa-database" style="color:#007890;"></i>
+                            Data Backup
+                        </span>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <span id="serviceStatus" style="font-size:0.85rem; font-weight:500; color:#6b7280;">
+                                <span class="status-dot stopped" id="statusDot"></span>
+                                <span id="statusText">Loading...</span>
+                            </span>
+                            <button class="btn-primary" id="runBackupBtn" onclick="runBackup()">
+                                <i class="fas fa-play"></i>
+                                <span id="runBtnLabel">Run Backup Now</span>
+                                <span class="spinner" id="runSpinner"></span>
+                            </button>
+                        </div>
+                    </h3>
+
+                    <!-- Status bar -->
+                    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:12px 16px; margin-bottom:20px; display:flex; gap:32px; flex-wrap:wrap; font-size:0.85rem; color:#6b7280;">
+                        <div>
+                            <span style="font-weight:600; color:#374151;">Last backup:</span>
+                            <span id="lastBackupTime">—</span>
+                            &nbsp;<span id="lastBackupBadge"></span>
+                        </div>
+                        <div>
+                            <span style="font-weight:600; color:#374151;">Next scheduled:</span>
+                            <span id="nextBackupTime">—</span>
+                        </div>
+                        <div>
+                            <span style="font-weight:600; color:#374151;">Schedule:</span>
+                            Every 24 hours
+                        </div>
                     </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            <div class="settings-grid">
-                
-                <!-- System Settings -->
+
+                    <!-- Tabs -->
+                    <div style="display:flex; gap:0; margin-bottom:-1px; border-bottom:1px solid #e5e7eb;">
+                        <button class="tab-btn active" onclick="switchTab('db', this)">
+                            <i class="fas fa-server" style="margin-right:6px; color:#007890;"></i>
+                            Database Backups <span id="dbCount" class="badge badge-gray" style="margin-left:6px;">0</span>
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('excel', this)">
+                            <i class="fas fa-file-excel" style="margin-right:6px; color:#16a34a;"></i>
+                            Excel Exports <span id="excelCount" class="badge badge-gray" style="margin-left:6px;">0</span>
+                        </button>
+                    </div>
+
+                    <!-- DB tab -->
+                    <div id="tab-db" class="tab-panel active" style="border:1px solid #e5e7eb; border-top:none; border-radius:0 0 6px 6px; overflow:hidden;">
+                        <table class="backup-table">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Created</th>
+                                    <th>Size</th>
+                                    <th style="text-align:right;">Download</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dbBackupRows">
+                                <tr class="empty-row"><td colspan="4">No database backups yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Excel tab -->
+                    <div id="tab-excel" class="tab-panel" style="border:1px solid #e5e7eb; border-top:none; border-radius:0 0 6px 6px; overflow:hidden;">
+                        <table class="backup-table">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Created</th>
+                                    <th>Size</th>
+                                    <th style="text-align:right;">Download</th>
+                                </tr>
+                            </thead>
+                            <tbody id="excelBackupRows">
+                                <tr class="empty-row"><td colspan="4">No Excel exports yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p style="color:#9ca3af; font-size:0.78rem; margin-top:12px;">
+                        <i class="fas fa-info-circle"></i>
+                        Keeps the last 14 of each type. Database backups (.dump) can be used to fully restore the system. Excel files (.xlsx) are human-readable snapshots.
+                    </p>
+                </div>
+
+                <!-- ── OneDrive Upload Delay ──────────────────────────── -->
                 <div class="settings-card">
                     <h3>
-                        <i class="fas fa-server" style="color: #007890;"></i>
-                        System Settings
+                        <i class="fas fa-cloud" style="color:#0078d4;"></i>
+                        OneDrive Auto-Upload
                     </h3>
-                    <p>Configure system preferences and general settings.</p>
-                    
+                    <p>How long after an inspection is marked "sent" before it uploads to OneDrive.</p>
+
                     <form method="post">
                         {% csrf_token %}
-                        <!-- Background services run automatically every hour -->
-
                         <div class="form-group">
-                            <label for="backup_frequency">Backup Frequency (days)</label>
-                            <select id="backup_frequency" name="backup_frequency" class="form-control">
-                                <option value="1" {% if settings.backup_frequency == 'daily' %}selected{% endif %}>1 day (Daily)</option>
-                                <option value="7" {% if settings.backup_frequency == 'weekly' or not settings.backup_frequency %}selected{% endif %}>7 days (Weekly)</option>
-                                <option value="30" {% if settings.backup_frequency == 'monthly' %}selected{% endif %}>30 days (Monthly)</option>
-                            </select>
-                            <small style="color: var(--text-light); font-size: 0.85rem; margin-top: 0.25rem; display: block;">
-                                Choose how often to automatically backup your data
-                            </small>
-                        </div>
-                         
-                         <div class="form-group">
-                             <label for="theme_mode">Theme Mode</label>
-                             <div style="display: flex; align-items: center; gap: 1rem;">
-                                 <label class="switch">
-                                     <input type="checkbox" id="theme_mode" name="theme_mode" {% if settings.dark_mode %}checked{% endif %} onchange="handleThemeChange(this)">
-                                     <span class="slider"></span>
-                                 </label>
-                                 <span>Enable dark mode</span>
-                             </div>
-                             <small style="color: var(--text-light); font-size: 0.85rem; margin-top: 0.25rem; display: block;">
-                                 Switch between light and dark themes for better visibility
-                             </small>
-                         </div>
-                        <!-- OneDrive Auto-Upload Settings -->
-                        <div class="form-group" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                            <h4 style="color: var(--text); margin-bottom: 1rem; display: flex; align-items: center;">
-                                <i class="fas fa-cloud" style="color: #0078d4; margin-right: 0.5rem;"></i>
-                                OneDrive Auto-Upload
-                            </h4>
-                            
-                            <div class="form-group">
-                                <label for="onedrive_upload_delay_days">Auto Upload Delay</label>
-                                <div style="display: flex; align-items: center; gap: 1rem;">
-                                    <input type="number" id="onedrive_upload_delay_days" name="onedrive_upload_delay_days" 
-                                           value="{{ settings.onedrive_upload_delay_days|default:3 }}" 
-                                           min="1" max="365" class="form-control" style="width: 100px;">
-                                    <select id="onedrive_upload_delay_unit" name="onedrive_upload_delay_unit" class="form-control" style="width: 120px;">
-                                        <option value="hours" {% if settings.onedrive_upload_delay_unit == 'hours' %}selected{% endif %}>Hours</option>
-                                        <option value="days" {% if settings.onedrive_upload_delay_unit == 'days' or not settings.onedrive_upload_delay_unit %}selected{% endif %}>Days</option>
-                                        <option value="weeks" {% if settings.onedrive_upload_delay_unit == 'weeks' %}selected{% endif %}>Weeks</option>
-                                        <option value="months" {% if settings.onedrive_upload_delay_unit == 'months' %}selected{% endif %}>Months</option>
-                                        <option value="years" {% if settings.onedrive_upload_delay_unit == 'years' %}selected{% endif %}>Years</option>
-                                    </select>
-                                </div>
-                                <small style="color: var(--text-light); font-size: 0.85rem; margin-top: 0.25rem; display: block;">
-                                    Files will be automatically uploaded to OneDrive after this delay period when inspections are marked as "sent". Default: 3 days.
-                                </small>
+                            <label>Upload Delay</label>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <input type="number" name="onedrive_upload_delay_days"
+                                       value="{{ settings.onedrive_upload_delay_days|default:3 }}"
+                                       min="1" max="365" class="form-control" style="width:90px;">
+                                <select name="onedrive_upload_delay_unit" class="form-control" style="width:110px;">
+                                    <option value="hours"  {% if settings.onedrive_upload_delay_unit == 'hours'  %}selected{% endif %}>Hours</option>
+                                    <option value="days"   {% if settings.onedrive_upload_delay_unit == 'days' or not settings.onedrive_upload_delay_unit %}selected{% endif %}>Days</option>
+                                    <option value="weeks"  {% if settings.onedrive_upload_delay_unit == 'weeks'  %}selected{% endif %}>Weeks</option>
+                                    <option value="months" {% if settings.onedrive_upload_delay_unit == 'months' %}selected{% endif %}>Months</option>
+                                </select>
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-save"></i> Save
+                                </button>
                             </div>
                         </div>
-                        
-                        <!-- Session Status Link -->
-                        <div style="margin-top: 1rem; text-align: center;">
-                            <a href="{% url 'session_status' %}" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
-                                <i class="fas fa-clock"></i>
-                                View Session Status (Debug)
-                            </a>
-                        </div>
-                        
-
-                        
                     </form>
                 </div>
-                
-                <!-- Data Sync Settings removed - sync runs automatically in background every hour -->
-                
 
-                
-
-                
-
-            </div>
-        </div>
+            </div><!-- /settings-grid -->
+        </div><!-- /main-content -->
     </div>
-    
+
+    <!-- Toast notification -->
+    <div id="backupToast">
+        <i class="fas fa-check-circle" id="toastIcon"></i>
+        <span id="toastMsg"></span>
+    </div>
+
     <script>
         window.DJANGO_CONFIG = {
-            serverDarkMode: '{{ settings.dark_mode }}' === 'True',
-            syncIntervalHours: '{{ settings.sync_interval_hours|default:24 }}',
-            userRole: '{{ request.user.role }}',
             urls: {
-                settings: '{% url "settings" %}'
-            }
+                backupStatus:  '{% url "scheduled_backup_service_status" %}',
+                runBackup:     '{% url "run_manual_backup" %}',
+                downloadBackup:'{% url "download_backup" %}',
+            },
+            csrfToken: '{{ csrf_token }}'
         };
     </script>
-    <script src="{% static 'settings/js/settings.js' %}?v=20260212"></script>
+    <script src="{% static 'settings/js/settings.js' %}?v=20260317"></script>
+    <script>
+        // ── Tab switching ───────────────────────────────────────────────
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // ── Toast ───────────────────────────────────────────────────────
+        function showToast(msg, type) {
+            const t = document.getElementById('backupToast');
+            const icon = document.getElementById('toastIcon');
+            t.className = 'show ' + type;
+            document.getElementById('toastMsg').textContent = msg;
+            icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('show'), 5000);
+        }
+
+        // ── Format helpers ──────────────────────────────────────────────
+        function fmtDate(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-ZA', {day:'2-digit',month:'short',year:'numeric'})
+                + ' ' + d.toLocaleTimeString('en-ZA', {hour:'2-digit',minute:'2-digit'});
+        }
+        function fmtSize(kb) {
+            if (kb >= 1024) return (kb/1024).toFixed(1) + ' MB';
+            return kb + ' KB';
+        }
+
+        // ── Render backup tables ────────────────────────────────────────
+        function renderBackups(dbList, excelList) {
+            function rows(list, tbodyId) {
+                const tbody = document.getElementById(tbodyId);
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">No backups yet — click "Run Backup Now" to create one</td></tr>';
+                    return 0;
+                }
+                tbody.innerHTML = list.map(f => `
+                    <tr>
+                        <td><i class="fas fa-file-archive" style="color:#9ca3af;margin-right:6px;"></i>${f.name}</td>
+                        <td>${fmtDate(f.created)}</td>
+                        <td>${fmtSize(f.size_kb)}</td>
+                        <td style="text-align:right;">
+                            <a href="${window.DJANGO_CONFIG.urls.downloadBackup}?file=${encodeURIComponent(f.name)}"
+                               style="color:#007890; font-weight:600; font-size:0.82rem; text-decoration:none;"
+                               title="Download ${f.name}">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </td>
+                    </tr>`).join('');
+                return list.length;
+            }
+            const dc = rows(dbList, 'dbBackupRows');
+            const ec = rows(excelList, 'excelBackupRows');
+            document.getElementById('dbCount').textContent = dc;
+            document.getElementById('excelCount').textContent = ec;
+        }
+
+        // ── Load status ─────────────────────────────────────────────────
+        function loadStatus() {
+            fetch(window.DJANGO_CONFIG.urls.backupStatus)
+                .then(r => r.json())
+                .then(data => {
+                    const dot  = document.getElementById('statusDot');
+                    const text = document.getElementById('statusText');
+                    if (data.is_running) {
+                        dot.className  = 'status-dot running';
+                        text.textContent = 'Scheduler running';
+                    } else {
+                        dot.className  = 'status-dot stopped';
+                        text.textContent = data.status === 'not_available' ? 'Not configured' : 'Scheduler stopped';
+                    }
+
+                    document.getElementById('lastBackupTime').textContent = fmtDate(data.last_backup_time);
+                    document.getElementById('nextBackupTime').textContent = fmtDate(data.next_backup_time);
+
+                    const badge = document.getElementById('lastBackupBadge');
+                    if (data.last_backup_time) {
+                        badge.className = 'badge ' + (data.last_backup_status ? 'badge-green' : 'badge-red');
+                        badge.textContent = data.last_backup_status ? 'OK' : 'Failed';
+                    } else {
+                        badge.textContent = '';
+                    }
+
+                    renderBackups(data.db_backups, data.excel_backups);
+                })
+                .catch(() => {
+                    document.getElementById('statusText').textContent = 'Could not load status';
+                });
+        }
+
+        // ── Run backup ──────────────────────────────────────────────────
+        function runBackup() {
+            const btn    = document.getElementById('runBackupBtn');
+            const label  = document.getElementById('runBtnLabel');
+            const spin   = document.getElementById('runSpinner');
+
+            btn.disabled = true;
+            label.textContent = 'Running...';
+            spin.style.display = 'inline-block';
+
+            fetch(window.DJANGO_CONFIG.urls.runBackup, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': window.DJANGO_CONFIG.csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                label.textContent = 'Run Backup Now';
+                spin.style.display = 'none';
+                if (data.success) {
+                    showToast('Backup completed successfully', 'success');
+                    loadStatus();
+                } else {
+                    showToast('Backup failed: ' + (data.message || data.error || 'Unknown error'), 'error');
+                    loadStatus();
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                label.textContent = 'Run Backup Now';
+                spin.style.display = 'none';
+                showToast('Request failed — check the console', 'error');
+            });
+        }
+
+        // Init
+        loadStatus();
+        // Refresh every 30s
+        setInterval(loadStatus, 30000);
+    </script>
 </body>
 </html>
