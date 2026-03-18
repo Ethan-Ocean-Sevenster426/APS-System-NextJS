@@ -5965,7 +5965,7 @@ def edit_client_allocation(request):
 @login_required(login_url='login')
 def get_dropdown_options(request):
     """Get all unique values for facility_type, corporate_group, and group_type with counts from Client model, merged with custom ClientDropdownOption entries."""
-    from ..models import Client, ClientDropdownOption
+    from ..models import Client, ClientAllocation, ClientDropdownOption
     from django.db.models import Count, Q
     from django.http import JsonResponse
 
@@ -5979,7 +5979,7 @@ def get_dropdown_options(request):
     facility_types_qs = Client.objects.values('facility_type').annotate(count=Count('id')).filter(~Q(facility_type='') & ~Q(facility_type__isnull=True))
     corporate_groups_qs = Client.objects.values('corporate_group').annotate(count=Count('id')).filter(~Q(corporate_group='') & ~Q(corporate_group__isnull=True))
     group_types_qs = Client.objects.values('group_type').annotate(count=Count('id')).filter(~Q(group_type='') & ~Q(group_type__isnull=True))
-    commodities_qs = Client.objects.values('commodity').annotate(count=Count('id')).filter(~Q(commodity='') & ~Q(commodity__isnull=True))
+    commodities_qs = ClientAllocation.objects.values('commodity').annotate(count=Count('id')).filter(~Q(commodity='') & ~Q(commodity__isnull=True))
 
     custom_ft = ClientDropdownOption.objects.filter(field_type='facility_type')
     custom_cg = ClientDropdownOption.objects.filter(field_type='corporate_group')
