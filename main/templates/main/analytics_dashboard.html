@@ -236,6 +236,26 @@
 <!-- ============================================================
      MAIN CONTENT
      ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var sidebar = document.getElementById('sidebar');
+    var scrollArea = sidebar ? sidebar.querySelector('.sidebar-scroll-area') : null;
+    console.group('[Sidebar Debug]');
+    console.log('sidebar el:', sidebar);
+    console.log('sidebar offsetHeight:', sidebar ? sidebar.offsetHeight : 'N/A');
+    console.log('sidebar scrollHeight:', sidebar ? sidebar.scrollHeight : 'N/A');
+    console.log('sidebar computedStyle overflow:', sidebar ? getComputedStyle(sidebar).overflow : 'N/A');
+    console.log('sidebar computedStyle overflowY:', sidebar ? getComputedStyle(sidebar).overflowY : 'N/A');
+    console.log('scrollArea el:', scrollArea);
+    console.log('scrollArea offsetHeight:', scrollArea ? scrollArea.offsetHeight : 'N/A');
+    console.log('scrollArea scrollHeight:', scrollArea ? scrollArea.scrollHeight : 'N/A');
+    console.log('scrollArea computedStyle overflowY:', scrollArea ? getComputedStyle(scrollArea).overflowY : 'N/A');
+    console.log('scrollArea computedStyle scrollbarWidth:', scrollArea ? getComputedStyle(scrollArea).scrollbarWidth : 'N/A');
+    console.log('viewport height:', window.innerHeight);
+    console.log('devicePixelRatio / zoom:', window.devicePixelRatio);
+    console.groupEnd();
+});
+</script>
 <div id="main-content">
 
     <!-- Django messages -->
