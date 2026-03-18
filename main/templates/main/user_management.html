@@ -292,9 +292,18 @@
                             <i class="fas fa-users"></i> Users
                             <span class="table-info" style="margin-left: 6px; margin-top: 0;">({{ users|length }})</span>
                         </div>
-                        <button onclick="showAddUserModal()" class="btn btn-success">
-                            <i class="fas fa-user-plus"></i> Add User
-                        </button>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            {% if request.user.role == 'super_admin' or request.user.role == 'admin' or request.user.role == 'developer' %}
+                            <button onclick="sendKpiEmails()" class="btn" id="kpiEmailBtn"
+                                    style="background:#7c3aed;color:#fff;border:none;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;"
+                                    title="Send quarterly KPI update emails to all active inspectors">
+                                <i class="fas fa-paper-plane"></i> Send KPI Emails
+                            </button>
+                            {% endif %}
+                            <button onclick="showAddUserModal()" class="btn btn-success">
+                                <i class="fas fa-user-plus"></i> Add User
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body" style="padding: 0;">
 
@@ -689,5 +698,99 @@
         };
     </script>
     <script src="{% static 'user_management/js/user_management.js' %}?v=20260317"></script>
+
+    <!-- KPI Email modal -->
+    <div id="kpiEmailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:12px;padding:28px 32px;width:520px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:#7c3aed;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+              <i class="fas fa-paper-plane" style="color:#fff;font-size:14px;"></i>
+            </div>
+            <h3 style="margin:0;font-size:17px;font-weight:700;color:#111827;">Quarterly KPI Emails</h3>
+          </div>
+          <button onclick="closeKpiModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#6b7280;line-height:1;">&times;</button>
+        </div>
+
+        <div id="kpiModalBody">
+          <p style="color:#4b5563;font-size:14px;margin:0 0 18px;">
+            This will send a personalised <strong>quarterly KPI update email</strong> to every active inspector.
+            Each email shows their inspection counts vs targets, per-commodity breakdown, and profitability position.
+          </p>
+          <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#5b21b6;">
+            <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+            Emails are sent via the configured mail backend. Make sure the server mail settings are correct before sending.
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="closeKpiModal()" style="padding:8px 20px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#374151;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+            <button onclick="confirmSendKpiEmails()" id="kpiSendBtn" style="padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-paper-plane"></i> Send to All Inspectors
+            </button>
+          </div>
+        </div>
+
+        <div id="kpiResultsBody" style="display:none;">
+          <div id="kpiResultsSummary" style="margin-bottom:14px;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:600;"></div>
+          <div id="kpiResultsList" style="max-height:300px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;"></div>
+          <div style="margin-top:16px;text-align:right;">
+            <button onclick="closeKpiModal()" style="padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    function sendKpiEmails() {
+        document.getElementById('kpiModalBody').style.display = '';
+        document.getElementById('kpiResultsBody').style.display = 'none';
+        var modal = document.getElementById('kpiEmailModal');
+        modal.style.display = 'flex';
+    }
+    function closeKpiModal() {
+        document.getElementById('kpiEmailModal').style.display = 'none';
+    }
+    function confirmSendKpiEmails() {
+        var btn = document.getElementById('kpiSendBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+        btn.disabled = true;
+
+        var csrf = window.DJANGO_CONFIG ? window.DJANGO_CONFIG.csrfToken : '{{ csrf_token }}';
+        fetch('{% url "trigger_kpi_emails" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+        .then(r => r.json())
+        .then(data => {
+            // Show results
+            document.getElementById('kpiModalBody').style.display = 'none';
+            var resultsBody = document.getElementById('kpiResultsBody');
+            resultsBody.style.display = '';
+
+            var summaryEl = document.getElementById('kpiResultsSummary');
+            var allOk = data.failed === 0;
+            summaryEl.style.background = allOk ? '#dcfce7' : '#fef9c3';
+            summaryEl.style.border     = allOk ? '1px solid #16a34a' : '1px solid #d97706';
+            summaryEl.style.color      = allOk ? '#166534' : '#92400e';
+            summaryEl.innerHTML = allOk
+                ? '<i class="fas fa-check-circle" style="margin-right:6px;"></i>All ' + data.sent + ' emails sent successfully!'
+                : '<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>' + data.sent + ' sent, ' + data.failed + ' failed';
+
+            var listEl = document.getElementById('kpiResultsList');
+            listEl.innerHTML = data.results.map(function(r) {
+                var icon = r.success ? '✅' : '❌';
+                var bg   = r.success ? '#f0fdf4' : '#fef2f2';
+                return '<div style="padding:9px 14px;border-bottom:1px solid #f3f4f6;background:' + bg + ';font-size:13px;">'
+                     + icon + ' <strong>' + r.name + '</strong>'
+                     + (r.email ? ' &lt;' + r.email + '&gt;' : '')
+                     + '<br><span style="color:#6b7280;font-size:12px;">' + r.message + '</span></div>';
+            }).join('');
+        })
+        .catch(err => {
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Inspectors';
+            btn.disabled = false;
+            alert('Request failed: ' + err);
+        });
+    }
+    </script>
 </body>
 </html>

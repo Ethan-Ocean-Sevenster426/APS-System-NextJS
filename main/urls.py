@@ -27,7 +27,8 @@ from .views.core_views import (
     get_quarterly_targets, save_quarterly_target,
     get_inspector_salaries, save_inspector_salaries,
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
-    mark_all_notifications_read, delete_notification, training_page
+    mark_all_notifications_read, delete_notification, training_page,
+    trigger_kpi_emails,
 )
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
@@ -242,6 +243,11 @@ urlpatterns = [
     # TRAINING PAGE
     # =============================================================================
     path('training/', training_page, name='training_page'),
+
+    # =============================================================================
+    # KPI EMAIL
+    # =============================================================================
+    path('api/kpi-emails/send/', trigger_kpi_emails, name='trigger_kpi_emails'),
 
     # =============================================================================
     # XERO ACCOUNTING INTEGRATION

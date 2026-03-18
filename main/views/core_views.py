@@ -20079,3 +20079,44 @@ def csrf_failure(request, reason=""):
 def training_page(request):
     """Training videos page — super_admin, admin, and developer only."""
     return render(request, 'main/training.html')
+
+
+# ---------------------------------------------------------------------------
+# KPI Email Trigger
+# ---------------------------------------------------------------------------
+
+@login_required(login_url='login')
+@role_required(['super_admin', 'admin', 'developer'])
+def trigger_kpi_emails(request):
+    """
+    POST: Send quarterly KPI emails to all active inspectors (or a single one
+    if ?username=… is supplied).  Returns JSON with per-inspector results.
+    """
+    import json as _json
+    from main.services.kpi_email_service import send_kpi_email_to_inspector, send_kpi_emails_to_all
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    username = request.POST.get('username') or request.GET.get('username')
+
+    if username:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({'error': f'User "{username}" not found'}, status=404)
+        success, msg = send_kpi_email_to_inspector(user)
+        results = [{'name': user.get_full_name() or user.username,
+                    'email': user.email, 'success': success, 'message': msg}]
+    else:
+        results = send_kpi_emails_to_all()
+
+    sent   = sum(1 for r in results if r['success'])
+    failed = sum(1 for r in results if not r['success'])
+    return JsonResponse({
+        'sent': sent,
+        'failed': failed,
+        'results': results,
+    })
