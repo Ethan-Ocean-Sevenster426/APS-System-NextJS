@@ -19275,13 +19275,25 @@ def download_backup(request):
     if not filename or '/' in filename or '..' in filename:
         raise Http404
 
+    CONTENT_TYPES = {
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.dump': 'application/octet-stream',
+    }
+
     base_dir = Path(getattr(django_settings, 'BASE_DIR', '/var/inspection-system')) / 'backups'
-    # Search both subdirs
-    for subdir in ('db', 'excel'):
+    ext = Path(filename).suffix.lower()
+
+    # Excel files live in excel/, dump files live in db/
+    if ext == '.xlsx':
+        search_order = ('excel', 'db')
+    else:
+        search_order = ('db', 'excel')
+
+    for subdir in search_order:
         candidate = base_dir / subdir / filename
         if candidate.exists() and candidate.is_file():
-            content_type, _ = mimetypes.guess_type(str(candidate))
-            response = FileResponse(open(candidate, 'rb'), content_type=content_type or 'application/octet-stream')
+            content_type = CONTENT_TYPES.get(ext, 'application/octet-stream')
+            response = FileResponse(open(candidate, 'rb'), content_type=content_type)
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
     raise Http404
