@@ -9,11 +9,20 @@ class MainConfig(AppConfig):
     def ready(self):
         import main.signals
 
-        # Auto-start sync service disabled for demo
-        # if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        #     import threading
-        #     threading.Thread(target=self._start_sync_service_on_startup, daemon=True).start()
-        pass
+        # Auto-start backup service on startup
+        if os.environ.get('RUN_MAIN') != 'true':  # avoid double-start in dev reloader
+            import threading
+            threading.Thread(target=self._start_backup_service_on_startup, daemon=True).start()
+
+    def _start_backup_service_on_startup(self):
+        import time
+        time.sleep(5)  # wait for Django to fully initialise
+        try:
+            from .services.scheduled_backup_service import start_scheduled_backup_service
+            success, message = start_scheduled_backup_service()
+            print(f"[Backup] Auto-start: {message}")
+        except Exception as e:
+            print(f"[Backup] Auto-start failed: {e}")
 
     def _start_sync_service_on_startup(self):
         """Start the scheduled sync service automatically - ALWAYS ENABLED."""

@@ -21,7 +21,7 @@ BACKUP_DIR = Path(getattr(settings, 'BASE_DIR', '/var/inspection-system')) / 'ba
 DB_BACKUP_DIR = BACKUP_DIR / 'db'
 EXCEL_BACKUP_DIR = BACKUP_DIR / 'excel'
 KEEP_LAST = 14          # number of each type to keep
-SCHEDULE_HOURS = 24     # run every N hours
+SCHEDULE_HOURS = 1      # run every N hours
 
 
 # ── Internal state ─────────────────────────────────────────────────────────────
