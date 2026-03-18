@@ -334,7 +334,7 @@
                         <span style="font-weight:500; font-size:0.875rem;">${item.value}</span>
                         <span style="color:#9ca3af; font-size:0.75rem; margin-left:8px;">${item.count} client${item.count !== 1 ? 's' : ''}</span>
                     </div>
-                    ${item.count === 0 ? `<button type="button" onclick="deleteOption('${fieldType}','${item.value.replace(/'/g,"\\'")}',${item.count})" style="padding:4px 10px; font-size:0.75rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button>` : `<span style="color:#9ca3af; font-size:0.75rem;">In use</span>`}
+                    <button type="button" onclick="deleteOption('${fieldType}','${item.value.replace(/'/g,"\\'")}',${item.count})" style="padding:4px 10px; font-size:0.75rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i> Delete</button>
                 </div>`).join('');
         }
 
