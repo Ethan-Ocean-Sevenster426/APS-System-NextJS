@@ -8601,11 +8601,83 @@ def inspector_dashboard(request):
     quarter_label = f"Q{current_quarter} {today.year}"
     quarter_progress_display = round(quarter_progress_pct * 100)
 
-    # Debug: Print some values to see what's happening
-    print(f"Debug - Inspector: {inspector_name}")
-    print(f"Debug - Total inspections for inspector: {total_inspections}")
-    print(f"Debug - Monthly inspections count: {len(monthly_inspections)}")
-    print(f"Debug - Compliance rate: {compliance_rate:.1f}%")
+    # ── Profitability Calculator ───────────────────────────────────────────────
+    from ..models import InspectorSalary, InspectionFee, InspectionGroup as _IG
+    from django.db.models import Sum as _Sum
+
+    # Fee rates
+    _fee_rates = {}
+    try:
+        for _fee in InspectionFee.objects.all():
+            _fee_rates[_fee.fee_code] = float(_fee.rate)
+    except Exception:
+        pass
+    prof_hourly_rate = _fee_rates.get('inspection_hour_rate', 510.0)
+    prof_km_rate     = _fee_rates.get('inspection_km_rate', _fee_rates.get('travel_rate_per_km', 6.5))
+    prof_sample_rate = _fee_rates.get('sample_collection', 0.0)
+
+    # Salary / cost / revenue target — prefer QuarterlyTarget, fall back to InspectorSalary
+    prof_monthly_salary  = float(getattr(qt, 'monthly_salary',      None) or 0)
+    prof_monthly_vehicle = float(getattr(qt, 'monthly_vehicle_cost', None) or 0)
+    prof_monthly_other   = float(getattr(qt, 'monthly_other_costs',  None) or 0)
+    prof_rev_target_q    = float(getattr(qt, 'quarterly_revenue_target', None) or 0)
+    if prof_monthly_salary == 0:
+        _sal_rec = InspectorSalary.objects.filter(inspector_name__iexact=inspector_name).first()
+        if _sal_rec:
+            prof_monthly_salary = float(_sal_rec.monthly_salary or 0)
+
+    # Actual revenue this quarter — hours & km from InspectionGroup (avoids
+    # double-counting multi-commodity groups), samples from individual inspections
+    _grp_q_filter = Q()
+    for _n in all_inspector_names:
+        if _n:
+            _grp_q_filter |= Q(inspector_name__iexact=_n)
+    _grp_agg = _IG.objects.filter(
+        _grp_q_filter,
+        date_of_inspection__gte=quarter_start,
+        date_of_inspection__lte=today,
+    ).aggregate(total_hours=_Sum('hours'), total_km=_Sum('km_traveled'))
+    prof_hours   = float(_grp_agg['total_hours'] or 0)
+    prof_km      = float(_grp_agg['total_km']    or 0)
+    prof_samples = q_inspections.filter(is_sample_taken=True).count()
+
+    prof_rev_hours   = round(prof_hours   * prof_hourly_rate, 2)
+    prof_rev_km      = round(prof_km      * prof_km_rate,     2)
+    prof_rev_samples = round(prof_samples * prof_sample_rate, 2)
+    prof_actual_rev  = round(prof_rev_hours + prof_rev_km + prof_rev_samples, 2)
+
+    # Quarterly costs
+    prof_q_salary  = round(prof_monthly_salary  * 3, 2)
+    prof_q_vehicle = round(prof_monthly_vehicle * 3, 2)
+    prof_q_other   = round(prof_monthly_other   * 3, 2)
+    prof_q_costs   = round(prof_q_salary + prof_q_vehicle + prof_q_other, 2)
+    prof_net       = round(prof_actual_rev - prof_q_costs, 2)
+    prof_rev_pct   = round(prof_actual_rev / prof_rev_target_q * 100, 1) if prof_rev_target_q > 0 else 0
+
+    profitability = {
+        'hourly_rate':      prof_hourly_rate,
+        'km_rate':          prof_km_rate,
+        'sample_rate':      prof_sample_rate,
+        'total_hours':      round(prof_hours, 1),
+        'total_km':         round(prof_km, 1),
+        'total_samples':    prof_samples,
+        'rev_hours':        prof_rev_hours,
+        'rev_km':           prof_rev_km,
+        'rev_samples':      prof_rev_samples,
+        'actual_revenue':   prof_actual_rev,
+        'revenue_target':   prof_rev_target_q,
+        'rev_target_pct':   min(prof_rev_pct, 100),
+        'monthly_salary':   prof_monthly_salary,
+        'monthly_vehicle':  prof_monthly_vehicle,
+        'monthly_other':    prof_monthly_other,
+        'quarterly_salary': prof_q_salary,
+        'quarterly_vehicle':prof_q_vehicle,
+        'quarterly_other':  prof_q_other,
+        'quarterly_costs':  prof_q_costs,
+        'net_profit':       prof_net,
+        'is_profitable':    prof_net >= 0,
+        'has_data':         prof_actual_rev > 0 or prof_q_costs > 0,
+    }
 
     # Convert QuerySets to lists for proper JSON serialization
     import json
@@ -8633,6 +8705,7 @@ def inspector_dashboard(request):
         'quarter_label': quarter_label,
         'quarter_progress_display': quarter_progress_display,
         'has_targets': kpi_total_target > 0,
+        'profitability': profitability,
     }
     
     return render(request, 'main/inspector_dashboard.html', context)

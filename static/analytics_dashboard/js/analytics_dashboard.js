@@ -683,15 +683,14 @@ function renderKPIs() {
 // ================================================================
 // RENDER: FINANCIAL TABLE
 // ================================================================
-// Inspector salary (CTC) defaults - matched by name keywords
-var DEFAULT_SALARIES = {
-    'adams': 20000, 'dlamini': 21000, 'dlisani': 22256,
-    'kuntwane': 21000, 'kabelo': 20900, 'manganye': 21000,
-    'maqina': 21000, 'modiba': 20000, 'mokgothu': 20000,
-    'mpeluza': 21000, 'ngongo': 21000, 'noe': 26250,
-    'ntoyaphi': 20800, 'sekhotho': 20900, 'seloane': 23929.50,
-    'steyn': 21735, 'visagie': 36847.14
-};
+// Inspector salary (CTC) - loaded from database via API
+var DB_SALARIES = {};  // Populated by fetchSalariesFromDB()
+
+function getCSRFToken() {
+    if (window.DJANGO_CONFIG && window.DJANGO_CONFIG.csrfToken) return window.DJANGO_CONFIG.csrfToken;
+    var cookie = document.cookie.match(/csrftoken=([^;]+)/);
+    return cookie ? cookie[1] : '';
+}
 
 // Non-inspector staff (excluded from salary/profit calculations)
 var NON_INSPECTORS = ['mpho motaung', 'test inspector', 'admin', 'test_superadmin', 'test_admin', 'admin1', 'admin3'];
@@ -712,15 +711,27 @@ function isNonInspectorName(name) {
     return false;
 }
 
-// Load saved salaries from localStorage, fallback to defaults
-function loadSalaries() {
-    try {
-        var saved = localStorage.getItem('inspector_salaries');
-        if (saved) return JSON.parse(saved);
-    } catch(e) {}
-    return {};
+// Fetch salaries from database API
+function fetchSalariesFromDB(callback) {
+    $.ajax({
+        url: '/api/inspector-salaries/',
+        method: 'GET',
+        dataType: 'json',
+        success: function(resp) {
+            DB_SALARIES = {};
+            if (resp && resp.salaries) {
+                Object.keys(resp.salaries).forEach(function(key) {
+                    DB_SALARIES[key] = resp.salaries[key].salary || 0;
+                });
+            }
+            if (callback) callback();
+        },
+        error: function() {
+            DB_SALARIES = {};
+            if (callback) callback();
+        }
+    });
 }
-var SAVED_SALARIES = loadSalaries();
 
 // S&T / Guesthouse & other expenses - stored as a log of entries
 function loadExpenseLog() {
@@ -777,12 +788,12 @@ function getInspectorSalary(name) {
     var lower = name.toLowerCase();
     // Exclude non-inspectors (super admins, developers, etc.)
     if (isNonInspectorName(name)) return 0;
-    // Check saved overrides first
-    if (SAVED_SALARIES[lower] !== undefined) return SAVED_SALARIES[lower];
-    // Fallback to defaults
-    var keys = Object.keys(DEFAULT_SALARIES);
+    // Exact match first
+    if (DB_SALARIES[lower] !== undefined) return DB_SALARIES[lower];
+    // Partial match (keyword in name)
+    var keys = Object.keys(DB_SALARIES);
     for (var i = 0; i < keys.length; i++) {
-        if (lower.indexOf(keys[i]) !== -1) return DEFAULT_SALARIES[keys[i]];
+        if (lower.indexOf(keys[i]) !== -1) return DB_SALARIES[keys[i]];
     }
     return 0;
 }
@@ -821,20 +832,36 @@ function closeSalaryModal() {
 
 function saveSalaries() {
     var salaryInputs = document.querySelectorAll('#salaryModalBody .salary-input');
-    var savedSalaries = loadSalaries();
+    var salaries = {};
     salaryInputs.forEach(function(inp) {
         var key = inp.getAttribute('data-inspector');
         var val = parseFloat(inp.value);
         if (!isNaN(val) && val >= 0) {
-            savedSalaries[key] = val;
+            salaries[key] = val;
         }
     });
-    localStorage.setItem('inspector_salaries', JSON.stringify(savedSalaries));
-    SAVED_SALARIES = savedSalaries;
-    renderFinancialTable();
-    renderInspectorComparisonChart();
-    document.getElementById('salarySaveStatus').innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
-    setTimeout(function() { closeSalaryModal(); }, 800);
+    var statusEl = document.getElementById('salarySaveStatus');
+    statusEl.innerHTML = '<span style="color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Saving...</span>';
+    $.ajax({
+        url: '/api/inspector-salaries/save/',
+        method: 'POST',
+        contentType: 'application/json',
+        headers: { 'X-CSRFToken': getCSRFToken() },
+        data: JSON.stringify({ salaries: salaries }),
+        success: function() {
+            // Update local cache
+            Object.keys(salaries).forEach(function(k) { DB_SALARIES[k] = salaries[k]; });
+            renderFinancialTable();
+            renderInspectorComparisonChart();
+            statusEl.innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
+            setTimeout(function() { closeSalaryModal(); }, 800);
+        },
+        error: function(xhr) {
+            var msg = 'Save failed';
+            try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+            statusEl.innerHTML = '<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ' + msg + '</span>';
+        }
+    });
 }
 
 // ================================================================
@@ -3768,7 +3795,10 @@ document.addEventListener('DOMContentLoaded', function() {
     loadInitialData();
     populateFilterOptions();
     setupPeriodFilter();
-    renderAll();
+    // Fetch salaries from DB before rendering (salary data needed for financial tables)
+    fetchSalariesFromDB(function() {
+        renderAll();
+    });
 
     // Apply button triggers filter
     var applyBtn = document.getElementById('applyFilters');

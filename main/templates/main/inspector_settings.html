@@ -62,27 +62,6 @@
             --info: #3b82f6;
         }
 
-        [data-theme="dark"] {
-            --primary: #007890;
-            --primary-light: #1a3a40;
-            --secondary: #EC343C;
-            --danger: #EC343C;
-            --warning: #f59e0b;
-            --background: transparent;
-            --card-bg: #1e293b;
-            --text: #f1f5f9;
-            --text-light: #cbd5e1;
-            --border: #475569;
-            --shadow: 0 1px 3px rgba(0,0,0,0.5);
-            --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.6), 0 2px 4px -1px rgba(0,0,0,0.4);
-            --sidebar-bg: #0f172a;
-            --sidebar-text: #f1f5f9;
-            --sidebar-hover: #1e293b;
-            --input-bg: #1e293b;
-            --input-border: #475569;
-            --success: #10b981;
-            --info: #3b82f6;
-        }
         
         #sidebar {
             background-color: var(--sidebar-bg) !important;
@@ -109,61 +88,6 @@
             color: #f1f5f9 !important;
         }
         
-        [data-theme="light"] #sidebar {
-            background-color: #1e293b !important;
-            color: #f1f5f9 !important;
-        }
-        
-        [data-theme="light"] #sidebar a {
-            color: #f1f5f9 !important;
-        }
-        
-        [data-theme="light"] #sidebar div {
-            color: #f1f5f9 !important;
-        }
-        
-        [data-theme="dark"] #sidebar {
-            background-color: #0f172a !important;
-            color: #ffffff !important;
-        }
-        
-        [data-theme="dark"] #sidebar a {
-            color: #ffffff !important;
-        }
-        
-        [data-theme="dark"] #sidebar div {
-            color: #ffffff !important;
-        }
-        
-        #sidebar, #sidebar *, #sidebar a, #sidebar .border-slate-600 {
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
-        }
-        
-        [data-theme="dark"] .text-gray-800,
-        [data-theme="dark"] .text-gray-600,
-        [data-theme="dark"] .text-gray-500 {
-            color: var(--text) !important;
-        }
-        
-        [data-theme="dark"] .bg-gray-50 {
-            background-color: #334155 !important;
-        }
-        
-        [data-theme="dark"] .bg-gray-100 {
-            background-color: #475569 !important;
-        }
-        
-        [data-theme="dark"] .bg-gray-200 {
-            background-color: #64748b !important;
-        }
-        
-        [data-theme="dark"] .border-gray-200 {
-            border-color: var(--border) !important;
-        }
-        
-        body, .container, .bg-white, .bg-card-bg, .text-gray-800, .text-gray-600 {
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-        }
         
         .bg-card-bg {
             background-color: var(--card-bg);
@@ -201,14 +125,6 @@
         .settings-card:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
             transform: translateY(-2px);
-        }
-        
-        [data-theme="dark"] .settings-card {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        [data-theme="dark"] .settings-card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
         }
         
         .settings-card h3 {
@@ -276,18 +192,6 @@
             }
         }
         
-        [data-theme="dark"] .settings-card input:not([type="checkbox"]) {
-            background-color: #334155;
-            border-color: #475569;
-            color: #f1f5f9;
-        }
-        
-        [data-theme="light"] .settings-card input:not([type="checkbox"]) {
-            background-color: #ffffff;
-            border-color: #d1d5db;
-            color: #1f2937;
-        }
-        
         .settings-card .border-b {
             border-color: var(--border);
         }
@@ -323,9 +227,6 @@
             border-radius: 6px;
         }
         
-        [data-theme="dark"] .info-row:hover {
-            background-color: rgba(0, 120, 144, 0.1);
-        }
 
         /* Loading Screen Styles */
         .loading-screen {
@@ -950,171 +851,6 @@
             }
         }
         
-        /* Theme Toggle Styles */
-        .theme-toggle {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.05);
-            padding: 12px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-            flex-wrap: nowrap;
-            justify-content: center;
-            min-height: 48px;
-            position: relative;
-        }
-        
-        @media (max-width: 640px) {
-            .theme-toggle {
-                padding: 10px 16px;
-                gap: 8px;
-                min-height: 44px;
-            }
-            
-            .theme-toggle span {
-                font-size: 12px;
-                white-space: nowrap;
-            }
-        }
-        
-        [data-theme="light"] .theme-toggle {
-            background: rgba(0, 0, 0, 0.05);
-            border: 1px solid #e5e7eb;
-        }
-        
-        [data-theme="dark"] .theme-toggle {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .theme-toggle span {
-            color: var(--text);
-            font-size: 14px;
-            font-weight: 500;
-            margin: 0;
-            transition: color 0.3s ease, opacity 0.3s ease;
-        }
-        
-        [data-theme="light"] .theme-toggle span {
-            color: #1f2937;
-        }
-        
-        [data-theme="dark"] .theme-toggle span {
-            color: #f1f5f9;
-        }
-        
-        /* Ensure better contrast for inactive text */
-        .theme-toggle span:not(.active) {
-            opacity: 0.6;
-        }
-        
-        .theme-toggle span.active {
-            opacity: 1;
-            font-weight: 600;
-        }
-        
-        /* Toggle Switch - Copied from settings.html */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-            min-width: 60px;
-            min-height: 34px;
-        }
-        
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .slider {
-            background-color: var(--primary);
-        }
-        
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .switch {
-                width: 55px;
-                height: 30px;
-            }
-            
-            .slider:before {
-                height: 22px;
-                width: 22px;
-                left: 4px;
-                bottom: 4px;
-            }
-            
-            input:checked + .slider:before {
-                transform: translateX(23px);
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .switch {
-                width: 50px;
-                height: 28px;
-            }
-            
-            .slider:before {
-                height: 20px;
-                width: 20px;
-                left: 4px;
-                bottom: 4px;
-            }
-            
-            input:checked + .slider:before {
-                transform: translateX(20px);
-            }
-        }
-        
-        [data-theme="light"] .slider {
-            background-color: #d1d5db;
-        }
-        
-        [data-theme="light"] input:checked + .slider {
-            background-color: #007890;
-        }
-        
-        [data-theme="dark"] .slider {
-            background-color: #6b7280;
-        }
-        
-        [data-theme="dark"] input:checked + .slider {
-            background-color: #007890;
-        }
     </style>
 </head>
 <body class="min-h-screen text-gray-800 overflow-x-hidden">
@@ -1226,123 +962,146 @@
             {% endif %}
             
             <!-- Settings Cards -->
-            <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 pb-8 lg:pb-12">
-                <div class="grid grid-responsive">
-                    
-                    <!-- Theme Settings -->
-                    <div class="settings-card rounded-xl border p-8">
-                        <h3 class="text-xl font-bold mb-2">
-                            <i class="fas fa-palette text-primary card-icon"></i>
-                            <span>Theme Preferences</span>
-                        </h3>
-                        <p class="text-sm mb-6 opacity-80">
-                            Choose your preferred theme for the application interface.
-                        </p>
-                    
-                    <div class="space-y-4">
-                        <div class="flex flex-col space-y-4">
-                            <div>
-                                <label class="text-sm font-medium block">Theme Preference</label>
-                                <p class="text-xs opacity-70">Choose your preferred interface theme</p>
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                    <!-- Profile Information (2/3 width) -->
+                    <div class="lg:col-span-2 settings-card rounded-xl border p-6">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div style="width:40px;height:40px;border-radius:10px;background:#e6f3f7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="fas fa-user" style="color:#007890;font-size:1rem;"></i>
                             </div>
-                            <div class="theme-toggle flex items-center justify-center w-full">
-                                <span class="text-sm">Light/Dark</span>
-                                <label class="switch">
-                                    <input type="checkbox" id="theme_mode" name="theme_mode" {% if system_settings.dark_mode %}checked{% endif %} onchange="toggleTheme()">
-                                    <span class="slider"></span>
-                                </label>
+                            <div>
+                                <h3 class="text-base font-bold text-gray-800">Profile Information</h3>
+                                <p class="text-xs text-gray-500">Update your personal details</p>
                             </div>
                         </div>
+
+                        <form method="post" class="space-y-4">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_profile">
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}"
+                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="last_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}"
+                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <input type="email" id="email" name="email" value="{{ user.email }}"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" value="{{ user.username }}" disabled
+                                       class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
+                                <p class="text-xs mt-1 text-gray-400">Username cannot be changed</p>
+                            </div>
+
+                            <!-- Divider -->
+                            <div class="border-t border-gray-100 pt-4">
+                                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Change Password <span class="font-normal normal-case">(leave blank to keep current)</span></p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="new_password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                        <input type="password" id="new_password" name="new_password"
+                                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                               autocomplete="new-password">
+                                    </div>
+                                    <div>
+                                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                        <input type="password" id="confirm_password" name="confirm_password"
+                                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                               autocomplete="new-password">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-white transition-all"
+                                    style="background:#007890;" onmouseover="this.style.background='#005f73'" onmouseout="this.style.background='#007890'">
+                                <i class="fas fa-save mr-2"></i>Save Changes
+                            </button>
+                        </form>
                     </div>
-                </div>
-                
-                <!-- Profile Settings -->
-                <div class="settings-card rounded-xl border p-8">
-                    <h3 class="text-xl font-bold mb-2">
-                        <i class="fas fa-user text-primary card-icon"></i>
-                        <span>Profile Information</span>
-                    </h3>
-                    <p class="text-sm mb-6 opacity-80">
-                        Update your personal information and account details.
-                    </p>
-                    
-                    <form method="post" class="space-y-4">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_profile">
-                        
-                        <div class="form-grid-responsive grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="first_name" class="block text-sm font-medium mb-1">First Name</label>
-                                <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" 
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+
+                    <!-- Right column -->
+                    <div class="flex flex-col gap-5">
+
+                        <!-- Account Information -->
+                        <div class="settings-card rounded-xl border p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div style="width:40px;height:40px;border-radius:10px;background:#e6f3f7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i class="fas fa-id-badge" style="color:#007890;font-size:1rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-gray-800">Account Details</h3>
+                                    <p class="text-xs text-gray-500">Your account information</p>
+                                </div>
                             </div>
-                            <div>
-                                <label for="last_name" class="block text-sm font-medium mb-1">Last Name</label>
-                                <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" 
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+
+                            <div class="space-y-0">
+                                <div class="info-row flex justify-between items-center border-b border-gray-100">
+                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</span>
+                                    <span class="text-sm font-medium text-gray-800 capitalize">{{ user.role|default:"Inspector" }}</span>
+                                </div>
+                                <div class="info-row flex justify-between items-center border-b border-gray-100">
+                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</span>
+                                    <span class="text-sm font-semibold text-green-600">
+                                        <i class="fas fa-circle text-xs mr-1"></i>Active
+                                    </span>
+                                </div>
+                                <div class="info-row flex justify-between items-center border-b border-gray-100">
+                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Login</span>
+                                    <span class="text-xs text-gray-700">{{ user.last_login|date:"d M Y, H:i"|default:"Never" }}</span>
+                                </div>
+                                <div class="info-row flex justify-between items-center">
+                                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</span>
+                                    <span class="text-xs text-gray-700">{{ user.date_joined|date:"d M Y" }}</span>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div>
-                            <label for="email" class="block text-sm font-medium mb-1">Email Address</label>
-                            <input type="email" id="email" name="email" value="{{ user.email }}" 
-                                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+
+                        <!-- Quick Links -->
+                        <div class="settings-card rounded-xl border p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div style="width:40px;height:40px;border-radius:10px;background:#e6f3f7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i class="fas fa-link" style="color:#007890;font-size:1rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-gray-800">Quick Links</h3>
+                                    <p class="text-xs text-gray-500">Navigate to key pages</p>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <a href="{% url 'inspector_dashboard' %}" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700 font-medium">
+                                    <i class="fas fa-chart-line w-4 text-center" style="color:#007890;"></i> My Analytics
+                                </a>
+                                <a href="{% url 'shipment_list' %}" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700 font-medium">
+                                    <i class="fas fa-clipboard-check w-4 text-center" style="color:#007890;"></i> My Inspections
+                                </a>
+                                <a href="{% url 'submit_ticket' %}" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700 font-medium">
+                                    <i class="fas fa-ticket-alt w-4 text-center" style="color:#EC343C;"></i> Submit Support Ticket
+                                </a>
+                            </div>
                         </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Username</label>
-                            <input type="text" value="{{ user.username }}" disabled 
-                                   class="w-full px-3 py-2 border rounded-lg">
-                            <p class="text-xs mt-1 opacity-70">Username cannot be changed</p>
-                        </div>
-                        
-                        <button type="submit" class="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
-                            <i class="fas fa-save mr-2"></i>
-                            Update Profile
-                        </button>
-                    </form>
+
+                    </div><!-- end right col -->
+
                 </div>
-                
-                
-                <!-- Account Information -->
-                <div class="settings-card rounded-xl border p-8">
-                    <h3 class="text-xl font-bold mb-2">
-                        <i class="fas fa-info-circle text-primary card-icon"></i>
-                        <span>Account Information</span>
-                    </h3>
-                    <p class="text-sm mb-6 opacity-80">
-                        View your account details and role information.
-                    </p>
-                    
-                    <div class="space-y-2">
-                        <div class="info-row flex justify-between items-center border-b">
-                            <span class="text-sm font-semibold">Role</span>
-                            <span class="text-sm capitalize">{{ user.role|default:"Inspector" }}</span>
-                        </div>
-                        <div class="info-row flex justify-between items-center border-b">
-                            <span class="text-sm font-semibold">Account Status</span>
-                            <span class="text-sm text-green-600 font-medium">
-                                <i class="fas fa-check-circle mr-1"></i>
-                                Active
-                            </span>
-                        </div>
-                        <div class="info-row flex justify-between items-center border-b">
-                            <span class="text-sm font-semibold">Last Login</span>
-                            <span class="text-sm">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</span>
-                        </div>
-                        <div class="info-row flex justify-between items-center">
-                            <span class="text-sm font-semibold">Date Joined</span>
-                            <span class="text-sm">{{ user.date_joined|date:"M d, Y" }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Mobile Menu Toggle
         document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuBtn = document.getElementById('mobile-menu-btn');
             const sidebar = document.getElementById('sidebar');
@@ -1351,133 +1110,35 @@
             function toggleSidebar() {
                 sidebar.classList.toggle('show');
                 sidebarOverlay.classList.toggle('show');
-
                 const icon = mobileMenuBtn.querySelector('i');
-                if (sidebar.classList.contains('show')) {
-                    icon.className = 'fas fa-times text-xl';
-                } else {
-                    icon.className = 'fas fa-bars text-xl';
-                }
+                icon.className = sidebar.classList.contains('show') ? 'fas fa-times text-xl' : 'fas fa-bars text-xl';
             }
 
             mobileMenuBtn.addEventListener('click', toggleSidebar);
             sidebarOverlay.addEventListener('click', toggleSidebar);
-
-            const navLinks = sidebar.querySelectorAll('a');
-            navLinks.forEach(link => {
-                link.addEventListener('click', function() {
-                    if (window.innerWidth <= 1024) {
-                        toggleSidebar();
-                    }
-                });
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => { if (window.innerWidth <= 1024) toggleSidebar(); });
             });
-
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 1024) {
                     sidebar.classList.remove('show');
                     sidebarOverlay.classList.remove('show');
-                    const icon = mobileMenuBtn.querySelector('i');
-                    icon.className = 'fas fa-bars text-xl';
+                    mobileMenuBtn.querySelector('i').className = 'fas fa-bars text-xl';
                 }
             });
 
-            initTheme();
+            // Show loading screen when navigating to inspections
+            const inspectionsLink = document.querySelector('a[href*="shipment_list"]');
+            if (inspectionsLink) {
+                inspectionsLink.addEventListener('click', function() {
+                    const ls = document.getElementById('loadingScreen');
+                    if (ls) ls.classList.add('active');
+                });
+            }
         });
 
-        // Theme management
-        function initTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const serverTheme = '{{ system_settings.dark_mode|yesno:"dark,light" }}';
-            
-            // Default to light mode first
-            let activeTheme = 'light';
-            if (savedTheme) {
-                activeTheme = savedTheme;
-            } else if (serverTheme && serverTheme !== 'light') {
-                activeTheme = serverTheme;
-            }
-            
-            document.documentElement.setAttribute('data-theme', activeTheme);
-            
-            // Set theme toggle checkbox state
-            const themeToggle = document.getElementById('theme_mode');
-            if (themeToggle) {
-                themeToggle.checked = activeTheme === 'dark';
-                
-                // Update text label opacity based on current theme
-                const lightModeText = themeToggle.parentElement.previousElementSibling;
-                const darkModeText = themeToggle.parentElement.nextElementSibling;
-                
-                if (activeTheme === 'dark') {
-                    lightModeText.style.opacity = '0.6';
-                    darkModeText.style.opacity = '1';
-                } else {
-                    lightModeText.style.opacity = '1';
-                    darkModeText.style.opacity = '0.6';
-                }
-            }
-        }
-        
-        function toggleTheme() {
-            const themeMode = document.getElementById('theme_mode');
-            if (themeMode) {
-                const newTheme = themeMode.checked ? 'dark' : 'light';
-                console.log('Switching to theme:', newTheme);
-                
-                document.documentElement.setAttribute('data-theme', newTheme);
-                
-                try {
-                    localStorage.setItem('theme', newTheme);
-                    console.log('Theme saved to localStorage:', newTheme);
-                } catch (e) {
-                    console.log('Could not save theme to localStorage:', e);
-                }
-                
-                // Update the text labels to show current state
-                const lightModeText = themeMode.parentElement.previousElementSibling;
-                const darkModeText = themeMode.parentElement.nextElementSibling;
-                
-                if (newTheme === 'dark') {
-                    lightModeText.classList.remove('active');
-                    darkModeText.classList.add('active');
-                } else {
-                    lightModeText.classList.add('active');
-                    darkModeText.classList.remove('active');
-                }
-            }
-        }
-        
-        // Load background image after page loads for better performance
         window.addEventListener('load', function() {
             document.body.classList.add('bg-loaded');
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initTheme();
-
-            // Add loading screen functionality for navigation links
-            try {
-                const inspectionsLink = document.querySelector('a[href*="shipment_list"]');
-                if (inspectionsLink) {
-                    inspectionsLink.addEventListener('click', function(e) {
-                        try {
-                            const loadingScreen = document.getElementById('loadingScreen');
-                            if (loadingScreen) {
-                                loadingScreen.classList.add('active');
-                                console.log('Loading screen activated');
-                            } else {
-                                console.warn('Loading screen element not found');
-                            }
-                        } catch (error) {
-                            console.error('Error activating loading screen:', error);
-                        }
-                    });
-                } else {
-                    console.warn('Inspections link not found');
-                }
-            } catch (error) {
-                console.error('Error setting up loading screen:', error);
-            }
         });
     </script>
 </body>
