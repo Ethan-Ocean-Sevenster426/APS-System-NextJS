@@ -713,11 +713,9 @@ function isNonInspectorName(name) {
 
 // Fetch salaries from database API
 function fetchSalariesFromDB(callback) {
-    $.ajax({
-        url: '/api/inspector-salaries/',
-        method: 'GET',
-        dataType: 'json',
-        success: function(resp) {
+    fetch('/api/inspector-salaries/')
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
             DB_SALARIES = {};
             if (resp && resp.salaries) {
                 Object.keys(resp.salaries).forEach(function(key) {
@@ -725,12 +723,11 @@ function fetchSalariesFromDB(callback) {
                 });
             }
             if (callback) callback();
-        },
-        error: function() {
+        })
+        .catch(function() {
             DB_SALARIES = {};
             if (callback) callback();
-        }
-    });
+        });
 }
 
 // S&T / Guesthouse & other expenses - stored as a log of entries
@@ -842,25 +839,24 @@ function saveSalaries() {
     });
     var statusEl = document.getElementById('salarySaveStatus');
     statusEl.innerHTML = '<span style="color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Saving...</span>';
-    $.ajax({
-        url: '/api/inspector-salaries/save/',
+    fetch('/api/inspector-salaries/save/', {
         method: 'POST',
-        contentType: 'application/json',
-        headers: { 'X-CSRFToken': getCSRFToken() },
-        data: JSON.stringify({ salaries: salaries }),
-        success: function() {
-            // Update local cache
-            Object.keys(salaries).forEach(function(k) { DB_SALARIES[k] = salaries[k]; });
-            renderFinancialTable();
-            renderInspectorComparisonChart();
-            statusEl.innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
-            setTimeout(function() { closeSalaryModal(); }, 800);
-        },
-        error: function(xhr) {
-            var msg = 'Save failed';
-            try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
-            statusEl.innerHTML = '<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ' + msg + '</span>';
-        }
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        body: JSON.stringify({ salaries: salaries })
+    })
+    .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Save failed'); });
+        return r.json();
+    })
+    .then(function() {
+        Object.keys(salaries).forEach(function(k) { DB_SALARIES[k] = salaries[k]; });
+        renderFinancialTable();
+        renderInspectorComparisonChart();
+        statusEl.innerHTML = '<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Salaries saved successfully</span>';
+        setTimeout(function() { closeSalaryModal(); }, 800);
+    })
+    .catch(function(err) {
+        statusEl.innerHTML = '<span style="color:#ef4444;"><i class="fas fa-times-circle"></i> ' + (err.message || 'Save failed') + '</span>';
     });
 }
 
