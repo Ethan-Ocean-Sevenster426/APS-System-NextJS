@@ -1181,11 +1181,17 @@ body.bg-loaded::before {
     background-color: #1e293b;
     color: #f1f5f9;
     z-index: 10000;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease;
     box-shadow: 2px 0 12px rgba(0,0,0,0.2);
+}
+
+.sidebar-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 [data-theme="dark"] #sidebar { background-color: #0f172a; }
