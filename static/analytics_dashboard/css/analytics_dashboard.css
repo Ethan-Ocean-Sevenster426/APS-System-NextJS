@@ -154,52 +154,37 @@
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
 }
 
-/* Mobile menu button */
-.mobile-menu-btn {
+/* Mobile menu button — hidden by default, shown via media query */
+.mobile-menu-btn, #mobile-menu-btn {
     display: none;
-    position: fixed !important;
-    top: 12px !important;
-    left: 12px !important;
-    z-index: 99999 !important;
-    background-color: var(--sidebar-bg) !important;
-    color: var(--sidebar-text) !important;
-    border: none !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-    border-radius: 8px !important;
-    width: 48px !important;
-    height: 48px !important;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 10001;
+    background-color: #1e293b;
+    color: #f1f5f9;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    font-size: 18px;
+    transition: background 0.2s;
 }
-
-/* Sidebar positioning */
-#sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    z-index: 9998;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
+.mobile-menu-btn:hover, #mobile-menu-btn:hover { background: #334155; }
 
 /* Sidebar overlay */
-.sidebar-overlay {
+.sidebar-overlay, #sidebar-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 9997;
+    z-index: 10000;
     display: none;
-    backdrop-filter: blur(2px);
 }
-
-.sidebar-overlay.show {
-    display: block;
-}
+.sidebar-overlay.show, #sidebar-overlay.show { display: block; }
 
 * {
     margin: 0;
@@ -1184,39 +1169,9 @@ body.bg-loaded::before {
    ================================================================ */
 
 /* Mobile hamburger button */
-#mobile-menu-btn {
-    display: none;
-    position: fixed;
-    top: 14px;
-    left: 14px;
-    z-index: 1050;
-    background: #1e293b;
-    color: #f1f5f9;
-    border: none;
-    padding: 10px 13px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 18px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    transition: background 0.2s;
-    align-items: center;
-    justify-content: center;
-}
+/* Mobile button + overlay consolidated above — these are intentionally left empty to avoid conflicts */
 
-#mobile-menu-btn:hover { background: #334155; }
-
-/* Sidebar overlay */
-#sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
-    display: none;
-}
-
-#sidebar-overlay.show { display: block; }
-
-/* Sidebar */
+/* Sidebar — above overlay (10000), below button (10001) */
 #sidebar {
     position: fixed;
     top: 0;
@@ -1225,7 +1180,7 @@ body.bg-loaded::before {
     width: 256px;
     background-color: #1e293b;
     color: #f1f5f9;
-    z-index: 1000;
+    z-index: 10000;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
