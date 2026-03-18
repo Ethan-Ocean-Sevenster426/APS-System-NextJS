@@ -396,8 +396,6 @@
             .then(data => {
                 if (data.success) {
                     loadDropdownOptions();
-                    alert('Option deleted successfully');
-                    location.reload();
                 } else {
                     alert('Error: ' + data.error);
                 }

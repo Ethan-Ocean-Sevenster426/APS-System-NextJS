@@ -5995,8 +5995,8 @@ def get_dropdown_options(request):
 
 @login_required(login_url='login')
 def delete_dropdown_option(request):
-    """Delete a dropdown option by setting it to empty for all clients using it."""
-    from ..models import Client
+    """Delete a dropdown option: clears it from all Client records and removes any ClientDropdownOption entry."""
+    from ..models import Client, ClientDropdownOption
     from django.http import JsonResponse
     import json
 
@@ -6009,7 +6009,6 @@ def delete_dropdown_option(request):
             if not field_type or not value:
                 return JsonResponse({'success': False, 'error': 'Missing field_type or value'})
 
-            # Map field_type to actual Client model field
             field_map = {
                 'facility_type': 'facility_type',
                 'corporate_group': 'corporate_group',
@@ -6021,8 +6020,11 @@ def delete_dropdown_option(request):
 
             field_name = field_map[field_type]
 
-            # Update all Client records with this value to empty string
+            # Clear from all Client records
             updated_count = Client.objects.filter(**{field_name: value}).update(**{field_name: ''})
+
+            # Also remove from ClientDropdownOption if it exists
+            ClientDropdownOption.objects.filter(field_type=field_type, value=value).delete()
 
             return JsonResponse({
                 'success': True,
