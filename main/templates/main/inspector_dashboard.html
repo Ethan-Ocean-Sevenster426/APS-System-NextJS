@@ -86,7 +86,7 @@
             </div>
             <div class="flex-1 flex flex-col justify-between overflow-y-auto">
                 <ul class="px-2 py-3 space-y-0.5">
-                    <li><a href="{% url 'home' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-home mr-2.5 w-4 text-center text-yellow-300"></i>Home Center</a></li>
+                    <li><a href="{% url 'shipment_list' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-home mr-2.5 w-4 text-center text-yellow-300"></i>Home Center</a></li>
                     <li><a href="{% url 'inspector_dashboard' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium" style="background: rgba(255,255,255,0.15);"><i class="fas fa-chart-line mr-2.5 w-4 text-center text-cyan-400"></i>My Analytics</a></li>
                     <li><a href="{% url 'shipment_list' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-clipboard-check mr-2.5 w-4 text-center"></i>Inspections</a></li>
                     <li><a href="{% url 'submit_ticket' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-ticket-alt mr-2.5 w-4 text-center text-red-400"></i>Submit Ticket</a></li>
@@ -230,14 +230,31 @@
                     </div>
                 </div>
                 {% else %}
-                <!-- No targets set yet — show a notice -->
+                <!-- No formal targets — show actual quarterly counts so inspector can still see their numbers -->
                 <div class="card p-5">
-                    <div class="flex items-center gap-3">
-                        <div class="stat-icon bg-yellow-50 text-yellow-500 flex-shrink-0"><i class="fas fa-bullseye"></i></div>
-                        <div>
-                            <p class="text-sm font-semibold text-gray-700">{{ quarter_label }} KPI targets not set yet</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Your manager has not yet configured quarterly targets for your account. Once set, your KPI progress will appear here.</p>
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div class="section-title mb-0"><i class="fas fa-bullseye text-primary"></i> {{ quarter_label }} Quarterly Inspections</div>
+                        <span style="background:#fef9c3;color:#854d0e;padding:4px 14px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-exclamation-circle mr-1"></i> No Targets Set</span>
+                    </div>
+
+                    <!-- Quarter total -->
+                    <div class="mb-5 p-3 rounded-lg" style="background:#f8fafc;border:1px solid #e5e7eb;">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-semibold text-gray-700">Total Inspections This Quarter</span>
+                            <span class="text-2xl font-black" style="color:#007890;">{{ kpi_actual_total }}</span>
                         </div>
+                        <p class="text-xs text-gray-400 mt-1">{{ quarter_progress_display }}% through {{ quarter_label }} &middot; Ask your manager to set quarterly targets to track KPI progress</p>
+                    </div>
+
+                    <!-- Per-commodity actual counts -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {% for row in kpi_rows %}
+                        <div class="rounded-lg p-3 text-center" style="background:#f0f9ff;border:1px solid #bae6fd;">
+                            <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{{ row.label }}</div>
+                            <div class="text-3xl font-black" style="color:#007890;">{{ row.actual }}</div>
+                            <div class="text-xs text-gray-400 mt-0.5">this quarter</div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
