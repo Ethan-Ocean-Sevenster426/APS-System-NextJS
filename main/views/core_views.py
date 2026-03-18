@@ -18435,10 +18435,12 @@ Regards,
 Food Safety Agency System
 """
 
-            INVOICING_TYPES = {'invoice_missing', 'invoice_wrong', 'payment'}
-            recipient_list = ['ethan.sevenster@moc-pty.com', 'anthony.penzes@moc-pty.com']
-            if issue_type in INVOICING_TYPES:
-                recipient_list.append('mpho.motaung@afsq.co.za')
+            recipient_list = [
+                'ethan.sevenster@moc-pty.com',
+                'anthony.penzes@moc-pty.com',
+                'mpho.motaung@afsq.co.za',
+                'simphiwe.mathenjwa@afsq.co.za',
+            ]
 
             send_mail(
                 subject=email_subject,
@@ -18450,10 +18452,7 @@ Food Safety Agency System
         except Exception as e:
             print(f"Failed to send email notification: {e}")
 
-        if issue_type in {'invoice_missing', 'invoice_wrong', 'payment'}:
-            messages.success(request, f'✅ Ticket #{ticket.id} submitted successfully! Ethan, Anthony and Mpho have been notified via email.')
-        else:
-            messages.success(request, f'✅ Ticket #{ticket.id} submitted successfully! Ethan and Anthony have been notified via email.')
+        messages.success(request, f'✅ Ticket #{ticket.id} submitted successfully! The team has been notified via email.')
         return redirect('submit_ticket')
 
     # GET request - show the form
