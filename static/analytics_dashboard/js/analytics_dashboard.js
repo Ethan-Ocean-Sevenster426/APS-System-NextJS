@@ -661,6 +661,7 @@ function resetFilters() {
     if (els.customTo) els.customTo.style.display = 'none';
     if (els.dateFrom) els.dateFrom.value = '';
     if (els.dateTo) els.dateTo.value = '';
+    if (els.month) { els.month.disabled = false; els.month.style.opacity = ''; els.month.style.cursor = ''; }
     loadInitialData();
     renderAll();
 }
@@ -3812,6 +3813,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Re-render inspector comparison chart when metric changes
     var metricSel = document.getElementById('inspectorTrendMetric');
     if (metricSel) metricSel.addEventListener('change', renderInspectorComparisonChart);
+
+    // Disable Month dropdown when a date range is entered
+    function syncDateRangeVsMonth() {
+        var dateFrom = document.getElementById('filterDateFrom');
+        var dateTo = document.getElementById('filterDateTo');
+        var monthSel = document.getElementById('filterMonth');
+        if (!dateFrom || !dateTo || !monthSel) return;
+        var hasRange = dateFrom.value || dateTo.value;
+        monthSel.disabled = !!hasRange;
+        monthSel.style.opacity = hasRange ? '0.4' : '';
+        monthSel.style.cursor = hasRange ? 'not-allowed' : '';
+        if (hasRange) monthSel.value = 'all';
+    }
+    var dfEl = document.getElementById('filterDateFrom');
+    var dtEl = document.getElementById('filterDateTo');
+    if (dfEl) dfEl.addEventListener('change', syncDateRangeVsMonth);
+    if (dtEl) dtEl.addEventListener('change', syncDateRangeVsMonth);
 
 });
 
