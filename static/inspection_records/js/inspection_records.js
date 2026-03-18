@@ -1,13 +1,41 @@
                 // CACHE BUST: 2025-10-28 - Email functions fix - MUST SEE THIS
                 console.log('🚀 SCRIPT LOADED - Cache busted at:', new Date().toISOString());
 
-                // Toast notification helper - non-intrusive success feedback
+                // Toast notification helpers
                 function showUploadToast(message) {
+                    _showToast(message, '#22c55e', 3000);
+                }
+
+                function showErrorToast(message) {
+                    _showToast(message, '#dc2626', 6000);
+                }
+
+                function _showToast(message, bgColor, duration) {
+                    // Remove any existing error toast so they don't stack
+                    var existing = document.getElementById('_fsaToast');
+                    if (existing) existing.remove();
+
                     var toast = document.createElement('div');
-                    toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 9999; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
-                    toast.textContent = message;
+                    toast.id = '_fsaToast';
+                    toast.style.cssText = [
+                        'position:fixed', 'bottom:24px', 'right:24px',
+                        'background:' + bgColor, 'color:#fff',
+                        'padding:14px 20px 14px 16px',
+                        'border-radius:8px', 'z-index:99999',
+                        'font-size:13.5px', 'line-height:1.45',
+                        'box-shadow:0 4px 16px rgba(0,0,0,0.22)',
+                        'max-width:420px', 'display:flex', 'align-items:flex-start', 'gap:10px',
+                        'cursor:pointer'
+                    ].join(';');
+
+                    var icon = bgColor === '#dc2626'
+                        ? '<svg style="flex-shrink:0;margin-top:2px" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>'
+                        : '<svg style="flex-shrink:0;margin-top:2px" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>';
+
+                    toast.innerHTML = icon + '<span>' + message + '</span>';
+                    toast.onclick = function() { toast.remove(); };
                     document.body.appendChild(toast);
-                    setTimeout(function() { toast.remove(); }, 3000);
+                    setTimeout(function() { if (toast.parentNode) toast.remove(); }, duration);
                 }
 
                 // Set global CSRF token for upload functions
@@ -311,12 +339,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving KM:', data.error);
-                                alert('Error updating KM: ' + data.error);
+                                showErrorToast('Error updating KM: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving KM:', error);
-                            alert('Error updating KM: ' + error.message);
+                            showErrorToast('Error updating KM: ' + error.message);
                         });
                 };
 
@@ -351,12 +379,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving Hours:', data.error);
-                                alert('Error updating Hours: ' + data.error);
+                                showErrorToast('Error updating Hours: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving Hours:', error);
-                            alert('Error updating Hours: ' + error.message);
+                            showErrorToast('Error updating Hours: ' + error.message);
                         });
                 };
 
@@ -394,12 +422,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving Bought Sample:', data.error);
-                                alert('Error updating Bought Sample: ' + data.error);
+                                showErrorToast('Error updating Bought Sample: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving Bought Sample:', error);
-                            alert('Error updating Bought Sample: ' + error.message);
+                            showErrorToast('Error updating Bought Sample: ' + error.message);
                         });
                 };
 
@@ -494,12 +522,12 @@
                                 }, 500);
                             } else {
                                 console.error('❌ Error saving approved status:', data.error);
-                                alert('Error updating approved status: ' + data.error);
+                                showErrorToast('Error updating approved status: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('❌ Network error saving approved status:', error);
-                            alert('Error updating approved status: ' + error.message);
+                            showErrorToast('Error updating approved status: ' + error.message);
                         });
                 };
                 // ============================================
@@ -533,47 +561,47 @@
                 // Upload functions for inspection-level documents
                 window.uploadComplianceForInspection = window.uploadComplianceForInspection || function (productId, groupId) {
                     console.log('Upload compliance for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadCompositionForInspection = window.uploadCompositionForInspection || function (productId, groupId) {
                     console.log('Upload composition for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadLabForInspection = window.uploadLabForInspection || function (productId, groupId) {
                     console.log('Upload lab for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadOccurrenceForInspection = window.uploadOccurrenceForInspection || function (productId, groupId) {
                     console.log('Upload occurrence for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadInvoiceForInspection = window.uploadInvoiceForInspection || function (productId, groupId) {
                     console.log('Upload invoice for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadRfiForInspection = window.uploadRfiForInspection || function (productId, groupId) {
                     console.log('Upload RFI for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadRetestForInspection = window.uploadRetestForInspection || function (productId, groupId) {
                     console.log('Upload Retest for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadOtherForInspection = window.uploadOtherForInspection || function (productId, groupId) {
                     console.log('Upload other for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.uploadLabFormForInspection = window.uploadLabFormForInspection || function (productId, groupId) {
                     console.log('Upload lab form for inspection:', productId, groupId);
-                    alert('Please wait - upload functions loading...');
+                    showErrorToast('Please wait — page is still loading, try again in a moment');
                 };
 
                 window.viewDocForInspection = window.viewDocForInspection || function (productId, docType) {
@@ -1987,7 +2015,7 @@
 
                     if (!clientName || !inspectionDate) {
                         console.error('📦 [DOWNLOAD-ALL] ERROR: Missing client or date');
-                        alert('Error: Missing client or inspection date information');
+                        showErrorToast('Missing client or inspection date information');
                         return;
                     }
 
@@ -2023,7 +2051,7 @@
                         if (contentType.includes('application/json')) {
                             const errorData = await response.json();
                             console.error('[DOWNLOAD-ALL] Server returned error:', errorData);
-                            alert('Download failed: ' + (errorData.error || 'Unknown error'));
+                            showErrorToast('Download failed: ' + (errorData.error || 'Unknown error'));
                         } else if (response.ok) {
                             const blob = await response.blob();
                             console.log('[DOWNLOAD-ALL] Blob size:', blob.size, 'bytes');
@@ -2051,13 +2079,13 @@
                         } else {
                             const errorText = await response.text();
                             console.error('[DOWNLOAD-ALL] Error response:', errorText.substring(0, 500));
-                            alert('Download failed: ' + errorText.substring(0, 200));
+                            showErrorToast('Download failed: ' + errorText.substring(0, 200));
                         }
 
                     } catch (error) {
                         console.error('📦 [DOWNLOAD-ALL] ❌ Download error:', error);
                         console.error('📦 [DOWNLOAD-ALL] Error stack:', error.stack);
-                        alert('Download failed: ' + error.message);
+                        showErrorToast('Download failed: ' + error.message);
                     } finally {
                         // Reset button state
                         downloadBtn.innerHTML = originalText;
@@ -3231,11 +3259,11 @@
                             document.body.appendChild(overlay);
 
                         } else {
-                            alert('Error reading ZIP contents: ' + result.error);
+                            showErrorToast('Error reading ZIP contents: ' + result.error);
                         }
 
                     } catch (error) {
-                        alert('Network error: ' + error.message);
+                        showErrorToast('Network error: ' + error.message);
                     }
                 }
                 function formatFileSize(bytes) {
@@ -3290,7 +3318,7 @@
                             // Restore button on error
                             sendButton.innerHTML = originalText;
                             sendButton.disabled = false;
-                            alert('❌ Error sending documents: ' + result.error);
+                            showErrorToast(result.error);
                         }
 
                     } catch (error) {
@@ -3298,7 +3326,7 @@
                         const sendButton = document.getElementById('send-' + groupId);
                         sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
                         sendButton.disabled = false;
-                        alert('❌ Network error: ' + error.message);
+                        showErrorToast('Network error — could not reach the server. Please try again.');
                     }
                 }
 
@@ -3966,7 +3994,7 @@
 
                     // Validate that groupId is provided
                     if (!groupId) {
-                        alert('Error: Unable to upload RFI - missing group ID. Please refresh the page and try again.');
+                        showErrorToast('Error: Unable to upload RFI - missing group ID. Please refresh the page and try again.');
                         console.error('[UPLOAD] Missing groupId for RFI upload');
                         return;
                     }
@@ -4027,7 +4055,7 @@
                             if (file) {
                                 // Additional client-side PDF validation
                                 if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                    alert('Only PDF files are allowed. Please select a PDF document.');
+                                    showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                     return;
                                 }
 
@@ -4081,12 +4109,12 @@
                                             }
                                         } else {
                                             hideRFILoading(false);
-                                            alert('Error uploading RFI: ' + data.error);
+                                            showErrorToast('Error uploading RFI: ' + data.error);
                                         }
                                     })
                                     .catch(error => {
                                         hideRFILoading(false);
-                                        alert('Error uploading RFI: ' + error.message);
+                                        showErrorToast('Error uploading RFI: ' + error.message);
                                     });
                             }
                         };
@@ -4105,7 +4133,7 @@
 
                     } catch (error) {
                         console.error('❌ Error in uploadRFI function:', error);
-                        alert('Error in upload function: ' + error.message);
+                        showErrorToast('Error in upload function: ' + error.message);
                     }
                 }
 
@@ -4116,7 +4144,7 @@
 
                     // Validate that groupId is provided
                     if (!groupId) {
-                        alert('Error: Unable to upload occurrence - missing group ID. Please refresh the page and try again.');
+                        showErrorToast('Error: Unable to upload occurrence - missing group ID. Please refresh the page and try again.');
                         console.error('[UPLOAD] Missing groupId for occurrence upload');
                         return;
                     }
@@ -4173,7 +4201,7 @@
                             if (file) {
                                 // Additional client-side PDF validation
                                 if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                    alert('Only PDF files are allowed. Please select a PDF document.');
+                                    showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                     return;
                                 }
 
@@ -4250,12 +4278,12 @@
                                             }
                                         } else {
                                             hideOccurrenceLoading();
-                                            alert('Error uploading Occurrence: ' + data.error);
+                                            showErrorToast('Error uploading Occurrence: ' + data.error);
                                         }
                                     })
                                     .catch(error => {
                                         hideOccurrenceLoading();
-                                        alert('Error uploading Occurrence: ' + error.message);
+                                        showErrorToast('Error uploading Occurrence: ' + error.message);
                                     });
                             }
                         };
@@ -4274,7 +4302,7 @@
 
                     } catch (error) {
                         console.error('❌ Error in uploadOccurrence function:', error);
-                        alert('Error in upload function: ' + error.message);
+                        showErrorToast('Error in upload function: ' + error.message);
                     }
                 }
 
@@ -4335,7 +4363,7 @@
                         if (file) {
                             // Additional client-side PDF validation
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
+                                showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
 
@@ -4391,12 +4419,12 @@
                                         }
                                     } else {
                                         hideInvoiceLoading(false);
-                                        alert('Error uploading Invoice: ' + data.error);
+                                        showErrorToast('Error uploading Invoice: ' + data.error);
                                     }
                                 })
                                 .catch(error => {
                                     hideInvoiceLoading(false);
-                                    alert('Error uploading Invoice: ' + error.message);
+                                    showErrorToast('Error uploading Invoice: ' + error.message);
                                 });
                         }
                     };
@@ -4420,7 +4448,7 @@
                         if (file) {
                             // Additional client-side PDF validation
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
+                                showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
                             // Get the group_id from the button's data attribute
@@ -4499,7 +4527,7 @@
                         if (file) {
                             // Additional client-side PDF validation
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
+                                showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
                             // Get the group_id from the button's data attribute
@@ -4570,7 +4598,7 @@
                     console.log('window.uploadRetest called with groupId:', groupId, 'inspectionId:', inspectionId);
 
                     if (!groupId && !inspectionId) {
-                        alert('Error: Group ID or Inspection ID is required');
+                        showErrorToast('Error: Group ID or Inspection ID is required');
                         return;
                     }
 
@@ -4585,7 +4613,7 @@
                         if (file) {
                             // Additional client-side PDF validation
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
+                                showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
 
@@ -4633,12 +4661,12 @@
                                             setTimeout(() => updateAllViewFilesButtonColors(), 2000);
                                         }
                                     } else {
-                                        alert(data.error || 'Failed to upload retest document');
+                                        showErrorToast(data.error || 'Failed to upload retest document');
                                         console.error('❌ Error uploading Retest report:', data.error);
                                     }
                                 })
                                 .catch(error => {
-                                    alert('Error uploading retest document. Please try again.');
+                                    showErrorToast('Error uploading retest document. Please try again.');
                                     console.error('❌ Error uploading Retest report:', error.message);
                                 });
                         }
@@ -4665,7 +4693,7 @@
                         const file = e.target.files[0];
                         if (file) {
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed for lab/COA documents.');
+                                showErrorToast('Only PDF files are allowed for lab/COA documents.');
                                 return;
                             }
 
@@ -4692,12 +4720,12 @@
                                         showUploadToast('Lab/COA document uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading lab:', data.error);
-                                        alert('Error uploading lab/COA: ' + (data.error || 'Unknown error'));
+                                        showErrorToast('Error uploading lab/COA: ' + (data.error || 'Unknown error'));
                                     }
                                 })
                                 .catch(error => {
                                     console.error('❌ Error uploading lab:', error);
-                                    alert('Error uploading lab/COA: ' + error.message);
+                                    showErrorToast('Error uploading lab/COA: ' + error.message);
                                 });
                         }
                     };
@@ -4743,12 +4771,12 @@
                                         showUploadToast('Occurrence uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading occurrence:', data.error);
-                                        alert('Error uploading occurrence: ' + (data.error || 'Unknown error'));
+                                        showErrorToast('Error uploading occurrence: ' + (data.error || 'Unknown error'));
                                     }
                                 })
                                 .catch(error => {
                                     console.error('❌ Error uploading occurrence:', error);
-                                    alert('Error uploading occurrence: ' + error.message);
+                                    showErrorToast('Error uploading occurrence: ' + error.message);
                                 });
                         }
                     };
@@ -4808,12 +4836,12 @@
                                         showUploadToast('Lab Form uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading lab form:', data.error);
-                                        alert('Error uploading lab form: ' + (data.error || 'Unknown error'));
+                                        showErrorToast('Error uploading lab form: ' + (data.error || 'Unknown error'));
                                     }
                                 })
                                 .catch(error => {
                                     console.error('❌ Error uploading lab form:', error);
-                                    alert('Error uploading lab form: ' + error.message);
+                                    showErrorToast('Error uploading lab form: ' + error.message);
                                 });
                         }
                     };
@@ -4862,12 +4890,12 @@
                                         showUploadToast('File uploaded successfully!');
                                     } else {
                                         console.error('❌ Error uploading file:', data.error);
-                                        alert('Error uploading file: ' + (data.error || 'Unknown error'));
+                                        showErrorToast('Error uploading file: ' + (data.error || 'Unknown error'));
                                     }
                                 })
                                 .catch(error => {
                                     console.error('❌ Error uploading file:', error);
-                                    alert('Error uploading file: ' + error.message);
+                                    showErrorToast('Error uploading file: ' + error.message);
                                 });
                         }
                     };
@@ -4883,7 +4911,7 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.error) {
-                                alert('Error: ' + data.error);
+                                showErrorToast('Error: ' + data.error);
                                 return;
                             }
                             // Check if we have files for this document type
@@ -4898,15 +4926,15 @@
                                 if (url) {
                                     window.open(url, '_blank');
                                 } else {
-                                    alert('No viewable URL for this document.');
+                                    showErrorToast('No viewable URL for this document.');
                                 }
                             } else {
-                                alert('No ' + docType + ' document found for this inspection.');
+                                showErrorToast('No ' + docType + ' document found for this inspection.');
                             }
                         })
                         .catch(error => {
                             console.error('Error fetching document:', error);
-                            alert('Error fetching document: ' + error.message);
+                            showErrorToast('Error fetching document: ' + error.message);
                         });
                 };
 
@@ -4921,13 +4949,13 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.error) {
-                                alert('Error: ' + data.error);
+                                showErrorToast('Error: ' + data.error);
                                 return;
                             }
                             const files = data.files || data;
                             const typeFiles = files[docType] || [];
                             if (typeFiles.length === 0) {
-                                alert('No ' + docType + ' document found to delete.');
+                                showErrorToast('No ' + docType + ' document found to delete.');
                                 return;
                             }
 
@@ -4936,7 +4964,7 @@
                             const filePath = file.relative_path || file.path;
 
                             if (!filePath) {
-                                alert('Could not determine file path for deletion.');
+                                showErrorToast('Could not determine file path for deletion.');
                                 return;
                             }
 
@@ -4965,17 +4993,17 @@
                                         showUploadToast(docType.charAt(0).toUpperCase() + docType.slice(1) + ' document deleted successfully!');
                                     } else {
                                         console.error('❌ Error deleting ' + docType + ':', deleteData.error);
-                                        alert('Error deleting ' + docType + ': ' + (deleteData.error || 'Unknown error'));
+                                        showErrorToast('Error deleting ' + docType + ': ' + (deleteData.error || 'Unknown error'));
                                     }
                                 })
                                 .catch(error => {
                                     console.error('❌ Error deleting ' + docType + ':', error);
-                                    alert('Error deleting ' + docType + ': ' + error.message);
+                                    showErrorToast('Error deleting ' + docType + ': ' + error.message);
                                 });
                         })
                         .catch(error => {
                             console.error('❌ Error fetching files for deletion:', error);
-                            alert('Error fetching files: ' + error.message);
+                            showErrorToast('Error fetching files: ' + error.message);
                         });
                 };
 
@@ -5111,13 +5139,13 @@
                             } else {
                                 // Revert checkbox state on error
                                 checkbox.checked = !isSampleTaken;
-                                alert('Error updating sample taken status: ' + data.error);
+                                showErrorToast('Error updating sample taken status: ' + data.error);
                             }
                         })
                         .catch(error => {
                             // Revert checkbox state on error
                             checkbox.checked = !isSampleTaken;
-                            alert('Error updating sample taken status: ' + error.message);
+                            showErrorToast('Error updating sample taken status: ' + error.message);
                         });
                 };
 
@@ -5153,13 +5181,13 @@
                             } else {
                                 // Revert checkbox state on error
                                 checkbox.checked = !isChecked;
-                                alert('Error updating test result: ' + data.error);
+                                showErrorToast('Error updating test result: ' + data.error);
                             }
                         })
                         .catch(error => {
                             // Revert checkbox state on error
                             checkbox.checked = !isChecked;
-                            alert('Error updating test result: ' + error.message);
+                            showErrorToast('Error updating test result: ' + error.message);
                         });
                 };
 
@@ -5209,13 +5237,13 @@
                             } else {
                                 // Revert dropdown state on error
                                 dropdown.value = '';
-                                alert('Error updating needs retest: ' + data.error);
+                                showErrorToast('Error updating needs retest: ' + data.error);
                             }
                         })
                         .catch(error => {
                             // Revert dropdown state on error
                             dropdown.value = '';
-                            alert('Error updating needs retest: ' + error.message);
+                            showErrorToast('Error updating needs retest: ' + error.message);
                         });
                 };
 
@@ -5247,11 +5275,11 @@
                                     input.style.backgroundColor = '';
                                 }, 500);
                             } else {
-                                alert('Error updating Km Traveled: ' + data.error);
+                                showErrorToast('Error updating Km Traveled: ' + data.error);
                             }
                         })
                         .catch(error => {
-                            alert('Error updating Km Traveled: ' + error.message);
+                            showErrorToast('Error updating Km Traveled: ' + error.message);
                         });
                 };
 
@@ -5283,11 +5311,11 @@
                                     input.style.backgroundColor = '';
                                 }, 500);
                             } else {
-                                alert('Error updating Group Km Traveled: ' + data.error);
+                                showErrorToast('Error updating Group Km Traveled: ' + data.error);
                             }
                         })
                         .catch(error => {
-                            alert('Error updating Group Km Traveled: ' + error.message);
+                            showErrorToast('Error updating Group Km Traveled: ' + error.message);
                         });
                 };
 
@@ -5319,11 +5347,11 @@
                                     input.style.backgroundColor = '';
                                 }, 500);
                             } else {
-                                alert('Error updating Group Hours: ' + data.error);
+                                showErrorToast('Error updating Group Hours: ' + data.error);
                             }
                         })
                         .catch(error => {
-                            alert('Error updating Group Hours: ' + error.message);
+                            showErrorToast('Error updating Group Hours: ' + error.message);
                         });
                 };
 
@@ -5376,8 +5404,8 @@
                         }
                         return r.json();
                     }).then(data => {
-                        if (!data.success) alert('Error updating product name: ' + (data.error || 'Unknown error'));
-                    }).catch(err => alert('Error updating product name: ' + (err?.message || err)));
+                        if (!data.success) showErrorToast('Error updating product name: ' + (data.error || 'Unknown error'));
+                    }).catch(err => showErrorToast('Error updating product name: ' + (err?.message || err)));
                 }
 
                 // Update Product Class - Simplified to only handle RAW and PMP
@@ -5394,7 +5422,7 @@
                         dropdown.value = '';
                         // Remove has-value class for disabled dropdowns
                         dropdown.classList.remove('has-value');
-                        alert('Product class is not applicable for Egg/Poultry commodities.');
+                        showErrorToast('Product class is not applicable for Egg/Poultry commodities.');
                         return;
                     }
 
@@ -5436,8 +5464,8 @@
                         }
                         return r.json();
                     }).then(data => {
-                        if (!data.success) alert('Error updating product class: ' + (data.error || 'Unknown error'));
-                    }).catch(err => alert('Error updating product class: ' + (err?.message || err)));
+                        if (!data.success) showErrorToast('Error updating product class: ' + (data.error || 'Unknown error'));
+                    }).catch(err => showErrorToast('Error updating product class: ' + (err?.message || err)));
                 }
 
                 // Manual trigger function for class dropdown population
@@ -5541,11 +5569,11 @@
                                 dropdown.style.backgroundColor = '#d4edda';
                                 setTimeout(() => { dropdown.style.backgroundColor = ''; }, 500);
                             } else {
-                                alert('Error updating Lab: ' + (data.error || 'Unknown error'));
+                                showErrorToast('Error updating Lab: ' + (data.error || 'Unknown error'));
                             }
                         })
                         .catch(error => {
-                            alert('Error updating Lab: ' + (error?.message || error));
+                            showErrorToast('Error updating Lab: ' + (error?.message || error));
                         });
                 };
 
@@ -6212,28 +6240,28 @@
                         if (!contentType || !contentType.includes('application/json')) {
                             // If not JSON, likely an HTML error page
                             if (resp.status === 403) {
-                                alert('Session expired. Please refresh the page and try again.');
+                                showErrorToast('Session expired. Please refresh the page and try again.');
                                 window.location.reload();
                                 return;
                             } else if (resp.status === 500) {
-                                alert('Server error. Please try again.');
+                                showErrorToast('Server error. Please try again.');
                                 return;
                             } else {
-                                alert('Unexpected response format. Please refresh the page and try again.');
+                                showErrorToast('Unexpected response format. Please refresh the page and try again.');
                                 return;
                             }
                         }
 
                         const result = await resp.json();
                         if (result.success) {
-                            alert('Email saved');
+                            showUploadToast('Email saved');
                             window.location.reload();
                         } else {
-                            alert('Error: ' + result.error);
+                            showErrorToast('Error: ' + result.error);
                         }
                     } catch (e) {
                         console.error('Network error:', e);
-                        alert('Network error: ' + e.message);
+                        showErrorToast('Network error: ' + e.message);
                     }
                 }
                 async function deleteClientEmail(clientName, email) {
@@ -6253,14 +6281,14 @@
                         if (!contentType || !contentType.includes('application/json')) {
                             // If not JSON, likely an HTML error page
                             if (resp.status === 403) {
-                                alert('Session expired. Please refresh the page and try again.');
+                                showErrorToast('Session expired. Please refresh the page and try again.');
                                 window.location.reload();
                                 return;
                             } else if (resp.status === 500) {
-                                alert('Server error. Please try again.');
+                                showErrorToast('Server error. Please try again.');
                                 return;
                             } else {
-                                alert('Unexpected response format. Please refresh the page and try again.');
+                                showErrorToast('Unexpected response format. Please refresh the page and try again.');
                                 return;
                             }
                         }
@@ -6269,11 +6297,11 @@
                         if (result.success) {
                             window.location.reload();
                         } else {
-                            alert('Error: ' + result.error);
+                            showErrorToast('Error: ' + result.error);
                         }
                     } catch (e) {
                         console.error('Network error:', e);
-                        alert('Network error: ' + e.message);
+                        showErrorToast('Network error: ' + e.message);
                     }
                 }
 
@@ -7038,12 +7066,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving product name:', data.error);
-                                alert('Error updating product name: ' + data.error);
+                                showErrorToast('Error updating product name: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving product name:', error);
-                            alert('Error updating product name: ' + error.message);
+                            showErrorToast('Error updating product name: ' + error.message);
                         });
                 };
 
@@ -7077,12 +7105,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving product class:', data.error);
-                                alert('Error updating product class: ' + data.error);
+                                showErrorToast('Error updating product class: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving product class:', error);
-                            alert('Error updating product class: ' + error.message);
+                            showErrorToast('Error updating product class: ' + error.message);
                         });
                 };
 
@@ -7114,12 +7142,12 @@
                                 console.log('[SUCCESS] Test result saved successfully:', data);
                             } else {
                                 console.error('[ERROR] Error saving test result:', data.error);
-                                alert('Error updating test result: ' + data.error);
+                                showErrorToast('Error updating test result: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving test result:', error);
-                            alert('Error updating test result: ' + error.message);
+                            showErrorToast('Error updating test result: ' + error.message);
                         });
                 };
 
@@ -7153,12 +7181,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving lab:', data.error);
-                                alert('Error updating lab: ' + data.error);
+                                showErrorToast('Error updating lab: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving lab:', error);
-                            alert('Error updating lab: ' + error.message);
+                            showErrorToast('Error updating lab: ' + error.message);
                         });
                 };
 
@@ -7178,7 +7206,7 @@
 
                     // Validate that at least one ID is provided
                     if (!groupId && !inspectionId) {
-                        alert('Error: Unable to upload - missing group or inspection ID. Please refresh the page and try again.');
+                        showErrorToast('Error: Unable to upload - missing group or inspection ID. Please refresh the page and try again.');
                         console.error('[UPLOAD] Missing both groupId and inspectionId');
                         return;
                     }
@@ -7194,7 +7222,7 @@
                         if (file) {
                             // Validate PDF file
                             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                                alert('Only PDF files are allowed. Please select a PDF document.');
+                                showErrorToast('Only PDF files are allowed. Please select a PDF document.');
                                 return;
                             }
 
@@ -7224,11 +7252,11 @@
                                         // Refresh the page to show updated status
                                         location.reload();
                                     } else {
-                                        alert('Error uploading retest file: ' + data.error);
+                                        showErrorToast('Error uploading retest file: ' + data.error);
                                     }
                                 })
                                 .catch(error => {
-                                    alert('Error uploading retest file: ' + error.message);
+                                    showErrorToast('Error uploading retest file: ' + error.message);
                                 });
                         }
                     };
@@ -7243,7 +7271,7 @@
                     console.log('[MOBILE] Editing inspection:', inspectionId);
                     // This would open the inspection edit dialog
                     // Implementation depends on your existing edit system
-                    alert('Edit inspection functionality - Inspection ID: ' + inspectionId);
+                    showErrorToast('Edit inspection functionality - Inspection ID: ' + inspectionId);
                 };
 
                 window.generateLabForm = function (inspectionId) {
@@ -7271,11 +7299,11 @@
                                 // Optionally refresh the page or update UI
                                 location.reload();
                             } else {
-                                alert('Error generating lab form: ' + data.error);
+                                showErrorToast('Error generating lab form: ' + data.error);
                             }
                         })
                         .catch(error => {
-                            alert('Error generating lab form: ' + error.message);
+                            showErrorToast('Error generating lab form: ' + error.message);
                         });
                 };
 
@@ -7317,12 +7345,12 @@
                                 }, 500);
                             } else {
                                 console.error('[ERROR] Error saving bought sample:', data.error);
-                                alert('Error updating bought sample: ' + data.error);
+                                showErrorToast('Error updating bought sample: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving bought sample:', error);
-                            alert('Error updating bought sample: ' + error.message);
+                            showErrorToast('Error updating bought sample: ' + error.message);
                         });
                 };
 
@@ -7333,7 +7361,7 @@
                     // Check if the select is disabled (no sample taken)
                     if (select.disabled) {
                         console.log('[MOBILE] Needs retest dropdown is disabled - no sample taken');
-                        alert('Cannot set retest options - no sample taken for this inspection');
+                        showErrorToast('Cannot set retest options - no sample taken for this inspection');
                         return;
                     }
 
@@ -7374,12 +7402,12 @@
                                 updateRetestButtonState(inspectionId, needsRetest);
                             } else {
                                 console.error('[ERROR] Error saving needs retest:', data.error);
-                                alert('Error updating needs retest: ' + data.error);
+                                showErrorToast('Error updating needs retest: ' + data.error);
                             }
                         })
                         .catch(error => {
                             console.error('[ERROR] Network error saving needs retest:', error);
-                            alert('Error updating needs retest: ' + error.message);
+                            showErrorToast('Error updating needs retest: ' + error.message);
                         });
                 };
 
