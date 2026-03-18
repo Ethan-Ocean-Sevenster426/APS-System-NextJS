@@ -5979,6 +5979,7 @@ def get_dropdown_options(request):
     facility_types_qs = Client.objects.values('facility_type').annotate(count=Count('id')).filter(~Q(facility_type='') & ~Q(facility_type__isnull=True))
     corporate_groups_qs = Client.objects.values('corporate_group').annotate(count=Count('id')).filter(~Q(corporate_group='') & ~Q(corporate_group__isnull=True))
     group_types_qs = Client.objects.values('group_type').annotate(count=Count('id')).filter(~Q(group_type='') & ~Q(group_type__isnull=True))
+    commodities_qs = Client.objects.values('commodity').annotate(count=Count('id')).filter(~Q(commodity='') & ~Q(commodity__isnull=True))
 
     custom_ft = ClientDropdownOption.objects.filter(field_type='facility_type')
     custom_cg = ClientDropdownOption.objects.filter(field_type='corporate_group')
@@ -5988,6 +5989,7 @@ def get_dropdown_options(request):
         'facility_types': merge_options(facility_types_qs, 'facility_type', custom_ft),
         'corporate_groups': merge_options(corporate_groups_qs, 'corporate_group', custom_cg),
         'group_types': merge_options(group_types_qs, 'group_type', custom_gt),
+        'commodities': merge_options(commodities_qs, 'commodity', []),
     })
 
 

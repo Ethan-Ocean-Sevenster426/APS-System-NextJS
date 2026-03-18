@@ -432,7 +432,7 @@
 
             dropdown.innerHTML = '';
 
-            options.forEach(option => {
+            (options || []).forEach(option => {
                 const div = document.createElement('div');
                 div.className = 'custom-dropdown-item';
                 div.textContent = option.value;
