@@ -5964,25 +5964,30 @@ def edit_client_allocation(request):
 
 @login_required(login_url='login')
 def get_dropdown_options(request):
-    """Get all unique values for facility_type and corporate_group with counts from Client model."""
-    from ..models import Client
+    """Get all unique values for facility_type, corporate_group, and group_type with counts from Client model, merged with custom ClientDropdownOption entries."""
+    from ..models import Client, ClientDropdownOption
     from django.db.models import Count, Q
     from django.http import JsonResponse
 
-    # Get facility types with counts
-    facility_types = Client.objects.values('facility_type').annotate(
-        count=Count('id')
-    ).filter(~Q(facility_type='') & ~Q(facility_type__isnull=True)).order_by('facility_type')
+    def merge_options(db_qs, field, custom_qs):
+        db_vals = {item[field]: item['count'] for item in db_qs}
+        for opt in custom_qs:
+            if opt.value not in db_vals:
+                db_vals[opt.value] = 0
+        return sorted([{'value': k, 'count': v} for k, v in db_vals.items()], key=lambda x: x['value'])
 
-    # Get corporate groups with counts
-    corporate_groups = Client.objects.values('corporate_group').annotate(
-        count=Count('id')
-    ).filter(~Q(corporate_group='') & ~Q(corporate_group__isnull=True)).order_by('corporate_group')
+    facility_types_qs = Client.objects.values('facility_type').annotate(count=Count('id')).filter(~Q(facility_type='') & ~Q(facility_type__isnull=True))
+    corporate_groups_qs = Client.objects.values('corporate_group').annotate(count=Count('id')).filter(~Q(corporate_group='') & ~Q(corporate_group__isnull=True))
+    group_types_qs = Client.objects.values('group_type').annotate(count=Count('id')).filter(~Q(group_type='') & ~Q(group_type__isnull=True))
+
+    custom_ft = ClientDropdownOption.objects.filter(field_type='facility_type')
+    custom_cg = ClientDropdownOption.objects.filter(field_type='corporate_group')
+    custom_gt = ClientDropdownOption.objects.filter(field_type='group_type')
 
     return JsonResponse({
-        'facility_types': [{'value': item['facility_type'], 'count': item['count']} for item in facility_types],
-        'commodities': [],
-        'corporate_groups': [{'value': item['corporate_group'], 'count': item['count']} for item in corporate_groups],
+        'facility_types': merge_options(facility_types_qs, 'facility_type', custom_ft),
+        'corporate_groups': merge_options(corporate_groups_qs, 'corporate_group', custom_cg),
+        'group_types': merge_options(group_types_qs, 'group_type', custom_gt),
     })
 
 
@@ -6005,7 +6010,8 @@ def delete_dropdown_option(request):
             # Map field_type to actual Client model field
             field_map = {
                 'facility_type': 'facility_type',
-                'corporate_group': 'corporate_group'
+                'corporate_group': 'corporate_group',
+                'group_type': 'group_type',
             }
 
             if field_type not in field_map:
@@ -6024,6 +6030,31 @@ def delete_dropdown_option(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+@login_required(login_url='login')
+def add_dropdown_option(request):
+    """Add a custom dropdown option to ClientDropdownOption."""
+    from ..models import ClientDropdownOption
+    from django.http import JsonResponse
+    import json
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            field_type = data.get('field_type', '').strip()
+            value = data.get('value', '').strip()
+            if not field_type or not value:
+                return JsonResponse({'success': False, 'error': 'Missing field_type or value'})
+            valid_fields = ['facility_type', 'corporate_group', 'group_type']
+            if field_type not in valid_fields:
+                return JsonResponse({'success': False, 'error': 'Invalid field type'})
+            obj, created = ClientDropdownOption.objects.get_or_create(field_type=field_type, value=value)
+            if not created:
+                return JsonResponse({'success': False, 'error': f'"{value}" already exists'})
+            return JsonResponse({'success': True, 'message': f'Added "{value}" to {field_type}'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
 
 
 @login_required(login_url='login')

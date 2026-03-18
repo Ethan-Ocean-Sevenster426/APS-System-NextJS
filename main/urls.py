@@ -77,6 +77,7 @@ urlpatterns = [
     path('clients/allocation/sync/', views.sync_client_allocations, name='sync_client_allocations'),
     path('clients/allocation/dropdown-options/', views.get_dropdown_options, name='get_dropdown_options'),
     path('clients/allocation/dropdown-options/delete/', views.delete_dropdown_option, name='delete_dropdown_option'),
+    path('clients/allocation/dropdown-options/add/', views.add_dropdown_option, name='add_dropdown_option'),
     path('api/clients/autocomplete/', client_autocomplete_api, name='client_autocomplete_api'),
     
     # =============================================================================

@@ -312,45 +312,62 @@
 
         function loadDropdownOptions() {
             fetch(window.DJANGO_CONFIG.urls.getDropdownOptions)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
-                    const facilityTypesList = document.getElementById('facilityTypesList');
-                    facilityTypesList.innerHTML = '';
-                    data.facility_types.forEach(item => {
-                        facilityTypesList.innerHTML += createOptionItem('facility_type', item.value, item.count);
-                    });
-
-                    const commoditiesList = document.getElementById('commoditiesList');
-                    commoditiesList.innerHTML = '';
-                    data.commodities.forEach(item => {
-                        commoditiesList.innerHTML += createOptionItem('commodity', item.value, item.count);
-                    });
-
-                    const corporateGroupsList = document.getElementById('corporateGroupsList');
-                    corporateGroupsList.innerHTML = '';
-                    data.corporate_groups.forEach(item => {
-                        corporateGroupsList.innerHTML += createOptionItem('corporate_group', item.value, item.count);
-                    });
+                    renderOptionList('facilityTypesList', 'facility_type', data.facility_types || []);
+                    renderOptionList('corporateGroupsList', 'corporate_group', data.corporate_groups || []);
+                    renderOptionList('groupTypesList', 'group_type', data.group_types || []);
                 })
-                .catch(error => {
-                    console.error('Error loading options:', error);
-                    alert('Error loading dropdown options');
-                });
+                .catch(() => alert('Error loading options'));
         }
 
-        function createOptionItem(fieldType, value, count) {
-            if (!value) return '';
-            return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.375rem; border: 1px solid #e5e7eb;">
+        function renderOptionList(containerId, fieldType, items) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            if (!items.length) {
+                el.innerHTML = '<p style="color:#9ca3af;font-size:0.875rem;">No options yet.</p>';
+                return;
+            }
+            el.innerHTML = items.map(item => `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px;">
                     <div>
-                        <span style="font-weight: 500;">${value}</span>
-                        <span style="color: #6b7280; font-size: 0.875rem; margin-left: 0.5rem;">(${count} client${count !== 1 ? 's' : ''})</span>
+                        <span style="font-weight:500; font-size:0.875rem;">${item.value}</span>
+                        <span style="color:#9ca3af; font-size:0.75rem; margin-left:8px;">${item.count} client${item.count !== 1 ? 's' : ''}</span>
                     </div>
-                    <button type="button" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;" onclick="deleteOption('${fieldType}', '${value.replace(/'/g, "\\'")}', ${count})">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </div>
-            `;
+                    ${item.count === 0 ? `<button type="button" onclick="deleteOption('${fieldType}','${item.value.replace(/'/g,"\\'")}',${item.count})" style="padding:4px 10px; font-size:0.75rem; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button>` : `<span style="color:#9ca3af; font-size:0.75rem;">In use</span>`}
+                </div>`).join('');
+        }
+
+        function moSwitchTab(btn, panelId) {
+            document.querySelectorAll('.mo-tab').forEach(t => {
+                t.style.color = '#6b7280';
+                t.style.borderBottomColor = 'transparent';
+            });
+            document.querySelectorAll('.mo-panel').forEach(p => p.style.display = 'none');
+            btn.style.color = '#007890';
+            btn.style.borderBottomColor = '#007890';
+            document.getElementById(panelId).style.display = 'block';
+        }
+
+        function moAddOption(fieldType, inputId) {
+            const input = document.getElementById(inputId);
+            const value = input.value.trim();
+            if (!value) { alert('Please enter a value'); return; }
+            fetch(window.DJANGO_CONFIG.urls.addDropdownOption, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.DJANGO_CONFIG.csrfToken },
+                body: JSON.stringify({ field_type: fieldType, value: value })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    loadDropdownOptions();
+                } else {
+                    alert(data.error || 'Error adding option');
+                }
+            })
+            .catch(() => alert('Error adding option'));
         }
 
         function deleteOption(fieldType, value, count) {

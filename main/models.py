@@ -1425,3 +1425,21 @@ class InspectorSalary(models.Model):
 
     def __str__(self):
         return f"{self.inspector_name}: R{self.monthly_salary:,.2f}"
+
+
+class ClientDropdownOption(models.Model):
+    FIELD_CHOICES = [
+        ('facility_type', 'Facility Type'),
+        ('corporate_group', 'Corporate Group'),
+        ('group_type', 'Group Type'),
+    ]
+    field_type = models.CharField(max_length=50, choices=FIELD_CHOICES)
+    value = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('field_type', 'value')
+        ordering = ['field_type', 'value']
+
+    def __str__(self):
+        return f"{self.field_type}: {self.value}"
