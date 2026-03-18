@@ -16371,6 +16371,11 @@ def send_group_documents(request):
     <p>We appreciate your continued cooperation and commitment to regulatory compliance and quality assurance. Please review the attached documentation at your convenience.</p>
 
     <p>Kind Regards / Vriendelike Groete</p>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
+    <p style="font-size:12px;color:#9ca3af;margin:0;">
+        <em>Note to inspector: You have been included on this email as a copy (CC) so that you are aware the documents for this inspection have been sent to the client.</em>
+    </p>
 </div>
 """
 
@@ -16388,9 +16393,38 @@ def send_group_documents(request):
             inspector_name__exact=''
         ).values_list('inspector_name', flat=True).first()
         if insp_name:
-            inspector_user = AuthUser.objects.filter(
-                first_name__iexact=insp_name.split()[0]
-            ).exclude(email__exact='').first()
+            inspector_user = None
+            insp_parts = insp_name.strip().split()
+            insp_first = insp_parts[0] if insp_parts else ''
+            insp_last  = insp_parts[-1] if len(insp_parts) > 1 else ''
+
+            # 1) Try full name match on inspectors
+            if insp_first and insp_last:
+                inspector_user = AuthUser.objects.filter(
+                    first_name__iexact=insp_first,
+                    last_name__iexact=insp_last,
+                    role='inspector',
+                ).exclude(email__exact='').first()
+
+            # 2) Try first name only (among inspectors)
+            if not inspector_user and insp_first:
+                inspector_user = AuthUser.objects.filter(
+                    first_name__iexact=insp_first,
+                    role='inspector',
+                ).exclude(email__exact='').first()
+
+            # 3) Try username match (some accounts use full name as username)
+            if not inspector_user:
+                inspector_user = AuthUser.objects.filter(
+                    username__iexact=insp_name.strip(),
+                ).exclude(email__exact='').first()
+
+            # 4) Broadest fallback — any user with matching first name
+            if not inspector_user and insp_first:
+                inspector_user = AuthUser.objects.filter(
+                    first_name__iexact=insp_first,
+                ).exclude(email__exact='').first()
+
             if inspector_user and inspector_user.email:
                 cc_emails.append(inspector_user.email)
 
