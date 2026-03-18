@@ -18054,6 +18054,30 @@ def system_logs(request):
     except Exception:
         settings = type('Settings', (), {'dark_mode': False})()
 
+    # Inspection edit history
+    edit_history = []
+    edit_history_total = 0
+    try:
+        from ..models import InspectionEditHistory
+        eh_qs = InspectionEditHistory.objects.select_related('edited_by', 'inspection_group')
+        # Apply same user/date filters if set
+        if user_filter:
+            eh_qs = eh_qs.filter(edited_by__username__icontains=user_filter)
+        if date_from:
+            try:
+                eh_qs = eh_qs.filter(edited_at__date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                eh_qs = eh_qs.filter(edited_at__date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+        edit_history_total = eh_qs.count()
+        edit_history = list(eh_qs[:200])
+    except Exception:
+        pass
+
     context = {
         'logs': logs,
         'page_obj': page_obj,
@@ -18064,6 +18088,8 @@ def system_logs(request):
         'duplicate_inspections': duplicate_inspections,
         'duplicate_count': len(duplicate_inspections),
         'total_extra_copies': total_extra_copies,
+        'edit_history': edit_history,
+        'edit_history_total': edit_history_total,
         'filters': {
             'user': user_filter,
             'action': action_filter,

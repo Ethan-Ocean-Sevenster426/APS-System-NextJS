@@ -1212,6 +1212,50 @@ class FeeHistory(models.Model):
         return f"{self.fee.fee_name} - R{self.rate} (effective {self.effective_date})"
 
 
+class InspectionEditHistory(models.Model):
+    """Audit trail: every time a FoodSafetyAgencyInspection or InspectionGroup is
+    edited this table gets one row capturing who changed what and what it was before."""
+
+    OBJECT_CHOICES = [
+        ('inspection', 'Inspection'),
+        ('group', 'Inspection Group'),
+    ]
+
+    object_type    = models.CharField(max_length=20, choices=OBJECT_CHOICES)
+    object_id      = models.PositiveIntegerField()
+
+    # Denormalised for fast list display (survives cascade delete of parent)
+    inspection_group   = models.ForeignKey(
+        'InspectionGroup', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='edit_history',
+    )
+    client_name        = models.CharField(max_length=200, blank=True, default='')
+    date_of_inspection = models.DateField(null=True, blank=True)
+    inspector_name     = models.CharField(max_length=100, blank=True, default='')
+
+    edited_by  = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='inspection_edits',
+    )
+    edited_at    = models.DateTimeField(auto_now_add=True)
+
+    # {field_name: {"label": "Human Label", "old": "...", "new": "..."}}
+    changes      = models.JSONField(default=dict)
+    change_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'inspection_edit_history'
+        ordering = ['-edited_at']
+        indexes = [
+            models.Index(fields=['inspection_group', '-edited_at'], name='idx_ieh_group_date'),
+            models.Index(fields=['edited_by', '-edited_at'],        name='idx_ieh_user_date'),
+            models.Index(fields=['-edited_at'],                     name='idx_ieh_date'),
+        ]
+
+    def __str__(self):
+        return f"{self.client_name} edited by {self.edited_by} at {self.edited_at}"
+
+
 class Ticket(models.Model):
     """Model for FSA Operations Board tickets/issues"""
     STATUS_CHOICES = [

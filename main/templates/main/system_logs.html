@@ -235,10 +235,13 @@
                                 </a>
                                 {% endif %}
                                 {% if duplicate_count > 0 %}
-                                <button type="button" id="dup-toggle-btn" onclick="toggleDuplicatesView()" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+                                <button type="button" id="dup-toggle-btn" onclick="switchView('dupes')" style="padding:8px 16px; border:none; border-radius:6px; background:#dc2626; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
                                     <i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})
                                 </button>
                                 {% endif %}
+                                <button type="button" id="hist-toggle-btn" onclick="switchView('history')" style="padding:8px 16px; border:none; border-radius:6px; background:#7c3aed; color:white; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
+                                    <i class="fas fa-history"></i> Edit History ({{ edit_history_total }})
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -334,6 +337,58 @@
                         </table>
                     </div>
 
+                    <!-- Edit History table (hidden by default) -->
+                    <div id="history-content" class="table-responsive" style="display:none;border:none;border-radius:0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:140px;">When</th>
+                                    <th style="width:120px;">Edited By</th>
+                                    <th style="width:70px;">Type</th>
+                                    <th>Client / Facility</th>
+                                    <th style="width:100px;">Date</th>
+                                    <th style="width:70px;">Fields</th>
+                                    <th>Changes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for eh in edit_history %}
+                                <tr style="vertical-align:top;">
+                                    <td style="font-size:12px;color:var(--text-light);white-space:nowrap;">{{ eh.edited_at|date:"d M Y H:i" }}</td>
+                                    <td style="font-size:13px;font-weight:500;">{{ eh.edited_by.get_full_name|default:eh.edited_by.username|default:"System" }}</td>
+                                    <td>
+                                        {% if eh.object_type == 'group' %}
+                                        <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;">Group</span>
+                                        {% else %}
+                                        <span style="background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;">Row</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="font-size:13px;font-weight:500;">{{ eh.client_name|default:"-" }}</td>
+                                    <td style="font-size:12px;">{{ eh.date_of_inspection|date:"d M Y"|default:"-" }}</td>
+                                    <td style="text-align:center;">
+                                        <span style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;">{{ eh.change_count }}</span>
+                                    </td>
+                                    <td style="font-size:12px;">
+                                        {% for field, diff in eh.changes.items %}
+                                        <div style="margin-bottom:4px;padding:4px 8px;background:#f9fafb;border-radius:6px;border-left:3px solid #7c3aed;">
+                                            <span style="font-weight:600;color:#374151;">{{ diff.label }}</span>:
+                                            <span style="background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:3px;font-family:monospace;">{{ diff.old|default:"—" }}</span>
+                                            <span style="color:#9ca3af;margin:0 4px;">→</span>
+                                            <span style="background:#dcfce7;color:#166534;padding:1px 5px;border-radius:3px;font-family:monospace;">{{ diff.new|default:"—" }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-light);">
+                                    <i class="fas fa-history" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                                    No edit history yet. Changes to inspections will appear here once someone edits a record.
+                                </td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
                     {% if page_obj and not filters.show_all %}
                     <div id="logs-pagination" class="pagination" style="padding:12px 20px; border-top:1px solid var(--border);">
                         {% if page_obj.has_previous %}
@@ -360,38 +415,45 @@
             userRole: '{{ request.user.role }}'
         };
 
-        var showingDupes = false;
-        function toggleDuplicatesView() {
-            var logsContent = document.getElementById('logs-content');
-            var dupesContent = document.getElementById('dupes-content');
-            var title = document.getElementById('table-title');
-            var showing = document.getElementById('table-showing');
-            var pagination = document.getElementById('logs-pagination');
-            var btn = document.getElementById('dup-toggle-btn');
+        var currentView = 'logs';
 
-            showingDupes = !showingDupes;
-            if (showingDupes) {
-                logsContent.style.display = 'none';
-                dupesContent.style.display = 'block';
-                if (pagination) pagination.style.display = 'none';
-                title.innerHTML = '<i class="fas fa-copy" style="color:#dc2626;"></i> Duplicate Inspections';
-                showing.textContent = '{{ duplicate_count }} duplicated, {{ total_extra_copies }} extra groups';
-                btn.innerHTML = '<i class="fas fa-list-alt"></i> Activity Logs';
-                btn.style.background = '#007890';
-                btn.onmouseover = function(){ this.style.background='#006070'; };
-                btn.onmouseout = function(){ this.style.background='#007890'; };
-            } else {
-                logsContent.style.display = 'block';
-                dupesContent.style.display = 'none';
-                if (pagination) pagination.style.display = '';
+        function switchView(view) {
+            var logsEl    = document.getElementById('logs-content');
+            var dupesEl   = document.getElementById('dupes-content');
+            var histEl    = document.getElementById('history-content');
+            var title     = document.getElementById('table-title');
+            var showing   = document.getElementById('table-showing');
+            var pagination= document.getElementById('logs-pagination');
+            var dupBtn    = document.getElementById('dup-toggle-btn');
+            var histBtn   = document.getElementById('hist-toggle-btn');
+
+            // If clicking the active view, go back to logs
+            if (currentView === view) view = 'logs';
+            currentView = view;
+
+            logsEl.style.display  = view === 'logs'    ? 'block' : 'none';
+            dupesEl.style.display = view === 'dupes'   ? 'block' : 'none';
+            histEl.style.display  = view === 'history' ? 'block' : 'none';
+            if (pagination) pagination.style.display = view === 'logs' ? '' : 'none';
+
+            if (view === 'logs') {
                 title.innerHTML = '<i class="fas fa-list-alt" style="color:#007890;"></i> Activity Logs';
                 showing.textContent = 'Showing {{ logs|length }} of {{ total_logs }}';
-                btn.innerHTML = '<i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})';
-                btn.style.background = '#dc2626';
-                btn.onmouseover = function(){ this.style.background='#b91c1c'; };
-                btn.onmouseout = function(){ this.style.background='#dc2626'; };
+                if (dupBtn) { dupBtn.innerHTML = '<i class="fas fa-copy"></i> Duplicates ({{ duplicate_count }})'; dupBtn.style.background='#dc2626'; }
+                if (histBtn){ histBtn.innerHTML= '<i class="fas fa-history"></i> Edit History ({{ edit_history_total }})'; histBtn.style.background='#7c3aed'; }
+            } else if (view === 'dupes') {
+                title.innerHTML = '<i class="fas fa-copy" style="color:#dc2626;"></i> Duplicate Inspections';
+                showing.textContent = '{{ duplicate_count }} duplicated, {{ total_extra_copies }} extra groups';
+                if (dupBtn) { dupBtn.innerHTML = '<i class="fas fa-list-alt"></i> Activity Logs'; dupBtn.style.background='#007890'; }
+            } else if (view === 'history') {
+                title.innerHTML = '<i class="fas fa-history" style="color:#7c3aed;"></i> Inspection Edit History';
+                showing.textContent = '{{ edit_history_total }} total edits (showing latest 200)';
+                if (histBtn){ histBtn.innerHTML= '<i class="fas fa-list-alt"></i> Activity Logs'; histBtn.style.background='#007890'; histBtn.onmouseover=function(){this.style.background='#006070';}; histBtn.onmouseout=function(){this.style.background='#007890';}; }
             }
         }
+
+        // keep old name as alias so any other code still works
+        function toggleDuplicatesView() { switchView('dupes'); }
     </script>
     <script src="{% static 'system_logs/js/system_logs.js' %}?v=20260311b"></script>
     <script>

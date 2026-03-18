@@ -92,6 +92,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'main.middleware.SessionTimeoutMiddleware',  # Custom session timeout middleware
     'main.middleware.ActivityLoggingMiddleware',  # Custom activity logging middleware
+    'main.middleware.CurrentUserMiddleware',  # Stores current user for audit signals
 ]
 
 ROOT_URLCONF = 'mysite.urls'

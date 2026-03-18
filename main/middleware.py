@@ -8,6 +8,28 @@ from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth.models import User
 from .models import SystemLog
 import json
+import threading
+
+# Thread-local storage for the current request user (used by audit signals)
+_thread_locals = threading.local()
+
+
+def get_current_user():
+    """Return the user making the current request, or None."""
+    return getattr(_thread_locals, 'user', None)
+
+
+class CurrentUserMiddleware:
+    """Store the current request user in thread-local so signals can access it."""
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        _thread_locals.user = getattr(request, 'user', None)
+        try:
+            return self.get_response(request)
+        finally:
+            _thread_locals.user = None
 
 
 class SecurityHeadersMiddleware:
