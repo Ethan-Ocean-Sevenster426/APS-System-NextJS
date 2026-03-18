@@ -29,6 +29,7 @@ from .views.core_views import (
     forgot_password, reset_password_confirm, get_notifications, mark_notification_read,
     mark_all_notifications_read, delete_notification, training_page,
     trigger_kpi_emails,
+    delete_ticket, get_ticket_details, create_ticket_admin, assign_ticket,
 )
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
@@ -149,6 +150,10 @@ urlpatterns = [
     path('fsa-operations-board/', fsa_operations_board, name='fsa_operations_board'),
     path('submit-ticket/', submit_ticket, name='submit_ticket'),
     path('tickets/<int:ticket_id>/update-status/', update_ticket_status, name='update_ticket_status'),
+    path('tickets/<int:ticket_id>/delete/', delete_ticket, name='delete_ticket'),
+    path('tickets/<int:ticket_id>/details/', get_ticket_details, name='get_ticket_details'),
+    path('tickets/<int:ticket_id>/assign/', assign_ticket, name='assign_ticket'),
+    path('tickets/create/', create_ticket_admin, name='create_ticket_admin'),
     path('api/refresh-tokens/', refresh_tokens, name='refresh_tokens'),
 
     # =============================================================================

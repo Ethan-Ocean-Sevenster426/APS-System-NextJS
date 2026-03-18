@@ -11,36 +11,15 @@
 
     <!-- Preconnect hints for faster CDN connections -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
 
-    <!-- Async Font Awesome loading -->
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     </noscript>
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#007890',
-                        'primary-light': '#e6f3f7',
-                        secondary: '#EC343C',
-                        danger: '#EC343C',
-                        warning: '#f59e0b',
-                        'sidebar-bg': '#1e293b',
-                        'sidebar-text': '#f1f5f9',
-                    }
-                }
-            }
-        }
-    </script>
-
     <!-- Page Styles -->
-    <link rel="stylesheet" href="{% static 'fsa_operations_board/css/fsa_operations_board.css' %}?v=20260212">
+    <link rel="stylesheet" href="{% static 'fsa_operations_board/css/fsa_operations_board.css' %}?v=20260318">
     <style>:root { --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2"); }</style>
 </head>
 <body>
@@ -50,7 +29,7 @@
         <i class="fas fa-bars"></i>
     </button>
 
-    <!-- Floating Notification Bell - Top Right (Super Admin & Developer) -->
+    <!-- Floating Notification Bell -->
     {% if request.user.role == 'super_admin' or request.user.role == 'developer' %}
     <div id="notification-bell" class="notification-bell-float" title="Notifications">
         <i class="fas fa-bell"></i>
@@ -63,150 +42,54 @@
 
     <div class="page-container">
         <!-- Sidebar -->
-        <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
+        <div id="sidebar" class="sidebar-nav">
             <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
                 <div class="text-center mb-2">
-                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo"
-                        class="max-h-12 mx-auto">
+                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo" class="max-h-12 mx-auto">
                 </div>
-                <div class="text-sidebar-text text-sm font-semibold text-center">
-                    Food Safety Agency (Pty) Ltd
-                </div>
+                <div class="sidebar-brand-text">Food Safety Agency (Pty) Ltd</div>
             </div>
 
-            <div class="flex-1 flex flex-col justify-between overflow-y-auto">
-                <ul class="px-2 py-2 space-y-1">
-                    <li>
-                        <a href="{% url 'home' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-home mr-2 w-4 text-center"></i>
-                            Home Center
-                        </a>
-                    </li>
+            <div class="sidebar-scroll">
+                <ul class="sidebar-list">
+                    <li><a href="{% url 'home' %}" class="sidebar-link"><i class="fas fa-home sidebar-icon"></i>Home Center</a></li>
                     {% if request.user.role == 'inspector' %}
-                    <li>
-                        <a href="{% url 'inspector_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-line mr-2 w-4 text-center"></i>
-                            My Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-clipboard-check mr-2 w-4 text-center"></i>
-                            Inspections
-                        </a>
-                    </li>
+                    <li><a href="{% url 'inspector_dashboard' %}" class="sidebar-link"><i class="fas fa-chart-line sidebar-icon text-blue-400"></i>My Analytics</a></li>
+                    <li><a href="{% url 'shipment_list' %}" class="sidebar-link"><i class="fas fa-clipboard-check sidebar-icon"></i>Inspections</a></li>
                     {% else %}
-                    <li>
-                        <a href="{% url 'client_allocation_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-th-list mr-2 w-4 text-center text-green-500"></i>
-                            Client Allocation Sheet
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'shipment_list' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice mr-2 w-4 text-center"></i>
-                            Inspection Records
-                        </a>
-                    </li>
+                    <li><a href="{% url 'client_allocation_sheet' %}" class="sidebar-link"><i class="fas fa-th-list sidebar-icon text-green-400"></i>Client Allocation Sheet</a></li>
+                    <li><a href="{% url 'shipment_list' %}" class="sidebar-link"><i class="fas fa-file-invoice sidebar-icon"></i>Inspection Records</a></li>
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'user_management' %}" title="Manage system users and permissions"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-user-shield mr-2 w-4 text-center text-blue-500"></i>
-                            User Management
-                        </a>
-                    </li>
+                    <li><a href="{% url 'user_management' %}" class="sidebar-link"><i class="fas fa-user-shield sidebar-icon text-blue-400"></i>User Management</a></li>
                     {% endif %}
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'system_logs' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-history mr-2 w-4 text-center text-yellow-500"></i>
-                            System Logs
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'fsa_operations_board' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px] bg-white bg-opacity-20">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-cyan-400"></i>
-                            Support Tickets
-                        </a>
-                    </li>
+                    <li><a href="{% url 'system_logs' %}" class="sidebar-link"><i class="fas fa-history sidebar-icon text-yellow-400"></i>System Logs</a></li>
+                    <li><a href="{% url 'fsa_operations_board' %}" class="sidebar-link sidebar-link-active"><i class="fas fa-ticket-alt sidebar-icon text-cyan-400"></i>Support Tickets</a></li>
                     {% endif %}
-                    <li>
-                        <a href="{% url 'submit_ticket' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-ticket-alt mr-2 w-4 text-center text-red-400"></i>
-                            Submit Ticket
-                        </a>
-                    </li>
+                    <li><a href="{% url 'submit_ticket' %}" class="sidebar-link"><i class="fas fa-ticket-alt sidebar-icon text-red-400"></i>Submit Ticket</a></li>
                     {% if request.user.role == 'developer' %}
-                    <li>
-                        <a href="{% url 'onedrive_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-cloud mr-2 w-4 text-center text-blue-400"></i>
-                            OneDrive View
-                        </a>
-                    </li>
+                    <li><a href="{% url 'onedrive_view' %}" class="sidebar-link"><i class="fas fa-cloud sidebar-icon text-blue-400"></i>OneDrive View</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'server_view' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-database mr-2 w-4 text-center text-orange-400"></i>
-                            Server View
-                        </a>
-                    </li>
+                    <li><a href="{% url 'server_view' %}" class="sidebar-link"><i class="fas fa-database sidebar-icon text-orange-400"></i>Server View</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' or request.user.role == 'admin' %}
-                    <li>
-                        <a href="{% url 'export_sheet' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-download mr-2 w-4 text-center text-emerald-400"></i>
-                            Export Sheet
-                        </a>
-                    </li>
+                    <li><a href="{% url 'export_sheet' %}" class="sidebar-link"><i class="fas fa-file-download sidebar-icon text-emerald-400"></i>Export Sheet</a></li>
                     {% endif %}
                     {% if request.user.role == 'developer' or request.user.role == 'super_admin' %}
-                    <li>
-                        <a href="{% url 'analytics_dashboard' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-chart-bar mr-2 w-4 text-center text-blue-400"></i>
-                            Inspector Analytics
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'debtors_page' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-file-invoice-dollar mr-2 w-4 text-center text-amber-400"></i>
-                            Debtors
-                        </a>
-                    </li>
+                    <li><a href="{% url 'analytics_dashboard' %}" class="sidebar-link"><i class="fas fa-chart-bar sidebar-icon text-blue-400"></i>Inspector Analytics</a></li>
+                    <li><a href="{% url 'debtors_page' %}" class="sidebar-link"><i class="fas fa-file-invoice-dollar sidebar-icon text-amber-400"></i>Debtors</a></li>
                     {% endif %}
-                    <li>
-                        <a href="{% url 'settings' %}"
-                            class="flex items-center px-2.5 py-1.5 text-sidebar-text hover:bg-white hover:bg-opacity-10 hover:translate-x-1 transition-all duration-200 rounded-lg text-sm font-medium min-h-[32px]">
-                            <i class="fas fa-sliders-h mr-2 w-4 text-center"></i>
-                            Settings
-                        </a>
-                    </li>
+                    <li><a href="{% url 'settings' %}" class="sidebar-link"><i class="fas fa-sliders-h sidebar-icon"></i>Settings</a></li>
                 </ul>
             </div>
 
-            <!-- Logout Button -->
+            <!-- Logout -->
             <div class="flex-shrink-0 px-2 py-2 border-t border-slate-600">
                 <form action="{% url 'logout' %}" method="post" class="inline w-full">
                     {% csrf_token %}
-                    <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
-                    </button>
+                    <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </form>
             </div>
         </div>
@@ -214,55 +97,78 @@
         <!-- Main Content -->
         <div class="main-content">
             <div class="content-wrapper">
+
                 <!-- Page Header -->
-                <div class="header">
-                    <h1>Support Tickets</h1>
-                    <h2>Track and manage support requests from your team</h2>
+                <div class="page-header-row">
+                    <div>
+                        <h1 class="page-title"><i class="fas fa-ticket-alt" style="color:#007890;margin-right:10px;"></i>Support Tickets</h1>
+                        <p class="page-subtitle">Track and manage support requests from your team</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openCreateModal()">
+                        <i class="fas fa-plus"></i> New Ticket
+                    </button>
                 </div>
 
-                <!-- Quick Stats -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem;">
-                    <div class="card" style="padding: 0.5rem; text-align: center;">
-                        <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">Open Tickets</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">{{ stats.open }}</div>
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card stat-card-primary">
+                        <div class="stat-icon"><i class="fas fa-folder-open"></i></div>
+                        <div class="stat-body">
+                            <div class="stat-value">{{ stats.open }}</div>
+                            <div class="stat-label">Open</div>
+                        </div>
                     </div>
-                    <div class="card" style="padding: 0.5rem; text-align: center;">
-                        <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">In Progress</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #f59e0b;">{{ stats.in_progress }}</div>
+                    <div class="stat-card stat-card-warning">
+                        <div class="stat-icon"><i class="fas fa-spinner"></i></div>
+                        <div class="stat-body">
+                            <div class="stat-value">{{ stats.in_progress }}</div>
+                            <div class="stat-label">In Progress</div>
+                        </div>
                     </div>
-                    <div class="card" style="padding: 0.5rem; text-align: center;">
-                        <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">Resolved Today</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #10b981;">{{ stats.resolved_today }}</div>
+                    <div class="stat-card stat-card-success">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-body">
+                            <div class="stat-value">{{ stats.resolved_today }}</div>
+                            <div class="stat-label">Resolved Today</div>
+                        </div>
                     </div>
-                    <div class="card" style="padding: 0.5rem; text-align: center;">
-                        <div style="font-size: 0.65rem; color: var(--text-light); margin-bottom: 0.15rem;">High Priority</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #ef4444;">{{ stats.high_priority }}</div>
+                    <div class="stat-card stat-card-danger">
+                        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-body">
+                            <div class="stat-value">{{ stats.high_priority }}</div>
+                            <div class="stat-label">High Priority</div>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card-urgent">
+                        <div class="stat-icon"><i class="fas fa-fire"></i></div>
+                        <div class="stat-body">
+                            <div class="stat-value">{{ stats.total }}</div>
+                            <div class="stat-label">Total Tickets</div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Filter Card -->
-                <div class="card">
+                <div class="card" style="margin-bottom:1rem;">
                     <div class="card-header">
-                        <div class="card-title">
-                            <i class="fas fa-filter"></i> Filter Tickets
-                        </div>
+                        <div class="card-title"><i class="fas fa-filter"></i> Filter Tickets</div>
                     </div>
                     <div class="card-body">
-                        <div class="form-group">
-                            <div class="form-field">
+                        <div class="filter-row">
+                            <div class="filter-field">
                                 <label class="form-label">Search</label>
-                                <input type="text" class="form-control" id="searchFilter" placeholder="Search tickets...">
+                                <input type="text" class="form-control" id="searchFilter" placeholder="Search title or submitter...">
                             </div>
-                            <div class="form-field">
+                            <div class="filter-field">
                                 <label class="form-label">Status</label>
                                 <select class="form-control" id="statusFilter">
                                     <option value="">All Statuses</option>
-                                    <option value="open" selected>Open</option>
+                                    <option value="open">Open</option>
                                     <option value="in-progress">In Progress</option>
                                     <option value="resolved">Closed/Resolved</option>
                                 </select>
                             </div>
-                            <div class="form-field">
+                            <div class="filter-field">
                                 <label class="form-label">Priority</label>
                                 <select class="form-control" id="priorityFilter">
                                     <option value="">All Priorities</option>
@@ -272,23 +178,17 @@
                                     <option value="urgent">Urgent</option>
                                 </select>
                             </div>
-                            <div class="form-field">
+                            <div class="filter-field">
                                 <label class="form-label">Assigned To</label>
                                 <select class="form-control" id="assigneeFilter">
                                     <option value="">All Users</option>
                                     <option value="unassigned">Unassigned</option>
-                                    <option value="{{ request.user.username }}">{{ request.user.username }}</option>
+                                    {% for u in all_users %}<option value="{{ u.username }}">{{ u.username }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
-
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-primary" onclick="applyFilters()">
-                                <i class="fas fa-filter"></i> Apply Filters
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="clearFilters()">
-                                <i class="fas fa-times"></i> Clear Filters
-                            </button>
+                        <div class="filter-actions">
+                            <button class="btn btn-secondary" onclick="clearFilters()"><i class="fas fa-times"></i> Clear</button>
                         </div>
                     </div>
                 </div>
@@ -296,145 +196,171 @@
                 <!-- Tickets Table -->
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">
-                            <i class="fas fa-ticket-alt"></i> All Support Tickets
-                        </div>
+                        <div class="card-title"><i class="fas fa-ticket-alt"></i> All Support Tickets</div>
+                        <span id="ticketCount" class="ticket-count-badge">{{ tickets|length }} ticket{{ tickets|length|pluralize }}</span>
                     </div>
-                    <div class="card-body" style="padding: 0;">
+                    <div class="card-body" style="padding:0;">
                         <div class="table-responsive">
                             <table class="ticket-table">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th style="width: 140px;">Status</th>
-                                    <th style="width: 120px;">Priority</th>
-                                    <th style="width: 150px;">Assigned To</th>
-                                    <th style="width: 120px;">Created</th>
-                                    <th style="width: 120px;">Last Updated</th>
-                                    <th style="width: 120px;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ticketTableBody">
-                                {% if tickets %}
-                                    {% for ticket in tickets %}
-                                    <tr data-ticket-id="{{ ticket.id }}">
-                                        <td>{{ ticket.title }}</td>
-                                        <td>
-                                            <select class="status-select" data-ticket-id="{{ ticket.id }}" onchange="updateTicketStatus({{ ticket.id }}, this.value)">
-                                                <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Open</option>
-                                                <option value="in-progress" {% if ticket.status == 'in-progress' %}selected{% endif %}>In Progress</option>
-                                                <option value="resolved" {% if ticket.status == 'resolved' or ticket.status == 'closed' %}selected{% endif %}>Closed/Resolved</option>
-                                            </select>
-                                        </td>
-                                        <td><span class="badge badge-{{ ticket.priority }}">{{ ticket.get_priority_display }}</span></td>
-                                        <td>{{ ticket.assigned_to.username|default:"Unassigned" }}</td>
-                                        <td>{{ ticket.created_at|date:"Y-m-d H:i" }}</td>
-                                        <td>{{ ticket.updated_at|date:"Y-m-d H:i" }}</td>
-                                        <td>
-                                            <div class="flex gap-1">
-                                                <button class="btn-icon btn-icon-view" title="View Details" onclick="viewTicket({{ ticket.id }})">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
+                                <thead>
                                     <tr>
-                                        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-light);">
-                                            <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
-                                            No tickets found. Users can submit tickets using the "Submit Ticket" page.
-                                        </td>
+                                        <th style="width:50px;">#</th>
+                                        <th>Title</th>
+                                        <th style="width:130px;">Status</th>
+                                        <th style="width:100px;">Priority</th>
+                                        <th style="width:140px;">Submitted By</th>
+                                        <th style="width:130px;">Assigned To</th>
+                                        <th style="width:100px;">Created</th>
+                                        <th style="width:100px;">Actions</th>
                                     </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody id="ticketTableBody">
+                                    {% if tickets %}
+                                        {% for ticket in tickets %}
+                                        <tr data-ticket-id="{{ ticket.id }}"
+                                            data-status="{{ ticket.status }}"
+                                            data-priority="{{ ticket.priority }}"
+                                            data-assignee="{{ ticket.assigned_to.username|default:'unassigned' }}"
+                                            data-search="{{ ticket.title|lower }} {{ ticket.created_by.username|lower }}">
+                                            <td style="color:#9ca3af;font-size:0.8rem;">#{{ ticket.id }}</td>
+                                            <td>
+                                                <span class="ticket-title" onclick="viewTicket({{ ticket.id }})" title="Click to view details">{{ ticket.title }}</span>
+                                                {% if ticket.affected_area %}<span class="ticket-area-tag">{{ ticket.affected_area }}</span>{% endif %}
+                                            </td>
+                                            <td>
+                                                <select class="status-select status-{{ ticket.status }}" data-ticket-id="{{ ticket.id }}" onchange="updateTicketStatus({{ ticket.id }}, this.value)">
+                                                    <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Open</option>
+                                                    <option value="in-progress" {% if ticket.status == 'in-progress' %}selected{% endif %}>In Progress</option>
+                                                    <option value="resolved" {% if ticket.status == 'resolved' or ticket.status == 'closed' %}selected{% endif %}>Resolved</option>
+                                                </select>
+                                            </td>
+                                            <td><span class="priority-badge priority-{{ ticket.priority }}">{{ ticket.get_priority_display }}</span></td>
+                                            <td class="user-cell">
+                                                <i class="fas fa-user" style="color:#9ca3af;font-size:0.75rem;margin-right:4px;"></i>
+                                                {{ ticket.created_by.get_full_name|default:ticket.created_by.username }}
+                                            </td>
+                                            <td class="user-cell">
+                                                {% if ticket.assigned_to %}
+                                                    <i class="fas fa-user-check" style="color:#007890;font-size:0.75rem;margin-right:4px;"></i>
+                                                    {{ ticket.assigned_to.username }}
+                                                {% else %}
+                                                    <span style="color:#9ca3af;font-size:0.8rem;">Unassigned</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="font-size:0.8rem;color:#6b7280;">{{ ticket.created_at|date:"d M Y" }}</td>
+                                            <td>
+                                                <div style="display:flex;gap:4px;">
+                                                    <button class="action-btn action-btn-view" title="View Details" onclick="viewTicket({{ ticket.id }})">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="action-btn action-btn-delete" title="Delete Ticket" onclick="deleteTicket({{ ticket.id }}, '{{ ticket.title|escapejs }}')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr id="emptyRow">
+                                            <td colspan="8" class="empty-state">
+                                                <i class="fas fa-inbox empty-icon"></i>
+                                                <div class="empty-title">No tickets yet</div>
+                                                <div class="empty-sub">Users can submit tickets using the <a href="{% url 'submit_ticket' %}">Submit Ticket</a> page.</div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-            </div>
-        </div>
 
-        <!-- Create/Edit Ticket Modal -->
-        <div id="ticketModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="text-xl font-bold text-gray-800">
-                        <i class="fas fa-ticket-alt text-primary mr-2"></i>
-                        <span id="modalTitle">Create New Ticket</span>
-                    </h2>
-                    <button onclick="closeTicketModal()" class="btn-icon btn-icon-delete">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <div class="modal-body">
-                    <form id="ticketForm">
-                        <div class="form-group">
-                            <label class="form-label required">Title</label>
-                            <input type="text" id="ticketTitle" class="input-field" placeholder="Enter ticket title" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">Description</label>
-                            <textarea id="ticketDescription" class="input-field" placeholder="Describe the task or issue..." required></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label class="form-label required">Status</label>
-                                <select id="ticketStatus" class="input-field" required>
-                                    <option value="open">Open</option>
-                                    <option value="in-progress">In Progress</option>
-                                    <option value="resolved">Closed/Resolved</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label required">Priority</label>
-                                <select id="ticketPriority" class="input-field" required>
-                                    <option value="low">Low</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
-                            <div class="form-group">
-                                <label class="form-label">Assigned To</label>
-                                <select id="ticketAssignee" class="input-field">
-                                    <option value="">Unassigned</option>
-                                    <option value="{{ request.user.username }}">{{ request.user.username }}</option>
-                                    <!-- More users will be populated dynamically -->
-                                </select>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="modal-footer">
-                    <button onclick="closeTicketModal()" class="btn" style="background: #e5e7eb; color: #374151;">
-                        <i class="fas fa-times"></i>
-                        Cancel
-                    </button>
-                    <button onclick="saveTicket()" class="btn btn-primary">
-                        <i class="fas fa-save"></i>
-                        Save Ticket
-                    </button>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Django configuration for external JS -->
+    <!-- View Ticket Modal -->
+    <div id="viewTicketModal" class="modal-overlay" style="display:none;" onclick="closeViewModal(event)">
+        <div class="modal-box modal-box-lg">
+            <div class="modal-header-bar">
+                <h3><i class="fas fa-ticket-alt" style="margin-right:8px;"></i><span id="viewTitle">Ticket Details</span></h3>
+                <button onclick="closeViewModal()" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-scroll-body" id="viewModalBody">
+                <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Ticket Modal -->
+    <div id="createTicketModal" class="modal-overlay" style="display:none;" onclick="closeCreateModal(event)">
+        <div class="modal-box">
+            <div class="modal-header-bar">
+                <h3><i class="fas fa-plus" style="margin-right:8px;"></i>New Ticket</h3>
+                <button onclick="closeCreateModal()" class="modal-close-btn">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <div class="form-field-row">
+                    <label class="form-label">Title <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="newTitle" class="form-control" placeholder="Brief summary of the issue">
+                </div>
+                <div class="form-field-row">
+                    <label class="form-label">Description <span style="color:#ef4444;">*</span></label>
+                    <textarea id="newDescription" class="form-control" rows="4" placeholder="Describe the issue in detail..."></textarea>
+                </div>
+                <div class="form-two-col">
+                    <div class="form-field-row">
+                        <label class="form-label">Status</label>
+                        <select id="newStatus" class="form-control">
+                            <option value="open">Open</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="form-field-row">
+                        <label class="form-label">Priority</label>
+                        <select id="newPriority" class="form-control">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-two-col">
+                    <div class="form-field-row">
+                        <label class="form-label">Assign To</label>
+                        <select id="newAssignee" class="form-control">
+                            <option value="">Unassigned</option>
+                            {% for u in all_users %}<option value="{{ u.username }}">{{ u.username }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field-row">
+                        <label class="form-label">Due Date</label>
+                        <input type="date" id="newDueDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer-bar">
+                <button onclick="closeCreateModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveNewTicket()" class="btn btn-primary"><i class="fas fa-save"></i> Create Ticket</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         window.DJANGO_CONFIG = {
             csrfToken: '{{ csrf_token }}',
             userRole: '{{ request.user.role }}',
+            urls: {
+                updateStatus: '/tickets/{id}/update-status/',
+                deleteTicket: '/tickets/{id}/delete/',
+                getDetails: '/tickets/{id}/details/',
+                createTicket: '/tickets/create/',
+                assignTicket: '/tickets/{id}/assign/',
+            }
         };
     </script>
-    <script src="{% static 'fsa_operations_board/js/fsa_operations_board.js' %}?v=20260212"></script>
+    <script src="{% static 'fsa_operations_board/js/fsa_operations_board.js' %}?v=20260318"></script>
 </body>
 </html>

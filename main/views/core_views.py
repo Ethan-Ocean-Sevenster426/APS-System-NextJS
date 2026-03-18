@@ -18376,6 +18376,111 @@ def update_ticket_status(request, ticket_id):
 
 
 @login_required
+@require_http_methods(["POST"])
+def delete_ticket(request, ticket_id):
+    """Delete a ticket via AJAX."""
+    from main.models import Ticket
+    if not (request.user.role in ['super_admin', 'developer']):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    try:
+        ticket = Ticket.objects.get(id=ticket_id)
+        ticket.delete()
+        return JsonResponse({'success': True})
+    except Ticket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_ticket_details(request, ticket_id):
+    """Get full ticket details as JSON."""
+    from main.models import Ticket
+    if not (request.user.role in ['super_admin', 'developer']):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    try:
+        t = Ticket.objects.select_related('created_by', 'assigned_to').get(id=ticket_id)
+        return JsonResponse({'success': True, 'ticket': {
+            'id': t.id,
+            'title': t.title,
+            'description': t.description,
+            'issue_type': t.issue_type or '',
+            'affected_area': t.affected_area or '',
+            'status': t.status,
+            'priority': t.priority,
+            'steps_to_reproduce': t.steps_to_reproduce or '',
+            'expected_behavior': t.expected_behavior or '',
+            'actual_behavior': t.actual_behavior or '',
+            'impact_users': t.impact_users or '',
+            'is_blocking': t.is_blocking or '',
+            'browser_info': t.browser_info or '',
+            'additional_notes': t.additional_notes or '',
+            'created_by': t.created_by.get_full_name() or t.created_by.username,
+            'assigned_to': t.assigned_to.username if t.assigned_to else '',
+            'created_at': t.created_at.strftime('%Y-%m-%d %H:%M'),
+            'updated_at': t.updated_at.strftime('%Y-%m-%d %H:%M'),
+            'due_date': t.due_date.strftime('%Y-%m-%d') if t.due_date else '',
+        }})
+    except Ticket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_ticket_admin(request):
+    """Create a ticket from the admin board."""
+    from main.models import Ticket
+    import json
+    if not (request.user.role in ['super_admin', 'developer']):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    try:
+        data = json.loads(request.body)
+        assigned_to = None
+        if data.get('assigned_to'):
+            try:
+                assigned_to = User.objects.get(username=data['assigned_to'])
+            except User.DoesNotExist:
+                pass
+        ticket = Ticket.objects.create(
+            title=data.get('title', '').strip(),
+            description=data.get('description', '').strip(),
+            status=data.get('status', 'open'),
+            priority=data.get('priority', 'medium'),
+            assigned_to=assigned_to,
+            created_by=request.user,
+            due_date=data.get('due_date') or None,
+        )
+        return JsonResponse({'success': True, 'ticket_id': ticket.id})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def assign_ticket(request, ticket_id):
+    """Assign a ticket to a user."""
+    from main.models import Ticket
+    import json
+    if not (request.user.role in ['super_admin', 'developer']):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    try:
+        ticket = Ticket.objects.get(id=ticket_id)
+        data = json.loads(request.body)
+        username = data.get('assigned_to', '')
+        if username:
+            ticket.assigned_to = User.objects.get(username=username)
+        else:
+            ticket.assigned_to = None
+        ticket.save()
+        return JsonResponse({'success': True, 'updated_at': ticket.updated_at.strftime('%Y-%m-%d %H:%M')})
+    except Ticket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
 def submit_ticket(request):
     """Allow users to submit tickets/issues for the FSA Operations Board."""
     from main.models import Ticket
