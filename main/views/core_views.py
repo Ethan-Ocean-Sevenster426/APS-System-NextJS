@@ -16179,13 +16179,14 @@ def send_group_documents(request):
                 'error': f'No documents found for {client_name} on {inspection_date}. Please upload documents before sending.'
             })
 
-        # Get client email (pass inspection_group_id for reliable FK lookup)
-        recipient_email = get_client_email(client_name, inspection_group_id=inspection_group_id)
+        # Get ALL client emails from every source
+        all_client_emails = get_all_client_emails(client_name, inspection_group_id=inspection_group_id)
+        print(f"[SEND DEBUG] Emails found for '{client_name}': {all_client_emails}")
 
-        if not recipient_email:
+        if not all_client_emails:
             return JsonResponse({
                 'success': False,
-                'error': f'No email address found for {client_name}. Please add client email in the system.'
+                'error': f'No email address found for {client_name}. Please add a client email address in User Management or the client record.'
             })
 
         # Get commodities inspected for this group
@@ -16298,37 +16299,8 @@ def send_group_documents(request):
 </div>
 """
 
-        # Build TO list: client email + all additional emails
-        to_emails = [recipient_email]
-
-        # Add additional_email from FoodSafetyAgencyInspection (comma-separated)
-        additional_email_raw = group_inspections.exclude(
-            additional_email__isnull=True
-        ).exclude(
-            additional_email__exact=''
-        ).values_list('additional_email', flat=True).first()
-        if not additional_email_raw and inspection_group_id:
-            from ..models import InspectionGroup
-            ig = InspectionGroup.objects.filter(id=inspection_group_id).values_list('additional_email', flat=True).first()
-            if ig:
-                additional_email_raw = ig
-        if additional_email_raw:
-            for e in additional_email_raw.split(','):
-                e = e.strip()
-                if e and e not in to_emails:
-                    to_emails.append(e)
-
-        # Add additional_email_1..4 from Inspection model
-        from ..models import Inspection
-        insp_record = Inspection.objects.filter(
-            facility_client_name__iexact=client_name,
-            inspection_date=date_obj.date()
-        ).first()
-        if insp_record:
-            for field in ['additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
-                val = getattr(insp_record, field, None)
-                if val and val.strip() and val.strip() not in to_emails:
-                    to_emails.append(val.strip())
+        # Build TO list: all_client_emails already contains every address from every source
+        to_emails = list(all_client_emails)
 
         # Build CC list: inspector + management
         cc_emails = []
@@ -16425,6 +16397,108 @@ def send_group_documents(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+def get_all_client_emails(client_name, inspection_group_id=None):
+    """Return ALL unique email addresses for a client from every source.
+
+    Sources checked:
+    1. Via inspection's client FK  → client.manual_email, client.email, ClientEmail table
+    2. By client name (iexact)     → same fields
+    3. By client_id (iexact)       → same fields
+    4. Normalized/compact name search
+    5. InspectionGroup.additional_email
+    6. FoodSafetyAgencyInspection.additional_email
+    7. Legacy Inspection model additional_email_1..4
+    """
+    import re as _re2
+
+    emails = []
+    seen = set()
+
+    def _add(value):
+        if not value:
+            return
+        for part in _re2.split(r'[,;]', str(value)):
+            part = part.strip()
+            if part and part.lower() not in seen:
+                seen.add(part.lower())
+                emails.append(part)
+
+    def _drain_client(client):
+        _add(client.manual_email)
+        _add(client.email)
+        from ..models import ClientEmail
+        for ce in ClientEmail.objects.filter(client=client):
+            _add(ce.email)
+
+    def _norm(text):
+        cleaned = _re2.sub(r"[\(\)\[\]{}\\/._,-]", " ", (text or ""))
+        return _re2.sub(r"\s+", " ", cleaned).strip().lower()
+
+    try:
+        from ..models import Client, FoodSafetyAgencyInspection
+
+        # 1. Via inspection FK (most reliable)
+        if inspection_group_id:
+            insp = FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id,
+                client__isnull=False
+            ).select_related('client').first()
+            if insp and insp.client:
+                _drain_client(insp.client)
+
+        # 2. Exact name match
+        client = Client.objects.filter(name__iexact=client_name).first()
+        if client:
+            _drain_client(client)
+
+        # 3. client_id match
+        if not emails:
+            client = Client.objects.filter(client_id__iexact=client_name).first()
+            if client:
+                _drain_client(client)
+
+        # 4. Normalized / compact fuzzy match
+        if not emails:
+            norm_name = _norm(client_name)
+            compact_name = norm_name.replace(" ", "")
+            for c in Client.objects.all().only('id', 'name', 'client_id', 'email', 'manual_email'):
+                c_norm = _norm(c.name)
+                c_cid_norm = _norm(c.client_id)
+                if c_norm == norm_name or c_cid_norm == norm_name:
+                    _drain_client(c)
+                    break
+                if c_norm.replace(" ", "") == compact_name or c_cid_norm.replace(" ", "") == compact_name:
+                    _drain_client(c)
+                    break
+
+        # 5. InspectionGroup.additional_email
+        if inspection_group_id:
+            from ..models import InspectionGroup
+            ig_email = InspectionGroup.objects.filter(
+                id=inspection_group_id
+            ).values_list('additional_email', flat=True).first()
+            _add(ig_email)
+
+        # 6. FoodSafetyAgencyInspection.additional_email
+        if inspection_group_id:
+            for ae in FoodSafetyAgencyInspection.objects.filter(
+                inspection_group_id=inspection_group_id
+            ).exclude(additional_email__isnull=True).exclude(additional_email__exact='').values_list('additional_email', flat=True):
+                _add(ae)
+
+        # 7. Legacy Inspection model
+        from ..models import Inspection
+        insp_legacy = Inspection.objects.filter(facility_client_name__iexact=client_name).first()
+        if insp_legacy:
+            for field in ['email', 'additional_email_1', 'additional_email_2', 'additional_email_3', 'additional_email_4']:
+                _add(getattr(insp_legacy, field, None))
+
+    except Exception as e:
+        print(f"[EMAIL LOOKUP] Error fetching emails for '{client_name}': {e}")
+
+    return emails
 
 
 def get_client_email(client_name, inspection_group_id=None):
