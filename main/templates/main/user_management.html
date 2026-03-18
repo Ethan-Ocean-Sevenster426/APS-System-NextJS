@@ -550,18 +550,20 @@
                 </div>
 
                 <!-- Salary info — only shown for inspectors -->
+                {% if request.user.role == 'super_admin' %}
                 <div id="inspectorSalarySection" style="display:none; margin-bottom: 15px;">
                     <label class="form-label">Monthly Salary</label>
                     <div style="display:flex; gap:10px;">
                         <div style="flex:1;">
-                            <input type="text" id="edit_monthly_salary" class="form-control" readonly style="background-color:#f5f5f5; font-weight:600; color:var(--primary);" placeholder="No salary on record">
+                            <input type="text" id="edit_monthly_salary" class="form-control" style="font-weight:600; color:var(--primary);" placeholder="No salary on record">
                         </div>
                         <div style="flex:1;">
                             <label class="form-label">Employee #</label>
-                            <input type="text" id="edit_employee_number" class="form-control" readonly style="background-color:#f5f5f5;" placeholder="Employee #">
+                            <input type="text" id="edit_employee_number" class="form-control" placeholder="Employee #">
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <div id="inspectorAllocationSection" style="display:none; margin-bottom: 15px;">
                     <label class="form-label">Allocated Inspectors</label>
