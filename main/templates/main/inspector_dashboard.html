@@ -416,8 +416,8 @@
                             <div class="space-y-2 text-sm">
                                 <div class="flex justify-between items-center">
                                     <span class="text-gray-600 flex items-center gap-1">
-                                        Salary (R {{ profitability.monthly_salary|floatformat:0 }} × 3 months)
-                                        <span class="info-tip" data-tip="Your monthly salary is R{{ profitability.monthly_salary|floatformat:0 }}. A quarter has 3 months, so the total salary cost for the quarter is R{{ profitability.monthly_salary|floatformat:0 }} × 3 = R{{ profitability.quarterly_salary|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                        Operational Expense (R {{ profitability.monthly_salary|floatformat:0 }} × 3 months)
+                                        <span class="info-tip" data-tip="Your monthly operational expense (salary) is R{{ profitability.monthly_salary|floatformat:0 }}. A quarter has 3 months, so the total for the quarter is R{{ profitability.monthly_salary|floatformat:0 }} × 3 = R{{ profitability.quarterly_salary|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
                                     </span>
                                     <span class="font-semibold">R {{ profitability.quarterly_salary|floatformat:2 }}</span>
                                 </div>
