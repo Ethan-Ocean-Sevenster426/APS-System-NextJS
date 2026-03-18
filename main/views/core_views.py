@@ -8574,11 +8574,13 @@ def inspector_dashboard(request):
         else:
             status = 'behind'
 
+        still_needed = max(target - actual, 0)
         kpi_rows.append({
             'commodity': commodity,
             'label': COMMODITY_LABELS[commodity],
             'target': target,
             'actual': actual,
+            'still_needed': still_needed,
             'expected_by_now': expected_by_now,
             'pct_of_target': min(pct_of_target, 100),
             'pct_of_expected': pct_of_expected,

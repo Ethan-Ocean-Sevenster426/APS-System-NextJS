@@ -86,7 +86,6 @@
             </div>
             <div class="flex-1 flex flex-col justify-between overflow-y-auto">
                 <ul class="px-2 py-3 space-y-0.5">
-                    <li><a href="{% url 'shipment_list' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-home mr-2.5 w-4 text-center text-yellow-300"></i>Home Center</a></li>
                     <li><a href="{% url 'inspector_dashboard' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium" style="background: rgba(255,255,255,0.15);"><i class="fas fa-chart-line mr-2.5 w-4 text-center text-cyan-400"></i>My Analytics</a></li>
                     <li><a href="{% url 'shipment_list' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-clipboard-check mr-2.5 w-4 text-center"></i>Inspections</a></li>
                     <li><a href="{% url 'submit_ticket' %}" class="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-white hover:bg-opacity-10 transition-all"><i class="fas fa-ticket-alt mr-2.5 w-4 text-center text-red-400"></i>Submit Ticket</a></li>
@@ -204,25 +203,42 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {% for row in kpi_rows %}
                         {% if row.target > 0 %}
-                        <div class="rounded-lg p-3" style="border:1px solid #e5e7eb; background:#fff;">
-                            <div class="flex items-center justify-between mb-2">
+                        <div class="rounded-lg p-4" style="border:1px solid #e5e7eb; background:#fff;">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between mb-3">
                                 <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">{{ row.label }}</span>
                                 {% if row.status == 'on_track' %}
-                                <span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">On Track</span>
+                                <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:0.65rem;font-weight:700;"><i class="fas fa-check mr-0.5"></i> On Track</span>
                                 {% elif row.status == 'slightly_behind' %}
-                                <span style="background:#fef9c3; color:#854d0e; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">Slightly Behind</span>
+                                <span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:999px;font-size:0.65rem;font-weight:700;"><i class="fas fa-exclamation mr-0.5"></i> Slightly Behind</span>
                                 {% else %}
-                                <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:999px; font-size:0.65rem; font-weight:700;">Behind</span>
+                                <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:999px;font-size:0.65rem;font-weight:700;"><i class="fas fa-times mr-0.5"></i> Behind</span>
                                 {% endif %}
                             </div>
-                            <div class="text-2xl font-bold text-gray-800 mb-0.5">{{ row.actual }}</div>
-                            <div class="text-xs text-gray-500 mb-2">of <strong>{{ row.target }}</strong> target &middot; <span class="text-gray-400">expected ~{{ row.expected_by_now }}</span></div>
-                            <div class="progress-bar">
-                                <div class="progress-fill {% if row.status == 'on_track' %}bg-green-500{% elif row.status == 'slightly_behind' %}bg-yellow-400{% else %}bg-red-500{% endif %}"
-                                    style="width:{{ row.pct_of_target }}%"></div>
+                            <!-- Done / Target big numbers -->
+                            <div class="flex items-end gap-1 mb-2">
+                                <span class="text-3xl font-black {% if row.status == 'on_track' %}text-green-600{% elif row.status == 'slightly_behind' %}text-yellow-600{% else %}text-red-600{% endif %}">{{ row.actual }}</span>
+                                <span class="text-sm text-gray-400 mb-1">/ {{ row.target }}</span>
                             </div>
-                            <div class="text-xs text-right mt-1 font-semibold {% if row.status == 'on_track' %}text-green-600{% elif row.status == 'slightly_behind' %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                {{ row.pct_of_target }}%
+                            <!-- Still need message -->
+                            {% if row.still_needed == 0 %}
+                            <p class="text-xs font-semibold text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i> Target reached!</p>
+                            {% else %}
+                            <p class="text-xs mb-2" style="color:#dc2626;font-weight:600;"><i class="fas fa-arrow-up mr-1"></i> Still need <strong>{{ row.still_needed }}</strong> more to hit target of {{ row.target }}</p>
+                            {% endif %}
+                            <!-- Progress bar -->
+                            <div class="progress-bar" style="height:8px;">
+                                <div class="progress-fill {% if row.status == 'on_track' %}bg-green-500{% elif row.status == 'slightly_behind' %}bg-yellow-400{% else %}bg-red-500{% endif %}"
+                                    style="width:{{ row.pct_of_target }}%;"></div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1">
+                                <span class="text-gray-400">0</span>
+                                <span class="font-bold {% if row.status == 'on_track' %}text-green-600{% elif row.status == 'slightly_behind' %}text-yellow-600{% else %}text-red-600{% endif %}">{{ row.pct_of_target }}%</span>
+                                <span class="text-gray-400">{{ row.target }}</span>
+                            </div>
+                            <!-- Expected by now hint -->
+                            <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
+                                Expected by now: <span class="font-semibold text-gray-600">~{{ row.expected_by_now }}</span>
                             </div>
                         </div>
                         {% endif %}
