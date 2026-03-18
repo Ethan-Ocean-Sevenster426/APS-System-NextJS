@@ -39,6 +39,71 @@
         :root {
             --bg-image: url("{% static 'img/food_safety_background.jpg' %}?v=2");
         }
+
+        /* Custom multi-select dropdown */
+        .cas-ms {
+            position: relative;
+            width: 100%;
+            font-size: 0.875rem;
+        }
+        .cas-ms-btn {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            background: #fff;
+            font-size: 0.875rem;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.25rem;
+            color: #374151;
+            box-sizing: border-box;
+        }
+        .cas-ms-btn:hover {
+            border-color: #9ca3af;
+        }
+        .cas-ms-btn span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cas-ms-drop {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            z-index: 9999;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 0.25rem 0;
+        }
+        .cas-ms-drop.open {
+            display: block;
+        }
+        .cas-ms-opt {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            cursor: pointer;
+            color: #374151;
+            user-select: none;
+        }
+        .cas-ms-opt:hover {
+            background: #f3f4f6;
+        }
+        .cas-ms-opt input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #007890;
+        }
     </style>
 </head>
 <body>
@@ -247,51 +312,107 @@
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Corporate Group</label>
-                            <select name="corporate_group" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Corporate Groups</option>
-                                {% for group in corporate_groups %}
-                                <option value="{{ group }}" {% if filter_corporate_group == group %}selected{% endif %}>{{ group }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="cas-ms" data-name="corporate_group" data-placeholder="All Corporate Groups">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Corporate Groups</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    {% for group in corporate_groups %}
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="corporate_group" value="{{ group }}" {% if group in filter_corporate_group %}checked{% endif %}>
+                                        {{ group }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Commodity</label>
-                            <select name="commodity" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Commodities</option>
-                                <option value="EGG" {% if filter_commodity == 'EGG' %}selected{% endif %}>EGG</option>
-                                <option value="PMP" {% if filter_commodity == 'PMP' %}selected{% endif %}>PMP</option>
-                                <option value="RAW" {% if filter_commodity == 'RAW' %}selected{% endif %}>RAW</option>
-                                <option value="PLT" {% if filter_commodity == 'PLT' %}selected{% endif %}>PLT</option>
-                            </select>
+                            <div class="cas-ms" data-name="commodity" data-placeholder="All Commodities">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Commodities</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="commodity" value="EGG" {% if 'EGG' in filter_commodity %}checked{% endif %}>
+                                        EGG
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="commodity" value="PMP" {% if 'PMP' in filter_commodity %}checked{% endif %}>
+                                        PMP
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="commodity" value="RAW" {% if 'RAW' in filter_commodity %}checked{% endif %}>
+                                        RAW
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="commodity" value="PLT" {% if 'PLT' in filter_commodity %}checked{% endif %}>
+                                        PLT
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Facility Type</label>
-                            <select name="facility_type" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Facility Types</option>
-                                {% for ftype in facility_types %}
-                                <option value="{{ ftype }}" {% if filter_facility_type == ftype %}selected{% endif %}>{{ ftype }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="cas-ms" data-name="facility_type" data-placeholder="All Facility Types">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Facility Types</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    {% for ftype in facility_types %}
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_type" value="{{ ftype }}" {% if ftype in filter_facility_type %}checked{% endif %}>
+                                        {{ ftype }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Facility Code</label>
-                            <select name="facility_code" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Facility Codes</option>
-                                <option value="AB" {% if filter_facility_code == 'AB' %}selected{% endif %}>AB - Abattoir</option>
-                                <option value="BU" {% if filter_facility_code == 'BU' %}selected{% endif %}>BU - Butchery</option>
-                                <option value="FA" {% if filter_facility_code == 'FA' %}selected{% endif %}>FA - Farm</option>
-                                <option value="PR" {% if filter_facility_code == 'PR' %}selected{% endif %}>PR - Production Plant</option>
-                                <option value="RE" {% if filter_facility_code == 'RE' %}selected{% endif %}>RE - Retailer/Re-Packer</option>
-                            </select>
+                            <div class="cas-ms" data-name="facility_code" data-placeholder="All Facility Codes">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Facility Codes</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_code" value="AB" {% if 'AB' in filter_facility_code %}checked{% endif %}>
+                                        AB - Abattoir
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_code" value="BU" {% if 'BU' in filter_facility_code %}checked{% endif %}>
+                                        BU - Butchery
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_code" value="FA" {% if 'FA' in filter_facility_code %}checked{% endif %}>
+                                        FA - Farm
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_code" value="PR" {% if 'PR' in filter_facility_code %}checked{% endif %}>
+                                        PR - Production Plant
+                                    </label>
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="facility_code" value="RE" {% if 'RE' in filter_facility_code %}checked{% endif %}>
+                                        RE - Retailer/Re-Packer
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Province</label>
-                            <select name="province" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Provinces</option>
-                                {% for prov in provinces %}
-                                <option value="{{ prov }}" {% if filter_province == prov %}selected{% endif %}>{{ prov }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="cas-ms" data-name="province" data-placeholder="All Provinces">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Provinces</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    {% for prov in provinces %}
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="province" value="{{ prov }}" {% if prov in filter_province %}checked{% endif %}>
+                                        {{ prov }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Account Code</label>
@@ -299,12 +420,19 @@
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Group Type</label>
-                            <select name="group_type" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">
-                                <option value="">All Group Types</option>
-                                {% for gtype in group_types %}
-                                <option value="{{ gtype }}" {% if filter_group_type == gtype %}selected{% endif %}>{{ gtype }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="cas-ms" data-name="group_type" data-placeholder="All Group Types">
+                                <button type="button" class="cas-ms-btn" onclick="casToggle(this)">
+                                    <span>All Group Types</span><i class="fas fa-chevron-down" style="font-size:0.7rem;flex-shrink:0;"></i>
+                                </button>
+                                <div class="cas-ms-drop">
+                                    {% for gtype in group_types %}
+                                    <label class="cas-ms-opt">
+                                        <input type="checkbox" name="group_type" value="{{ gtype }}" {% if gtype in filter_group_type %}checked{% endif %}>
+                                        {{ gtype }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #1f2937; margin-bottom: 0.5rem;">Sort By</label>
@@ -841,5 +969,55 @@
         };
     </script>
     <script src="{% static 'client_allocation_sheet/js/client_allocation_sheet.js' %}?v=20260212"></script>
+    <script>
+        // ---- Multi-select dropdown helpers ----
+        function casUpdateLabel(widget) {
+            var placeholder = widget.getAttribute('data-placeholder') || 'All';
+            var checked = widget.querySelectorAll('.cas-ms-drop input[type="checkbox"]:checked');
+            var span = widget.querySelector('.cas-ms-btn span');
+            if (checked.length === 0) {
+                span.textContent = placeholder;
+            } else if (checked.length === 1) {
+                span.textContent = checked[0].value;
+            } else {
+                span.textContent = checked.length + ' selected';
+            }
+        }
+
+        function casToggle(btn) {
+            var widget = btn.closest('.cas-ms');
+            var drop = widget.querySelector('.cas-ms-drop');
+            var isOpen = drop.classList.contains('open');
+            // Close all dropdowns first
+            document.querySelectorAll('.cas-ms-drop.open').forEach(function(d) {
+                d.classList.remove('open');
+            });
+            if (!isOpen) {
+                drop.classList.add('open');
+            }
+        }
+
+        // Close on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.cas-ms')) {
+                document.querySelectorAll('.cas-ms-drop.open').forEach(function(d) {
+                    d.classList.remove('open');
+                });
+            }
+        });
+
+        // On load: update labels based on checked state (from server-rendered HTML)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.cas-ms').forEach(function(widget) {
+                casUpdateLabel(widget);
+                // Update label when any checkbox changes
+                widget.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+                    cb.addEventListener('change', function() {
+                        casUpdateLabel(widget);
+                    });
+                });
+            });
+        });
+    </script>
 </body>
 </html>

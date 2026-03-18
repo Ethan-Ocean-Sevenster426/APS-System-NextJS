@@ -5505,13 +5505,13 @@ def client_allocation_sheet(request):
     # Get filter parameters
     client_id = request.GET.get('client_id', '').strip()
     client_name = request.GET.get('client_name', '').strip()
-    corporate_group = request.GET.get('corporate_group', '').strip()
-    commodity = request.GET.get('commodity', '').strip()
-    facility_type = request.GET.get('facility_type', '').strip()
-    facility_code = request.GET.get('facility_code', '').strip()
-    province = request.GET.get('province', '').strip()
+    corporate_group = request.GET.getlist('corporate_group')
+    commodity = request.GET.getlist('commodity')
+    facility_type = request.GET.getlist('facility_type')
+    facility_code = request.GET.getlist('facility_code')
+    province = request.GET.getlist('province')
     account_code = request.GET.get('account_code', '').strip()
-    group_type = request.GET.get('group_type', '').strip()
+    group_type = request.GET.getlist('group_type')
     has_email = request.GET.get('has_email', '').strip()
 
     # Get sorting and pagination parameters
@@ -5529,7 +5529,7 @@ def client_allocation_sheet(request):
     order_by_field = f'-{sort_by}' if sort_order == 'desc' else sort_by
 
     # Cache key based on all parameters
-    cache_key = f'client_data_{page_number}_{client_id}_{client_name}_{corporate_group}_{commodity}_{facility_type}_{facility_code}_{province}_{account_code}_{group_type}_{has_email}_{sort_by}_{sort_order}_{per_page}'
+    cache_key = f'client_data_{page_number}_{client_id}_{client_name}_{"_".join(sorted(corporate_group))}_{"_".join(sorted(commodity))}_{"_".join(sorted(facility_type))}_{"_".join(sorted(facility_code))}_{"_".join(sorted(province))}_{account_code}_{"_".join(sorted(group_type))}_{has_email}_{sort_by}_{sort_order}_{per_page}'
     cache_timeout = 300  # 5 minutes cache
 
     # Try to get cached data first
@@ -5547,21 +5547,29 @@ def client_allocation_sheet(request):
     if client_name:
         clients_query = clients_query.filter(name__icontains=client_name)
     if corporate_group:
-        clients_query = clients_query.filter(corporate_group=corporate_group)
+        clients_query = clients_query.filter(corporate_group__in=corporate_group)
     if facility_type:
-        clients_query = clients_query.filter(facility_type=facility_type)
+        clients_query = clients_query.filter(facility_type__in=facility_type)
     if group_type:
-        clients_query = clients_query.filter(group_type=group_type)
+        clients_query = clients_query.filter(group_type__in=group_type)
     if province:
-        clients_query = clients_query.filter(town__icontains=province)
+        clients_query = clients_query.filter(town__in=province)
     if account_code:
         clients_query = clients_query.filter(internal_account_code__icontains=account_code)
     if facility_code:
         # Facility code is the first part of internal_account_code (e.g., "RE-", "BU-", "AB-")
-        clients_query = clients_query.filter(internal_account_code__istartswith=facility_code)
+        from django.db.models import Q as _Q
+        q = _Q()
+        for fc in facility_code:
+            q |= _Q(internal_account_code__istartswith=fc)
+        clients_query = clients_query.filter(q)
     if commodity:
         # Commodity is typically the third segment in account code (e.g., RAW, EGG, PMP, PLT)
-        clients_query = clients_query.filter(internal_account_code__icontains=f'-{commodity}-')
+        from django.db.models import Q as _Q
+        q = _Q()
+        for c in commodity:
+            q |= _Q(internal_account_code__icontains=f'-{c}-')
+        clients_query = clients_query.filter(q)
     if has_email == 'yes':
         clients_query = clients_query.exclude(Q(email__isnull=True) | Q(email=''))
     elif has_email == 'no':
@@ -5614,7 +5622,7 @@ def client_allocation_sheet(request):
         # Filter values to preserve form state
         'filter_client_id': client_id,
         'filter_client_name': client_name,
-        'filter_corporate_group': corporate_group,
+        'filter_corporate_group': corporate_group,  # now a list
         'filter_commodity': commodity,
         'filter_facility_type': facility_type,
         'filter_facility_code': facility_code,
@@ -5956,29 +5964,24 @@ def edit_client_allocation(request):
 
 @login_required(login_url='login')
 def get_dropdown_options(request):
-    """Get all unique values for facility_type, commodity, and corporate_group with counts."""
-    from ..models import ClientAllocation
+    """Get all unique values for facility_type and corporate_group with counts from Client model."""
+    from ..models import Client
     from django.db.models import Count, Q
     from django.http import JsonResponse
 
     # Get facility types with counts
-    facility_types = ClientAllocation.objects.values('facility_type').annotate(
+    facility_types = Client.objects.values('facility_type').annotate(
         count=Count('id')
     ).filter(~Q(facility_type='') & ~Q(facility_type__isnull=True)).order_by('facility_type')
 
-    # Get commodities with counts
-    commodities = ClientAllocation.objects.values('commodity').annotate(
-        count=Count('id')
-    ).filter(~Q(commodity='') & ~Q(commodity__isnull=True)).order_by('commodity')
-
     # Get corporate groups with counts
-    corporate_groups = ClientAllocation.objects.values('corporate_group').annotate(
+    corporate_groups = Client.objects.values('corporate_group').annotate(
         count=Count('id')
     ).filter(~Q(corporate_group='') & ~Q(corporate_group__isnull=True)).order_by('corporate_group')
 
     return JsonResponse({
         'facility_types': [{'value': item['facility_type'], 'count': item['count']} for item in facility_types],
-        'commodities': [{'value': item['commodity'], 'count': item['count']} for item in commodities],
+        'commodities': [],
         'corporate_groups': [{'value': item['corporate_group'], 'count': item['count']} for item in corporate_groups],
     })
 
@@ -5986,7 +5989,7 @@ def get_dropdown_options(request):
 @login_required(login_url='login')
 def delete_dropdown_option(request):
     """Delete a dropdown option by setting it to empty for all clients using it."""
-    from ..models import ClientAllocation
+    from ..models import Client
     from django.http import JsonResponse
     import json
 
@@ -5999,10 +6002,9 @@ def delete_dropdown_option(request):
             if not field_type or not value:
                 return JsonResponse({'success': False, 'error': 'Missing field_type or value'})
 
-            # Map field_type to actual model field
+            # Map field_type to actual Client model field
             field_map = {
                 'facility_type': 'facility_type',
-                'commodity': 'commodity',
                 'corporate_group': 'corporate_group'
             }
 
@@ -6011,8 +6013,8 @@ def delete_dropdown_option(request):
 
             field_name = field_map[field_type]
 
-            # Update all clients with this value to empty string
-            updated_count = ClientAllocation.objects.filter(**{field_name: value}).update(**{field_name: ''})
+            # Update all Client records with this value to empty string
+            updated_count = Client.objects.filter(**{field_name: value}).update(**{field_name: ''})
 
             return JsonResponse({
                 'success': True,
