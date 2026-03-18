@@ -68,6 +68,49 @@
         .commodity-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .chart-wrap { position: relative; height: 220px; }
         .section-title { font-size: 0.875rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+
+        /* ---- Info-tip tooltips ---- */
+        .info-tip { position: relative; display: inline-flex; align-items: center; cursor: help; }
+        .info-tip i { font-size: 0.7rem; color: #9ca3af; margin-left: 4px; transition: color 0.15s; }
+        .info-tip:hover i { color: #007890; }
+        .info-tip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: #f1f5f9;
+            font-size: 0.72rem;
+            font-weight: 400;
+            line-height: 1.45;
+            padding: 8px 12px;
+            border-radius: 8px;
+            white-space: normal;
+            width: 230px;
+            text-align: left;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 9999;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .info-tip::before {
+            content: '';
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1e293b;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 9999;
+        }
+        .info-tip:hover::after, .info-tip:hover::before { opacity: 1; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -120,7 +163,10 @@
                     <div class="card p-5">
                         <div class="flex items-start justify-between">
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Inspections</p>
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Total Inspections
+                                    <span class="info-tip" data-tip="The total number of food safety inspections you have ever completed since you started. Each visit to a client to check food safety rules counts as one inspection."><i class="fas fa-circle-info"></i></span>
+                                </p>
                                 <p class="text-3xl font-bold text-blue-600 mt-1">{{ total_inspections|default:0 }}</p>
                                 <p class="text-xs text-gray-500 mt-1"><span class="text-green-600 font-semibold">{{ this_month_inspections|default:0 }}</span> this month</p>
                             </div>
@@ -131,7 +177,10 @@
                     <div class="card p-5">
                         <div class="flex items-start justify-between">
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Last 30 Days</p>
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Last 30 Days
+                                    <span class="info-tip" data-tip="How many inspections you completed in the past 30 days. The average below shows your normal monthly pace so you can see if you're doing more or less than usual."><i class="fas fa-circle-info"></i></span>
+                                </p>
                                 <p class="text-3xl font-bold text-emerald-600 mt-1">{{ recent_inspections|default:0 }}</p>
                                 <p class="text-xs text-gray-500 mt-1"><span class="text-blue-600 font-semibold">{{ avg_monthly_inspections|default:0 }}</span> avg/month</p>
                             </div>
@@ -142,7 +191,10 @@
                     <div class="card p-5">
                         <div class="flex items-start justify-between">
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Compliance Rate</p>
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Compliance Rate
+                                    <span class="info-tip" data-tip="Out of all the places you inspected, the percentage that were following the food safety rules. A higher number is better — 100% means every single place passed!"><i class="fas fa-circle-info"></i></span>
+                                </p>
                                 <p class="text-3xl font-bold mt-1" style="color: {% if compliance_rate >= 80 %}#059669{% elif compliance_rate >= 60 %}#d97706{% else %}#dc2626{% endif %}">{{ compliance_rate|default:0 }}%</p>
                                 <p class="text-xs text-gray-500 mt-1"><span class="text-green-600 font-semibold">{{ compliant_inspections|default:0 }}</span> compliant</p>
                             </div>
@@ -153,7 +205,10 @@
                     <div class="card p-5">
                         <div class="flex items-start justify-between">
                             <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Non-Compliant</p>
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Non-Compliant
+                                    <span class="info-tip" data-tip="Places that were NOT following the food safety rules when you visited. A direction (official notice to fix the problem) was issued. Lower is better — zero means no issues found!"><i class="fas fa-circle-info"></i></span>
+                                </p>
                                 <p class="text-3xl font-bold text-red-600 mt-1">{{ non_compliant_inspections|default:0 }}</p>
                                 <p class="text-xs text-gray-500 mt-1">directions issued</p>
                             </div>
@@ -167,9 +222,14 @@
                 <div class="card p-5">
                     <!-- Header row -->
                     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <div class="section-title mb-0"><i class="fas fa-bullseye text-primary"></i> {{ quarter_label }} KPI Tracker</div>
+                        <div class="section-title mb-0">
+                            <i class="fas fa-bullseye text-primary"></i> {{ quarter_label }} KPI Tracker
+                            <span class="info-tip" data-tip="KPI means Key Performance Indicator — these are your inspection targets for this quarter (a 3-month period). This section shows how many inspections you need to do vs how many you have already done."><i class="fas fa-circle-info"></i></span>
+                        </div>
                         <div class="flex items-center gap-3">
-                            <div class="text-xs text-gray-500">Quarter progress: <span class="font-bold text-gray-700">{{ quarter_progress_display }}%</span></div>
+                            <div class="text-xs text-gray-500">Quarter progress: <span class="font-bold text-gray-700">{{ quarter_progress_display }}%</span>
+                                <span class="info-tip" data-tip="How far through the quarter we are today. For example, 86% means we are near the end of the quarter and you have little time left to hit your targets!"><i class="fas fa-circle-info"></i></span>
+                            </div>
                             {% if kpi_overall_status == 'on_track' %}
                             <span style="background:#dcfce7; color:#166534; padding:4px 14px; border-radius:999px; font-size:0.75rem; font-weight:700;"><i class="fas fa-check-circle mr-1"></i> On Track</span>
                             {% elif kpi_overall_status == 'slightly_behind' %}
@@ -193,7 +253,9 @@
                         </div>
                         <div class="flex justify-between text-xs text-gray-400 mt-1">
                             <span>0</span>
-                            <span>Expected by now: ~{{ quarter_progress_display }}% of target</span>
+                            <span>Expected by now: ~{{ quarter_progress_display }}% of target
+                                <span class="info-tip" data-tip="Based on how much of the quarter has passed, this is roughly how many inspections you should have completed by today to be on track. If your actual number is below this, you are behind pace."><i class="fas fa-circle-info"></i></span>
+                            </span>
                             <span>{{ kpi_total_target }}</span>
                         </div>
                     </div>
@@ -224,7 +286,10 @@
                             {% if row.still_needed == 0 %}
                             <p class="text-xs font-semibold text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i> Target reached!</p>
                             {% else %}
-                            <p class="text-xs mb-2" style="color:#dc2626;font-weight:600;"><i class="fas fa-arrow-up mr-1"></i> Still need <strong>{{ row.still_needed }}</strong> more to hit target of {{ row.target }}</p>
+                            <p class="text-xs mb-2" style="color:#dc2626;font-weight:600;">
+                                <i class="fas fa-arrow-up mr-1"></i> Still need <strong>{{ row.still_needed }}</strong> more to hit target of {{ row.target }}
+                                <span class="info-tip" data-tip="You need to do {{ row.still_needed }} more {{ row.label }} inspections before the end of this quarter to reach your target of {{ row.target }}."><i class="fas fa-circle-info"></i></span>
+                            </p>
                             {% endif %}
                             <!-- Progress bar -->
                             <div class="progress-bar" style="height:8px;">
@@ -239,6 +304,7 @@
                             <!-- Expected by now hint -->
                             <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
                                 Expected by now: <span class="font-semibold text-gray-600">~{{ row.expected_by_now }}</span>
+                                <span class="info-tip" data-tip="If you were doing inspections at a steady pace since the start of the quarter, you should have done about {{ row.expected_by_now }} {{ row.label }} inspections by today. Compare this to your actual number above."><i class="fas fa-circle-info"></i></span>
                             </div>
                         </div>
                         {% endif %}
@@ -278,7 +344,10 @@
                 <!-- Profitability Calculator -->
                 <div class="card p-5">
                     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <div class="section-title mb-0"><i class="fas fa-calculator text-primary"></i> {{ quarter_label }} Profitability</div>
+                        <div class="section-title mb-0">
+                            <i class="fas fa-calculator text-primary"></i> {{ quarter_label }} Profitability
+                            <span class="info-tip" data-tip="This shows whether the company makes or loses money from your inspections. Revenue is what you earn; costs are what it costs to employ you. If revenue is more than costs, it's profitable (green). If costs are more, it's a loss (red)."><i class="fas fa-circle-info"></i></span>
+                        </div>
                         {% if profitability.is_profitable %}
                         <span style="background:#dcfce7;color:#166534;padding:4px 14px;border-radius:999px;font-size:0.75rem;font-weight:700;"><i class="fas fa-check-circle mr-1"></i> Profitable</span>
                         {% elif profitability.has_data %}
@@ -299,20 +368,31 @@
                         <div class="rounded-lg p-4" style="background:#f0fdf4;border:1px solid #bbf7d0;">
                             <p class="text-xs font-bold text-green-700 uppercase tracking-wide mb-3"><i class="fas fa-arrow-up mr-1"></i> Revenue This Quarter</p>
                             <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Hours ({{ profitability.total_hours }}h × R{{ profitability.hourly_rate }})</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        Hours ({{ profitability.total_hours }}h × R{{ profitability.hourly_rate }})
+                                        <span class="info-tip" data-tip="You spent {{ profitability.total_hours }} hours doing inspections this quarter. Each hour earns R{{ profitability.hourly_rate }}, so: {{ profitability.total_hours }} × R{{ profitability.hourly_rate }} = R{{ profitability.rev_hours|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.rev_hours|floatformat:2 }}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">KM ({{ profitability.total_km }}km × R{{ profitability.km_rate }})</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        KM ({{ profitability.total_km }}km × R{{ profitability.km_rate }})
+                                        <span class="info-tip" data-tip="You drove {{ profitability.total_km }} km to reach inspection sites this quarter. Every km earns R{{ profitability.km_rate }} travel money, so: {{ profitability.total_km }} × R{{ profitability.km_rate }} = R{{ profitability.rev_km|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.rev_km|floatformat:2 }}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Samples ({{ profitability.total_samples }} × R{{ profitability.sample_rate }})</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        Samples ({{ profitability.total_samples }} × R{{ profitability.sample_rate }})
+                                        <span class="info-tip" data-tip="You collected {{ profitability.total_samples }} food samples this quarter. Each sample earns R{{ profitability.sample_rate }}, so: {{ profitability.total_samples }} × R{{ profitability.sample_rate }} = R{{ profitability.rev_samples|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.rev_samples|floatformat:2 }}</span>
                                 </div>
                                 <div class="flex justify-between border-t border-green-200 pt-2 mt-1">
-                                    <span class="font-bold text-green-800">Total Revenue</span>
+                                    <span class="font-bold text-green-800">Total Revenue
+                                        <span class="info-tip" data-tip="All your earnings added together: hours + km + samples = R{{ profitability.actual_revenue|floatformat:2 }}. This is the total money you generated for the company this quarter."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-bold text-green-800">R {{ profitability.actual_revenue|floatformat:2 }}</span>
                                 </div>
                             </div>
@@ -334,20 +414,31 @@
                         <div class="rounded-lg p-4" style="background:#fff7ed;border:1px solid #fed7aa;">
                             <p class="text-xs font-bold text-orange-700 uppercase tracking-wide mb-3"><i class="fas fa-arrow-down mr-1"></i> Costs This Quarter</p>
                             <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Salary (R {{ profitability.monthly_salary|floatformat:0 }} × 3)</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        Salary (R {{ profitability.monthly_salary|floatformat:0 }} × 3 months)
+                                        <span class="info-tip" data-tip="Your monthly salary is R{{ profitability.monthly_salary|floatformat:0 }}. A quarter has 3 months, so the total salary cost for the quarter is R{{ profitability.monthly_salary|floatformat:0 }} × 3 = R{{ profitability.quarterly_salary|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.quarterly_salary|floatformat:2 }}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Vehicle (R {{ profitability.monthly_vehicle|floatformat:0 }} × 3)</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        Vehicle (R {{ profitability.monthly_vehicle|floatformat:0 }} × 3 months)
+                                        <span class="info-tip" data-tip="Monthly vehicle costs (e.g. car payment or allowance) multiplied by 3 months to get the full quarterly cost."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.quarterly_vehicle|floatformat:2 }}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">Other (R {{ profitability.monthly_other|floatformat:0 }} × 3)</span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 flex items-center gap-1">
+                                        Other (R {{ profitability.monthly_other|floatformat:0 }} × 3 months)
+                                        <span class="info-tip" data-tip="Any other monthly costs (e.g. equipment, phone) multiplied by 3 months to get the full quarterly cost."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-semibold">R {{ profitability.quarterly_other|floatformat:2 }}</span>
                                 </div>
                                 <div class="flex justify-between border-t border-orange-200 pt-2 mt-1">
-                                    <span class="font-bold text-orange-800">Total Costs</span>
+                                    <span class="font-bold text-orange-800">Total Costs
+                                        <span class="info-tip" data-tip="Everything it costs to employ you for this quarter: salary + vehicle + other expenses = R{{ profitability.quarterly_costs|floatformat:2 }}."><i class="fas fa-circle-info"></i></span>
+                                    </span>
                                     <span class="font-bold text-orange-800">R {{ profitability.quarterly_costs|floatformat:2 }}</span>
                                 </div>
                             </div>
@@ -358,6 +449,7 @@
                             style="background:{% if profitability.is_profitable %}#f0fdf4{% else %}#fef2f2{% endif %};border:1px solid {% if profitability.is_profitable %}#bbf7d0{% else %}#fecaca{% endif %};">
                             <p class="text-xs font-bold uppercase tracking-wide mb-3 {% if profitability.is_profitable %}text-green-700{% else %}text-red-700{% endif %}">
                                 <i class="fas fa-balance-scale mr-1"></i> Net Result
+                                <span class="info-tip" data-tip="Revenue minus costs. If this number is green (positive), the company made money from your inspections this quarter. If it is red (negative), the costs were more than the revenue — meaning the company spent more on you than you earned back."><i class="fas fa-circle-info"></i></span>
                             </p>
                             <div class="flex flex-col items-center justify-center h-24">
                                 <p class="text-3xl font-black {% if profitability.is_profitable %}text-green-700{% else %}text-red-700{% endif %}">
@@ -440,14 +532,20 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div>
                             <div class="flex justify-between text-sm mb-1.5">
-                                <span class="text-gray-600">Compliance Rate</span>
+                                <span class="text-gray-600 flex items-center gap-1">
+                                    Compliance Rate
+                                    <span class="info-tip" data-tip="The percentage of all your inspections where the client was following the rules. 100% is perfect — it means every place you visited passed the food safety check!"><i class="fas fa-circle-info"></i></span>
+                                </span>
                                 <span class="font-bold text-green-600">{{ compliance_rate|default:0 }}%</span>
                             </div>
                             <div class="progress-bar"><div class="progress-fill bg-green-500" style="width: {{ compliance_rate|default:0 }}%"></div></div>
                         </div>
                         <div>
                             <div class="flex justify-between text-sm mb-1.5">
-                                <span class="text-gray-600">This Month vs Avg</span>
+                                <span class="text-gray-600 flex items-center gap-1">
+                                    This Month vs Avg
+                                    <span class="info-tip" data-tip="Compares how many inspections you did this month (left number) to your usual monthly average (right number). If the left is higher, you're having a great month!"><i class="fas fa-circle-info"></i></span>
+                                </span>
                                 <span class="font-bold text-blue-600">{{ this_month_inspections|default:0 }} / {{ avg_monthly_inspections|default:0 }}</span>
                             </div>
                             <div class="progress-bar">
@@ -456,14 +554,20 @@
                         </div>
                         <div>
                             <div class="flex justify-between text-sm mb-1.5">
-                                <span class="text-gray-600">Recent Activity (30d)</span>
+                                <span class="text-gray-600 flex items-center gap-1">
+                                    Recent Activity (30d)
+                                    <span class="info-tip" data-tip="How active you've been in the last 30 days. The bar fills up relative to your busiest recorded month, so you can quickly see if you're in a busy or quiet period."><i class="fas fa-circle-info"></i></span>
+                                </span>
                                 <span class="font-bold text-purple-600">{{ recent_inspections|default:0 }}</span>
                             </div>
                             <div class="progress-bar"><div class="progress-fill bg-purple-500" id="recentBar"></div></div>
                         </div>
                         <div>
                             <div class="flex justify-between text-sm mb-1.5">
-                                <span class="text-gray-600">Non-Compliance Rate</span>
+                                <span class="text-gray-600 flex items-center gap-1">
+                                    Non-Compliance Rate
+                                    <span class="info-tip" data-tip="The percentage of your inspections where the client failed the food safety check. Lower is better — 0% means every place you visited was following the rules."><i class="fas fa-circle-info"></i></span>
+                                </span>
                                 <span class="font-bold text-red-600" id="nonCompPct">—</span>
                             </div>
                             <div class="progress-bar"><div class="progress-fill bg-red-500" id="nonCompBar"></div></div>
