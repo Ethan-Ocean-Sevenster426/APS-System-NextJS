@@ -257,14 +257,32 @@
                                     <label class="form-label required">Issue Type</label>
                                     <select name="issue_type" class="form-control" required>
                                         <option value="">Select issue type...</option>
-                                        <option value="bug">System Error/Bug</option>
-                                        <option value="inspection">Inspection Not Showing/Missing</option>
-                                        <option value="export">Report Generation/Export Issue</option>
-                                        <option value="performance">Performance/Speed Issue</option>
-                                        <option value="access">Access/Permission Issue</option>
-                                        <option value="feature">Feature Request</option>
-                                        <option value="question">Question/Help</option>
-                                        <option value="other">Other</option>
+                                        <optgroup label="System Issues">
+                                            <option value="bug">System Error/Bug</option>
+                                            <option value="performance">Performance/Speed Issue</option>
+                                            <option value="access">Access/Permission Issue</option>
+                                            <option value="system_down">System Unavailable/Down</option>
+                                        </optgroup>
+                                        <optgroup label="Inspections">
+                                            <option value="inspection">Inspection Not Showing/Missing</option>
+                                            <option value="inspection_data">Incorrect Inspection Data</option>
+                                            <option value="inspection_report">Inspection Report Issue</option>
+                                        </optgroup>
+                                        <optgroup label="Invoicing &amp; Billing">
+                                            <option value="invoice_missing">Invoice Missing/Not Generated</option>
+                                            <option value="invoice_wrong">Invoice Incorrect/Wrong Amount</option>
+                                            <option value="payment">Payment/Billing Issue</option>
+                                        </optgroup>
+                                        <optgroup label="Emails &amp; Documents">
+                                            <option value="email">Email Not Sending/Not Received</option>
+                                            <option value="document">Document Not Received/Missing</option>
+                                            <option value="export">Report Generation/Export Issue</option>
+                                        </optgroup>
+                                        <optgroup label="Other">
+                                            <option value="feature">Feature Request</option>
+                                            <option value="question">Question/Help</option>
+                                            <option value="other">Other (describe below)</option>
+                                        </optgroup>
                                     </select>
                                 </div>
 
