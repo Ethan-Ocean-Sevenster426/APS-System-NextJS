@@ -32,16 +32,16 @@ class Command(BaseCommand):
             self.stdout.write('Running PostgreSQL backup...')
             ok, msg = _pg_dump(timestamp)
             if ok:
-                self.stdout.write(self.style.SUCCESS(f'  ✓ {msg}'))
+                self.stdout.write(self.style.SUCCESS(f'  OK {msg}'))
                 _cleanup(DB_BACKUP_DIR, '*.dump', KEEP_LAST)
             else:
-                self.stdout.write(self.style.ERROR(f'  ✗ {msg}'))
+                self.stdout.write(self.style.ERROR(f'  FAILED {msg}'))
 
         if do_excel:
             self.stdout.write('Running Excel export...')
             ok, msg = _excel_export(timestamp)
             if ok:
-                self.stdout.write(self.style.SUCCESS(f'  ✓ {msg}'))
+                self.stdout.write(self.style.SUCCESS(f'  OK {msg}'))
                 _cleanup(EXCEL_BACKUP_DIR, '*.xlsx', KEEP_LAST)
             else:
-                self.stdout.write(self.style.ERROR(f'  ✗ {msg}'))
+                self.stdout.write(self.style.ERROR(f'  FAILED {msg}'))

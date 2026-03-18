@@ -213,10 +213,10 @@ def _excel_export(timestamp):
         _write_sheet(ws,
             ['Client ID', 'Name', 'Account Code', 'Town', 'Corporate Group', 'Facility Type', 'Email'],
             [
-                [c.client_id, c.eclick_name or '', c.internal_account_code or '',
+                [c.client_id, c.name or '', c.internal_account_code or '',
                  c.town or '', c.corporate_group or '', c.facility_type or '',
-                 c.representative_email or '']
-                for c in Client.objects.all().order_by('eclick_name')
+                 c.email or '']
+                for c in Client.objects.all().order_by('name')
             ]
         )
 
