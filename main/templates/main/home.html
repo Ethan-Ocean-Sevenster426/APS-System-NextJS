@@ -70,10 +70,6 @@
         <!-- Sidebar -->
         <div id="sidebar" class="w-64 h-screen bg-sidebar-bg text-sidebar-text flex flex-col">
             <div class="px-4 py-4 border-b border-slate-600 flex-shrink-0">
-                <div class="text-center mb-2">
-                    <img src="{% static 'img/Food safetyagencylogo.png' %}" alt="Food Safety Agency Logo"
-                        class="max-h-12 mx-auto">
-                </div>
                 <div class="text-sm font-semibold text-center" style="color: #ffffff;">
                     Food Safety Agency (Pty) Ltd
                 </div>
@@ -344,45 +340,6 @@
                     </div>
                 </div>
 
-                <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="card-title text-lg font-semibold text-gray-800">System Status</h3>
-                        <a href="?refresh_status=true"
-                            class="btn btn-sm bg-blue-500 text-white hover:bg-blue-600 px-3 py-1 rounded text-sm">
-                            <i class="fas fa-sync-alt mr-1"></i> Refresh
-                        </a>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="status-item flex items-center justify-between">
-                            <span class="status-label text-gray-600">PostgreSQL</span>
-                            <span
-                                class="status-value flex items-center gap-2 {% if system_status.postgresql_online %}text-green-600{% else %}text-red-600{% endif %}">
-                                <i class="fas fa-circle text-xs"></i>
-                                <span>{% if system_status.postgresql_online %}Online{% else %}Offline{% endif %}</span>
-                            </span>
-                        </div>
-                        <div class="status-item flex items-center justify-between">
-                            <span class="status-label text-gray-600">SQL Server</span>
-                            <span
-                                class="status-value flex items-center gap-2 {% if system_status.sql_server_online %}text-green-600{% else %}text-red-600{% endif %}">
-                                <i class="fas fa-circle text-xs"></i>
-                                <span>{% if system_status.sql_server_online %}Online{% else %}Offline{% endif %}</span>
-                            </span>
-                        </div>
-                        <div class="status-item flex items-center justify-between">
-                            <span class="status-label text-gray-600">Sync Service</span>
-                            <span
-                                class="status-value flex items-center gap-2 {% if system_status.sync_service_running %}text-green-600{% else %}text-red-600{% endif %}">
-                                <i class="fas fa-circle text-xs"></i>
-                                <span>{% if system_status.sync_service_running %}Running{% else %}Stopped{% endif %}</span>
-                            </span>
-                        </div>
-                        <div class="status-item flex items-center justify-between">
-                            <span class="status-label text-gray-600">Last Sync</span>
-                            <span class="status-value text-gray-500 text-sm">{{ system_status.last_sync }}</span>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="content-card bg-card-bg rounded-lg shadow-sm border border-gray-200 p-6">
                     <h3 class="card-title text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>

@@ -464,21 +464,41 @@
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Corporate Group</label>
-                                    <select class="form-control" name="corporate_group">
-                                        <option value="">All Groups</option>
-                                        {% for group in corporate_groups %}
-                                        <option value="{{ group }}" {% if request.GET.corporate_group == group %}selected{% endif %}>{{ group }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="corpGroupBtn" onclick="var d=document.getElementById('corpGroupPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="corpGroupText">All Groups</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="corpGroupPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;max-height:250px;overflow-y:auto;">
+                                            {% for group in corporate_groups %}
+                                            <div style="padding:6px 8px;">
+                                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                                                    <input type="checkbox" name="corporate_group" value="{{ group }}" class="corp-group-checkbox" onclick="updateCorpGroupText();">
+                                                    <span>{{ group }}</span>
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Group Type</label>
-                                    <select class="form-control" name="group_type">
-                                        <option value="">All Types</option>
-                                        {% for gtype in group_types %}
-                                        <option value="{{ gtype }}" {% if request.GET.group_type == gtype %}selected{% endif %}>{{ gtype }}</option>
-                                        {% endfor %}
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="groupTypeBtn" onclick="var d=document.getElementById('groupTypePanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="groupTypeText">All Types</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="groupTypePanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;max-height:250px;overflow-y:auto;">
+                                            {% for gtype in group_types %}
+                                            <div style="padding:6px 8px;">
+                                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                                                    <input type="checkbox" name="group_type" value="{{ gtype }}" class="group-type-checkbox" onclick="updateGroupTypeText();">
+                                                    <span>{{ gtype }}</span>
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -514,41 +534,56 @@
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Sent Status</label>
-                                    <select class="form-control" name="sent_status">
-                                        <option value="">Not Sent</option>
-                                        <option value="YES" {% if request.GET.sent_status == 'YES' %}selected{% endif %}>
-                                            Sent Only</option>
-                                        <option value="NO" {% if request.GET.sent_status == 'NO' %}selected{% endif %}>Not
-                                            Sent Only</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="sentStatusBtn" onclick="var d=document.getElementById('sentStatusPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="sentStatusText">Not Sent</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="sentStatusPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="sent_status" value="YES" class="sent-status-checkbox" onclick="updateSentStatusText();"><span>Sent Only</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="sent_status" value="NO" class="sent-status-checkbox" onclick="updateSentStatusText();"><span>Not Sent Only</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <!-- RFI Status filter removed - show all inspections regardless of files -->
                                 <div class="filter-field">
                                     <label class="form-label">Compliance Status</label>
-                                    <select class="form-control" name="compliance_status">
-                                        <option value="">All Inspections</option>
-                                        <option value="COMPLIANT" {% if request.GET.compliance_status == 'COMPLIANT' %}selected{% endif %}>Compliant Only</option>
-                                        <option value="NON_COMPLIANT" {% if request.GET.compliance_status == 'NON_COMPLIANT' %}selected{% endif %}>
-                                            Non-Compliant Only</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="complianceBtn" onclick="var d=document.getElementById('compliancePanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="complianceText">All Inspections</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="compliancePanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="compliance_status" value="COMPLIANT" class="compliance-checkbox" onclick="updateComplianceText();"><span>Compliant Only</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="compliance_status" value="NON_COMPLIANT" class="compliance-checkbox" onclick="updateComplianceText();"><span>Non-Compliant Only</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Approved Status</label>
-                                    <select class="form-control" name="approved_status_filter">
-                                        <option value="">All</option>
-                                        <option value="APPROVED" {% if request.GET.approved_status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
-                                        <option value="PENDING" {% if request.GET.approved_status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="approvedBtn" onclick="var d=document.getElementById('approvedPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="approvedText">All</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="approvedPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="approved_status_filter" value="APPROVED" class="approved-checkbox" onclick="updateApprovedText();"><span>Approved</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="approved_status_filter" value="PENDING" class="approved-checkbox" onclick="updateApprovedText();"><span>Pending</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <!-- Lab Form Status filter removed - show all inspections regardless of lab forms -->
                                 <div class="filter-field">
                                     <label class="form-label">File Status</label>
-                                    <select class="form-control" name="file_status_filter">
-                                        <option value="">All Inspections</option>
-                                        <option value="ALL_FILES" {% if request.GET.file_status_filter == 'ALL_FILES' %}selected{% endif %}>All Files</option>
-                                        <option value="PARTIAL" {% if request.GET.file_status_filter == 'PARTIAL' %}selected{% endif %}>Partial Files</option>
-                                        <option value="NO_FILES" {% if request.GET.file_status_filter == 'NO_FILES' %}selected{% endif %}>No Files</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="fileStatusBtn" onclick="var d=document.getElementById('fileStatusPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="fileStatusText">All Inspections</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="fileStatusPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="file_status_filter" value="ALL_FILES" class="file-status-checkbox" onclick="updateFileStatusText();"><span>All Files</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="file_status_filter" value="PARTIAL" class="file-status-checkbox" onclick="updateFileStatusText();"><span>Partial Files</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="file_status_filter" value="NO_FILES" class="file-status-checkbox" onclick="updateFileStatusText();"><span>No Files</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -624,19 +659,29 @@
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">Needs Retest</label>
-                                    <select class="form-control" name="needs_retest">
-                                        <option value="">All</option>
-                                        <option value="YES" {% if request.GET.needs_retest == 'YES' %}selected{% endif %}>Yes</option>
-                                        <option value="NO" {% if request.GET.needs_retest == 'NO' %}selected{% endif %}>No</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="needsRetestBtn" onclick="var d=document.getElementById('needsRetestPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="needsRetestText">All</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="needsRetestPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="needs_retest" value="YES" class="needs-retest-checkbox" onclick="updateNeedsRetestText();"><span>Yes</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="needs_retest" value="NO" class="needs-retest-checkbox" onclick="updateNeedsRetestText();"><span>No</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="filter-field">
                                     <label class="form-label">COA Uploaded</label>
-                                    <select class="form-control" name="coa_uploaded">
-                                        <option value="">All</option>
-                                        <option value="YES" {% if request.GET.coa_uploaded == 'YES' %}selected{% endif %}>Yes</option>
-                                        <option value="NO" {% if request.GET.coa_uploaded == 'NO' %}selected{% endif %}>No</option>
-                                    </select>
+                                    <div class="multi-select-dropdown" style="position:relative;">
+                                        <button type="button" class="form-control" id="coaUploadedBtn" onclick="var d=document.getElementById('coaUploadedPanel');d.style.display=d.style.display==='none'?'block':'none';event.stopPropagation();" style="text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                                            <span id="coaUploadedText">All</span>
+                                            <i class="fas fa-chevron-down" style="font-size:12px;"></i>
+                                        </button>
+                                        <div id="coaUploadedPanel" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);z-index:1000;">
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="coa_uploaded" value="YES" class="coa-uploaded-checkbox" onclick="updateCoaUploadedText();"><span>Yes</span></label></div>
+                                            <div style="padding:6px 8px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" name="coa_uploaded" value="NO" class="coa-uploaded-checkbox" onclick="updateCoaUploadedText();"><span>No</span></label></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             {% endif %}

@@ -2456,14 +2456,16 @@ def shipment_list(request):
     # (no filtering needed)
     
     # Apply filters if provided (but skip sent_status filter as it's handled at group level)
-    sent_status_param = request.GET.get('sent_status')
-    if sent_status_param:
-        # Temporarily remove sent_status from request to avoid double filtering
-        request.GET = request.GET.copy()
-        request.GET.pop('sent_status', None)
+    sent_status_params = request.GET.getlist('sent_status')
+    if sent_status_params:
+        mutable = request.GET.copy()
+        mutable.pop('sent_status', None)
+        request.GET = mutable
         inspections = apply_fsa_inspection_filters(request, inspections)
-        # Restore sent_status parameter
-        request.GET['sent_status'] = sent_status_param
+        mutable = request.GET.copy()
+        for v in sent_status_params:
+            mutable.appendlist('sent_status', v)
+        request.GET = mutable
     else:
         inspections = apply_fsa_inspection_filters(request, inspections)
     
@@ -2502,22 +2504,20 @@ def shipment_list(request):
     ).order_by('-date_of_inspection', 'client_name')  # Default: newest first
 
     # FILTER GROUPS BY SENT STATUS: Apply sent status filter to groups, not individual inspections
-    sent_status = request.GET.get('sent_status')
-    if sent_status:
-        if sent_status == 'YES':
-            # Only show groups that have at least one sent inspection
+    sent_statuses = request.GET.getlist('sent_status')
+    if sent_statuses and len(sent_statuses) < 2:
+        if 'YES' in sent_statuses:
             groups_queryset = groups_queryset.filter(has_sent_inspections__gt=0)
-        elif sent_status == 'NO':
-            # Only show groups that have at least one unsent inspection - sort oldest first
+        elif 'NO' in sent_statuses:
             groups_queryset = groups_queryset.filter(has_unsent_inspections__gt=0)
             groups_queryset = groups_queryset.order_by('date_of_inspection', 'client_name')
-    
+
     # FILTER GROUPS BY APPROVED STATUS
-    approved_status_filter = request.GET.get('approved_status_filter')
-    if approved_status_filter:
-        if approved_status_filter == 'APPROVED':
+    approved_statuses = request.GET.getlist('approved_status_filter')
+    if approved_statuses and len(approved_statuses) < 2:
+        if 'APPROVED' in approved_statuses:
             groups_queryset = groups_queryset.filter(has_approved__gt=0)
-        elif approved_status_filter == 'PENDING':
+        elif 'PENDING' in approved_statuses:
             groups_queryset = groups_queryset.filter(has_pending__gt=0, has_approved=0)
 
     # FILTER GROUPS BY RFI STATUS: DISABLED - Show all inspections regardless of RFI status
@@ -3371,14 +3371,17 @@ def shipment_list(request):
         settings = {'dark_mode': False}
         print(f" THEME ERROR: {e}")
 
-    # Filter by file status (all files, partial, none) - applied after grouping since file_status is computed per group
-    file_status_filter = request.GET.get('file_status_filter')
-    if file_status_filter == 'ALL_FILES':
-        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') == 'all_files']
-    elif file_status_filter == 'PARTIAL':
-        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') in ('partial_files', 'compliance_only')]
-    elif file_status_filter == 'NO_FILES':
-        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') == 'no_files']
+    # Filter by file status - supports multiple selection
+    file_status_filters = request.GET.getlist('file_status_filter')
+    if file_status_filters:
+        allowed_file_statuses = set()
+        if 'ALL_FILES' in file_status_filters:
+            allowed_file_statuses.add('all_files')
+        if 'PARTIAL' in file_status_filters:
+            allowed_file_statuses.update(['partial_files', 'compliance_only'])
+        if 'NO_FILES' in file_status_filters:
+            allowed_file_statuses.add('no_files')
+        grouped_inspections = [s for s in grouped_inspections if s.get('file_status') in allowed_file_statuses]
 
     # FIX: Use the enhanced grouped_inspections instead of the raw page_obj
     # The page_obj contains raw database results without products, but grouped_inspections has the enhanced data
@@ -5263,28 +5266,25 @@ def apply_fsa_inspection_filters(request, inspections):
         # If sample_status is anything else or empty, show all (no filter)
     
     # Filter by compliance status - based on direction present field
-    compliance_status = request.GET.get('compliance_status')
-    if compliance_status:
-        if compliance_status == 'COMPLIANT':
-            # Show only compliant inspections (no direction present)
+    compliance_statuses = request.GET.getlist('compliance_status')
+    if compliance_statuses and len(compliance_statuses) < 2:
+        if 'COMPLIANT' in compliance_statuses:
             inspections = inspections.filter(is_direction_present_for_this_inspection=False)
-        elif compliance_status == 'NON_COMPLIANT':
-            # Show only non-compliant inspections (direction present)
+        elif 'NON_COMPLIANT' in compliance_statuses:
             inspections = inspections.filter(is_direction_present_for_this_inspection=True)
-        # If compliance_status is anything else or empty, show all (no filter)
     
     # Note: Sent status filtering is now handled at the group level in shipment_list view
     # to properly show groups that contain sent/unsent inspections
 
-    # Filter by corporate group
-    corporate_group = request.GET.get('corporate_group')
-    if corporate_group:
-        inspections = inspections.filter(corporate_group__iexact=corporate_group)
+    # Filter by corporate group - supports multiple selection
+    corporate_groups_filter = request.GET.getlist('corporate_group')
+    if corporate_groups_filter:
+        inspections = inspections.filter(corporate_group__in=corporate_groups_filter)
 
-    # Filter by group type (Corporate Store, Franchise Store, Individual, etc.)
-    group_type = request.GET.get('group_type')
-    if group_type:
-        inspections = inspections.filter(group_type__iexact=group_type)
+    # Filter by group type - supports multiple selection
+    group_types_filter = request.GET.getlist('group_type')
+    if group_types_filter:
+        inspections = inspections.filter(group_type__in=group_types_filter)
 
     # Filter by lab(s) - supports multiple selection
     labs = request.GET.getlist('lab')
@@ -5307,19 +5307,21 @@ def apply_fsa_inspection_filters(request, inspections):
                 test_filter |= Q(dna=True)
         inspections = inspections.filter(test_filter)
 
-    # Filter by needs retest
-    needs_retest = request.GET.get('needs_retest')
-    if needs_retest == 'YES':
-        inspections = inspections.filter(needs_retest='YES')
-    elif needs_retest == 'NO':
-        inspections = inspections.filter(needs_retest='NO')
+    # Filter by needs retest - supports multiple selection
+    needs_retest_list = request.GET.getlist('needs_retest')
+    if needs_retest_list and len(needs_retest_list) < 2:
+        if 'YES' in needs_retest_list:
+            inspections = inspections.filter(needs_retest='YES')
+        elif 'NO' in needs_retest_list:
+            inspections = inspections.filter(needs_retest='NO')
 
-    # Filter by COA uploaded
-    coa_uploaded = request.GET.get('coa_uploaded')
-    if coa_uploaded == 'YES':
-        inspections = inspections.filter(coa_uploaded_date__isnull=False)
-    elif coa_uploaded == 'NO':
-        inspections = inspections.filter(coa_uploaded_date__isnull=True)
+    # Filter by COA uploaded - supports multiple selection
+    coa_uploaded_list = request.GET.getlist('coa_uploaded')
+    if coa_uploaded_list and len(coa_uploaded_list) < 2:
+        if 'YES' in coa_uploaded_list:
+            inspections = inspections.filter(coa_uploaded_date__isnull=False)
+        elif 'NO' in coa_uploaded_list:
+            inspections = inspections.filter(coa_uploaded_date__isnull=True)
 
     return inspections
 
