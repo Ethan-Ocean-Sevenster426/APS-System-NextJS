@@ -1397,6 +1397,33 @@
                             {% endfor %}
                         </div>
 
+                        <!-- Info banners for special filter modes -->
+                        {% if show_duplicates %}
+                        <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px;">
+                            <i class="fas fa-copy" style="color:#f59e0b;margin-top:2px;flex-shrink:0;"></i>
+                            <div>
+                                <strong style="color:#92400e;">Viewing duplicate inspection groups</strong>
+                                <p style="margin:2px 0 0;font-size:0.82rem;color:#78350f;">
+                                    These are cases where the <strong>same client was inspected on the same date</strong> but recorded in more than one group — usually caused by syncing the same inspection twice.
+                                    Review each pair and click <strong>Delete</strong> on the duplicate entry (keep the one with files attached). Deleting removes only that inspection group from the system.
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if show_undeliverable %}
+                        <div style="background:#fef2f2;border:1px solid #ef4444;border-radius:6px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px;">
+                            <i class="fas fa-envelope-open-text" style="color:#ef4444;margin-top:2px;flex-shrink:0;"></i>
+                            <div>
+                                <strong style="color:#991b1b;">Viewing clients with undeliverable email addresses</strong>
+                                <p style="margin:2px 0 0;font-size:0.82rem;color:#7f1d1d;">
+                                    These clients have email addresses that <strong>bounced back</strong> — meaning emails sent to them were rejected by the mail server and never arrived.
+                                    This is detected automatically by scanning the FSA mailbox inbox for "Undeliverable" bounce notifications from Microsoft Exchange.
+                                    The bounced address is shown in red under the Email column. Update the client's email address to fix delivery.
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Desktop Table Layout (Hidden on mobile) -->
                         <div class="hidden lg:block overflow-x-auto shadow-md rounded-lg">
                             <table id="shipmentsTable" class="min-w-full divide-y divide-gray-200">
@@ -1442,6 +1469,8 @@
                                             {% if shipment.town %}<span
                                                 style="font-size: 0.65rem; color: #9ca3af; margin-left: 4px;">({{ shipment.town }})</span>{% endif %}
                                             <span style="font-size: 0.65rem; color: #6b7280; margin-left: 8px;">{{ shipment.inspector_name|default:"" }}</span>
+                                            {% if show_duplicates %}<span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:6px;vertical-align:middle;display:inline-block;">DUPLICATE</span>{% endif %}
+                                            {% if show_undeliverable %}<span style="background:#fee2e2;color:#991b1b;font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:6px;vertical-align:middle;display:inline-block;">EMAIL BOUNCED</span>{% endif %}
                                         </td>
                                         <td class="px-2 py-2 text-center">
                                             <button
@@ -1506,6 +1535,9 @@
                                                 <div>-</div>
                                             {% endif %}
                                             {% endwith %}
+                                            {% if show_undeliverable %}
+                                            <div class="undeliverable-bounced-label" data-client="{{ shipment.client_name }}" style="font-size:0.6rem;color:#991b1b;font-weight:700;white-space:nowrap;margin-top:2px;"></div>
+                                            {% endif %}
                                             </div>
                                         </td>
                                         <td class="px-2 py-2 text-center">
@@ -2067,8 +2099,21 @@
                     totalShipments: '{{ total_shipments|default:0 }}',
                     userName: '{{ request.user.first_name|default:request.user.username|escapejs }}',
                     refreshUrl: '{% url "refresh_inspections" %}',
-                    syncStatusUrl: '{% url "check_sync_status" %}'
+                    syncStatusUrl: '{% url "check_sync_status" %}',
+                    undeliverableEmailMap: {{ undeliverable_email_map_json|default:"{}"|safe }}
                 };
+
+                // Fill bounced-email labels in undeliverable mode
+                (function() {
+                    var map = window.DJANGO_CONFIG.undeliverableEmailMap || {};
+                    document.querySelectorAll('.undeliverable-bounced-label').forEach(function(el) {
+                        var client = el.getAttribute('data-client');
+                        var emails = map[client];
+                        if (emails && emails.length) {
+                            el.textContent = 'Bounced: ' + emails.join(', ');
+                        }
+                    });
+                })();
             </script>
             <script src="{% static 'inspection_records/js/inspection_records.js' %}?v=20260312-toast"></script>
 

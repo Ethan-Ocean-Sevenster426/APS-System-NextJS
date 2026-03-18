@@ -106,7 +106,7 @@ def fetch_undeliverable_emails(force_refresh=False):
     try:
         params = {
             '$search': '"Undeliverable"',
-            '$select': 'subject,bodyPreview,receivedDateTime',
+            '$select': 'subject,body,bodyPreview,receivedDateTime',
             '$top': 200,
         }
 
@@ -119,9 +119,13 @@ def fetch_undeliverable_emails(force_refresh=False):
             logger.info(f"Found {len(messages)} undeliverable messages")
 
             for msg in messages:
-                # Use bodyPreview (plain text) to avoid heavy HTML parsing
-                preview = msg.get('bodyPreview', '')
-                found_emails = _extract_bounced_emails(preview)
+                # Use full body for reliable extraction — bodyPreview is only ~255 chars
+                # and often cuts off before the bounced address appears
+                body_obj = msg.get('body', {})
+                body_text = body_obj.get('content', '') if isinstance(body_obj, dict) else ''
+                if not body_text:
+                    body_text = msg.get('bodyPreview', '')
+                found_emails = _extract_bounced_emails(body_text)
                 bounced_emails.update(found_emails)
 
     except Exception as e:

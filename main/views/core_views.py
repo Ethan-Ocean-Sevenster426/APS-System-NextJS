@@ -2565,6 +2565,7 @@ def shipment_list(request):
     undeliverable_count = 0
     show_undeliverable = request.GET.get('show_undeliverable') == 'true'
     _undeliverable_client_names = set()
+    _undeliverable_email_map = {}  # {client_name: [bounced_email, ...]}
     if getattr(request.user, 'role', '') in ('admin', 'super_admin', 'developer'):
         try:
             from ..graph_inbox_reader import fetch_undeliverable_emails
@@ -2589,8 +2590,10 @@ def shipment_list(request):
                     for _ae in _uc.additional_emails.all():
                         if _ae.email:
                             _uc_emails.add(_ae.email.strip().lower())
-                    if _uc_emails & _bounced_lower:
+                    _matched = _uc_emails & _bounced_lower
+                    if _matched:
                         _undeliverable_client_names.add(_uc.name)
+                        _undeliverable_email_map[_uc.name] = sorted(_matched)
 
                 if _undeliverable_client_names:
                     _undel_q = Q()
@@ -3401,10 +3404,11 @@ def shipment_list(request):
         'paginator': paginator,
         'page_obj': page_obj,
         'show_all': show_all,  # Pass actual show_all value to template
-        'show_duplicates': show_duplicates,  # Pass duplicate filter state to template
-        'duplicate_groups_count': duplicate_groups_count,  # Count for badge on button
-        'show_undeliverable': show_undeliverable,  # Pass undeliverable filter state to template
-        'undeliverable_count': undeliverable_count,  # Count for undeliverable badge
+        'show_duplicates': show_duplicates,
+        'duplicate_groups_count': duplicate_groups_count,
+        'show_undeliverable': show_undeliverable,
+        'undeliverable_count': undeliverable_count,
+        'undeliverable_email_map_json': json.dumps(_undeliverable_email_map),
         'onedrive_delay_days': int(onedrive_delay_days),  # Add OneDrive delay for countdown
         'settings': settings,  # Add theme settings
     }
