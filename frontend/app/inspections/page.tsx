@@ -986,7 +986,15 @@ export default function InspectionsPage() {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        .ir-mobile-cards { display: none; }
+        .ir-desktop-table { display: block; }
+        @media (max-width: 768px) {
+          .ir-mobile-cards { display: block; }
+          .ir-desktop-table { display: none !important; }
+        }
+      `}</style>
       {/* Hidden file input for uploads */}
       <input
         ref={fileInputRef}
@@ -1298,7 +1306,84 @@ export default function InspectionsPage() {
               <div className="ir-table-info">
                 {loading ? "Loading..." : `Showing ${filteredInspections.length} of ${total} inspection${total !== 1 ? "s" : ""}`}
               </div>
-              <div style={{ overflowX: "auto", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderRadius: 8 }}>
+
+              {/* Mobile Card Layout */}
+              <div className="ir-mobile-cards">
+                {loading ? (
+                  <div style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                    <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 8 }} />Loading...
+                  </div>
+                ) : filteredInspections.map(s => (
+                  <div key={`mobile-${s.id}`} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+                    {/* Card Header */}
+                    <div
+                      onClick={() => toggleGroup(String(s.id))}
+                      style={{ background: "linear-gradient(135deg, #007890 0%, #005a6b 100%)", padding: "12px 14px", color: "white", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.client_name || "-"}</div>
+                        <div style={{ fontSize: 11, opacity: 0.9 }}>{s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}</div>
+                        {s.is_occurrence_report && <span style={{ fontSize: 9, padding: "2px 6px", background: "#fef3c7", color: "#92400e", borderRadius: 4, fontWeight: 600, marginTop: 4, display: "inline-block" }}>OCCURRENCE REPORT</span>}
+                      </div>
+                      <i className={`fas fa-chevron-${expandedGroups.has(String(s.id)) ? "up" : "down"}`} style={{ fontSize: 14 }} />
+                    </div>
+                    {/* Card Body */}
+                    <div style={{ padding: "10px 14px", fontSize: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Inspector:</span>
+                        <span style={{ fontWeight: 500 }}>{s.inspector_name || "-"}</span>
+                      </div>
+                      {s.town && <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Town:</span>
+                        <span style={{ fontWeight: 500 }}>{s.town}</span>
+                      </div>}
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Approved:</span>
+                        <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
+                          {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Sent:</span>
+                        <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
+                          {s.sent_date ? "Sent" : "Not Sent"}
+                        </span>
+                      </div>
+                      {/* File Status Row */}
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6, marginBottom: 6 }}>
+                        <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : "ir-badge-red"}`}>RFI: {s.has_rfi ? "Yes" : "No"}</span>
+                        <span className={`ir-badge ${s.has_invoice ? "ir-badge-green" : "ir-badge-red"}`}>Inv: {s.has_invoice ? "Yes" : "No"}</span>
+                        <span className={`ir-badge ${s.has_lab ? "ir-badge-green" : "ir-badge-red"}`}>COA: {s.has_lab ? "Yes" : "No"}</span>
+                        <span className={`ir-badge ${s.has_compliance ? "ir-badge-green" : "ir-badge-red"}`}>Comp: {s.has_compliance ? "Yes" : "No"}</span>
+                      </div>
+                      {s.email && <div style={{ fontSize: 11, color: "#3b82f6", wordBreak: "break-all" }}>{s.email}</div>}
+                      {/* Action Buttons */}
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button style={{ flex: 1, padding: "8px", background: "#007890", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                          onClick={e => { e.stopPropagation(); openFilesModal(s.group_id || String(s.id), s.client_name, s.date_of_inspection); }}>
+                          <i className="fas fa-folder-open" /> Files
+                        </button>
+                        <button style={{ flex: 1, padding: "8px", background: s.sent_date ? "#6b7280" : "#22c55e", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                          onClick={() => handleSendDocuments(s)}>
+                          <i className="fas fa-paper-plane" /> {s.sent_date ? "Resend" : "Send"}
+                        </button>
+                        <a href={`/inspections/edit-fsa/${s.products?.[0]?.id || s.id}`} style={{ flex: 1, padding: "8px", background: "#3b82f6", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "center", textDecoration: "none" }}
+                          onClick={e => e.stopPropagation()}>
+                          <i className="fas fa-edit" /> Edit
+                        </a>
+                      </div>
+                    </div>
+                    {/* Expanded Detail */}
+                    {expandedGroups.has(String(s.id)) && (
+                      <div style={{ borderTop: "2px solid #e6f3f7", background: "#f8fafc" }}>
+                        {renderDetail(s)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="ir-desktop-table" style={{ overflowX: "auto", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderRadius: 8 }}>
                 <table className="ir-table" id="shipmentsTable" style={isLabTech ? { tableLayout: "fixed", width: "100%" } : undefined}>
                   <thead>
                     <tr>
