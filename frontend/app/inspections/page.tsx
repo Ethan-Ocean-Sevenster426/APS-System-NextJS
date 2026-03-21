@@ -17,6 +17,7 @@ interface Product {
   is_sample_taken: boolean;
   needs_retest: string;
   coa_uploaded: boolean;
+  compliance_uploaded: boolean;
   composition_uploaded: boolean;
   occurrence_uploaded: boolean;
   retest_uploaded: boolean;
@@ -313,25 +314,35 @@ export default function InspectionsPage() {
       if (data.success) {
         showToast(data.message || `${documentType} uploaded successfully!`);
 
+        console.log(`[Upload] Success! Updating local state for groupId=${groupId}, inspectionId=${inspectionId}, productId=${productId}, docType=${documentType}`);
+
         // Update local state to reflect the upload
         setInspections(prev => prev.map(insp => {
           if (insp.group_id !== groupId && insp.id !== inspectionId) return insp;
 
           const updated = { ...insp };
 
-          // Update group-level flags
+          // Update group-level flags (only for group-level uploads)
           if (documentType === 'rfi') updated.has_rfi = true;
           if (documentType === 'invoice') updated.has_invoice = true;
+          // Per-product uploads: set group flag true since at least one product has the file
           if (documentType === 'lab' || documentType === 'coa') updated.has_lab = true;
           if (documentType === 'compliance' || documentType === 'composition') updated.has_compliance = true;
           if (documentType === 'lab_form') updated.has_lab_form = true;
 
-          // Update product-level flags
+          // Update product-level flags — ONLY the specific product
           if (updated.products) {
+            console.log(`[Upload] Products in group:`, updated.products.map(p => `id=${p.id} name=${p.product_name}`));
+            console.log(`[Upload] Target productId=${productId}`);
             updated.products = updated.products.map(p => {
-              if (p.id !== productId) return p;
+              if (p.id !== productId) {
+                console.log(`[Upload] Skipping product ${p.id} (${p.product_name}) - not target`);
+                return p;
+              }
+              console.log(`[Upload] Updating product ${p.id} (${p.product_name}) with ${documentType}=true`);
               const up = { ...p };
               if (documentType === 'coa' || documentType === 'lab') up.coa_uploaded = true;
+              if (documentType === 'compliance') up.compliance_uploaded = true;
               if (documentType === 'composition') up.composition_uploaded = true;
               if (documentType === 'occurrence') up.occurrence_uploaded = true;
               if (documentType === 'retest') up.retest_uploaded = true;
@@ -909,7 +920,7 @@ export default function InspectionsPage() {
                           {roleLoaded && !isLabTech && (
                             <UploadBtn
                               label="Compliance"
-                              uploaded={!!s.has_compliance}
+                              uploaded={product.compliance_uploaded ?? false}
                               uploadKey={`compliance-${product.id}`}
                               onClick={() => triggerUpload(product.id, s.group_id || '', 'compliance', product.id)}
                             />
