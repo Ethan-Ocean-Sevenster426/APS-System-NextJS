@@ -215,8 +215,22 @@ export default function InspectionsPage() {
         return r.json();
       })
       .then(data => {
-        setInspections(data.results || data || []);
-        setTotal(data.count || (data.results || data || []).length);
+        const results = data.results || data || [];
+        console.log("[Inspections] Loaded", results.length, "inspections");
+        // Log file status for first 5 inspections
+        results.slice(0, 5).forEach((insp: Inspection) => {
+          console.log(`[Inspection] ${insp.client_name} (group ${insp.group_id}):`, {
+            has_rfi: insp.has_rfi, has_invoice: insp.has_invoice,
+            has_lab: insp.has_lab, has_compliance: insp.has_compliance,
+            products: insp.products?.map(p => ({
+              id: p.id, product: p.product_name,
+              coa: p.coa_uploaded, composition: p.composition_uploaded,
+              other: p.other_uploaded, retest: p.retest_uploaded,
+            })),
+          });
+        });
+        setInspections(results);
+        setTotal(data.count || results.length);
         if (data.duplicate_groups_count !== undefined) {
           setDuplicateGroupsCount(data.duplicate_groups_count);
         }
@@ -260,6 +274,7 @@ export default function InspectionsPage() {
   const performUpload = useCallback(async (file: File, inspectionId: number, groupId: string, documentType: string, productId: number, complianceStatus?: string) => {
     const key = `${documentType}-${productId}`;
     setUploadingKey(key);
+    console.log(`[Upload] Starting: type=${documentType}, file=${file.name}, inspectionId=${inspectionId}, groupId=${groupId}, productId=${productId}, compliance=${complianceStatus}`);
 
     try {
       // Validate PDF
@@ -276,12 +291,14 @@ export default function InspectionsPage() {
       if (complianceStatus) formData.append('compliance_status', complianceStatus);
       if (complianceStatus) formData.append('product_compliance_status', complianceStatus);
 
+      console.log(`[Upload] Sending to /api/upload-document:`, Object.fromEntries(formData.entries()));
       const res = await fetch('/api/upload-document', {
         method: 'POST',
         body: formData,
       });
 
       const data = await res.json();
+      console.log(`[Upload] Response:`, data);
 
       if (data.success) {
         showToast(data.message || `${documentType} uploaded successfully!`);
@@ -349,6 +366,7 @@ export default function InspectionsPage() {
       return;
     }
     if (sendingId) return; // prevent double-click
+    console.log(`[Send] Starting for inspection ${inspection.id}, group_id=${inspection.group_id}`, inspection);
     setSendingId(inspection.id);
     try {
       const res = await fetch('/api/send-documents', {
@@ -1377,12 +1395,15 @@ export default function InspectionsPage() {
                                       e.stopPropagation();
                                       if (!confirm(`Delete inspection for "${s.client_name}" on ${s.date_of_inspection ? new Date(s.date_of_inspection).toLocaleDateString("en-GB") : "unknown date"}?\n\nThis cannot be undone.`)) return;
                                       try {
+                                        console.log(`[Delete] Deleting group_id=${s.group_id}, client=${s.client_name}, id=${s.id}`);
                                         const res = await fetch("/api/delete-inspection-group/", {
                                           method: "POST",
                                           headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify({ group_id: s.group_id }),
                                         });
+                                        console.log(`[Delete] Response status: ${res.status}`);
                                         const data = await res.json();
+                                        console.log(`[Delete] Response data:`, data);
                                         if (data.success) {
                                           showToast(`Deleted inspection for ${s.client_name}`);
                                           setInspections(prev => prev.filter(i => i.id !== s.id));
@@ -1390,6 +1411,7 @@ export default function InspectionsPage() {
                                           alert("Delete failed: " + (data.error || "Unknown error"));
                                         }
                                       } catch (err) {
+                                        console.error(`[Delete] Error:`, err);
                                         alert("Delete error: " + (err instanceof Error ? err.message : String(err)));
                                       }
                                     }}>
