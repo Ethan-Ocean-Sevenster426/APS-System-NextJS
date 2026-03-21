@@ -1375,7 +1375,7 @@ export default function InspectionsPage() {
                     {/* Expanded Detail */}
                     {expandedGroups.has(String(s.id)) && (
                       <div style={{ borderTop: "2px solid #e6f3f7", background: "#f8fafc" }}>
-                        {renderDetail(s)}
+                        {renderDetailRow(s)}
                       </div>
                     )}
                   </div>
