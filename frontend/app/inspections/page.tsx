@@ -824,13 +824,13 @@ export default function InspectionsPage() {
                 const hidePoultryEggs = isPoultryOrEggs(product.commodity);
 
                 return (
-                  <div key={product.id} style={{
+                  <div key={product.id} className="ir-product-row" style={{
                     display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "stretch",
                     background: "white", borderRadius: 6, padding: 6,
                     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                   }}>
                     {/* Product Info + Test Flags */}
-                    <div style={{
+                    <div className="ir-product-info" style={{
                       flex: "0 0 180px",
                       background: product.is_direction_present_for_this_inspection ? "#fef2f2" : "#f0fdf4",
                       borderRadius: 4,
@@ -869,7 +869,7 @@ export default function InspectionsPage() {
 
                     {/* DNA/Fat/Protein/Calcium Grid - hide for POULTRY/EGGS */}
                     {!hidePoultryEggs && (
-                      <div style={{
+                      <div className="ir-product-tests" style={{
                         flex: "0 0 135px",
                         display: "grid",
                         gridTemplateColumns: "1fr 1fr",
@@ -1173,13 +1173,16 @@ export default function InspectionsPage() {
           .ir-action-bar { gap: 6px; flex-wrap: wrap; }
           .ir-action-bar .ir-btn { padding: 6px 10px; font-size: 0.75rem; }
           .ir-card-header { padding: 10px; flex-wrap: wrap; gap: 8px; }
-          .ir-card-body { padding: 8px; }
+          .ir-card-body { padding: 6px; }
           .ir-table th, .ir-table td { padding: 4px 6px; font-size: 0.65rem; }
           .ir-table { min-width: 700px; }
           .ir-approved-select { width: 60px; font-size: 0.65rem; }
           .ir-detail-content { overflow-x: auto; }
-          .ir-detail-layout { flex-direction: column !important; gap: 8px !important; }
+          .ir-detail-layout { flex-direction: column !important; gap: 8px !important; padding: 6px !important; }
           .ir-detail-left { flex: 1 1 auto !important; width: 100% !important; }
+          .ir-product-row { flex-wrap: wrap !important; }
+          .ir-product-info { flex: 1 1 100% !important; min-width: 0 !important; }
+          .ir-product-tests { flex: 1 1 100% !important; min-width: 0 !important; }
         }
         @media (max-width: 480px) {
           .ir-header h1 { font-size: 0.95rem; }
