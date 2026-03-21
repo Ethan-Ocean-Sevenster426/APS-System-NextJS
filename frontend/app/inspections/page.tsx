@@ -943,7 +943,7 @@ export default function InspectionsPage() {
                               />
                               <UploadBtn
                                 label="Lab Form"
-                                uploaded={!!s.has_lab_form}
+                                uploaded={product.lab_form_uploaded ?? false}
                                 uploadKey={`lab_form-${product.id}`}
                                 onClick={() => triggerUpload(product.id, s.group_id || '', 'lab_form', product.id)}
                               />
