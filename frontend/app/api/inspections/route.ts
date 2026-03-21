@@ -7,7 +7,9 @@ export async function GET(request: NextRequest) {
     const queryString = searchParams.toString();
     const url = `${DJANGO_API_URL}/api/inspections/${queryString ? `?${queryString}` : ""}`;
 
+    const cookie = request.headers.get("cookie") || "";
     const res = await fetch(url, {
+      headers: { Cookie: cookie },
       cache: "no-store",
     });
     const data = await res.json();

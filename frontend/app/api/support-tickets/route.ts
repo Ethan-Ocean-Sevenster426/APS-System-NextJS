@@ -4,7 +4,8 @@ import { DJANGO_API_URL } from "@/lib/config";
 export async function GET(request: NextRequest) {
   try {
     const qs = new URL(request.url).searchParams.toString();
-    const res = await fetch(`${DJANGO_API_URL}/api/support-tickets/${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+    const cookie = request.headers.get("cookie") || "";
+    const res = await fetch(`${DJANGO_API_URL}/api/support-tickets/${qs ? `?${qs}` : ""}`, { headers: { Cookie: cookie }, cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) {

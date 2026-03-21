@@ -7,7 +7,8 @@ export async function GET(
 ) {
   try {
     const { pk } = await params;
-    const res = await fetch(`${DJANGO_API_URL}/api/inspection-group/${pk}/`, { cache: "no-store" });
+    const cookie = request.headers.get("cookie") || "";
+    const res = await fetch(`${DJANGO_API_URL}/api/inspection-group/${pk}/`, { headers: { Cookie: cookie }, cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (e) {

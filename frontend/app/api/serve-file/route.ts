@@ -11,9 +11,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const cookie = req.headers.get("cookie") || "";
     const res = await fetch(
       `${DJANGO_API_URL}/api/serve-file/?file=${encodeURIComponent(file)}&action=${action}`,
-      { cache: "no-store" }
+      { headers: { Cookie: cookie }, cache: "no-store" }
     );
 
     if (!res.ok) {

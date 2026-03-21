@@ -16,8 +16,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const cookie = request.headers.get("cookie") || "";
     const res = await fetch(`${DJANGO_API_URL}/api/upload-document/`, {
       method: "POST",
+      headers: { Cookie: cookie },
       body: forwardData,
     });
 

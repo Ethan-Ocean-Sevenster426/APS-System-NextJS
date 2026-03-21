@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { DJANGO_API_URL } from "@/lib/config";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const res = await fetch(`${DJANGO_API_URL}/api/home-stats/`, { cache: "no-store" });
+    const cookie = request.headers.get("cookie") || "";
+    const res = await fetch(`${DJANGO_API_URL}/api/home-stats/`, { headers: { Cookie: cookie }, cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) {

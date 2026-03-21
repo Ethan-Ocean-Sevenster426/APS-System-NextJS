@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { DJANGO_API_URL } from "@/lib/config";
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const res = await fetch(`${DJANGO_API_URL}/xero/connect/`, { cache: "no-store", redirect: "manual" });
+    const cookie = request.headers.get("cookie") || "";
+    const res = await fetch(`${DJANGO_API_URL}/xero/connect/`, { headers: { Cookie: cookie }, cache: "no-store", redirect: "manual" });
     if (res.status === 302 || res.status === 301) {
       const location = res.headers.get("location");
       return NextResponse.json({ redirect: location });

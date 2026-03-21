@@ -4,9 +4,10 @@ import { DJANGO_API_URL } from "@/lib/config";
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const cookie = request.headers.get("cookie") || "";
     const res = await fetch(`${DJANGO_API_URL}/api/support-tickets/${id}/delete/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
     });
     const data = await res.json();
     return NextResponse.json(data);
