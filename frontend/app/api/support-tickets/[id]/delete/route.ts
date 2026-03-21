@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const res = await fetch(`http://localhost:8000/api/support-tickets/${params.id}/delete/`, {
+    const { id } = await params;
+    const res = await fetch(`http://localhost:8000/api/support-tickets/${id}/delete/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
