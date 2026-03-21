@@ -98,7 +98,7 @@ export default function SettingsPage() {
     setDownloadingFile(filename);
     try {
       const res = await fetch(
-        `http://localhost:8000/api/settings/download-backup/?file=${encodeURIComponent(filename)}`
+        `/api/settings/download-backup/?file=${encodeURIComponent(filename)}`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

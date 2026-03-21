@@ -441,7 +441,7 @@ export default function SystemLogsPage() {
                       <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT_LIGHT }}>#{dup.first_id} - #{dup.last_id}</td>
                       <td style={{ padding: "10px 16px" }}>
                         <a
-                          href={`http://localhost:8000/inspections/?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
+                          href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
                           target="_blank" rel="noopener noreferrer"
                           style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
                         >

@@ -254,7 +254,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
         )}
         <button
           onClick={() => {
-            try { fetch("http://localhost:8000/logout/", { method: "GET", credentials: "include" }); } catch {}
+            try { fetch("/api/logout/", { method: "POST", credentials: "include" }); } catch {}
             window.location.href = "/login";
           }}
           title={collapsed ? "Sign Out" : undefined}

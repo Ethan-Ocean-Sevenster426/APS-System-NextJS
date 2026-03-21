@@ -21,7 +21,7 @@ export default function LoginPage() {
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/login/`, {
+      const res = await fetch(`/api/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
