@@ -169,7 +169,7 @@ export default function InspectionsPage() {
   const [testTypeFilter, setTestTypeFilter] = useState<string[]>([]);
 
   // Upload state
-  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadRef = useRef<{
@@ -274,7 +274,7 @@ export default function InspectionsPage() {
   // Core upload function
   const performUpload = useCallback(async (file: File, inspectionId: number, groupId: string, documentType: string, productId: number, complianceStatus?: string) => {
     const key = `${documentType}-${productId}`;
-    setUploadingKey(key);
+    setUploadingKeys(prev => new Set(prev).add(key));
     console.log(`[Upload] Starting: type=${documentType}, file=${file.name}, inspectionId=${inspectionId}, groupId=${groupId}, productId=${productId}, compliance=${complianceStatus}`);
 
     try {
@@ -363,7 +363,7 @@ export default function InspectionsPage() {
     } catch (err) {
       alert('Upload error: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
-      setUploadingKey(null);
+      setUploadingKeys(prev => { const next = new Set(prev); next.delete(key); return next; });
     }
   }, [showToast]);
 
@@ -633,7 +633,7 @@ export default function InspectionsPage() {
   };
 
   const UploadBtn = ({ label, uploaded, onClick, uploadKey }: { label: string; uploaded: boolean; onClick: () => void; uploadKey?: string }) => {
-    const isUploading = uploadKey ? uploadingKey === uploadKey : false;
+    const isUploading = uploadKey ? uploadingKeys.has(uploadKey) : false;
     return (
       <button
         style={{
