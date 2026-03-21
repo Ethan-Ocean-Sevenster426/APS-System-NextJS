@@ -3831,7 +3831,9 @@ def upload_document(request):
                 })
             
             # Get inspection data to create proper folder structure
-            if group_id:
+            # If inspection_id is present, treat as individual upload (per-product)
+            # group_id alone = group upload (RFI, Invoice)
+            if group_id and not inspection_id:
                 # Group-level upload (RFI, Invoice)
                 # Parse group_id to get client name and date
                 # group_id format: clientname_date (e.g., "3Amigos_20230530")

@@ -286,8 +286,18 @@ export default function InspectionsPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('document_type', documentType);
-      if (groupId) formData.append('group_id', groupId);
-      if (inspectionId) formData.append('inspection_id', String(inspectionId));
+      // RFI and Invoice are group-level uploads; everything else is per-inspection
+      const isGroupUpload = documentType === 'rfi' || documentType === 'invoice';
+      if (isGroupUpload) {
+        if (groupId) formData.append('group_id', groupId);
+      } else {
+        // Per-inspection upload: send inspection_id so only this record is updated
+        if (inspectionId) formData.append('inspection_id', String(inspectionId));
+        // For lab/retest, backend needs group_id for folder path but we use inspection_id for DB update
+        if (groupId && (documentType === 'lab' || documentType === 'lab_form' || documentType === 'retest')) {
+          formData.append('group_id', groupId);
+        }
+      }
       if (complianceStatus) formData.append('compliance_status', complianceStatus);
       if (complianceStatus) formData.append('product_compliance_status', complianceStatus);
 
