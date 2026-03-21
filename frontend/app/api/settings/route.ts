@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 
 export async function GET() {
   try {
-    const res = await fetch("http://localhost:8000/api/settings/", { cache: "no-store" });
+    const res = await fetch(`${DJANGO_API_URL}/api/settings/`, { cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) {
@@ -12,7 +13,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const res = await fetch("http://localhost:8000/api/settings/", {
+    const res = await fetch(`${DJANGO_API_URL}/api/settings/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });

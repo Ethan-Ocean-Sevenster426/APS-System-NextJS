@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const res = await fetch("http://localhost:8000/api/upload-document/", {
+    const res = await fetch(`${DJANGO_API_URL}/api/upload-document/`, {
       method: "POST",
       body: forwardData,
     });

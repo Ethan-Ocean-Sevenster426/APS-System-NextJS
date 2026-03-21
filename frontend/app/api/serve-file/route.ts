@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const res = await fetch(
-      `http://localhost:8000/api/serve-file/?file=${encodeURIComponent(file)}&action=${action}`,
+      `${DJANGO_API_URL}/api/serve-file/?file=${encodeURIComponent(file)}&action=${action}`,
       { cache: "no-store" }
     );
 

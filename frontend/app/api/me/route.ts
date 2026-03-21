@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 
 export async function GET(request: NextRequest) {
   try {
     // Forward the session cookie so Django can authenticate the user
     const cookie = request.headers.get("cookie") || "";
-    const res = await fetch("http://localhost:8000/api/me/", {
+    const res = await fetch(`${DJANGO_API_URL}/api/me/`, {
       headers: { Cookie: cookie },
       cache: "no-store",
     });

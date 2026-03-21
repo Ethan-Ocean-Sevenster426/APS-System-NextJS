@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const res = await fetch(`http://localhost:8000/api/support-tickets/${id}/delete/`, {
+    const res = await fetch(`${DJANGO_API_URL}/api/support-tickets/${id}/delete/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });

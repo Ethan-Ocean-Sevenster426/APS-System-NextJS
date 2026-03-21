@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DJANGO_API_URL } from "@/lib/config";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const res = await fetch("http://localhost:8000/api/react/fees/update/", {
+    const res = await fetch(`${DJANGO_API_URL}/api/react/fees/update/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
