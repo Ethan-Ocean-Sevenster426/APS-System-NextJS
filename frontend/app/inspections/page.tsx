@@ -312,7 +312,7 @@ export default function InspectionsPage() {
       console.log(`[Upload] Response:`, data);
 
       if (data.success) {
-        showToast(data.message || `${documentType} uploaded successfully!`);
+        // Toast removed — button turns green to indicate success
 
         console.log(`[Upload] Success! Updating local state for groupId=${groupId}, inspectionId=${inspectionId}, productId=${productId}, docType=${documentType}`);
 

@@ -4590,12 +4590,7 @@ def upload_document(request):
             except Exception as log_error:
                 print(f"WARNING: Error logging file upload: {log_error}")
             
-            # Return success message with user's first name
-            user_first_name = request.user.first_name or request.user.username
-            if upload_type == 'group':
-                message = f'{document_type.upper()} uploaded successfully by {user_first_name} for group {group_id}'
-            else:
-                message = f'{document_type.upper()} uploaded successfully by {user_first_name} for inspection {inspection_id}'
+            message = f'{document_type.upper()} uploaded successfully'
             
             return JsonResponse({
                 'success': True,
