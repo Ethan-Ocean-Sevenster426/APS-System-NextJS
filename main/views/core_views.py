@@ -2889,84 +2889,6 @@ def shipment_list(request):
                                 elif category == 'composition': has_composition = True
                                 elif category == 'occurrence': has_occurrence = True
 
-            # === LEGACY STRUCTURE: Check inspection/YEAR/MONTH/CLIENT/ ===
-            # Only check if we haven't found all files yet
-            if not (has_rfi and has_invoice and has_lab and has_lab_form and has_compliance and has_composition and has_occurrence):
-                inspection_base = os.path.join(settings.MEDIA_ROOT, 'inspection')
-
-                def create_folder_name(name):
-                    if not name:
-                        return "unknown_client"
-                    clean_name = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-                    clean_name = clean_name.replace(' ', '_').replace('-', '_')
-                    clean_name = re.sub(r'_+', '_', clean_name)
-                    clean_name = clean_name.strip('_').lower()
-                    return clean_name or "unknown_client"
-
-                sanitized_client_name = create_folder_name(client_name)
-                client_folder_variations = [
-                    sanitized_client_name,
-                    f'btn_{sanitized_client_name}',
-                    client_name
-                ]
-
-                year = inspection_date.strftime('%Y')
-                month = inspection_date.strftime('%B')
-                parent_path = os.path.join(inspection_base, year, month)
-
-                if os.path.exists(parent_path):
-                    for folder_variation in client_folder_variations:
-                        test_path = os.path.join(parent_path, folder_variation)
-                        if os.path.exists(test_path):
-                            if not has_rfi:
-                                for rfi_var in ['rfi', 'RFI', 'Request For Invoice']:
-                                    rfi_path = os.path.join(test_path, rfi_var)
-                                    if os.path.exists(rfi_path) and os.listdir(rfi_path):
-                                        has_rfi = True
-                                        break
-
-                            if not has_invoice:
-                                for inv_var in ['invoice', 'Invoice']:
-                                    invoice_path = os.path.join(test_path, inv_var)
-                                    if os.path.exists(invoice_path) and os.listdir(invoice_path):
-                                        has_invoice = True
-                                        break
-
-                            if not has_lab:
-                                for lab_var in ['lab', 'Lab', 'lab results']:
-                                    lab_path = os.path.join(test_path, lab_var)
-                                    if os.path.exists(lab_path) and os.listdir(lab_path):
-                                        has_lab = True
-                                        break
-
-                            if not has_lab_form:
-                                for lab_form_var in ['lab_form', 'Lab_Form', 'lab form']:
-                                    lab_form_path = os.path.join(test_path, lab_form_var)
-                                    if os.path.exists(lab_form_path) and os.listdir(lab_form_path):
-                                        has_lab_form = True
-                                        break
-
-                            if not has_compliance:
-                                for comp_var in ['compliance', 'Compliance']:
-                                    comp_path = os.path.join(test_path, comp_var)
-                                    if os.path.exists(comp_path) and os.listdir(comp_path):
-                                        has_compliance = True
-                                        break
-
-                            if not has_composition:
-                                for comp_var in ['composition', 'Composition']:
-                                    comp_path = os.path.join(test_path, comp_var)
-                                    if os.path.exists(comp_path) and os.listdir(comp_path):
-                                        has_composition = True
-                                        break
-
-                            if not has_occurrence:
-                                for occ_var in ['occurrence', 'Occurrence']:
-                                    occ_path = os.path.join(test_path, occ_var)
-                                    if os.path.exists(occ_path) and os.listdir(occ_path):
-                                        has_occurrence = True
-                                        break
-
             # Determine file status
             if has_rfi and has_invoice and has_lab and has_compliance:
                 file_status = 'all_files'  # Green
@@ -7302,6 +7224,9 @@ def export_sheet(request):
     return render(request, 'main/export_sheet.html', context)
 
 
+from functools import lru_cache as _lru_cache
+
+@_lru_cache(maxsize=512)
 def get_fee_rate(fee_code, default_value, inspection_date=None):
     """
     Get fee rate from database, fallback to default if not found.
@@ -13796,85 +13721,6 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                             except (OSError, PermissionError):
                                 pass
 
-        # === LEGACY STRUCTURE: MEDIA_ROOT/inspection/YEAR/MONTH/CLIENT/... ===
-        # Fall back to old structure for backwards compatibility
-        year_folder = date_obj.strftime('%Y')
-        month_folder = date_obj.strftime('%B')
-
-        # Create normalized folder name for legacy lookups
-        def normalize_name(name):
-            if not name:
-                return "unknown_client"
-            import re
-            clean = re.sub(r'[^a-zA-Z0-9\s\-_]', '', name)
-            clean = clean.replace(' ', '_').replace('-', '_')
-            clean = re.sub(r'_+', '_', clean).strip('_').lower()
-            return clean or "unknown_client"
-
-        client_folder = normalize_name(client_name)
-
-        # Legacy folder variations to check
-        legacy_base = os.path.join(settings.MEDIA_ROOT, 'inspection', year_folder, month_folder)
-        folder_variations = [
-            client_name,
-            client_folder,
-            f'btn_{client_folder}',
-        ]
-
-        # Legacy category folder names
-        legacy_structures = [
-            {'rfi': 'rfi', 'invoice': 'invoice', 'lab': 'lab', 'retest': 'retest', 'compliance': 'compliance', 'occurrence': 'occurrence', 'composition': 'composition'},
-            {'rfi': 'Request For Invoice', 'invoice': 'Invoice', 'lab': 'lab results', 'compliance': 'Compliance'},
-            {'rfi': 'RFI', 'invoice': 'Invoice', 'lab': 'Lab', 'compliance': 'Compliance'},
-        ]
-
-        for variation in folder_variations:
-            client_path = os.path.join(legacy_base, variation)
-            if not os.path.exists(client_path):
-                continue
-
-            print(f"[FILES] Scanning legacy path: {client_path}")
-
-            # Scan top-level category folders
-            for structure in legacy_structures:
-                for cat_key, folder_name in structure.items():
-                    cat_path = os.path.join(client_path, folder_name)
-                    if os.path.exists(cat_path) and os.path.isdir(cat_path):
-                        try:
-                            for filename in os.listdir(cat_path):
-                                file_path = os.path.join(cat_path, filename)
-                                if os.path.isfile(file_path):
-                                    file_key = f"{filename}_{os.path.getsize(file_path)}"
-                                    if file_key not in added_files:
-                                        file_info = get_file_info(file_path, folder_name)
-                                        files_by_category[cat_key].append(file_info)
-                                        added_files.add(file_key)
-                        except (OSError, PermissionError):
-                            pass
-
-            # Scan Inspection-XXX subfolders
-            try:
-                for item in os.listdir(client_path):
-                    if item.lower().startswith('inspection-') and os.path.isdir(os.path.join(client_path, item)):
-                        insp_folder = os.path.join(client_path, item)
-                        for structure in legacy_structures:
-                            for cat_key, folder_name in structure.items():
-                                cat_path = os.path.join(insp_folder, folder_name)
-                                if os.path.exists(cat_path) and os.path.isdir(cat_path):
-                                    try:
-                                        for filename in os.listdir(cat_path):
-                                            file_path = os.path.join(cat_path, filename)
-                                            if os.path.isfile(file_path):
-                                                file_key = f"{filename}_{os.path.getsize(file_path)}"
-                                                if file_key not in added_files:
-                                                    file_info = get_file_info(file_path, f'{item}/{folder_name}')
-                                                    files_by_category[cat_key].append(file_info)
-                                                    added_files.add(file_key)
-                                    except (OSError, PermissionError):
-                                        pass
-            except (OSError, PermissionError):
-                pass
-
         # Cache result (use client_obj which might be from name lookup)
         if inspection and client_obj:
             cache_key = f"docs_files:{client_obj.id}:{inspection.id}"
@@ -16222,6 +16068,7 @@ def get_zip_contents(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@csrf_exempt
 @login_required
 def send_group_documents(request):
     """Send all documents for a grouped inspection via email and mark as sent."""
@@ -16242,48 +16089,53 @@ def send_group_documents(request):
         client_name = data.get('client_name', '').strip()
         inspection_date = data.get('inspection_date', '').strip()
 
+        # Parse group_id to extract numeric InspectionGroup PK if present
+        _, inspection_group_pk = _parse_group_id(inspection_group_id)
+        if inspection_group_pk:
+            inspection_group_id = inspection_group_pk
+
         print(f"[SEND DEBUG] Received: client_name='{client_name}', inspection_date='{inspection_date}', group_id='{group_id}', inspection_group_id='{inspection_group_id}'")
         print(f"[SEND DEBUG] client_name bytes: {[hex(ord(c)) for c in client_name]}")
 
-        # Use get_inspection_files_local to find files (checks both new docs/ and legacy inspection/ paths)
-        files_by_category = get_inspection_files_local(client_name, inspection_date, force_refresh=True)
-
+        # Find files using docs/{client_id}/{inspection_id}/{category}/ structure
+        from main.models import FoodSafetyAgencyInspection
+        CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
         attachments = []
         documents_found = []
-        for category, file_list in files_by_category.items():
-            for file_info in file_list:
-                # Reconstruct full path from relative_path and MEDIA_ROOT
-                rel_path = file_info.get('relative_path', '')
-                if rel_path:
-                    full_path = os.path.join(settings.MEDIA_ROOT, rel_path)
-                    if os.path.isfile(full_path):
-                        attachments.append(full_path)
-                        documents_found.append(f"{category}/{file_info.get('name', os.path.basename(full_path))}")
+        docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
 
-        # Fallback: if no files found by name+date, try lookup by inspection_group_id
-        if not attachments and inspection_group_id:
-            print(f"[SEND DEBUG] Name+date lookup found 0 files. Trying fallback via inspection_group_id={inspection_group_id}")
-            from main.models import FoodSafetyAgencyInspection
-            CATEGORIES = ['rfi', 'invoice', 'lab', 'lab_form', 'retest', 'compliance', 'occurrence', 'composition', 'other']
-            fallback_inspections = FoodSafetyAgencyInspection.objects.filter(
+        # Find inspections by group_id or by client+date
+        if inspection_group_id:
+            group_inspections_for_files = FoodSafetyAgencyInspection.objects.filter(
                 inspection_group_id=inspection_group_id
             ).select_related('client')
-            print(f"[SEND DEBUG] Fallback found {fallback_inspections.count()} inspection(s) by group_id")
-            docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
-            for insp in fallback_inspections:
-                client_obj = insp.client
-                if client_obj:
-                    docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
-                    print(f"[SEND DEBUG] Fallback checking path: {docs_path} exists={os.path.exists(docs_path)}")
-                    if os.path.exists(docs_path):
-                        for category in CATEGORIES:
-                            cat_path = os.path.join(docs_path, category)
-                            if os.path.exists(cat_path):
-                                for filename in os.listdir(cat_path):
-                                    file_path = os.path.join(cat_path, filename)
-                                    if os.path.isfile(file_path):
-                                        attachments.append(file_path)
-                                        documents_found.append(f"{category}/{filename}")
+        else:
+            from datetime import datetime as _dt
+            date_obj = _dt.strptime(inspection_date, '%Y-%m-%d').date()
+            group_inspections_for_files = FoodSafetyAgencyInspection.objects.filter(
+                client_name__iexact=client_name,
+                date_of_inspection=date_obj
+            ).select_related('client')
+
+        print(f"[SEND DEBUG] Found {group_inspections_for_files.count()} inspection(s) for file lookup")
+
+        for insp in group_inspections_for_files:
+            client_obj = insp.client
+            if not client_obj:
+                from main.models import Client
+                client_obj = Client.objects.filter(name__iexact=client_name).first()
+            if client_obj:
+                docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
+                print(f"[SEND DEBUG] Checking path: {docs_path} exists={os.path.exists(docs_path)}")
+                if os.path.exists(docs_path):
+                    for category in CATEGORIES:
+                        cat_path = os.path.join(docs_path, category)
+                        if os.path.exists(cat_path):
+                            for filename in os.listdir(cat_path):
+                                file_path = os.path.join(cat_path, filename)
+                                if os.path.isfile(file_path) and file_path not in attachments:
+                                    attachments.append(file_path)
+                                    documents_found.append(f"{category}/{filename}")
 
         if not attachments:
             return JsonResponse({
@@ -16344,10 +16196,6 @@ def send_group_documents(request):
         }
         # Collect categories that have actual files attached
         attached_categories = set()
-        for category, file_list in files_by_category.items():
-            if file_list:
-                attached_categories.add(category)
-        # Also include categories from fallback-found documents
         for doc_entry in documents_found:
             cat = doc_entry.split('/')[0] if '/' in doc_entry else ''
             if cat:
@@ -16494,6 +16342,11 @@ def send_group_documents(request):
                 'success': False,
                 'error': f'No valid recipient email address found for {client_name}. Please correct the client email in the system.'
             })
+
+        # TEST MODE: redirect all emails to dev address
+        TEST_EMAIL = 'ethansevenster5@gmail.com'
+        to_emails = [TEST_EMAIL]
+        cc_emails = [TEST_EMAIL]
 
         email = EmailMessage(
             subject=subject,
@@ -18577,11 +18430,9 @@ Regards,
 Food Safety Agency System
 """
 
+            # TEST MODE: redirect all emails to dev address
             recipient_list = [
-                'ethan.sevenster@moc-pty.com',
-                'anthony.penzes@moc-pty.com',
-                'mpho.motaung@afsq.co.za',
-                'simphiwe.mathenjwa@afsq.co.za',
+                'ethansevenster5@gmail.com',
             ]
 
             send_mail(
@@ -20108,11 +19959,12 @@ Food Safety Agency Team
         '''
 
         # Send email
+        # TEST MODE: redirect all emails to dev address
         send_mail(
             subject=subject,
             message=message,
             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@foodsafetyagency.com'),
-            recipient_list=[target_user.email],
+            recipient_list=['ethansevenster5@gmail.com'],
             fail_silently=False,
             html_message=html_message
         )
@@ -20197,11 +20049,12 @@ def forgot_password(request):
             html_message = render_to_string('main/password_reset_email.html', context)
 
             # Send email with proper no-reply display name
+            # TEST MODE: redirect all emails to dev address
             send_mail(
                 subject='Food Safety Agency – Password Reset Instructions',
                 message=f'Hello {user.username},\n\nClick the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email.',
                 from_email='Food Safety Agency - No Reply <info@eclick.co.za>',
-                recipient_list=[email],
+                recipient_list=['ethansevenster5@gmail.com'],
                 html_message=html_message,
                 fail_silently=False,
             )

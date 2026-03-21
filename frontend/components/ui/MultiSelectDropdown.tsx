@@ -1,0 +1,163 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+
+interface MultiSelectDropdownProps {
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+  placeholder?: string;
+  /** Extra wrapper style */
+  style?: React.CSSProperties;
+}
+
+export default function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+  placeholder = "All",
+  style,
+}: MultiSelectDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside mousedown — works in React 17+ because we check
+  // containment instead of relying on stopPropagation.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggle = (value: string) => {
+    onChange(
+      selected.includes(value)
+        ? selected.filter((v) => v !== value)
+        : [...selected, value]
+    );
+  };
+
+  const clearAll = () => onChange([]);
+  const selectAll = () => onChange([...options]);
+
+  const buttonLabel =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+      ? selected[0]
+      : `${selected.length} selected`;
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", ...style }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          padding: "6px 10px",
+          fontSize: "0.8rem",
+          border: "1px solid #e5e7eb",
+          borderRadius: 6,
+          background: open ? "#f9fafb" : "white",
+          textAlign: "left",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "pointer",
+          color: selected.length > 0 ? "#1f2937" : "#6b7280",
+          gap: 6,
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {buttonLabel}
+        </span>
+        <i
+          className={`fas fa-chevron-${open ? "up" : "down"}`}
+          style={{ fontSize: 10, flexShrink: 0, color: "#9ca3af" }}
+        />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            minWidth: 180,
+            background: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: 6,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            zIndex: 2000,
+            overflow: "hidden",
+          }}
+        >
+          {/* Actions */}
+          <div
+            style={{
+              padding: "6px 10px",
+              borderBottom: "1px solid #f3f4f6",
+              display: "flex",
+              gap: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={selectAll}
+              style={{ fontSize: 11, color: "#007890", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={clearAll}
+              style={{ fontSize: 11, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              Clear
+            </button>
+          </div>
+
+          {/* Options */}
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            {options.length === 0 ? (
+              <div style={{ padding: "8px 10px", fontSize: 12, color: "#9ca3af" }}>No options</div>
+            ) : (
+              options.map((opt) => (
+                <label
+                  key={opt}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 10px",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                    color: "#1f2937",
+                    background: selected.includes(opt) ? "#f0fafb" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (!selected.includes(opt)) e.currentTarget.style.background = "#f9fafb"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = selected.includes(opt) ? "#f0fafb" : "transparent"; }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(opt)}
+                    onChange={() => toggle(opt)}
+                    style={{ accentColor: "#007890", flexShrink: 0 }}
+                  />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opt}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -89,7 +89,7 @@ class _BackupServiceState:
             'last_backup_message': self.last_backup_message,
             'next_backup_time': self.next_backup_time.isoformat() if self.next_backup_time else None,
             'backup_dir': str(BACKUP_DIR),
-            'db_backups': _list_backups(DB_BACKUP_DIR, '*.dump'),
+            'db_backups': _list_all_backups(DB_BACKUP_DIR),
             'excel_backups': _list_backups(EXCEL_BACKUP_DIR, '*.xlsx'),
         }
 
@@ -99,37 +99,67 @@ _service = _BackupServiceState()
 
 # ── Core backup logic ──────────────────────────────────────────────────────────
 def _run_backup():
-    """Run both a pg_dump and an Excel export. Returns (success, message)."""
+    """Run both a DB backup and an Excel export. Returns (success, message)."""
     _ensure_dirs()
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    parts = []
     errors = []
 
-    # 1. PostgreSQL dump
-    db_ok, db_msg = _pg_dump(timestamp)
-    if not db_ok:
-        errors.append(f'DB: {db_msg}')
+    # 1. Database backup (PostgreSQL or SQLite)
+    db_ok, db_msg = _db_backup(timestamp)
+    if db_ok:
+        _cleanup_dir(DB_BACKUP_DIR, KEEP_LAST)
+        parts.append(db_msg)
     else:
-        _cleanup(DB_BACKUP_DIR, '*.dump', KEEP_LAST)
+        errors.append(f'DB: {db_msg}')
+        logger.warning('DB backup failed: %s', db_msg)
 
     # 2. Excel export
     xl_ok, xl_msg = _excel_export(timestamp)
-    if not xl_ok:
-        errors.append(f'Excel: {xl_msg}')
-    else:
+    if xl_ok:
         _cleanup(EXCEL_BACKUP_DIR, '*.xlsx', KEEP_LAST)
+        parts.append(xl_msg)
+    else:
+        errors.append(f'Excel: {xl_msg}')
 
-    if errors:
-        msg = ' | '.join(errors)
-        logger.error('Backup errors: %s', msg)
-        return False, msg
+    # Succeed if at least Excel export worked
+    if xl_ok:
+        msg = 'Backup completed: ' + ' | '.join(parts)
+        if errors:
+            msg += ' (warnings: ' + ' | '.join(errors) + ')'
+        logger.info(msg)
+        return True, msg
 
-    msg = f'Backup completed: {db_msg} | {xl_msg}'
-    logger.info(msg)
-    return True, msg
+    msg = ' | '.join(errors)
+    logger.error('Backup errors: %s', msg)
+    return False, msg
 
 
-def _pg_dump(timestamp):
+def _db_backup(timestamp):
+    """Backup the database — uses pg_dump for PostgreSQL, file copy for SQLite."""
     db = settings.DATABASES['default']
+    engine = db.get('ENGINE', '')
+
+    if 'sqlite' in engine:
+        return _sqlite_copy(timestamp, db)
+    return _pg_dump(timestamp, db)
+
+
+def _sqlite_copy(timestamp, db):
+    import shutil
+    db_path = db.get('NAME', '')
+    if not db_path or not os.path.isfile(db_path):
+        return False, f'SQLite file not found: {db_path}'
+    out_file = DB_BACKUP_DIR / f'backup_{timestamp}.sqlite3'
+    try:
+        shutil.copy2(db_path, out_file)
+        size_kb = out_file.stat().st_size // 1024
+        return True, f'SQLite backup saved ({size_kb} KB): {out_file.name}'
+    except Exception as e:
+        return False, str(e)
+
+
+def _pg_dump(timestamp, db):
     out_file = DB_BACKUP_DIR / f'backup_{timestamp}.dump'
     env = os.environ.copy()
     env['PGPASSWORD'] = db.get('PASSWORD', '')
@@ -290,6 +320,24 @@ def _ensure_dirs():
     EXCEL_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _list_all_backups(directory):
+    """List all files in directory sorted by modification time."""
+    if not directory.exists():
+        return []
+    files = sorted(
+        [f for f in directory.iterdir() if f.is_file()],
+        key=lambda f: f.stat().st_mtime, reverse=True,
+    )
+    return [
+        {
+            'name': f.name,
+            'size_kb': f.stat().st_size // 1024,
+            'created': datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+        }
+        for f in files
+    ]
+
+
 def _list_backups(directory, pattern):
     if not directory.exists():
         return []
@@ -306,6 +354,22 @@ def _list_backups(directory, pattern):
 
 def _cleanup(directory, pattern, keep):
     files = sorted(directory.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
+    for old_file in files[keep:]:
+        try:
+            old_file.unlink()
+            logger.info('Deleted old backup: %s', old_file.name)
+        except Exception:
+            pass
+
+
+def _cleanup_dir(directory, keep):
+    """Remove oldest files in a directory keeping the newest `keep` files."""
+    if not directory.exists():
+        return
+    files = sorted(
+        [f for f in directory.iterdir() if f.is_file()],
+        key=lambda f: f.stat().st_mtime, reverse=True,
+    )
     for old_file in files[keep:]:
         try:
             old_file.unlink()

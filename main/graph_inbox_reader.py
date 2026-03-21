@@ -179,5 +179,7 @@ def fetch_undeliverable_emails(force_refresh=False):
         logger.error(f"Error fetching undeliverable emails: {e}")
 
     logger.info(f"Total unique bounced email addresses found: {len(bounced_emails)}")
-    cache.set(UNDELIVERABLE_CACHE_KEY, bounced_emails, UNDELIVERABLE_CACHE_TTL)
+    # Only cache with full TTL when emails were found; use 60s for empty so it retries soon
+    ttl = UNDELIVERABLE_CACHE_TTL if bounced_emails else 60
+    cache.set(UNDELIVERABLE_CACHE_KEY, bounced_emails, ttl)
     return bounced_emails

@@ -410,13 +410,15 @@ def send_kpi_email_to_inspector(user):
         pass
 
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '')
+    # TEST MODE: redirect all emails to dev address
+    TEST_EMAIL = 'ethansevenster5@gmail.com'
     try:
         msg = EmailMessage(
             subject=subject,
             body=html_body,
             from_email=from_email,
-            to=[user.email],
-            cc=cc_emails if cc_emails else None,
+            to=[TEST_EMAIL],
+            cc=[TEST_EMAIL],
         )
         msg.content_subtype = 'html'
         msg.send()
