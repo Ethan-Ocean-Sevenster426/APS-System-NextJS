@@ -678,10 +678,10 @@ export default function InspectionsPage() {
     return (
       <div className="ir-detail-content" style={{ background: "#f8fafc" }}>
         {/* Main Layout: Facility info on left, Products list on right */}
-        <div style={{ display: "flex", gap: 12, padding: 8, alignItems: "flex-start" }}>
+        <div className="ir-detail-layout" style={{ display: "flex", gap: 12, padding: 8, alignItems: "flex-start" }}>
 
           {/* LEFT PANEL - Facility Info */}
-          <div style={{
+          <div className="ir-detail-left" style={{
             flex: "0 0 180px",
             background: "white",
             borderRadius: 8,
@@ -1156,9 +1156,30 @@ export default function InspectionsPage() {
         .ir-approved-select { width: 72px; display: block; margin: 0 auto; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.75rem; }
         .ir-detail-content { padding: 0; background: #f8fafc; border-top: 2px solid #e6f3f7; }
         @media (max-width: 768px) {
+          .ir-header h1 { font-size: 1.1rem; }
+          .ir-header h2 { font-size: 0.8rem; }
+          .ir-header { padding: 8px 5px 12px; }
           .ir-filter-row { flex-direction: column; gap: 10px; }
           .ir-filter-field { min-width: 100%; }
           .ir-filter-actions { flex-direction: column; align-items: stretch; }
+          .ir-action-bar { gap: 6px; flex-wrap: wrap; }
+          .ir-action-bar .ir-btn { padding: 6px 10px; font-size: 0.75rem; }
+          .ir-card-header { padding: 10px; flex-wrap: wrap; gap: 8px; }
+          .ir-card-body { padding: 8px; }
+          .ir-table th, .ir-table td { padding: 4px 6px; font-size: 0.65rem; }
+          .ir-table { min-width: 700px; }
+          .ir-approved-select { width: 60px; font-size: 0.65rem; }
+          .ir-detail-content { overflow-x: auto; }
+          .ir-detail-layout { flex-direction: column !important; gap: 8px !important; }
+          .ir-detail-left { flex: 1 1 auto !important; width: 100% !important; }
+        }
+        @media (max-width: 480px) {
+          .ir-header h1 { font-size: 0.95rem; }
+          .ir-header h2 { font-size: 0.7rem; }
+          .ir-action-bar { gap: 4px; }
+          .ir-action-bar .ir-btn { padding: 5px 8px; font-size: 0.7rem; gap: 4px; }
+          .ir-table { min-width: 600px; }
+          .ir-table th, .ir-table td { padding: 3px 4px; font-size: 0.6rem; }
         }
       `}</style>
 
