@@ -1874,11 +1874,21 @@ def delete_inspection_group(request):
                 if insp.inspector_id != inspector_id and insp.inspector_name != inspector_name:
                     return JsonResponse({'success': False, 'error': 'You can only delete your own inspections'})
 
-        # Delete all matching inspections
+        # Delete all matching inspections and their parent group if empty
         deleted_count = 0
+        group_ids_to_check = set()
         for insp in matching_inspections:
+            if insp.inspection_group_id:
+                group_ids_to_check.add(insp.inspection_group_id)
             insp.delete()
             deleted_count += 1
+
+        # Delete parent InspectionGroup if it has no more inspections
+        from ..models import InspectionGroup
+        for gid in group_ids_to_check:
+            remaining = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=gid).count()
+            if remaining == 0:
+                InspectionGroup.objects.filter(id=gid).delete()
 
         # Clear cache so the page reloads fresh data
         from django.core.cache import cache
