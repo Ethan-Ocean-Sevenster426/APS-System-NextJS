@@ -471,6 +471,9 @@ export default function EditInspectionPage() {
               <select className="form-control" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
                 <option value="">Select corporate group (required)</option>
                 {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+                {corporateGroup && !(options?.corporate_groups ?? []).includes(corporateGroup) && corporateGroup !== "Not Applicable" && corporateGroup !== "Other" && (
+                  <option key={corporateGroup} value={corporateGroup}>{corporateGroup}</option>
+                )}
                 <option value="Not Applicable">Not Applicable (None)</option>
                 <option value="Other">Other (Unlisted Group)</option>
               </select>
