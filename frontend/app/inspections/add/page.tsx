@@ -315,13 +315,14 @@ export default function AddInspectionPage() {
               <label className="form-label">Additional Emails</label>
               {additionalEmails.map((email, idx) => (
                 <div key={idx} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
-                  <input type="email" className="form-control" value={email}
+                  <input type="text" className="form-control" value={email}
                     onChange={e => {
                       const updated = [...additionalEmails];
                       updated[idx] = e.target.value;
                       setAdditionalEmails(updated);
                     }}
                     placeholder={`Additional email ${idx + 1}`}
+                    autoComplete="new-password"
                     style={{ flex: 1 }} />
                   {additionalEmails.length > 1 && (
                     <button type="button" onClick={() => setAdditionalEmails(additionalEmails.filter((_, i) => i !== idx))}
