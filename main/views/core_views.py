@@ -16698,10 +16698,8 @@ def send_group_documents(request):
                 'error': f'No valid recipient email address found for {client_name}. Please correct the client email in the system.'
             })
 
-        # TEST MODE: redirect all emails to dev address
-        TEST_EMAIL = 'ethansevenster5@gmail.com'
-        to_emails = [TEST_EMAIL]
-        cc_emails = [TEST_EMAIL]
+        print(f"[SEND] TO: {to_emails}")
+        print(f"[SEND] CC: {cc_emails}")
 
         email = EmailMessage(
             subject=subject,
