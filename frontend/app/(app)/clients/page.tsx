@@ -137,11 +137,12 @@ function MultiSelect({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.4rem 0.75rem",
+                  gap: "0.4rem",
+                  padding: "0.3rem 0.6rem",
                   cursor: "pointer",
                   color: "#374151",
                   userSelect: "none",
+                  fontSize: "0.78rem",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -774,7 +775,7 @@ export default function ClientsPage() {
           border: 1px solid #e5e7eb;
         }
         .cas-filter-grid {
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          display: grid; grid-template-columns: repeat(4, 1fr);
           gap: 0.75rem; margin-bottom: 1rem;
         }
         .cas-filter-grid label {
