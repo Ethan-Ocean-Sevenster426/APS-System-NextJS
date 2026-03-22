@@ -1342,6 +1342,10 @@ export default function InspectionsPage() {
                         <span style={{ color: "#6b7280" }}>Town:</span>
                         <span style={{ fontWeight: 500 }}>{s.town}</span>
                       </div>}
+                      {s.internal_account_code && <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Account Code:</span>
+                        <span style={{ fontWeight: 500, fontSize: 11, color: "#007890" }}>{s.internal_account_code}</span>
+                      </div>}
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Approved:</span>
                         <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
