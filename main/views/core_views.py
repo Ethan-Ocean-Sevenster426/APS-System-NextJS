@@ -8672,6 +8672,364 @@ def inspector_dashboard(request):
     return render(request, 'main/inspector_dashboard.html', context)
 
 
+@csrf_exempt
+def inspector_dashboard_api(request):
+    """Return inspector dashboard data as JSON for the React frontend."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+    if request.user.role not in ('inspector', 'inspector_manager'):
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    from ..models import Client, Inspection, FoodSafetyAgencyInspection, InspectorMapping
+    from django.db.models import Count, Q
+    from datetime import datetime, timedelta, date
+
+    inspector_name = request.user.get_full_name() or request.user.username
+    inspector_id = None
+
+    mapping = (
+        InspectorMapping.objects
+        .filter(inspector_name__iexact=inspector_name)
+        .order_by('-is_active', '-updated_at')
+        .first()
+    )
+    if not mapping:
+        mapping = (
+            InspectorMapping.objects
+            .filter(inspector_name__iexact=request.user.username)
+            .order_by('-is_active', '-updated_at')
+            .first()
+        )
+    if mapping:
+        inspector_id = mapping.inspector_id
+
+    all_inspector_ids = []
+    all_inspector_names = [inspector_name]
+    if inspector_id is not None:
+        all_inspector_ids.append(inspector_id)
+    if request.user.role == 'inspector_manager':
+        all_inspector_ids.extend(request.user.get_managed_inspector_ids())
+        all_inspector_names.extend(request.user.get_managed_inspector_names())
+
+    q_filter = Q()
+    if all_inspector_ids:
+        q_filter = q_filter | Q(inspector_id__in=all_inspector_ids)
+    for name in all_inspector_names:
+        if name:
+            q_filter = q_filter | Q(inspector_name__iexact=name)
+
+    if q_filter:
+        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(q_filter)
+    else:
+        inspector_inspections = FoodSafetyAgencyInspection.objects.filter(
+            inspector_name__icontains=inspector_name
+        )
+
+    total_inspections = inspector_inspections.count()
+
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=thirty_days_ago
+    ).count()
+
+    current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    this_month_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=current_month_start
+    ).count()
+
+    start_date = date(2025, 10, 1)
+    end_date = date(2026, 4, 1)
+    avg_monthly_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=start_date,
+        date_of_inspection__lt=end_date
+    ).count() / 6
+
+    commodity_stats = list(inspector_inspections.values('commodity').annotate(
+        count=Count('commodity')
+    ).order_by('-count'))
+
+    top_clients = list(inspector_inspections.values('client_name').annotate(
+        count=Count('client_name')
+    ).order_by('-count')[:10])
+
+    total_inspections_for_percentage = sum(client['count'] for client in top_clients)
+    for client in top_clients:
+        if total_inspections_for_percentage > 0:
+            client['percentage'] = round((client['count'] / total_inspections_for_percentage) * 100, 1)
+        else:
+            client['percentage'] = 0
+
+    monthly_trends = list(inspector_inspections.filter(
+        date_of_inspection__gte=start_date,
+        date_of_inspection__lt=end_date
+    ).extra(
+        select={'month': "EXTRACT(month FROM date_of_inspection)"}
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    for trend in monthly_trends:
+        month_num = int(trend['month']) - 1
+        if 0 <= month_num < 12:
+            trend['month_name'] = month_names[month_num]
+        else:
+            trend['month_name'] = 'Unknown'
+
+    from django.db.models.functions import TruncMonth
+    monthly_inspections = list(inspector_inspections.filter(
+        date_of_inspection__gte=datetime.now() - timedelta(days=365)
+    ).annotate(
+        month=TruncMonth('date_of_inspection')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month'))
+
+    # Convert month datetimes to strings for JSON serialization
+    for mi in monthly_inspections:
+        if mi.get('month'):
+            mi['month'] = mi['month'].strftime('%Y-%m-%d')
+
+    compliant_inspections = inspector_inspections.filter(
+        is_direction_present_for_this_inspection=False
+    ).count()
+
+    non_compliant_inspections = inspector_inspections.filter(
+        is_direction_present_for_this_inspection=True
+    ).count()
+
+    compliance_rate = 0
+    if total_inspections > 0:
+        compliance_rate = (compliant_inspections / total_inspections) * 100
+
+    recent_inspections_list = list(inspector_inspections.order_by('-date_of_inspection')[:10].values(
+        'id', 'client_name', 'date_of_inspection', 'commodity',
+        'is_direction_present_for_this_inspection', 'inspector_name'
+    ))
+    for item in recent_inspections_list:
+        if item.get('date_of_inspection'):
+            item['date_of_inspection'] = item['date_of_inspection'].strftime('%Y-%m-%d')
+
+    # Forecasting
+    if monthly_inspections:
+        recent_months = monthly_inspections[-6:]
+        if len(recent_months) >= 2:
+            total_change = recent_months[-1]['count'] - recent_months[0]['count']
+            avg_monthly_change = total_change / (len(recent_months) - 1)
+            last_count = recent_months[-1]['count']
+            forecast_data = []
+            for i in range(1, 4):
+                forecast_count = max(0, last_count + (avg_monthly_change * i))
+                forecast_data.append({
+                    'month': f'Forecast {i}',
+                    'count': round(forecast_count, 0)
+                })
+        else:
+            forecast_data = []
+    else:
+        forecast_data = []
+
+    # KPI
+    from ..models import InspectorTarget, QuarterlyTarget
+    import calendar
+
+    today = date.today()
+    current_quarter = (today.month - 1) // 3 + 1
+    quarter_start_month = (current_quarter - 1) * 3 + 1
+    quarter_end_month = quarter_start_month + 2
+    quarter_start = date(today.year, quarter_start_month, 1)
+    last_day = calendar.monthrange(today.year, quarter_end_month)[1]
+    quarter_end = date(today.year, quarter_end_month, last_day)
+    total_quarter_days = (quarter_end - quarter_start).days + 1
+    days_elapsed = (today - quarter_start).days + 1
+    quarter_progress_pct = days_elapsed / total_quarter_days
+
+    qt = QuarterlyTarget.objects.filter(
+        inspector_name__iexact=inspector_name,
+        year=today.year,
+        quarter=current_quarter
+    ).first()
+    it = InspectorTarget.objects.filter(inspector_name__iexact=inspector_name).first()
+
+    def _t(quarterly_val, annual_val, default=0):
+        if quarterly_val is not None and quarterly_val > 0:
+            return quarterly_val
+        if annual_val is not None and annual_val > 0:
+            return annual_val
+        return default
+
+    kpi_targets = {
+        'POULTRY': _t(getattr(qt, 'poultry', None), getattr(it, 'poultry', None)),
+        'RAW':     _t(getattr(qt, 'raw', None),     getattr(it, 'raw', None)),
+        'PMP':     _t(getattr(qt, 'pmp', None),     getattr(it, 'pmp', None)),
+        'EGGS':    _t(getattr(qt, 'eggs', None),    getattr(it, 'eggs', None)),
+    }
+    kpi_total_target = _t(
+        sum(getattr(qt, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if qt else 0,
+        sum(getattr(it, f, None) or 0 for f in ['poultry', 'raw', 'pmp', 'eggs']) if it else 0,
+    )
+
+    q_inspections = inspector_inspections.filter(
+        date_of_inspection__gte=quarter_start,
+        date_of_inspection__lte=today,
+    )
+    kpi_actual = {}
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        kpi_actual[commodity] = q_inspections.filter(commodity__iexact=commodity).count()
+    kpi_actual_total = q_inspections.count()
+
+    COMMODITY_LABELS = {'POULTRY': 'Poultry', 'RAW': 'Raw Meat', 'PMP': 'PMP', 'EGGS': 'Eggs'}
+    kpi_rows = []
+    for commodity in ['POULTRY', 'RAW', 'PMP', 'EGGS']:
+        target = kpi_targets[commodity]
+        actual = kpi_actual[commodity]
+        expected_by_now = round(target * quarter_progress_pct) if target else 0
+        if target > 0:
+            pct_of_target = round(actual / target * 100)
+            pct_of_expected = round(actual / expected_by_now * 100) if expected_by_now else 100
+        else:
+            pct_of_target = 0
+            pct_of_expected = 0
+
+        if target == 0:
+            status = 'no_target'
+        elif pct_of_expected >= 100:
+            status = 'on_track'
+        elif pct_of_expected >= 75:
+            status = 'slightly_behind'
+        else:
+            status = 'behind'
+
+        still_needed = max(target - actual, 0)
+        kpi_rows.append({
+            'commodity': commodity,
+            'label': COMMODITY_LABELS[commodity],
+            'target': target,
+            'actual': actual,
+            'still_needed': still_needed,
+            'expected_by_now': expected_by_now,
+            'pct_of_target': min(pct_of_target, 100),
+            'pct_of_expected': pct_of_expected,
+            'status': status,
+        })
+
+    if kpi_total_target == 0:
+        kpi_overall_status = 'no_target'
+    else:
+        expected_total = round(kpi_total_target * quarter_progress_pct)
+        overall_pct = round(kpi_actual_total / expected_total * 100) if expected_total else 100
+        if overall_pct >= 100:
+            kpi_overall_status = 'on_track'
+        elif overall_pct >= 75:
+            kpi_overall_status = 'slightly_behind'
+        else:
+            kpi_overall_status = 'behind'
+
+    quarter_label = f"Q{current_quarter} {today.year}"
+    quarter_progress_display = round(quarter_progress_pct * 100)
+
+    # Profitability
+    from ..models import InspectorSalary, InspectionFee, InspectionGroup as _IG
+    from django.db.models import Sum as _Sum
+
+    _fee_rates = {}
+    try:
+        for _fee in InspectionFee.objects.all():
+            _fee_rates[_fee.fee_code] = float(_fee.rate)
+    except Exception:
+        pass
+    prof_hourly_rate = _fee_rates.get('inspection_hour_rate', 510.0)
+    prof_km_rate     = _fee_rates.get('inspection_km_rate', _fee_rates.get('travel_rate_per_km', 6.5))
+    prof_sample_rate = _fee_rates.get('sample_collection', 0.0)
+
+    prof_monthly_salary  = float(getattr(qt, 'monthly_salary',      None) or 0)
+    prof_monthly_vehicle = float(getattr(qt, 'monthly_vehicle_cost', None) or 0)
+    prof_monthly_other   = float(getattr(qt, 'monthly_other_costs',  None) or 0)
+    prof_rev_target_q    = float(getattr(qt, 'quarterly_revenue_target', None) or 0)
+    if prof_monthly_salary == 0:
+        _sal_rec = InspectorSalary.objects.filter(inspector_name__iexact=inspector_name).first()
+        if _sal_rec:
+            prof_monthly_salary = float(_sal_rec.monthly_salary or 0)
+
+    _grp_q_filter = Q()
+    for _n in all_inspector_names:
+        if _n:
+            _grp_q_filter |= Q(inspector_name__iexact=_n)
+    _grp_agg = _IG.objects.filter(
+        _grp_q_filter,
+        date_of_inspection__gte=quarter_start,
+        date_of_inspection__lte=today,
+    ).aggregate(total_hours=_Sum('hours'), total_km=_Sum('km_traveled'))
+    prof_hours   = float(_grp_agg['total_hours'] or 0)
+    prof_km      = float(_grp_agg['total_km']    or 0)
+    prof_samples = q_inspections.filter(is_sample_taken=True).count()
+
+    prof_rev_hours   = round(prof_hours   * prof_hourly_rate, 2)
+    prof_rev_km      = round(prof_km      * prof_km_rate,     2)
+    prof_rev_samples = round(prof_samples * prof_sample_rate, 2)
+    prof_actual_rev  = round(prof_rev_hours + prof_rev_km + prof_rev_samples, 2)
+
+    prof_q_salary  = round(prof_monthly_salary  * 3, 2)
+    prof_q_vehicle = round(prof_monthly_vehicle * 3, 2)
+    prof_q_other   = round(prof_monthly_other   * 3, 2)
+    prof_q_costs   = round(prof_q_salary + prof_q_vehicle + prof_q_other, 2)
+    prof_net       = round(prof_actual_rev - prof_q_costs, 2)
+    prof_rev_pct   = round(prof_actual_rev / prof_rev_target_q * 100, 1) if prof_rev_target_q > 0 else 0
+
+    profitability = {
+        'hourly_rate':      prof_hourly_rate,
+        'km_rate':          prof_km_rate,
+        'sample_rate':      prof_sample_rate,
+        'total_hours':      round(prof_hours, 1),
+        'total_km':         round(prof_km, 1),
+        'total_samples':    prof_samples,
+        'rev_hours':        prof_rev_hours,
+        'rev_km':           prof_rev_km,
+        'rev_samples':      prof_rev_samples,
+        'actual_revenue':   prof_actual_rev,
+        'revenue_target':   prof_rev_target_q,
+        'rev_target_pct':   min(prof_rev_pct, 100),
+        'monthly_salary':   prof_monthly_salary,
+        'monthly_vehicle':  prof_monthly_vehicle,
+        'monthly_other':    prof_monthly_other,
+        'quarterly_salary': prof_q_salary,
+        'quarterly_vehicle':prof_q_vehicle,
+        'quarterly_other':  prof_q_other,
+        'quarterly_costs':  prof_q_costs,
+        'net_profit':       prof_net,
+        'is_profitable':    prof_net >= 0,
+        'has_data':         prof_actual_rev > 0 or prof_q_costs > 0,
+    }
+
+    context = {
+        'inspector_name': inspector_name,
+        'total_inspections': total_inspections,
+        'recent_inspections': recent_inspections,
+        'this_month_inspections': this_month_inspections,
+        'avg_monthly_inspections': round(avg_monthly_inspections, 1),
+        'monthly_inspections': monthly_inspections,
+        'top_clients': top_clients,
+        'forecast_data': forecast_data,
+        'commodity_stats': commodity_stats,
+        'compliant_inspections': compliant_inspections,
+        'non_compliant_inspections': non_compliant_inspections,
+        'compliance_rate': round(compliance_rate, 1),
+        'recent_inspections_list': recent_inspections_list,
+        'kpi_rows': kpi_rows,
+        'kpi_overall_status': kpi_overall_status,
+        'kpi_actual_total': kpi_actual_total,
+        'kpi_total_target': kpi_total_target,
+        'quarter_label': quarter_label,
+        'quarter_progress_display': quarter_progress_display,
+        'has_targets': kpi_total_target > 0,
+        'profitability': profitability,
+        'monthly_trends': monthly_trends,
+    }
+
+    return JsonResponse(context)
+
+
 @login_required
 def analytics_dashboard(request):
     """Display comprehensive analytics dashboard with advanced metrics and insights."""
