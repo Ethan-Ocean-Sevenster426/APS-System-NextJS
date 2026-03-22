@@ -119,7 +119,8 @@ export default function EditInspectionPage() {
   const [dateOfInspection, setDateOfInspection] = useState("");
   const [clientName, setClientName] = useState("");
   const [town, setTown] = useState("");
-  const [additionalEmail, setAdditionalEmail] = useState("");
+  const [primaryEmail, setPrimaryEmail] = useState("");
+  const [additionalEmails, setAdditionalEmails] = useState<string[]>([""]);
   const [corporateGroup, setCorporateGroup] = useState("");
   const [groupType, setGroupType] = useState("");
   const [facilityType, setFacilityType] = useState("");
@@ -156,9 +157,10 @@ export default function EditInspectionPage() {
         setDateOfInspection(g.date_of_inspection || "");
         setClientName(g.client_name || "");
         setTown(g.town || "");
-        // Load all emails: combine client email + additional email
-        const allEmails = [g.client_email, g.additional_email].filter(Boolean).join('; ');
-        setAdditionalEmail(allEmails);
+        setPrimaryEmail(g.client_email || "");
+        // Parse additional emails into array (semicolon or comma separated)
+        const addEmails = (g.additional_email || "").split(/[;,]/).map((e: string) => e.trim()).filter(Boolean);
+        setAdditionalEmails(addEmails.length > 0 ? addEmails : [""]);
         setCorporateGroup(g.corporate_group || "");
         setGroupType(g.group_type || "");
         setFacilityType(g.facility_type || "");
@@ -280,7 +282,7 @@ export default function EditInspectionPage() {
           corporate_group: corporateGroup,
           group_type: groupType,
           facility_type: facilityType,
-          additional_email: additionalEmail,
+          additional_email: [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; '),
           comment,
           km_traveled: kmTraveled,
           hours: hoursWorked,
@@ -437,7 +439,7 @@ export default function EditInspectionPage() {
                 const found = options?.clients.find(c => c.name === v);
                 if (found) {
                   if (found.town && !town) setTown(found.town);
-                  if (found.email && !additionalEmail) setAdditionalEmail(found.email);
+                  if (found.email && !primaryEmail) setPrimaryEmail(found.email);
                   if (found.corporate_group && !corporateGroup) setCorporateGroup(found.corporate_group);
                   if (found.group_type && !groupType) setGroupType(found.group_type);
                   if (found.facility_type && !facilityType) setFacilityType(found.facility_type);
@@ -450,10 +452,37 @@ export default function EditInspectionPage() {
               value={town} onChange={setTown} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
-              <label className="form-label">Email(s)</label>
-              <input type="text" className="form-control" value={additionalEmail}
-                onChange={e => setAdditionalEmail(e.target.value)} placeholder="email1@example.com; email2@example.com" />
-              <small style={{ color: "#6b7280", fontSize: 11 }}>Enter all recipient emails separated by semicolons (;). All will receive documents when sent.</small>
+              <label className="form-label">Client Email (Primary)</label>
+              <input type="email" className="form-control" value={primaryEmail}
+                onChange={e => setPrimaryEmail(e.target.value)} placeholder="primary@example.com" />
+              <small style={{ color: "#6b7280", fontSize: 11 }}>Main client email. Documents will be sent to this address.</small>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Additional Emails</label>
+              {additionalEmails.map((email, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                  <input type="email" className="form-control" value={email}
+                    onChange={e => {
+                      const updated = [...additionalEmails];
+                      updated[idx] = e.target.value;
+                      setAdditionalEmails(updated);
+                    }}
+                    placeholder={`Additional email ${idx + 1}`}
+                    style={{ flex: 1 }} />
+                  {additionalEmails.length > 1 && (
+                    <button type="button" onClick={() => setAdditionalEmails(additionalEmails.filter((_, i) => i !== idx))}
+                      style={{ padding: "6px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>
+                      <i className="fas fa-times" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setAdditionalEmails([...additionalEmails, ""])}
+                style={{ padding: "6px 12px", background: "#007890", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
+                <i className="fas fa-plus" style={{ marginRight: 4 }} /> Add Email
+              </button>
+              <small style={{ display: "block", color: "#6b7280", fontSize: 11, marginTop: 4 }}>Documents will also be sent to these addresses.</small>
             </div>
 
             <div className="form-group">
@@ -725,7 +754,7 @@ export default function EditInspectionPage() {
                   ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"],
                   ["Client",          clientName || "—"],
                   ["Town",            town || "—"],
-                  ["Email",           additionalEmail || "—"],
+                  ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "—"],
                   ["Corporate Group", corporateGroup || "—"],
                   ["Group Type",      groupType || "—"],
                   ["Facility Type",   facilityType || "—"],
