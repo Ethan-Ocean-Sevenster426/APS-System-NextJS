@@ -1528,7 +1528,7 @@ export default function InspectionsPage() {
                                     onClick={e => e.stopPropagation()} title="Edit">
                                     <i className="fas fa-edit" />
                                   </a>
-                                  {!isInspector && (
+                                  {(!isInspector || showDuplicates) && (
                                     <button style={{ padding: "3px 6px", background: "#ef4444", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
                                       title="Delete"
                                       onClick={async e => {
