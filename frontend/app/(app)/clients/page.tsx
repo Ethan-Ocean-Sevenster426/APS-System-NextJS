@@ -995,17 +995,6 @@ export default function ClientsPage() {
         {/* Filter Section */}
         <div className="cas-filter-section">
           <div className="cas-filter-grid">
-            {/* Client ID */}
-            <div>
-              <label>Client ID</label>
-              <input
-                type="text"
-                placeholder="Search client ID"
-                value={filterClientId}
-                onChange={(e) => setFilterClientId(e.target.value)}
-              />
-            </div>
-
             {/* Client Name */}
             <div>
               <label>Client Name</label>
@@ -1044,16 +1033,6 @@ export default function ClientsPage() {
               onChange={setFilterFacilityType}
             />
 
-            {/* Facility Code */}
-            <MultiSelect
-              label="Facility Code"
-              placeholder="All Facility Codes"
-              options={facilityCodeOptions.map((fc) => fc.value)}
-              selected={filterFacilityCode}
-              onChange={setFilterFacilityCode}
-              labels={Object.fromEntries(facilityCodeOptions.map((fc) => [fc.value, fc.label]))}
-            />
-
             {/* Province */}
             <MultiSelect
               label="Province"
@@ -1062,17 +1041,6 @@ export default function ClientsPage() {
               selected={filterProvince}
               onChange={setFilterProvince}
             />
-
-            {/* Account Code */}
-            <div>
-              <label>Account Code</label>
-              <input
-                type="text"
-                placeholder="Search account code"
-                value={filterAccountCode}
-                onChange={(e) => setFilterAccountCode(e.target.value)}
-              />
-            </div>
 
             {/* Group Type */}
             <MultiSelect
@@ -1088,21 +1056,9 @@ export default function ClientsPage() {
               <label>Sort By</label>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 <option value="name">Business Name</option>
-                <option value="client_id">Client ID</option>
                 <option value="facility_type">Facility Type</option>
                 <option value="corporate_group">Corporate Group</option>
                 <option value="town">Town</option>
-                <option value="email">Email</option>
-                <option value="group_type">Group Type</option>
-              </select>
-            </div>
-
-            {/* Order */}
-            <div>
-              <label>Order</label>
-              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                <option value="asc">Ascending (A-Z)</option>
-                <option value="desc">Descending (Z-A)</option>
               </select>
             </div>
 
