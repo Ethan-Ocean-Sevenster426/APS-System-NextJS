@@ -39,11 +39,50 @@ const COMMODITY_CONFIG: { key: CommodityKey; label: string; icon: string }[] = [
   { key: "EGGS",    label: "Eggs",           icon: "fa-egg"            },
 ];
 
-const PRODUCT_CLASSES = [
-  "Biltong","Dried Sausage","Polony","Vienna","Russians","Bacon",
-  "Ham","Patties","Burger Patties","Mince","Boerewors","Frankfurters",
-  "Cabanossi","Salami","Liver Spread",
+const RAW_CLASSES = [
+  "Raw species sausage / wors",
+  "Extra Lean Mince", "Lean Mince", "Regular Mince",
+  "Raw Flavoured Ground Meat", "Raw Flavoured Ground Meat & Offal",
+  "Raw Flavoured mixed species Ground Meat", "Raw Flavoured mixed species Ground Meat & Offal",
+  "Raw Boerewors", "Raw mixed species sausage / wors",
+  "Ground Burger / Ground patty = Extra Lean", "Ground Burger / Ground patty = Lean", "Ground Burger / Ground patty = Regular",
+  "Burger / Patty / Hamburger Patty / Meatball / Frikadel - Extra Lean",
+  "Burger / Patty / Hamburger Patty / Meatball / Frikadel - Lean",
+  "Burger / Patty / Hamburger Patty / Meatball / Frikadel - Regular",
+  "Value burger / Value patty / Value hamburger / Value meatball / Value frikkadel",
+  "Economy Burger / Econo Burger / Economy Patty / Econo Patty / Budget Burger",
+  "Raw Banger / Griller", "Raw Braaiwors / Sizzler",
+  "Ground Meat",
 ];
+const PMP_CLASSES = [
+  "Whole Muscle, uncured and heat / partial heat treated products",
+  "Whole muscle, uncured, no or partial heat treated and air dried products",
+  "Whole muscle, dry cured, no or partial heat treated products",
+  "Whole muscle, cured and no or partial heat treated products",
+  "Whole muscle, cured, no or partial heat treated and air dried products",
+  "Whole muscle, dry cured, no or partial heat treated and dried products",
+  "Whole muscle, cured, heat treated products",
+  "Comminuted, cured and heat treated products",
+  "Comminuted, uncured, no or partial heat treated and dried products",
+  "Comminuted, cured, no or partial heat treated, dried and fermented products",
+  "Comminuted, uncured and heat treated products",
+  "Reformed, uncured and no or partial heat treated products",
+  "Reformed, cured, heat treated products from single species",
+  "Reformed, cured, heat treated products from mixed species",
+  "Reformed, cured and no or partial heat treated products",
+  "Liver spreads, pâté and terrines",
+  "Products in aspic: Brawn",
+  "Product in aspic: Souse, Other products containing cured meat pieces in aspic",
+  "Products made from blood",
+  "Coated Processed Meat Products",
+  "Unspecified processed meat products",
+];
+const PRODUCT_CLASSES_BY_COMMODITY: Record<string, string[]> = {
+  RAW: RAW_CLASSES,
+  PMP: PMP_CLASSES,
+  POULTRY: [],
+  EGGS: [],
+};
 
 const LABS = ["Food Safety Lab","Merieux","AGRI Food Lab","SANBI","SMT","ARC"];
 
@@ -587,17 +626,19 @@ export default function EditInspectionPage() {
                           onChange={e => updateProduct(idx, "product_name", e.target.value)}
                           placeholder="Enter product name" />
                       </div>
-                      <div className="form-group">
-                        <label className="form-label">Product Class</label>
-                        <select className="form-control" value={p.product_class}
-                          onChange={e => updateProduct(idx, "product_class", e.target.value)}>
-                          <option value="">-- Select --</option>
-                          {PRODUCT_CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-                          {p.product_class && !PRODUCT_CLASSES.includes(p.product_class) && (
-                            <option value={p.product_class}>{p.product_class}</option>
-                          )}
-                        </select>
-                      </div>
+                      {(PRODUCT_CLASSES_BY_COMMODITY[p.commodity]?.length ?? 0) > 0 && (
+                        <div className="form-group">
+                          <label className="form-label">Product Class</label>
+                          <select className="form-control" value={p.product_class}
+                            onChange={e => updateProduct(idx, "product_class", e.target.value)}>
+                            <option value="">-- Select --</option>
+                            {(PRODUCT_CLASSES_BY_COMMODITY[p.commodity] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                            {p.product_class && !(PRODUCT_CLASSES_BY_COMMODITY[p.commodity] || []).includes(p.product_class) && (
+                              <option value={p.product_class}>{p.product_class}</option>
+                            )}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     {/* Sample Taken — only for non-POULTRY/EGGS */}
