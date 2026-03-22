@@ -31,15 +31,16 @@ const TEAL_LIGHT = "#e6f7f9";
 function InfoTip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
   return (
-    <span style={{ position: "relative", display: "inline-flex", cursor: "help", marginLeft: 4 }}
+    <span style={{ position: "relative", display: "inline-flex", cursor: "help", marginLeft: 6, verticalAlign: "middle" }}
       onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      <i className="fas fa-info-circle" style={{ fontSize: "0.65rem", color: "#9ca3af" }} />
+      <i className="fas fa-info-circle" style={{ fontSize: "0.8rem", color: "#007890" }} />
       {show && (
         <div style={{
-          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-          background: "#1e293b", color: "#f1f5f9", fontSize: "0.68rem", padding: "6px 10px",
-          borderRadius: 6, width: 200, textAlign: "left", zIndex: 9999, lineHeight: 1.4,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.25)", pointerEvents: "none",
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+          background: "#1e293b", color: "#f1f5f9", fontSize: "0.72rem", padding: "8px 12px",
+          borderRadius: 8, width: 220, textAlign: "left", zIndex: 9999, lineHeight: 1.45,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.3)", pointerEvents: "none",
+          fontWeight: 400,
         }}>{text}</div>
       )}
     </span>
