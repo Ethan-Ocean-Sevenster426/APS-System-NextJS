@@ -1522,34 +1522,36 @@ export default function InspectionsPage() {
                                     onClick={e => e.stopPropagation()} title="Edit">
                                     <i className="fas fa-edit" />
                                   </a>
-                                  <button style={{ padding: "3px 6px", background: "#ef4444", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
-                                    title="Delete"
-                                    onClick={async e => {
-                                      e.stopPropagation();
-                                      if (!confirm(`Delete inspection for "${s.client_name}" on ${s.date_of_inspection ? new Date(s.date_of_inspection).toLocaleDateString("en-GB") : "unknown date"}?\n\nThis cannot be undone.`)) return;
-                                      try {
-                                        console.log(`[Delete] Deleting group_id=${s.group_id}, client=${s.client_name}, id=${s.id}`);
-                                        const res = await fetch("/api/delete-inspection-group/", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ group_id: s.group_id }),
-                                        });
-                                        console.log(`[Delete] Response status: ${res.status}`);
-                                        const data = await res.json();
-                                        console.log(`[Delete] Response data:`, data);
-                                        if (data.success) {
-                                          showToast(`Deleted inspection for ${s.client_name}`);
-                                          setInspections(prev => prev.filter(i => i.id !== s.id));
-                                        } else {
-                                          alert("Delete failed: " + (data.error || "Unknown error"));
+                                  {!isInspector && (
+                                    <button style={{ padding: "3px 6px", background: "#ef4444", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
+                                      title="Delete"
+                                      onClick={async e => {
+                                        e.stopPropagation();
+                                        if (!confirm(`Delete inspection for "${s.client_name}" on ${s.date_of_inspection ? new Date(s.date_of_inspection).toLocaleDateString("en-GB") : "unknown date"}?\n\nThis cannot be undone.`)) return;
+                                        try {
+                                          console.log(`[Delete] Deleting group_id=${s.group_id}, client=${s.client_name}, id=${s.id}`);
+                                          const res = await fetch("/api/delete-inspection-group/", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ group_id: s.group_id }),
+                                          });
+                                          console.log(`[Delete] Response status: ${res.status}`);
+                                          const data = await res.json();
+                                          console.log(`[Delete] Response data:`, data);
+                                          if (data.success) {
+                                            showToast(`Deleted inspection for ${s.client_name}`);
+                                            setInspections(prev => prev.filter(i => i.id !== s.id));
+                                          } else {
+                                            alert("Delete failed: " + (data.error || "Unknown error"));
+                                          }
+                                        } catch (err) {
+                                          console.error(`[Delete] Error:`, err);
+                                          alert("Delete error: " + (err instanceof Error ? err.message : String(err)));
                                         }
-                                      } catch (err) {
-                                        console.error(`[Delete] Error:`, err);
-                                        alert("Delete error: " + (err instanceof Error ? err.message : String(err)));
-                                      }
-                                    }}>
-                                    <i className="fas fa-trash" />
-                                  </button>
+                                      }}>
+                                      <i className="fas fa-trash" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             )}
