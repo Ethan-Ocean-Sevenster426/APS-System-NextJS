@@ -114,6 +114,7 @@ function MultiSelect({
         </button>
         {open && (
           <div
+            className="cas-ms-drop"
             style={{
               position: "absolute",
               top: "100%",
@@ -127,6 +128,7 @@ function MultiSelect({
               maxHeight: 220,
               overflowY: "auto",
               padding: "0.25rem 0",
+              minWidth: 0,
             }}
           >
             {options.map((opt) => (
@@ -772,8 +774,8 @@ export default function ClientsPage() {
           border: 1px solid #e5e7eb;
         }
         .cas-filter-grid {
-          display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem; margin-bottom: 1rem;
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 0.75rem; margin-bottom: 1rem;
         }
         .cas-filter-grid label {
           display: block; font-size: 0.875rem; font-weight: 600;
