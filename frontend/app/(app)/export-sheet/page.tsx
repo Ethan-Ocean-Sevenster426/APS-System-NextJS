@@ -46,6 +46,7 @@ interface FeeHistory {
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function fmtCurrency(amount: number) { return `R${amount.toFixed(2)}`; }
+function fmtCode(code: string) { return code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
 function getDefaultFrom() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split("T")[0]; }
 function getDefaultTo() { return new Date().toISOString().split("T")[0]; }
@@ -515,9 +516,9 @@ export default function ExportSheetPage() {
       {/* ── Manage Fees Modal ─────────────────────────────────────────────────── */}
       {showFeesModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowFeesModal(false)}>
-          <div style={{ background: "white", borderRadius: 12, padding: 24, maxWidth: 600, width: "90%", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}><i className="fas fa-dollar-sign" style={{ marginRight: 8, color: "#f59e0b" }} />Manage Inspection Fees</h3>
+          <div style={{ background: "white", borderRadius: 12, padding: "16px 20px", maxWidth: 550, width: "92%", maxHeight: "95vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}><i className="fas fa-dollar-sign" style={{ marginRight: 8, color: "#f59e0b" }} />Manage Inspection Fees</h3>
               <button onClick={() => setShowFeesModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>&times;</button>
             </div>
 
@@ -531,27 +532,24 @@ export default function ExportSheetPage() {
             {fees.length === 0 ? (
               <p style={{ color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>Loading fees...</p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151" }}>Fee</th>
-                    <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151" }}>Code</th>
-                    <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151" }}>Rate (R)</th>
+                    <th style={{ textAlign: "left", padding: "4px 6px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.72rem" }}>Fee</th>
+                    <th style={{ textAlign: "left", padding: "4px 6px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.72rem" }}>Code</th>
+                    <th style={{ textAlign: "right", padding: "4px 6px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.72rem", width: 90 }}>Rate (R)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fees.map(f => (
                     <tr key={f.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "6px 8px" }}>
-                        <div style={{ fontWeight: 500 }}>{f.fee_name}</div>
-                        {f.description && <div style={{ fontSize: "0.7rem", color: "#9ca3af" }}>{f.description}</div>}
-                      </td>
-                      <td style={{ padding: "6px 8px", color: "#6b7280", fontFamily: "monospace" }}>{f.fee_code}</td>
-                      <td style={{ padding: "6px 8px" }}>
-                        <input type="number" step="0.01" min="0" className="fee-inp"
+                      <td style={{ padding: "3px 6px", fontWeight: 500 }}>{f.fee_name}</td>
+                      <td style={{ padding: "3px 6px", color: "#6b7280" }}>{fmtCode(f.fee_code)}</td>
+                      <td style={{ padding: "3px 6px" }}>
+                        <input type="number" step="0.01" min="0"
                           value={editingFees[f.id] ?? f.rate}
                           onChange={e => setEditingFees(p => ({ ...p, [f.id]: parseFloat(e.target.value) || 0 }))}
-                          style={{ width: "100%", textAlign: "right", padding: "4px 8px", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: "0.85rem" }} />
+                          style={{ width: "100%", textAlign: "right", padding: "2px 6px", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: "0.78rem" }} />
                       </td>
                     </tr>
                   ))}
@@ -578,31 +576,31 @@ export default function ExportSheetPage() {
       {/* ── Fee History Modal ─────────────────────────────────────────────────── */}
       {showHistoryModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowHistoryModal(false)}>
-          <div style={{ background: "white", borderRadius: 12, padding: 24, maxWidth: 650, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}><i className="fas fa-history" style={{ marginRight: 8, color: "#f59e0b" }} />Fee Change History</h3>
+          <div style={{ background: "white", borderRadius: 12, padding: "16px 20px", maxWidth: 700, width: "95%", maxHeight: "95vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}><i className="fas fa-history" style={{ marginRight: 8, color: "#f59e0b" }} />Fee Change History</h3>
               <button onClick={() => setShowHistoryModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>&times;</button>
             </div>
             {feeHistory.length === 0 ? (
               <p style={{ color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>No fee history found.</p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem" }}>
                 <thead>
                   <tr>
-                    {["Fee", "Code", "Rate (R)", "Effective Date", "Changed By", "Notes"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.75rem" }}>{h}</th>
+                    {["Fee", "Code", "Rate (R)", "Date", "Changed By", "Notes"].map(h => (
+                      <th key={h} style={{ textAlign: "left", padding: "3px 5px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.68rem" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {feeHistory.map((h, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fafafa" : "white" }}>
-                      <td style={{ padding: "5px 8px", fontWeight: 500 }}>{h.fee_name}</td>
-                      <td style={{ padding: "5px 8px", color: "#6b7280", fontFamily: "monospace" }}>{h.fee_code}</td>
-                      <td style={{ padding: "5px 8px", textAlign: "right" }}>R{Number(h.rate).toFixed(2)}</td>
-                      <td style={{ padding: "5px 8px" }}>{h.effective_date}</td>
-                      <td style={{ padding: "5px 8px" }}>{h.created_by || "-"}</td>
-                      <td style={{ padding: "5px 8px", color: "#6b7280" }}>{h.notes || "-"}</td>
+                      <td style={{ padding: "3px 5px", fontWeight: 500 }}>{h.fee_name}</td>
+                      <td style={{ padding: "3px 5px", color: "#6b7280" }}>{fmtCode(h.fee_code)}</td>
+                      <td style={{ padding: "3px 5px", textAlign: "right" }}>R{Number(h.rate).toFixed(2)}</td>
+                      <td style={{ padding: "3px 5px" }}>{h.effective_date}</td>
+                      <td style={{ padding: "3px 5px" }}>{h.created_by || "-"}</td>
+                      <td style={{ padding: "3px 5px", color: "#6b7280" }}>{h.notes || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
