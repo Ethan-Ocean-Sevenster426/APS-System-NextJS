@@ -4093,28 +4093,51 @@ def api_admin_analytics(request):
     try:
         today = _tz.now().date()
 
+        # ── Filters ──────────────────────────────────────────────────────────
+        filter_inspector = request.GET.get('inspector', '').strip()
+        filter_date_from = request.GET.get('date_from', '').strip()
+        filter_date_to = request.GET.get('date_to', '').strip()
+
+        groups_qs = _G.objects.all()
+        inspections_qs = _I.objects.all()
+        if filter_inspector:
+            groups_qs = groups_qs.filter(inspector_name__iexact=filter_inspector)
+            inspections_qs = inspections_qs.filter(inspector_name__iexact=filter_inspector)
+        if filter_date_from:
+            groups_qs = groups_qs.filter(date_of_inspection__gte=filter_date_from)
+            inspections_qs = inspections_qs.filter(date_of_inspection__gte=filter_date_from)
+        if filter_date_to:
+            groups_qs = groups_qs.filter(date_of_inspection__lte=filter_date_to)
+            inspections_qs = inspections_qs.filter(date_of_inspection__lte=filter_date_to)
+
+        # Get all inspector names for the filter dropdown
+        all_inspectors = list(
+            _G.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
+            .values_list('inspector_name', flat=True).distinct().order_by('inspector_name')
+        )
+
         # ── Summary counts ────────────────────────────────────────────────────
         total_clients     = _C.objects.count()
-        total_groups      = _G.objects.count()
-        total_inspections = _I.objects.count()
+        total_groups      = groups_qs.count()
+        total_inspections = inspections_qs.count()
 
         # This month
         first_of_month = today.replace(day=1)
-        this_month_groups = _G.objects.filter(date_of_inspection__gte=first_of_month).count()
+        this_month_groups = groups_qs.filter(date_of_inspection__gte=first_of_month).count()
 
-        # Sent / approved counts (groups that have at least one sent/approved inspection)
-        total_sent     = _G.objects.filter(inspections__sent_date__isnull=False).distinct().count()
-        total_approved = _G.objects.filter(inspections__approved_status='APPROVED').distinct().count()
+        # Sent / approved counts
+        total_sent     = groups_qs.filter(inspections__sent_date__isnull=False).distinct().count()
+        total_approved = groups_qs.filter(inspections__approved_status='APPROVED').distinct().count()
 
         # ── Compliance ────────────────────────────────────────────────────────
-        non_compliant_groups = _G.objects.filter(
+        non_compliant_groups = groups_qs.filter(
             inspections__is_direction_present_for_this_inspection=True
         ).distinct().count()
         compliance_rate = round(
             (1 - non_compliant_groups / total_groups) * 100, 1
         ) if total_groups else 0.0
 
-        # ── Monthly trend — last 6 months (groups) ────────────────────────────
+        # ── Monthly trend — last 6 months ────────────────────────────────────
         monthly = []
         for i in range(5, -1, -1):
             m = today.month - i
@@ -4124,46 +4147,36 @@ def api_admin_analytics(request):
                 y -= 1
             first = datetime.date(y, m, 1)
             last = datetime.date(y, m + 1, 1) - datetime.timedelta(days=1) if m < 12 else datetime.date(y + 1, 1, 1) - datetime.timedelta(days=1)
-            count = _G.objects.filter(date_of_inspection__gte=first, date_of_inspection__lte=last).count()
+            count = groups_qs.filter(date_of_inspection__gte=first, date_of_inspection__lte=last).count()
             monthly.append({'month': first.strftime('%b %Y'), 'count': count})
 
-        # ── Top inspectors (by group count, last 6 months) ────────────────────
-        six_months_ago = today.replace(day=1)
-        m6 = six_months_ago.month - 5
-        y6 = six_months_ago.year
-        while m6 <= 0:
-            m6 += 12
-            y6 -= 1
-        period_start = datetime.date(y6, m6, 1)
-
+        # ── Top inspectors ────────────────────────────────────────────────────
         top_inspectors = list(
-            _G.objects.filter(date_of_inspection__gte=period_start)
-            .exclude(inspector_name='').exclude(inspector_name__isnull=True)
+            groups_qs.exclude(inspector_name='').exclude(inspector_name__isnull=True)
             .values('inspector_name')
             .annotate(count=Count('id'))
             .order_by('-count')[:8]
         )
 
-        # ── Group type breakdown ───────────────────────────────────────────────
+        # ── Group type breakdown ─────────────────────────────────────────────
         group_type_data = list(
-            _G.objects.exclude(group_type='').exclude(group_type__isnull=True)
+            groups_qs.exclude(group_type='').exclude(group_type__isnull=True)
             .values('group_type').annotate(count=Count('id')).order_by('-count')[:10]
         )
 
-        # ── Corporate group breakdown ─────────────────────────────────────────
+        # ── Corporate group breakdown ────────────────────────────────────────
         corporate_data = list(
-            _G.objects.exclude(corporate_group='').exclude(corporate_group__isnull=True)
+            groups_qs.exclude(corporate_group='').exclude(corporate_group__isnull=True)
             .values('corporate_group').annotate(count=Count('id')).order_by('-count')[:10]
         )
 
-        # ── Sent rate by month (last 6 months) ───────────────────────────────
+        # ── Sent rate by month ───────────────────────────────────────────────
         sent_monthly = []
         for entry in monthly:
-            # Parse month back to date range
             dt = datetime.datetime.strptime(entry['month'], '%b %Y')
             first = datetime.date(dt.year, dt.month, 1)
             last = datetime.date(dt.year, dt.month + 1, 1) - datetime.timedelta(days=1) if dt.month < 12 else datetime.date(dt.year + 1, 1, 1) - datetime.timedelta(days=1)
-            sent = _G.objects.filter(date_of_inspection__gte=first, date_of_inspection__lte=last, inspections__sent_date__isnull=False).distinct().count()
+            sent = groups_qs.filter(date_of_inspection__gte=first, date_of_inspection__lte=last, inspections__sent_date__isnull=False).distinct().count()
             sent_monthly.append({'month': entry['month'], 'sent': sent, 'total': entry['count']})
 
         return _cors(JsonResponse({
@@ -4181,6 +4194,7 @@ def api_admin_analytics(request):
             'top_inspectors':     top_inspectors,
             'group_type_data':    group_type_data,
             'corporate_data':     corporate_data,
+            'all_inspectors':     all_inspectors,
         }))
 
     except Exception as e:

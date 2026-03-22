@@ -124,13 +124,28 @@ export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [inspectorFilter, setInspectorFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [allInspectors, setAllInspectors] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetch("/api/admin-analytics", { credentials: "include" })
+  const fetchData = (inspector = "", from = "", to = "") => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (inspector) params.set("inspector", inspector);
+    if (from) params.set("date_from", from);
+    if (to) params.set("date_to", to);
+    fetch(`/api/admin-analytics?${params}`, { credentials: "include" })
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+      .then(d => {
+        setData(d);
+        if (d.all_inspectors) setAllInspectors(d.all_inspectors);
+        setLoading(false);
+      })
       .catch(e => { setError(String(e)); setLoading(false); });
-  }, []);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "#6b7280", fontSize: "0.9rem" }}>
@@ -193,14 +208,44 @@ export default function AdminAnalyticsPage() {
           <StatCard icon="fas fa-file-invoice" label="Total Inspections" value={data.total_inspections.toLocaleString()} color={TEAL} tip="Total individual product inspections across all groups (each commodity in a group is one inspection)." />
         </div>
 
+        {/* Filters */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "14px 18px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: "1px solid #e5e7eb", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div>
+            <label style={{ fontSize: "0.68rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Inspector</label>
+            <select value={inspectorFilter} onChange={e => setInspectorFilter(e.target.value)}
+              style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.8rem", minWidth: 160 }}>
+              <option value="">All Inspectors</option>
+              {allInspectors.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "0.68rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Date From</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.8rem" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "0.68rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Date To</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.8rem" }} />
+          </div>
+          <button onClick={() => fetchData(inspectorFilter, dateFrom, dateTo)}
+            style={{ padding: "6px 16px", background: TEAL, color: "#fff", border: "none", borderRadius: 6, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+            <i className="fas fa-filter" style={{ marginRight: 4 }} /> Apply
+          </button>
+          <button onClick={() => { setInspectorFilter(""); setDateFrom(""); setDateTo(""); fetchData(); }}
+            style={{ padding: "6px 16px", background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+            <i className="fas fa-times" style={{ marginRight: 4 }} /> Clear
+          </button>
+        </div>
+
         {/* Monthly trend + Sent monthly */}
         <div className="aa-grid2">
           <div className="aa-card">
-            <p className="aa-card-title">Inspections per Month (Last 6 Months)</p>
+            <p className="aa-card-title">Inspections per Month <InfoTip text="Total inspection groups created each month over the last 6 months." /></p>
             <MonthlyChart monthly={data.monthly} />
           </div>
           <div className="aa-card">
-            <p className="aa-card-title">Documents Sent per Month</p>
+            <p className="aa-card-title">Documents Sent per Month <InfoTip text="How many inspection groups had their documents emailed to clients each month." /></p>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
               {data.sent_monthly.map((m, i) => {
                 const maxSent = Math.max(...data.sent_monthly.map(x => x.sent), 1);
@@ -224,7 +269,7 @@ export default function AdminAnalyticsPage() {
         {/* Corporate Group */}
         <div style={{ marginTop: 16 }}>
           <div className="aa-card">
-            <p className="aa-card-title">By Corporate Group</p>
+            <p className="aa-card-title">By Corporate Group <InfoTip text="Breakdown of inspection groups by the corporate group the client belongs to (e.g., Spar, Boxer, Pick n Pay)." /></p>
             <BarChart
               data={data.corporate_data.map(d => ({ label: d.corporate_group, value: d.count }))}
               labelKey="label" valueKey="value" color="#ea580c"

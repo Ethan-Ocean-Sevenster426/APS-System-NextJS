@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { DJANGO_API_URL } from "@/lib/config";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
-    const res = await fetch(`${DJANGO_API_URL}/api/admin-analytics/`, {
+    const cookie = request.headers.get("cookie") || "";
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
+    const url = `${DJANGO_API_URL}/api/admin-analytics/${qs ? `?${qs}` : ""}`;
+    const res = await fetch(url, {
       cache: "no-store",
-      headers: { Cookie: cookieHeader },
+      headers: { Cookie: cookie },
     });
     const data = await res.json();
     return NextResponse.json(data);
