@@ -557,7 +557,7 @@ export default function AddInspectionPage() {
                   ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"],
                   ["Client",          clientName || "—"],
                   ["Town",            town || "—"],
-                  ["Email",           additionalEmail || "—"],
+                  ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "—"],
                   ["Corporate Group", corporateGroup || "—"],
                   ["Group Type",      groupType || "—"],
                   ["Facility Type",   facilityType || "—"],
