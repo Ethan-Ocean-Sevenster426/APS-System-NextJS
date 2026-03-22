@@ -196,6 +196,8 @@ export default function ClientsPage() {
   /* --- state: active filter values --- */
   const [filterClientId, setFilterClientId] = useState("");
   const [filterClientName, setFilterClientName] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const allClientNames = Array.from(new Set(clients.map(c => c.name).filter(Boolean))).sort();
   const [filterCorporateGroup, setFilterCorporateGroup] = useState<string[]>([]);
   const [filterCommodity, setFilterCommodity] = useState<string[]>([]);
   const [filterFacilityType, setFilterFacilityType] = useState<string[]>([]);
@@ -997,15 +999,41 @@ export default function ClientsPage() {
         {/* Filter Section */}
         <div className="cas-filter-section">
           <div className="cas-filter-grid">
-            {/* Client Name */}
-            <div>
+            {/* Client Name with autocomplete */}
+            <div style={{ position: "relative" }}>
               <label>Client Name</label>
               <input
                 type="text"
-                placeholder="Search client name"
+                placeholder="Search or select client..."
                 value={filterClientName}
                 onChange={(e) => setFilterClientName(e.target.value)}
+                onFocus={() => setClientDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setClientDropdownOpen(false), 200)}
               />
+              {clientDropdownOpen && filterClientName.length > 0 && (() => {
+                const matches = allClientNames.filter(n =>
+                  n.toLowerCase().includes(filterClientName.toLowerCase())
+                ).slice(0, 15);
+                if (matches.length === 0) return null;
+                return (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0,
+                    background: "#fff", border: "1px solid #d1d5db", borderRadius: "0 0 6px 6px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 9999,
+                    maxHeight: 200, overflowY: "auto",
+                  }}>
+                    {matches.map(name => (
+                      <div key={name}
+                        style={{ padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", borderBottom: "1px solid #f3f4f6" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#e6f3f7")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => { setFilterClientName(name); setClientDropdownOpen(false); }}>
+                        {name}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Corporate Group */}
@@ -1035,10 +1063,10 @@ export default function ClientsPage() {
               onChange={setFilterFacilityType}
             />
 
-            {/* Province */}
+            {/* Town */}
             <MultiSelect
-              label="Province"
-              placeholder="All Provinces"
+              label="Town"
+              placeholder="All Towns"
               options={provinceOptions}
               selected={filterProvince}
               onChange={setFilterProvince}
