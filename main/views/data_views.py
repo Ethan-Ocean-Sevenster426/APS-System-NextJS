@@ -4163,7 +4163,7 @@ def api_admin_analytics(request):
             dt = datetime.datetime.strptime(entry['month'], '%b %Y')
             first = datetime.date(dt.year, dt.month, 1)
             last = datetime.date(dt.year, dt.month + 1, 1) - datetime.timedelta(days=1) if dt.month < 12 else datetime.date(dt.year + 1, 1, 1) - datetime.timedelta(days=1)
-            sent = _G.objects.filter(date_of_inspection__gte=first, date_of_inspection__lte=last).exclude(first_sent__isnull=True).count()
+            sent = _G.objects.filter(date_of_inspection__gte=first, date_of_inspection__lte=last, inspections__sent_date__isnull=False).distinct().count()
             sent_monthly.append({'month': entry['month'], 'sent': sent, 'total': entry['count']})
 
         return _cors(JsonResponse({
