@@ -571,6 +571,9 @@ export default function EditInspectionPage() {
                           onChange={e => updateProduct(idx, "product_class", e.target.value)}>
                           <option value="">-- Select --</option>
                           {PRODUCT_CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+                          {p.product_class && !PRODUCT_CLASSES.includes(p.product_class) && (
+                            <option value={p.product_class}>{p.product_class}</option>
+                          )}
                         </select>
                       </div>
                     </div>
@@ -608,6 +611,9 @@ export default function EditInspectionPage() {
                             onChange={e => updateProduct(idx, "lab", e.target.value)}>
                             <option value="">-- Select --</option>
                             {LABS.map(l => <option key={l} value={l}>{l}</option>)}
+                            {p.lab && !LABS.includes(p.lab) && (
+                              <option value={p.lab}>{p.lab}</option>
+                            )}
                           </select>
                         </div>
                         <div className="form-group">

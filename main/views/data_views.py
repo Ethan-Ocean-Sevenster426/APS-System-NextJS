@@ -1159,7 +1159,10 @@ def api_inspections(request):
                 'has_invoice': g.has_invoice,
                 'has_lab': g.has_lab,
                 'has_compliance': g.has_compliance,
-                'email': g.client.email if g.client else '',
+                'email': '; '.join(filter(None, [
+                    g.client.email if g.client else '',
+                    g.additional_email or '',
+                ])).strip('; ') or '',
                 'km_traveled': float(g.km_traveled) if g.km_traveled else 0,
                 'hours': float(g.hours) if g.hours else 0,
                 'group_type': g.group_type or '',
