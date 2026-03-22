@@ -377,13 +377,6 @@ export default function ExportSheetPage() {
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Corporate Group</label>
-                <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} style={inp}>
-                  <option value="">All Groups</option>
-                  {groups.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
-              <div>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Month</label>
                 <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={inp}>
                   <option value="">All Months</option>
