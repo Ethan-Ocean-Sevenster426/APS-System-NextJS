@@ -580,7 +580,7 @@ export default function EditInspectionPage() {
                       {cfg.label} #{sameCount + 1}
                     </h4>
 
-                    <div className="product-fields-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                    <div className="product-fields-grid">
                       <div className="form-group">
                         <label className="form-label">Product Name <span style={{ color: "#ef4444" }}>*</span></label>
                         <input type="text" className="form-control" value={p.product_name}
@@ -626,7 +626,7 @@ export default function EditInspectionPage() {
 
                     {/* Lab + Needs Retest — only when sample is taken */}
                     {!hideTests && p.is_sample_taken && (
-                      <div className="product-fields-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                      <div className="product-fields-grid">
                         <div className="form-group">
                           <label className="form-label">Lab</label>
                           <select className="form-control" value={p.lab}
@@ -688,7 +688,7 @@ export default function EditInspectionPage() {
                 Invoice Info
               </h3>
 
-              <div className="product-fields-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+              <div className="product-fields-grid">
                 <div className="form-group">
                   <label className="form-label">Kilometers Traveled</label>
                   <input type="number" step="0.1" className="form-control" value={kmTraveled}
@@ -749,7 +749,7 @@ export default function EditInspectionPage() {
 
             <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
               <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>Inspection Summary</h4>
-              <div className="review-summary-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 14 }}>
+              <div className="review-summary-grid">
                 {[
                   ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"],
                   ["Client",          clientName || "—"],
@@ -1096,7 +1096,7 @@ const pageStyles = `
     .step-circle { width: 36px; height: 36px; font-size: 14px; }
     .step-label { font-size: 10px; }
     .product-fields-grid { grid-template-columns: 1fr; gap: 0; }
-    .review-summary-grid { grid-template-columns: 1fr; }
+    .review-summary-grid { grid-template-columns: 1fr !important; }
     .form-control { padding: 10px 12px; font-size: 14px; }
     .form-label { font-size: 13px; }
     .form-group { margin-bottom: 14px; }
