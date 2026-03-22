@@ -732,12 +732,35 @@ const pageStyles = `
   .product-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
   .review-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
   @media (max-width: 768px) {
-    .max-w-3xl { padding: 0 10px; }
-    .wizard-container { padding: 20px !important; border-radius: 12px; }
-    .commodity-grid { grid-template-columns: repeat(2,1fr); gap: 12px; }
-    .wizard-steps::before { left: 30px; right: 30px; }
+    .max-w-3xl { padding: 0 8px; }
+    .wizard-container { padding: 16px !important; border-radius: 12px; }
+    .header-card { padding: 12px 16px; }
+    .header-card h1 { font-size: 1.2rem !important; }
+    .commodity-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .commodity-card { padding: 14px 12px; }
+    .commodity-card i { font-size: 24px; margin-bottom: 4px; }
+    .commodity-card h4 { font-size: 13px; margin-bottom: 8px; }
+    .wizard-steps::before { left: 20px; right: 20px; }
+    .step-circle { width: 36px; height: 36px; font-size: 14px; }
+    .step-label { font-size: 10px; }
     .product-fields-grid { grid-template-columns: 1fr; gap: 0; }
     .review-summary-grid { grid-template-columns: 1fr; }
-    .step-label { font-size: 11px; }
+    .form-control { padding: 10px 12px; font-size: 14px; }
+    .form-label { font-size: 13px; }
+    .form-group { margin-bottom: 14px; }
+    .btn { padding: 10px 18px; font-size: 14px; }
+    .checkbox-card { padding: 12px; }
+    .checkbox-card.sample-taken-card { padding-left: 44px; min-height: 46px; }
+    .checkbox-card.testing-card { padding-left: 40px; min-height: 42px; }
+    .client-dropdown { max-height: 200px; }
+    .client-dropdown-item { padding: 10px 12px; }
+  }
+  @media (max-width: 400px) {
+    .max-w-3xl { padding: 0 4px; }
+    .wizard-container { padding: 12px !important; }
+    .commodity-grid { grid-template-columns: 1fr; gap: 8px; }
+    .step-circle { width: 30px; height: 30px; font-size: 12px; }
+    .step-label { font-size: 9px; }
+    .wizard-steps::before { left: 15px; right: 15px; }
   }
 `;
