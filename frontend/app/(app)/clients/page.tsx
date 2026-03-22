@@ -779,11 +779,11 @@ export default function ClientsPage() {
           display: grid; grid-template-columns: repeat(4, 1fr);
           gap: 0.75rem; margin-bottom: 1rem;
         }
-        .cas-filter-grid label {
+        .cas-filter-grid > div > label {
           display: block; font-size: 0.875rem; font-weight: 600;
           color: #1f2937; margin-bottom: 0.5rem;
         }
-        .cas-filter-grid input, .cas-filter-grid select {
+        .cas-filter-grid > div > input, .cas-filter-grid > div > select {
           width: 100%; padding: 0.5rem; border: 1px solid #d1d5db;
           border-radius: 0.375rem; font-size: 0.875rem; box-sizing: border-box;
         }
@@ -954,8 +954,8 @@ export default function ClientsPage() {
           .cas-action-bar { flex-direction: column; gap: 6px !important; }
           .cas-btn { width: 100%; justify-content: center; font-size: 0.8rem !important; padding: 8px 12px !important; }
           .cas-filter-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
-          .cas-filter-grid label { font-size: 0.75rem; margin-bottom: 2px; }
-          .cas-filter-grid input, .cas-filter-grid select { padding: 8px; font-size: 0.8rem; }
+          .cas-filter-grid > div > label { font-size: 0.75rem; margin-bottom: 2px; }
+          .cas-filter-grid > div > input, .cas-filter-grid > div > select { padding: 8px; font-size: 0.8rem; }
           .cas-filter-buttons { flex-direction: column; }
           .cas-filter-buttons .cas-btn { width: 100%; }
           .cas-filter-section { padding: 12px !important; }
