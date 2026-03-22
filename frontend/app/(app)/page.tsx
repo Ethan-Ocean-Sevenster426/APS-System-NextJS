@@ -35,7 +35,14 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/me", { credentials: "include" })
       .then(r => r.json())
-      .then(d => setRole(d.authenticated ? (d.role || "inspector") : "inspector"))
+      .then(d => {
+        const userRole = d.authenticated ? (d.role || "inspector") : "inspector";
+        setRole(userRole);
+        // Inspectors see their personal analytics dashboard instead of home
+        if (userRole === "inspector" || userRole === "inspector_manager") {
+          window.location.href = "/analytics";
+        }
+      })
       .catch(() => setRole("inspector"));
   }, []);
 
