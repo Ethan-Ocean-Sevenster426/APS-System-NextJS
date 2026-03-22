@@ -1545,7 +1545,6 @@ export default function InspectionsPage() {
                                           const data = await res.json();
                                           console.log(`[Delete] Response data:`, data);
                                           if (data.success) {
-                                            showToast(`Deleted inspection for ${s.client_name}`);
                                             setInspections(prev => prev.filter(i => i.id !== s.id));
                                           } else {
                                             alert("Delete failed: " + (data.error || "Unknown error"));
