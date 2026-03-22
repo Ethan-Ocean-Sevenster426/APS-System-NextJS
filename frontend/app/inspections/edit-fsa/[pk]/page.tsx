@@ -247,10 +247,7 @@ export default function EditInspectionPage() {
       return missing;
     }
     if (s === 3) {
-      const missing = [];
-      if (!travelStart) missing.push("Travel Start Time");
-      if (!travelEnd) missing.push("Travel End Time");
-      return missing;
+      return [];
     }
     return [];
   };
@@ -675,12 +672,12 @@ export default function EditInspectionPage() {
                     onChange={e => setHoursWorked(Number(e.target.value))} placeholder="0" min={0} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Travel Start <span style={{ color: "#ef4444" }}>*</span></label>
+                  <label className="form-label">Travel Start</label>
                   <input type="time" className="form-control" value={travelStart}
                     onChange={e => setTravelStart(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Travel End <span style={{ color: "#ef4444" }}>*</span></label>
+                  <label className="form-label">Travel End</label>
                   <input type="time" className="form-control" value={travelEnd}
                     onChange={e => setTravelEnd(e.target.value)} />
                 </div>
