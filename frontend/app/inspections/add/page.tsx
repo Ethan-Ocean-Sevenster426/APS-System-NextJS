@@ -89,7 +89,8 @@ export default function AddInspectionPage() {
   const [dateOfInspection, setDateOfInspection] = useState("");
   const [clientName, setClientName] = useState("");
   const [town, setTown] = useState("");
-  const [additionalEmail, setAdditionalEmail] = useState("");
+  const [primaryEmail, setPrimaryEmail] = useState("");
+  const [additionalEmails, setAdditionalEmails] = useState<string[]>([""]);
   const [corporateGroup, setCorporateGroup] = useState("");
   const [groupType, setGroupType] = useState("");
   const [facilityType, setFacilityType] = useState("");
@@ -191,7 +192,7 @@ export default function AddInspectionPage() {
           corporate_group: corporateGroup,
           group_type: groupType,
           facility_type: facilityType,
-          additional_email: additionalEmail,
+          additional_email: [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; '),
           comment,
           km_traveled: kmTraveled,
           hours: hoursWorked,
@@ -293,7 +294,7 @@ export default function AddInspectionPage() {
                 const found = options?.clients.find(c => c.name === v);
                 if (found) {
                   if (found.town && !town) setTown(found.town);
-                  if (found.email && !additionalEmail) setAdditionalEmail(found.email);
+                  if (found.email && !primaryEmail) setPrimaryEmail(found.email);
                   if (found.corporate_group && !corporateGroup) setCorporateGroup(found.corporate_group);
                   if (found.group_type && !groupType) setGroupType(found.group_type);
                   if (found.facility_type && !facilityType) setFacilityType(found.facility_type);
@@ -304,8 +305,37 @@ export default function AddInspectionPage() {
             <Autocomplete label="Town" required options={options?.towns ?? []} value={town} onChange={setTown} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
-              <label className="form-label">Client Email(s)</label>
-              <input type="email" className="form-control" value={additionalEmail} onChange={e => setAdditionalEmail(e.target.value)} placeholder="client@example.com" />
+              <label className="form-label">Client Email (Primary)</label>
+              <input type="email" className="form-control" value={primaryEmail}
+                onChange={e => setPrimaryEmail(e.target.value)} placeholder="primary@example.com" />
+              <small style={{ color: "#6b7280", fontSize: 11 }}>Main client email. Documents will be sent to this address.</small>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Additional Emails</label>
+              {additionalEmails.map((email, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                  <input type="email" className="form-control" value={email}
+                    onChange={e => {
+                      const updated = [...additionalEmails];
+                      updated[idx] = e.target.value;
+                      setAdditionalEmails(updated);
+                    }}
+                    placeholder={`Additional email ${idx + 1}`}
+                    style={{ flex: 1 }} />
+                  {additionalEmails.length > 1 && (
+                    <button type="button" onClick={() => setAdditionalEmails(additionalEmails.filter((_, i) => i !== idx))}
+                      style={{ padding: "6px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>
+                      <i className="fas fa-times" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setAdditionalEmails([...additionalEmails, ""])}
+                style={{ padding: "6px 12px", background: "#007890", color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
+                <i className="fas fa-plus" style={{ marginRight: 4 }} /> Add Email
+              </button>
+              <small style={{ display: "block", color: "#6b7280", fontSize: 11, marginTop: 4 }}>Documents will also be sent to these addresses.</small>
             </div>
 
             <div className="form-group">
