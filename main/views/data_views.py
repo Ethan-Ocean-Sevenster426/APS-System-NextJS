@@ -1049,6 +1049,26 @@ def api_inspections(request):
             .order_by('-date_of_inspection')
         )
 
+        # Inspector role: only show their own inspections
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            user_role = getattr(request.user, 'role', '')
+            if user_role in ('inspector', 'inspector_manager'):
+                from ..models import InspectorMapping
+                inspector_name = request.user.get_full_name() or request.user.username
+                # Build filter for inspector's inspections
+                inspector_q = Q(inspector_name__iexact=inspector_name)
+                # Also check InspectorMapping for alternative names
+                mapping = InspectorMapping.objects.filter(inspector_name__iexact=inspector_name).first()
+                if not mapping:
+                    mapping = InspectorMapping.objects.filter(inspector_name__iexact=request.user.username).first()
+                if mapping and mapping.inspector_id:
+                    # Find all groups where any inspection has this inspector_id
+                    inspector_group_ids = FoodSafetyAgencyInspection.objects.filter(
+                        inspector_id=mapping.inspector_id
+                    ).values_list('inspection_group_id', flat=True).distinct()
+                    inspector_q = inspector_q | Q(id__in=list(inspector_group_ids))
+                groups_qs = groups_qs.filter(inspector_q)
+
         if date_from:
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
         if date_to:
