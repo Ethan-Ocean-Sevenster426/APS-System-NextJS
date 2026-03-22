@@ -1368,10 +1368,12 @@ export default function InspectionsPage() {
                           onClick={e => { e.stopPropagation(); openFilesModal(s.group_id || String(s.id), s.client_name, s.date_of_inspection); }}>
                           <i className="fas fa-folder-open" /> Files
                         </button>
-                        <button style={{ flex: 1, padding: "8px", background: s.sent_date ? "#6b7280" : "#22c55e", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
-                          onClick={() => handleSendDocuments(s)}>
-                          <i className="fas fa-paper-plane" /> {s.sent_date ? "Resend" : "Send"}
-                        </button>
+                        {!isInspector && (
+                          <button style={{ flex: 1, padding: "8px", background: s.sent_date ? "#6b7280" : "#22c55e", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                            onClick={() => handleSendDocuments(s)}>
+                            <i className="fas fa-paper-plane" /> {s.sent_date ? "Resend" : "Send"}
+                          </button>
+                        )}
                         <a href={`/inspections/edit-fsa/${s.products?.[0]?.id || s.id}`} style={{ flex: 1, padding: "8px", background: "#3b82f6", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "center", textDecoration: "none" }}
                           onClick={e => e.stopPropagation()}>
                           <i className="fas fa-edit" /> Edit
@@ -1482,7 +1484,7 @@ export default function InspectionsPage() {
                             </td>
                             {roleLoaded && !isLabTech && <td style={{ fontSize: "0.75rem", color: "#6b7280" }}>{s.email || "-"}</td>}
                             <td className="center">
-                              {isLabTech ? (
+                              {(isLabTech || isInspector) ? (
                                 <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.sent_date ? "Sent" : "Not Sent"}
                                 </span>
@@ -1668,31 +1670,33 @@ export default function InspectionsPage() {
                                     style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#3b82f6", color: "white", borderRadius: 4, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
                                     <i className="fas fa-download" />Download
                                   </a>
-                                  <button
-                                    onClick={async () => {
-                                      if (!confirm(`Delete "${f.name}"?`)) return;
-                                      const res = await fetch("/api/delete-file", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ file: filePath }),
-                                      });
-                                      const data = await res.json();
-                                      if (data.success) {
-                                        showToast(`Deleted: ${f.name}`);
-                                        setFilesModal(prev => {
-                                          const updated = { ...prev.files };
-                                          Object.keys(updated).forEach(k => {
-                                            updated[k] = updated[k].filter((_, fi) => !(k === cat.key && fi === i));
-                                          });
-                                          return { ...prev, files: updated };
+                                  {(!isInspector || ["rfi", "compliance", "composition", "other"].includes(cat.key)) && (
+                                    <button
+                                      onClick={async () => {
+                                        if (!confirm(`Delete "${f.name}"?`)) return;
+                                        const res = await fetch("/api/delete-file", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ file: filePath }),
                                         });
-                                      } else {
-                                        alert("Delete failed: " + (data.error || "Unknown error"));
-                                      }
-                                    }}
-                                    style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                                    <i className="fas fa-trash" />Delete
-                                  </button>
+                                        const data = await res.json();
+                                        if (data.success) {
+                                          showToast(`Deleted: ${f.name}`);
+                                          setFilesModal(prev => {
+                                            const updated = { ...prev.files };
+                                            Object.keys(updated).forEach(k => {
+                                              updated[k] = updated[k].filter((_, fi) => !(k === cat.key && fi === i));
+                                            });
+                                            return { ...prev, files: updated };
+                                          });
+                                        } else {
+                                          alert("Delete failed: " + (data.error || "Unknown error"));
+                                        }
+                                      }}
+                                      style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                                      <i className="fas fa-trash" />Delete
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
