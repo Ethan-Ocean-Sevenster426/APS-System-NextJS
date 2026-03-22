@@ -1546,6 +1546,8 @@ export default function InspectionsPage() {
                                           console.log(`[Delete] Response data:`, data);
                                           if (data.success) {
                                             setInspections(prev => prev.filter(i => i.id !== s.id));
+                                            // Refetch to get updated list from server
+                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo), 500);
                                           } else {
                                             alert("Delete failed: " + (data.error || "Unknown error"));
                                           }
