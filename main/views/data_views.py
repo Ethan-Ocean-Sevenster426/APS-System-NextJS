@@ -4102,9 +4102,9 @@ def api_admin_analytics(request):
         first_of_month = today.replace(day=1)
         this_month_groups = _G.objects.filter(date_of_inspection__gte=first_of_month).count()
 
-        # Sent / approved counts (groups)
-        total_sent     = _G.objects.exclude(first_sent__isnull=True).count()
-        total_approved = _G.objects.filter(first_approved='APPROVED').count()
+        # Sent / approved counts (groups that have at least one sent/approved inspection)
+        total_sent     = _G.objects.filter(inspections__sent_date__isnull=False).distinct().count()
+        total_approved = _G.objects.filter(inspections__approved_status='APPROVED').distinct().count()
 
         # ── Compliance ────────────────────────────────────────────────────────
         non_compliant_groups = _G.objects.filter(
