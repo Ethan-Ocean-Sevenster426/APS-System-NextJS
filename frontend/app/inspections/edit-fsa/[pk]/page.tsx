@@ -119,6 +119,7 @@ export default function EditInspectionPage() {
   const [dateOfInspection, setDateOfInspection] = useState("");
   const [clientName, setClientName] = useState("");
   const [town, setTown] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [additionalEmail, setAdditionalEmail] = useState("");
   const [corporateGroup, setCorporateGroup] = useState("");
   const [groupType, setGroupType] = useState("");
@@ -156,6 +157,7 @@ export default function EditInspectionPage() {
         setDateOfInspection(g.date_of_inspection || "");
         setClientName(g.client_name || "");
         setTown(g.town || "");
+        setClientEmail(g.client_email || g.email || "");
         setAdditionalEmail(g.additional_email || "");
         setCorporateGroup(g.corporate_group || "");
         setGroupType(g.group_type || "");
@@ -451,9 +453,17 @@ export default function EditInspectionPage() {
               value={town} onChange={setTown} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
-              <label className="form-label">Client Email(s)</label>
-              <input type="email" className="form-control" value={additionalEmail}
-                onChange={e => setAdditionalEmail(e.target.value)} placeholder="client@example.com" />
+              <label className="form-label">Client Email (Primary)</label>
+              <input type="text" className="form-control" value={clientEmail} readOnly
+                style={{ background: "#f9fafb", color: "#6b7280" }} />
+              <small style={{ color: "#6b7280", fontSize: 11 }}>Primary email from client record. Edit in Client Allocation to change.</small>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Additional Email(s)</label>
+              <input type="text" className="form-control" value={additionalEmail}
+                onChange={e => setAdditionalEmail(e.target.value)} placeholder="email1@example.com; email2@example.com" />
+              <small style={{ color: "#6b7280", fontSize: 11 }}>Separate multiple emails with semicolons (;). These will also receive documents when sent.</small>
             </div>
 
             <div className="form-group">

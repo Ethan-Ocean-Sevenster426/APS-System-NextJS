@@ -3800,6 +3800,11 @@ def api_get_inspection_group(request, pk):
                 'bought_sample': float(p.bought_sample) if p.bought_sample else 0,
             })
 
+        # Get primary client email
+        client_email = ''
+        if insp.client:
+            client_email = insp.client.email or insp.client.manual_email or ''
+
         return _insp_cors(JsonResponse({
             'success': True,
             'inspection_id': pk,
@@ -3811,6 +3816,7 @@ def api_get_inspection_group(request, pk):
             'corporate_group': corporate_group,
             'group_type': group_type,
             'facility_type': facility_type,
+            'client_email': client_email,
             'additional_email': additional_email,
             'comment': comment,
             'km_traveled': km,
