@@ -1057,7 +1057,6 @@ export default function ClientsPage() {
             <div>
               <label>Sort By</label>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                <option value="name">Business Name</option>
                 <option value="facility_type">Facility Type</option>
                 <option value="corporate_group">Corporate Group</option>
                 <option value="town">Town</option>
