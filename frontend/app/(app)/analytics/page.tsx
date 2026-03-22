@@ -857,6 +857,17 @@ export default function AnalyticsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Don't render until role is known (prevents flash of wrong UI)
+  if (!user) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <div style={{ textAlign: "center", color: "#6b7280" }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        Loading...
+      </div>
+    </div>
+  );
+
   // Inspectors see their personal dashboard
   if (isInspector) return <InspectorDashboard />;
 
