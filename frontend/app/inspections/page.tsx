@@ -264,6 +264,7 @@ export default function InspectionsPage() {
   const roleLoaded = role !== null;
   const isLabTech = role === "lab_technician";
   const isAdmin = role === "admin";
+  const isInspector = role === "inspector" || role === "inspector_manager";
 
   // Show toast notification
   const showToast = useCallback((message: string) => {
@@ -799,12 +800,14 @@ export default function InspectionsPage() {
                       uploadKey={`rfi-${products[0].id}`}
                       onClick={() => triggerUpload(products[0].id, s.group_id || '', 'rfi', products[0].id)}
                     />
-                    <UploadBtn
-                      label="Invoice"
-                      uploaded={!!s.has_invoice}
-                      uploadKey={`invoice-${products[0].id}`}
-                      onClick={() => triggerUpload(products[0].id, s.group_id || '', 'invoice', products[0].id)}
-                    />
+                    {!isInspector && (
+                      <UploadBtn
+                        label="Invoice"
+                        uploaded={!!s.has_invoice}
+                        uploadKey={`invoice-${products[0].id}`}
+                        onClick={() => triggerUpload(products[0].id, s.group_id || '', 'invoice', products[0].id)}
+                      />
+                    )}
                   </>
                 )}
               </div>
@@ -933,7 +936,7 @@ export default function InspectionsPage() {
                               onClick={() => triggerUpload(product.id, s.group_id || '', 'composition', product.id)}
                             />
                           )}
-                          {!hidePoultryEggs && (
+                          {!hidePoultryEggs && !isInspector && (
                             <>
                               <UploadBtn
                                 label="COA/Lab"
