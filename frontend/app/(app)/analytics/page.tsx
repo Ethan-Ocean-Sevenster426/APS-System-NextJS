@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
+import InspectorDashboard from "@/components/InspectorDashboard";
 import MultiSelectDropdown from "@/components/ui/MultiSelectDropdown";
 import {
   Chart as ChartJS,
@@ -300,7 +301,7 @@ export default function AnalyticsPage() {
   }, []);
 
   const userRole = user?.role ?? "developer";
-  const isInspector = userRole === "inspector";
+  const isInspector = userRole === "inspector" || userRole === "inspector_manager";
   const isAdmin = userRole === "admin";
   const isFullAccess = userRole === "developer" || userRole === "super_admin";
   // Inspector's display name for matching against data (e.g. "Lwandile Dlamini")
@@ -855,6 +856,9 @@ export default function AnalyticsPage() {
   const totalSamples = useMemo(() => data?.samplesByCommodity?.filter(d => isSampleCommodity(d.commodity)).reduce((s, d) => s + d.count, 0) ?? 0, [data]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  // Inspectors see their personal dashboard
+  if (isInspector) return <InspectorDashboard />;
 
   return (
     <div style={{ padding: "28px 20px 32px", minHeight: "100vh", position: "relative" }}>
