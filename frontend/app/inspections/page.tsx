@@ -1700,15 +1700,47 @@ export default function InspectionsPage() {
               })()
             )}
 
-            <button
-              style={{
-                marginTop: 16, width: "100%", padding: "10px", background: "#e5e7eb",
-                color: "#374151", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
-              }}
-              onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}
-            >
-              Close
-            </button>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              {Object.values(filesModal.files).some(arr => arr?.length > 0) && (
+                <button
+                  style={{
+                    flex: 1, padding: "10px", background: "#007890",
+                    color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
+                  }}
+                  onClick={async () => {
+                    // Collect all file paths
+                    const allFiles: { url: string; name: string }[] = [];
+                    Object.values(filesModal.files).forEach(files => {
+                      files?.forEach(f => {
+                        const filePath = f.relative_path || f.path || "";
+                        allFiles.push({ url: `/api/serve-file?file=${encodeURIComponent(filePath)}&action=download`, name: f.name });
+                      });
+                    });
+                    // Download each file with a small delay
+                    for (const file of allFiles) {
+                      const a = document.createElement("a");
+                      a.href = file.url;
+                      a.download = file.name;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      await new Promise(r => setTimeout(r, 300));
+                    }
+                  }}
+                >
+                  <i className="fas fa-download" style={{ marginRight: 6 }} />Download All ({Object.values(filesModal.files).reduce((sum, arr) => sum + (arr?.length || 0), 0)})
+                </button>
+              )}
+              <button
+                style={{
+                  flex: 1, padding: "10px", background: "#e5e7eb",
+                  color: "#374151", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
+                }}
+                onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
