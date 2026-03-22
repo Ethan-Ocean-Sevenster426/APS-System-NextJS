@@ -137,12 +137,13 @@ function MultiSelect({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.4rem",
-                  padding: "0.3rem 0.6rem",
+                  justifyContent: "flex-start",
+                  gap: "0.5rem",
+                  padding: "0.35rem 0.75rem",
                   cursor: "pointer",
                   color: "#374151",
                   userSelect: "none",
-                  fontSize: "0.78rem",
+                  fontSize: "0.8rem",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
