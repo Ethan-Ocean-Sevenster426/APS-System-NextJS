@@ -1020,17 +1020,17 @@ def api_inspections(request):
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
 
-        # Compute duplicate groups: same client_name + date_of_inspection across multiple groups
-        all_inspections = FoodSafetyAgencyInspection.objects.all()
-        _dup_pairs = list(
-            all_inspections.values('client_name', 'date_of_inspection')
-            .annotate(_gc=Count('inspection_group', distinct=True))
+        # Compute duplicate groups: same client_name + date_of_inspection + inspector_name
+        # across multiple groups (different inspectors at same client on same day is NOT a duplicate)
+        _dup_triples = list(
+            InspectionGroup.objects.values('client_name', 'date_of_inspection', 'inspector_name')
+            .annotate(_gc=Count('id'))
             .filter(_gc__gt=1)
-            .values_list('client_name', 'date_of_inspection')
+            .values_list('client_name', 'date_of_inspection', 'inspector_name')
         )
         _dup_q = Q()
-        for _dc, _dd in _dup_pairs:
-            _dup_q |= Q(client_name=_dc, date_of_inspection=_dd)
+        for _dc, _dd, _di in _dup_triples:
+            _dup_q |= Q(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
 
         insp = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=OuterRef('pk'))
         groups_qs = (
