@@ -1102,6 +1102,13 @@ def api_inspections(request):
 
         groups = groups_qs[:200]
 
+        def _has_file(insp_obj, category):
+            """Check if a file exists on disk for this inspection + category."""
+            if not insp_obj.client_id:
+                return False
+            cat_dir = os.path.join(settings.MEDIA_ROOT, 'docs', str(insp_obj.client_id), str(insp_obj.id), category)
+            return os.path.isdir(cat_dir) and bool(os.listdir(cat_dir))
+
         results = []
         for g in groups:
             # Use prefetched inspections (no extra DB query)
@@ -1155,10 +1162,10 @@ def api_inspections(request):
                 'approved_status': g.first_approved or 'PENDING',
                 'sent_date': g.first_sent.isoformat() if g.first_sent else None,
                 'is_occurrence_report': g.is_occurrence_report,
-                'has_rfi': g.has_rfi,
-                'has_invoice': g.has_invoice,
-                'has_lab': g.has_lab,
-                'has_compliance': g.has_compliance,
+                'has_rfi': any(_has_file(p_obj, 'rfi') for p_obj in inspections),
+                'has_invoice': any(_has_file(p_obj, 'invoice') for p_obj in inspections),
+                'has_lab': any(_has_file(p_obj, 'lab') or _has_file(p_obj, 'coa') for p_obj in inspections),
+                'has_compliance': any(p['compliance_uploaded'] for p in products),
                 'email': '; '.join(filter(None, [
                     g.client.email if g.client else '',
                     g.additional_email or '',
