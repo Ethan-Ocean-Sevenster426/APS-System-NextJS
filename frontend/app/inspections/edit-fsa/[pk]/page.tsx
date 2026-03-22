@@ -293,8 +293,7 @@ export default function EditInspectionPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ msg: data.message || "Inspection updated successfully!", ok: true });
-        setTimeout(() => { window.location.href = "/inspections"; }, 1500);
+        window.location.href = "/inspections";
       } else {
         setToast({ msg: "Error: " + (data.error || "Unknown error"), ok: false });
       }
