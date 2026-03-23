@@ -1481,20 +1481,101 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
 // ════════════════════════════════════════════════════════════════════════════════
 
 function CompliancePanel({ data }: { data: AnalyticsData }) {
-  // Commodity compliance trend
+  const [trendView, setTrendView] = useState<"daily" | "weekly" | "monthly">("monthly");
+  const [trendOffset, setTrendOffset] = useState(0); // 0 = latest, negative = back in time
+
+  // Build trend data based on selected view
+  const buildTrendData = () => {
+    if (trendView === "monthly") {
+      const months = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
+      const windowSize = 6;
+      const end = months.length + trendOffset;
+      const start = Math.max(0, end - windowSize);
+      const visibleMonths = months.slice(start, end > 0 ? end : months.length);
+      const commodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
+      return {
+        labels: visibleMonths.map(fmtMonth),
+        datasets: commodities.map((c, i) => ({
+          label: c,
+          data: visibleMonths.map((m) => {
+            const row = data.monthlyComplianceTrend.find((r) => r.month === m && r.commodity === c);
+            return row ? row.compliance_rate : 0;
+          }),
+          borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          ...lineDefaults,
+        })),
+        canBack: start > 0,
+        canForward: trendOffset < 0,
+      };
+    } else if (trendView === "daily") {
+      const days = [...new Set(data.dailyComplianceTrend.map((d) => d.day))].sort();
+      const windowSize = 14;
+      const end = days.length + trendOffset;
+      const start = Math.max(0, end - windowSize);
+      const visibleDays = days.slice(start, end > 0 ? end : days.length);
+      const commodities = [...new Set(data.dailyComplianceTrend.map((d) => d.commodity))];
+      return {
+        labels: visibleDays.map(d => { const dt = new Date(d + "T12:00:00"); return `${dt.getDate()}/${dt.getMonth()+1}`; }),
+        datasets: commodities.map((c, i) => ({
+          label: c,
+          data: visibleDays.map((day) => {
+            const row = data.dailyComplianceTrend.find((r) => r.day === day && r.commodity === c);
+            return row ? row.compliance_rate : 0;
+          }),
+          borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          ...lineDefaults,
+        })),
+        canBack: start > 0,
+        canForward: trendOffset < 0,
+      };
+    } else {
+      // Weekly: group daily data by week
+      const days = [...new Set(data.dailyComplianceTrend.map((d) => d.day))].sort();
+      const commodities = [...new Set(data.dailyComplianceTrend.map((d) => d.commodity))];
+      const weekMap: Record<string, Record<string, { total: number; compliant: number }>> = {};
+      data.dailyComplianceTrend.forEach(d => {
+        const dt = new Date(d.day + "T12:00:00");
+        const weekStart = new Date(dt);
+        weekStart.setDate(dt.getDate() - dt.getDay());
+        const key = weekStart.toISOString().split("T")[0];
+        if (!weekMap[key]) weekMap[key] = {};
+        if (!weekMap[key][d.commodity]) weekMap[key][d.commodity] = { total: 0, compliant: 0 };
+        weekMap[key][d.commodity].total += d.total;
+        weekMap[key][d.commodity].compliant += d.compliant;
+      });
+      const weeks = Object.keys(weekMap).sort();
+      const windowSize = 8;
+      const end = weeks.length + trendOffset;
+      const start = Math.max(0, end - windowSize);
+      const visibleWeeks = weeks.slice(start, end > 0 ? end : weeks.length);
+      return {
+        labels: visibleWeeks.map(w => { const dt = new Date(w + "T12:00:00"); return `W${Math.ceil(dt.getDate()/7)} ${dt.toLocaleString("en", {month:"short"})}`; }),
+        datasets: commodities.map((c, i) => ({
+          label: c,
+          data: visibleWeeks.map(w => {
+            const d = weekMap[w]?.[c];
+            return d && d.total > 0 ? Math.round((d.compliant / d.total) * 100 * 10) / 10 : 0;
+          }),
+          borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
+          ...lineDefaults,
+        })),
+        canBack: start > 0,
+        canForward: trendOffset < 0,
+      };
+    }
+  };
+
+  const trendData = buildTrendData();
+  const compTrend = { labels: trendData.labels, datasets: trendData.datasets };
+
+  // Legacy: keep for reference
   const months = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
   const commodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
-  const compTrend = {
-    labels: months.map(fmtMonth),
-    datasets: commodities.map((c, i) => ({
-      label: c,
-      data: months.map((m) => {
-        const row = data.monthlyComplianceTrend.find((r) => r.month === m && r.commodity === c);
-        return row ? row.compliance_rate : 0;
-      }),
-      borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
-      backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
-      ...lineDefaults,
+  // unused but kept for other charts in this panel
+  void months; void commodities;
     })),
   };
 
@@ -1564,7 +1645,26 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
-      <Card title="Commodity Compliance Trend (%)" icon="fas fa-chart-line" tooltip="Monthly compliance rate trend for each commodity type as a percentage.">
+      <Card title="Commodity Compliance Trend (%)" icon="fas fa-chart-line" tooltip="Compliance rate trend for each commodity. Toggle between daily, weekly, and monthly views. Use arrows to scroll through time."
+        headerRight={
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <button onClick={() => { setTrendOffset(o => o - 1); }} disabled={!trendData.canBack}
+              style={{ padding: "3px 8px", border: "1px solid #e5e7eb", borderRadius: 4, background: trendData.canBack ? "#fff" : "#f3f4f6", cursor: trendData.canBack ? "pointer" : "default", fontSize: 12, color: trendData.canBack ? "#374151" : "#d1d5db" }}>
+              <i className="fas fa-chevron-left" />
+            </button>
+            {(["daily", "weekly", "monthly"] as const).map(v => (
+              <button key={v} onClick={() => { setTrendView(v); setTrendOffset(0); }}
+                style={{ padding: "3px 10px", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: 11, fontWeight: trendView === v ? 700 : 400, background: trendView === v ? "#007890" : "#fff", color: trendView === v ? "#fff" : "#374151", cursor: "pointer" }}>
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+            <button onClick={() => { setTrendOffset(o => Math.min(o + 1, 0)); }} disabled={!trendData.canForward}
+              style={{ padding: "3px 8px", border: "1px solid #e5e7eb", borderRadius: 4, background: trendData.canForward ? "#fff" : "#f3f4f6", cursor: trendData.canForward ? "pointer" : "default", fontSize: 12, color: trendData.canForward ? "#374151" : "#d1d5db" }}>
+              <i className="fas fa-chevron-right" />
+            </button>
+          </div>
+        }
+      >
         <ChartWrap height="240px">
           <Line data={compTrend} options={baseChartOptions(undefined, "Compliance %") as never} />
         </ChartWrap>
