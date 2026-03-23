@@ -50,14 +50,16 @@ const styles = {
     fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
     color: "#1f2937",
     padding: "1.5rem",
+    width: "100%",
+    maxWidth: "100%",
   } as React.CSSProperties,
 
   filterCard: {
-    background: "rgba(255,255,255,0.92)",
+    background: "#ffffff",
     borderRadius: "8px",
-    padding: "0.75rem 1rem",
-    marginBottom: "0.75rem",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+    padding: "1rem 1.25rem",
+    marginBottom: "1rem",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
     border: "1px solid #e5e7eb",
   } as React.CSSProperties,
 
@@ -133,11 +135,11 @@ const styles = {
   } as React.CSSProperties,
 
   treeContainer: {
-    background: "#1e293b",
+    background: "#ffffff",
     borderRadius: "8px",
     padding: "1.5rem",
-    border: "1px solid rgba(255,255,255,0.1)",
-    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+    border: "1px solid #e5e7eb",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
   } as React.CSSProperties,
 
   treeHeading: {
@@ -145,7 +147,7 @@ const styles = {
     alignItems: "center",
     fontSize: "1.15rem",
     fontWeight: 600,
-    color: "#f1f5f9",
+    color: "#1f2937",
     marginBottom: "1rem",
     gap: "0.75rem",
   } as React.CSSProperties,
@@ -153,7 +155,7 @@ const styles = {
   treeFont: {
     fontFamily: "'Courier New', monospace",
     fontSize: "0.875rem",
-    color: "#f1f5f9",
+    color: "#374151",
   } as React.CSSProperties,
 
   nodeRow: (level: number) =>
@@ -162,24 +164,24 @@ const styles = {
       alignItems: "center",
       padding: "0.45rem 0.5rem",
       paddingLeft: `${level * 1.5 + 0.5}rem`,
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid #f3f4f6",
       cursor: "pointer",
       transition: "background 0.15s",
       borderLeft:
-        level > 0 ? "1px solid rgba(255,255,255,0.1)" : "none",
+        level > 0 ? "1px solid #e5e7eb" : "none",
       marginLeft: level > 0 ? `${(level - 1) * 1.5 + 0.5}rem` : "0",
     }) as React.CSSProperties,
 
   folderName: {
     flex: 1,
     fontWeight: 600,
-    color: "#f1f5f9",
+    color: "#1f2937",
   } as React.CSSProperties,
 
   fileName: {
     flex: 1,
     fontWeight: 400,
-    color: "#cbd5e1",
+    color: "#6b7280",
   } as React.CSSProperties,
 
   badge: {
@@ -528,21 +530,22 @@ export default function ServerViewPage() {
       />
 
       <div style={styles.page}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ width: "100%" }}>
         {/* Page Title */}
         <h1
           style={{
             fontSize: "1.4rem",
             fontWeight: 700,
-            color: "#1f2937",
+            color: "#fff",
             marginBottom: "1rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "0.5rem",
+            textShadow: "0 1px 4px rgba(0,0,0,0.5)",
           }}
         >
-          <i className="fa fa-database" style={{ color: PRIMARY }} />
+          <i className="fa fa-database" style={{ color: "#5ee8ff" }} />
           Server View
         </h1>
 
