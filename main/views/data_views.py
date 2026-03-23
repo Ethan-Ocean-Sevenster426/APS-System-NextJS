@@ -3178,9 +3178,11 @@ def api_server_view(request):
             client_map[str(c.id)] = c.name
 
         insp_map = {}
+        insp_dates = {}  # inspection_id -> date string
         for i in FoodSafetyAgencyInspection.objects.all().only('id', 'commodity', 'product_name', 'date_of_inspection'):
             date_str = i.date_of_inspection.strftime('%d %b %Y') if i.date_of_inspection else ''
             insp_map[str(i.id)] = f"[{date_str}] {i.product_name or 'Unknown'} ({i.commodity or '?'})"
+            insp_dates[str(i.id)] = date_str
 
         docs_root = os.path.join(_s.MEDIA_ROOT, 'docs')
         tree, total_folders, total_files = [], 0, 0
@@ -3189,13 +3191,16 @@ def api_server_view(request):
                 cp = os.path.join(docs_root, cd)
                 if not os.path.isdir(cp): continue
                 total_folders += 1
-                client_label = client_map.get(cd, f"Client {cd}")
-                cn = {'name': client_label, 'type': 'client', 'children': []}
+                client_name_raw = client_map.get(cd, f"Client {cd}")
+                client_dates = set()
+                cn = {'name': '', 'type': 'client', 'children': []}
                 for idir in sorted(os.listdir(cp)):
                     ip = os.path.join(cp, idir)
                     if not os.path.isdir(ip): continue
                     total_folders += 1
                     insp_label = insp_map.get(idir, f"Inspection {idir}")
+                    if idir in insp_dates and insp_dates[idir]:
+                        client_dates.add(insp_dates[idir])
                     inode = {'name': insp_label, 'type': 'inspection', 'children': []}
                     for catd in sorted(os.listdir(ip)):
                         catp = os.path.join(ip, catd)
@@ -3210,6 +3215,15 @@ def api_server_view(request):
                                 files.append({'name': f, 'size': os.path.getsize(fp), 'path': rel_path})
                         inode['children'].append({'name': catd, 'type': 'category', 'files': files})
                     cn['children'].append(inode)
+                # Add dates to client folder name
+                if client_dates:
+                    sorted_dates = sorted(client_dates)
+                    if len(sorted_dates) == 1:
+                        cn['name'] = f"{client_name_raw} — {sorted_dates[0]}"
+                    else:
+                        cn['name'] = f"{client_name_raw} — {sorted_dates[0]} to {sorted_dates[-1]}"
+                else:
+                    cn['name'] = client_name_raw
                 tree.append(cn)
         return _cors(JsonResponse({'success': True, 'tree': tree, 'total_folders': total_folders, 'total_files': total_files}))
     except Exception as e:
