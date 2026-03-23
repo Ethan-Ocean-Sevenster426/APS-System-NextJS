@@ -1571,13 +1571,6 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   const trendData = buildTrendData();
   const compTrend = { labels: trendData.labels, datasets: trendData.datasets };
 
-  // Legacy: keep for reference
-  const months = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
-  const commodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
-  // unused but kept for other charts in this panel
-  void months; void commodities;
-    })),
-  };
 
   // Weekly/monthly commodity trends (stacked bar)
   const trendMonths = [...new Set(data.monthlyCommodityTrends.map((d) => d.month))].sort();
