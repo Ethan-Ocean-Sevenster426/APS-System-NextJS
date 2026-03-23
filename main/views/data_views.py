@@ -1487,6 +1487,7 @@ def get_inspection_fee_history(request):
 # CLIENT ALLOCATION API ENDPOINTS (No login required - for Next.js frontend)
 # =============================================================================
 
+@_csrf_exempt
 def api_client_add(request):
     """API endpoint to add a new client allocation record. No login required."""
     from ..models import ClientAllocation
@@ -1579,6 +1580,7 @@ def api_client_add(request):
         return _cors(JsonResponse({'success': False, 'error': str(e)}))
 
 
+@_csrf_exempt
 def api_client_edit(request):
     """API endpoint to edit an existing client allocation record. No login required."""
     from ..models import ClientAllocation
@@ -1641,6 +1643,7 @@ def api_client_edit(request):
         return _cors(JsonResponse({'success': False, 'error': str(e)}))
 
 
+@_csrf_exempt
 def api_client_delete(request):
     """API endpoint to delete a client allocation record. No login required."""
     from ..models import ClientAllocation
