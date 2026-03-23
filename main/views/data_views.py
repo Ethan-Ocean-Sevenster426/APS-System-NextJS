@@ -1138,11 +1138,6 @@ def api_inspections(request):
             products = []
             is_non_compliant = any(getattr(p, 'is_direction_present_for_this_inspection', False) for p in inspections)
             for p in inspections:
-                # Check if compliance file exists on disk for this inspection
-                compliance_on_disk = False
-                if p.client_id:
-                    compliance_dir = os.path.join(settings.MEDIA_ROOT, 'docs', str(p.client_id), str(p.id), 'compliance')
-                    compliance_on_disk = os.path.isdir(compliance_dir) and bool(os.listdir(compliance_dir))
                 products.append({
                     'id': p.id,
                     'commodity': p.commodity or '',
@@ -1156,13 +1151,13 @@ def api_inspections(request):
                     'is_product_compliant': bool(p.is_product_compliant),
                     'is_sample_taken': bool(p.is_sample_taken) if p.is_sample_taken is not None else False,
                     'needs_retest': p.needs_retest or '',
-                    'coa_uploaded': bool(p.coa_uploaded_date),
-                    'composition_uploaded': bool(p.composition_uploaded_by_id),
-                    'compliance_uploaded': compliance_on_disk,
-                    'occurrence_uploaded': bool(p.occurrence_uploaded_date),
-                    'retest_uploaded': bool(p.retest_uploaded_date),
-                    'other_uploaded': bool(p.other_uploaded_date),
-                    'lab_form_uploaded': bool(p.lab_form_uploaded_date),
+                    'coa_uploaded': _has_file(p, 'lab') or _has_file(p, 'coa'),
+                    'composition_uploaded': _has_file(p, 'composition'),
+                    'compliance_uploaded': _has_file(p, 'compliance'),
+                    'occurrence_uploaded': _has_file(p, 'occurrence'),
+                    'retest_uploaded': _has_file(p, 'retest'),
+                    'other_uploaded': _has_file(p, 'other'),
+                    'lab_form_uploaded': _has_file(p, 'lab_form'),
                     'lab': p.get_lab_display() if p.lab else '',
                 })
 
