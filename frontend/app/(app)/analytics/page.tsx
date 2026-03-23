@@ -965,10 +965,6 @@ export default function AnalyticsPage() {
             />
           </div>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
-            <button onClick={handleApply}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-filter" /> Apply
-            </button>
             <button onClick={handleReset}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <i className="fas fa-undo" /> Reset
