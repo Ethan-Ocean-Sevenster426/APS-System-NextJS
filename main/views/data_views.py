@@ -3170,6 +3170,18 @@ def api_server_view(request):
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({'ok': True}))
     try:
+        from ..models import Client, FoodSafetyAgencyInspection
+
+        # Build lookup maps for human-readable names
+        client_map = {}
+        for c in Client.objects.all().only('id', 'name'):
+            client_map[str(c.id)] = c.name
+
+        insp_map = {}
+        for i in FoodSafetyAgencyInspection.objects.all().only('id', 'commodity', 'product_name', 'date_of_inspection'):
+            date_str = i.date_of_inspection.strftime('%Y-%m-%d') if i.date_of_inspection else ''
+            insp_map[str(i.id)] = f"{i.product_name or 'Unknown'} ({i.commodity or '?'}) - {date_str}"
+
         docs_root = os.path.join(_s.MEDIA_ROOT, 'docs')
         tree, total_folders, total_files = [], 0, 0
         if os.path.exists(docs_root):
@@ -3177,12 +3189,14 @@ def api_server_view(request):
                 cp = os.path.join(docs_root, cd)
                 if not os.path.isdir(cp): continue
                 total_folders += 1
-                cn = {'name': cd, 'type': 'client', 'children': []}
+                client_label = client_map.get(cd, f"Client {cd}")
+                cn = {'name': client_label, 'type': 'client', 'children': []}
                 for idir in sorted(os.listdir(cp)):
                     ip = os.path.join(cp, idir)
                     if not os.path.isdir(ip): continue
                     total_folders += 1
-                    inode = {'name': idir, 'type': 'inspection', 'children': []}
+                    insp_label = insp_map.get(idir, f"Inspection {idir}")
+                    inode = {'name': insp_label, 'type': 'inspection', 'children': []}
                     for catd in sorted(os.listdir(ip)):
                         catp = os.path.join(ip, catd)
                         if not os.path.isdir(catp): continue
