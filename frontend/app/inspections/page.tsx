@@ -149,8 +149,10 @@ export default function InspectionsPage() {
   const [dateTo, setDateTo] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [showUndeliverable, setShowUndeliverable] = useState(false);
   const [duplicateGroupsCount, setDuplicateGroupsCount] = useState(0);
   const [undeliverableCount, setUndeliverableCount] = useState(0);
+  const [undeliverableEmails, setUndeliverableEmails] = useState<string[]>([]);
 
   // Filter values (arrays for multi-select)
   const [inspectorFilter, setInspectorFilter] = useState<string[]>([]);
@@ -240,6 +242,19 @@ export default function InspectionsPage() {
         }
       })
       .catch(err => console.error("Fetch inspections failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const fetchUndeliverable = useCallback(() => {
+    setLoading(true);
+    fetch(`/api/inspections?show_undeliverable=true`)
+      .then(r => r.json())
+      .then(data => {
+        const results = data.results || data || [];
+        setInspections(results);
+        setTotal(data.count || results.length);
+      })
+      .catch(err => console.error("Fetch undeliverable failed:", err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1290,12 +1305,18 @@ export default function InspectionsPage() {
                       )}
                     </button>
                   ))}
-                  {roleLoaded && !isLabTech && (
-                    <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#ef4444", color: "#fff", borderRadius: 6 }}>
+                  {roleLoaded && !isLabTech && (showUndeliverable ? (
+                    <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
+                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); fetchInspections(false, dateFrom, dateTo); }}>
+                      <i className="fas fa-times" /> Clear Undeliverable
+                    </button>
+                  ) : (
+                    <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#ef4444", color: "#fff", borderRadius: 6 }}
+                      onClick={() => { setShowUndeliverable(true); setShowDuplicates(false); fetchUndeliverable(); }}>
                       <i className="fas fa-envelope-open-text" /> Undeliverable Emails
                       <span style={{ background: "#fff", color: "#ef4444", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{undeliverableCount}</span>
                     </button>
-                  )}
+                  ))}
                 </div>
               </form>
               )}

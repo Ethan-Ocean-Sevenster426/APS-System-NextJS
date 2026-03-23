@@ -1113,6 +1113,14 @@ def api_inspections(request):
         except Exception as _e:
             print(f"[WARN] api_inspections undeliverable check failed: {_e}")
 
+        # Filter to only undeliverable if requested
+        show_undeliverable = request.GET.get('show_undeliverable') == 'true'
+        if show_undeliverable and undeliverable_count > 0:
+            try:
+                groups_qs = groups_qs.filter(_undel_q)
+            except Exception:
+                pass
+
         # Filter to only duplicates if requested
         if show_duplicates:
             if _dup_q:
