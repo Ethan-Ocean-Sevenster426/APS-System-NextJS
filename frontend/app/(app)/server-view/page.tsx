@@ -305,24 +305,24 @@ export default function ServerViewPage() {
     [lowerSearch]
   );
 
-  // Extract date from inspection name like "[10 Mar 2026]"
-  const extractDate = (name: string): string | null => {
-    const m = name.match(/\[(\d{1,2}) (\w{3}) (\d{4})\]/);
-    if (!m) return null;
-    const months: Record<string, string> = { Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12" };
-    return `${m[3]}-${months[m[2]] || "01"}-${m[1].padStart(2, "0")}`;
-  };
-
-  const matchesDate = (inspName: string): boolean => {
-    if (!dateFrom && !dateTo) return true;
-    const d = extractDate(inspName);
-    if (!d) return true;
-    if (dateFrom && d < dateFrom) return false;
-    if (dateTo && d > dateTo) return false;
-    return true;
-  };
-
   const filteredTree = useMemo(() => {
+    // Extract date from inspection name like "[10 Mar 2026]"
+    const extractDate = (name: string): string | null => {
+      const m = name.match(/\[(\d{1,2}) (\w{3}) (\d{4})\]/);
+      if (!m) return null;
+      const mo: Record<string, string> = { Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12" };
+      return `${m[3]}-${mo[m[2]] || "01"}-${m[1].padStart(2, "0")}`;
+    };
+
+    const checkDate = (inspName: string): boolean => {
+      if (!dateFrom && !dateTo) return true;
+      const d = extractDate(inspName);
+      if (!d) return true;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    };
+
     if (!lowerSearch && !dateFrom && !dateTo) return tree;
 
     return tree
@@ -349,7 +349,7 @@ export default function ServerViewPage() {
               })
               .filter(Boolean) as CategoryNode[];
 
-            if (!matchesDate(insp.name)) return null;
+            if (!checkDate(insp.name)) return null;
             if (
               matchesSearch(insp.name) ||
               filteredCategories.length > 0 ||
