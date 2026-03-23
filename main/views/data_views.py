@@ -3967,8 +3967,13 @@ def api_edit_inspection_group(request):
         if not inspection_id:
             return _insp_cors(JsonResponse({'success': False, 'error': 'inspection_id is required'}))
 
-        insp = _Insp.objects.select_related('inspection_group', 'client').get(pk=inspection_id)
-        group = insp.inspection_group
+        # Try as InspectionGroup first, then as FoodSafetyAgencyInspection
+        try:
+            group = _Group.objects.get(pk=inspection_id)
+            insp = _Insp.objects.filter(inspection_group=group).select_related('client').first()
+        except _Group.DoesNotExist:
+            insp = _Insp.objects.select_related('inspection_group', 'client').get(pk=inspection_id)
+            group = insp.inspection_group
 
         # Parse date
         from datetime import datetime as _datetime
