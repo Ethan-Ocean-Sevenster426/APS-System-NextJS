@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 interface FileEntry {
   name: string;
   size: number;
+  path?: string;
 }
 
 interface CategoryNode {
@@ -369,13 +370,14 @@ export default function ServerViewPage() {
   const renderFile = (
     file: FileEntry,
     level: number,
-    idx: number
+    idx: number,
+    filePath?: string
   ) => (
     <div
       key={`file-${idx}-${file.name}`}
-      style={styles.nodeRow(level)}
+      style={{ ...styles.nodeRow(level), gap: "0.5rem" }}
       onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "rgba(255,255,255,0.05)")
+        (e.currentTarget.style.background = "#f9fafb")
       }
       onMouseLeave={(e) =>
         (e.currentTarget.style.background = "transparent")
@@ -383,10 +385,24 @@ export default function ServerViewPage() {
     >
       <span style={styles.toggleIcon} />
       <span style={styles.icon}>
-        <i className="fa fa-file" style={{ color: "#6b7280" }} />
+        <i className="fa fa-file-pdf" style={{ color: "#ef4444" }} />
       </span>
       <span style={styles.fileName}>{file.name}</span>
       <span style={styles.fileSize}>{formatFileSize(file.size)}</span>
+      {filePath && (
+        <span style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          <a href={`/api/serve-file?file=${encodeURIComponent(filePath)}&action=view`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ padding: "2px 8px", background: "#007890", color: "#fff", borderRadius: 4, fontSize: "0.65rem", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <i className="fas fa-eye" /> View
+          </a>
+          <a href={`/api/serve-file?file=${encodeURIComponent(filePath)}&action=download`}
+            download={file.name}
+            style={{ padding: "2px 8px", background: "#3b82f6", color: "#fff", borderRadius: 4, fontSize: "0.65rem", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <i className="fas fa-download" /> Download
+          </a>
+        </span>
+      )}
     </div>
   );
 
@@ -428,7 +444,7 @@ export default function ServerViewPage() {
         </div>
         {isOpen &&
           cat.files.map((file, idx) =>
-            renderFile(file, level + 1, idx)
+            renderFile(file, level + 1, idx, file.path)
           )}
       </div>
     );

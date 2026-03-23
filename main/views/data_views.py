@@ -3206,7 +3206,8 @@ def api_server_view(request):
                             fp = os.path.join(catp, f)
                             if os.path.isfile(fp):
                                 total_files += 1
-                                files.append({'name': f, 'size': os.path.getsize(fp)})
+                                rel_path = os.path.join('docs', cd, idir, catd, f)
+                                files.append({'name': f, 'size': os.path.getsize(fp), 'path': rel_path})
                         inode['children'].append({'name': catd, 'type': 'category', 'files': files})
                     cn['children'].append(inode)
                 tree.append(cn)
