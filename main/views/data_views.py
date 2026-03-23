@@ -2800,15 +2800,20 @@ def api_system_logs(request):
     try:
         from datetime import datetime as _dt
         import math as _math
-        # Exclude duplicate logs from v4 Django middleware
-        # The middleware creates generic descriptions like "X uploaded a file on Api/Upload Document"
-        # Keep only the specific upload logs from the APS upload function
+        # Exclude duplicate/ghost logs from v4 Django middleware sharing the same DB
+        # Filter out: generic middleware entries, and entries from users who only exist on v4
+        # (Simphiwe's file uploads are ghost entries from shared session DB)
         logs = SystemLog.objects.select_related('user').order_by('-timestamp').exclude(
             description__icontains='uploaded a file on'
         ).exclude(
             description__icontains='went to'
         ).exclude(
             description__icontains='viewed', page__startswith='/api/'
+        ).exclude(
+            # Exclude file uploads attributed to v4-only users via shared sessions
+            user__username='Simphiwe', page__startswith='/api/'
+        ).exclude(
+            user__username='Armand', page__startswith='/api/'
         )
         user_filter = request.GET.get('user', '')
         action_filter = request.GET.get('action', '')
