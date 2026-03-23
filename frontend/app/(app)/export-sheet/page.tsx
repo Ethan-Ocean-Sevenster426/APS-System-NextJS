@@ -70,6 +70,7 @@ export default function ExportSheetPage() {
 
   // ── Client-side filters ─────────────────────────────────────────────────────
   const [clientFilter, setClientFilter] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [inspectorFilter, setInspectorFilter] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
@@ -365,9 +366,36 @@ export default function ExportSheetPage() {
           <div style={{ padding: 16, background: "#f9fafb" }}>
             {/* Filters */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
-              <div>
+              <div style={{ position: "relative" }}>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Client</label>
-                <input type="text" placeholder="Search..." value={clientFilter} onChange={e => setClientFilter(e.target.value)} style={inp} />
+                <input type="text" placeholder="Search or select client..." value={clientFilter}
+                  onChange={e => { setClientFilter(e.target.value); setClientDropdownOpen(true); }}
+                  onFocus={() => setClientDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setClientDropdownOpen(false), 200)}
+                  style={inp} />
+                {clientDropdownOpen && clientFilter.length > 0 && (() => {
+                  const clientNames = Array.from(new Set(allItems.map(i => i.client_name).filter(Boolean))).sort();
+                  const matches = clientNames.filter(n => n.toLowerCase().includes(clientFilter.toLowerCase())).slice(0, 15);
+                  if (matches.length === 0) return null;
+                  return (
+                    <div style={{
+                      position: "absolute", top: "100%", left: 0, right: 0,
+                      background: "#fff", border: "1px solid #d1d5db", borderRadius: "0 0 6px 6px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 9999,
+                      maxHeight: 200, overflowY: "auto",
+                    }}>
+                      {matches.map(name => (
+                        <div key={name}
+                          style={{ padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", borderBottom: "1px solid #f3f4f6" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#e6f3f7")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                          onMouseDown={() => { setClientFilter(name); setClientDropdownOpen(false); }}>
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Inspector</label>
