@@ -171,7 +171,7 @@ export default function SettingsPage() {
             background: "#fff", borderRadius: 12,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             padding: "28px 32px",
-            maxWidth: 900, margin: "0 auto",
+            width: "100%",
           }}>
             {/* Section Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
