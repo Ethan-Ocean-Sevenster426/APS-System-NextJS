@@ -304,6 +304,17 @@ export default function ClientsPage() {
     return () => document.removeEventListener("click", handleClick);
   }, []);
 
+  // Auto-search when client name changes (debounced)
+  useEffect(() => {
+    if (!filterClientName) return;
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchClients(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterClientName]);
+
   /* ---- handlers ---- */
   const applyFilters = () => {
     setPage(1);
