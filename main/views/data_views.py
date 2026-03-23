@@ -3179,8 +3179,8 @@ def api_server_view(request):
 
         insp_map = {}
         for i in FoodSafetyAgencyInspection.objects.all().only('id', 'commodity', 'product_name', 'date_of_inspection'):
-            date_str = i.date_of_inspection.strftime('%Y-%m-%d') if i.date_of_inspection else ''
-            insp_map[str(i.id)] = f"{i.product_name or 'Unknown'} ({i.commodity or '?'}) - {date_str}"
+            date_str = i.date_of_inspection.strftime('%d %b %Y') if i.date_of_inspection else ''
+            insp_map[str(i.id)] = f"[{date_str}] {i.product_name or 'Unknown'} ({i.commodity or '?'})"
 
         docs_root = os.path.join(_s.MEDIA_ROOT, 'docs')
         tree, total_folders, total_files = [], 0, 0
