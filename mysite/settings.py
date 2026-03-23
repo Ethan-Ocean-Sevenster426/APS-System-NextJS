@@ -119,10 +119,10 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inspection_system',
+        'NAME': 'aps_test_db',
         'USER': 'inspection_user',
         'PASSWORD': 'InspectionTest2026',
-        'HOST': '82.25.97.159',
+        'HOST': '167.88.43.168',
         'PORT': '5432',
     },
 }
