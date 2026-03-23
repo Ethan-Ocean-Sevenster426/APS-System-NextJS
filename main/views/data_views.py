@@ -2800,7 +2800,16 @@ def api_system_logs(request):
     try:
         from datetime import datetime as _dt
         import math as _math
-        logs = SystemLog.objects.select_related('user').order_by('-timestamp')
+        # Exclude duplicate logs from v4 Django middleware
+        # The middleware creates generic descriptions like "X uploaded a file on Api/Upload Document"
+        # Keep only the specific upload logs from the APS upload function
+        logs = SystemLog.objects.select_related('user').order_by('-timestamp').exclude(
+            description__icontains='uploaded a file on'
+        ).exclude(
+            description__icontains='went to'
+        ).exclude(
+            description__icontains='viewed', page__startswith='/api/'
+        )
         user_filter = request.GET.get('user', '')
         action_filter = request.GET.get('action', '')
         page_filter = request.GET.get('page_filter', '')
