@@ -3991,6 +3991,7 @@ def api_edit_inspection_group(request):
         group_type = data.get('group_type', '').strip()
         facility_type = data.get('facility_type', '').strip()
         additional_email = data.get('additional_email', '').strip()
+        client_email = data.get('client_email', '').strip()
         comment = data.get('comment', '').strip()
         km_traveled = float(data.get('km_traveled', 0) or 0)
         hours = float(data.get('hours', 0) or 0)
@@ -4027,6 +4028,15 @@ def api_edit_inspection_group(request):
                     except Exception:
                         pass
                 group.save()
+
+                # Update client email if provided
+                if group.client and additional_email:
+                    # First email in the list is the primary
+                    all_emails = [e.strip() for e in additional_email.replace(',', ';').split(';') if e.strip()]
+                    if all_emails:
+                        group.client.email = all_emails[0]
+                        group.client.save(update_fields=['email'])
+
                 related_inspections = list(_Insp.objects.filter(inspection_group=group).order_by('commodity', 'id'))
             else:
                 related_inspections = [insp]
