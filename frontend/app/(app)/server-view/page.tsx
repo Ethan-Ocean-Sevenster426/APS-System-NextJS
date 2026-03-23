@@ -236,6 +236,9 @@ export default function ServerViewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Fetch data
@@ -302,8 +305,25 @@ export default function ServerViewPage() {
     [lowerSearch]
   );
 
+  // Extract date from inspection name like "[10 Mar 2026]"
+  const extractDate = (name: string): string | null => {
+    const m = name.match(/\[(\d{1,2}) (\w{3}) (\d{4})\]/);
+    if (!m) return null;
+    const months: Record<string, string> = { Jan:"01",Feb:"02",Mar:"03",Apr:"04",May:"05",Jun:"06",Jul:"07",Aug:"08",Sep:"09",Oct:"10",Nov:"11",Dec:"12" };
+    return `${m[3]}-${months[m[2]] || "01"}-${m[1].padStart(2, "0")}`;
+  };
+
+  const matchesDate = (inspName: string): boolean => {
+    if (!dateFrom && !dateTo) return true;
+    const d = extractDate(inspName);
+    if (!d) return true;
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
+  };
+
   const filteredTree = useMemo(() => {
-    if (!lowerSearch) return tree;
+    if (!lowerSearch && !dateFrom && !dateTo) return tree;
 
     return tree
       .map((client) => {
@@ -329,13 +349,15 @@ export default function ServerViewPage() {
               })
               .filter(Boolean) as CategoryNode[];
 
+            if (!matchesDate(insp.name)) return null;
             if (
               matchesSearch(insp.name) ||
-              filteredCategories.length > 0
+              filteredCategories.length > 0 ||
+              (!lowerSearch)
             ) {
               return {
                 ...insp,
-                children: matchesSearch(insp.name)
+                children: matchesSearch(insp.name) || !lowerSearch
                   ? insp.children
                   : filteredCategories,
               };
@@ -358,7 +380,8 @@ export default function ServerViewPage() {
         return null;
       })
       .filter(Boolean) as ClientNode[];
-  }, [tree, lowerSearch, matchesSearch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree, lowerSearch, matchesSearch, dateFrom, dateTo]);
 
   // When searching, auto-expand everything so results are visible
   const effectiveExpanded = useMemo(() => {
@@ -572,30 +595,50 @@ export default function ServerViewPage() {
             Filter Files &amp; Folders
           </div>
 
-          <div style={styles.searchWrapper}>
-            <i className="fa fa-search" style={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search files and folders..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={styles.searchInput}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = PRIMARY;
-                e.currentTarget.style.boxShadow = `0 0 0 3px #e6f3f7`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#e5e7eb";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            />
-            {search && (
-              <button
-                style={styles.clearBtn}
-                onClick={() => setSearch("")}
-                title="Clear search"
-              >
-                <i className="fa fa-times" />
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ ...styles.searchWrapper, position: "relative" }}>
+              <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Search</label>
+              <i className="fa fa-search" style={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search files and folders..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setSearchDropdownOpen(true); }}
+                onFocus={() => setSearchDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setSearchDropdownOpen(false), 200)}
+                style={styles.searchInput}
+              />
+              {searchDropdownOpen && search.length > 0 && (() => {
+                const matches = tree.map(c => c.name).filter(n => n.toLowerCase().includes(search.toLowerCase())).slice(0, 10);
+                if (matches.length === 0) return null;
+                return (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d1d5db", borderRadius: "0 0 6px 6px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 200, overflowY: "auto" }}>
+                    {matches.map(name => (
+                      <div key={name} style={{ padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", borderBottom: "1px solid #f3f4f6" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#e6f3f7")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        onMouseDown={() => { setSearch(name.split(" — ")[0]); setSearchDropdownOpen(false); }}>
+                        {name}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <div>
+              <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Date From</label>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                style={{ padding: "0.5rem", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.8rem" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 2 }}>Date To</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                style={{ padding: "0.5rem", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.8rem" }} />
+            </div>
+            {(dateFrom || dateTo || search) && (
+              <button onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); }}
+                style={{ padding: "0.5rem 1rem", background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, fontSize: "0.75rem", fontWeight: 600, cursor: "pointer" }}>
+                <i className="fas fa-times" style={{ marginRight: 4 }} /> Clear
               </button>
             )}
           </div>
