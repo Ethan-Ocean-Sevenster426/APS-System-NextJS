@@ -65,7 +65,6 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
   ]),
   admin: new Set([
     "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/debtors",
-    "/system-logs",
     "/training", "/submit-ticket",
   ]),
   financial: new Set([
