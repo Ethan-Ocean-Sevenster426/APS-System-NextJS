@@ -366,16 +366,13 @@ export default function ServerViewPage() {
           })
           .filter(Boolean) as InspectionNode[];
 
-        if (
-          matchesSearch(client.name) ||
-          filteredInspections.length > 0
-        ) {
-          return {
-            ...client,
-            children: matchesSearch(client.name)
-              ? client.children
-              : filteredInspections,
-          };
+        const hasDateFilter = !!(dateFrom || dateTo);
+        const useChildren = hasDateFilter
+          ? filteredInspections
+          : (matchesSearch(client.name) ? client.children : filteredInspections);
+
+        if (useChildren.length > 0 || (!hasDateFilter && matchesSearch(client.name))) {
+          return { ...client, children: useChildren };
         }
         return null;
       })
