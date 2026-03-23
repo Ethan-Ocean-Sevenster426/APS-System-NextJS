@@ -162,6 +162,7 @@ export default function InspectionsPage() {
   const [complianceFilter, setComplianceFilter] = useState<string[]>([]);
   const [approvedFilter, setApprovedFilter] = useState<string[]>([]);
   const [fileStatusFilter, setFileStatusFilter] = useState<string[]>([]);
+  const [emailFilter, setEmailFilter] = useState("");
   const [role, setRole] = useState<string | null>(null);
 
   // Lab-tech specific filters
@@ -570,6 +571,11 @@ export default function InspectionsPage() {
       }
       if (complianceFilter.length > 0 && !complianceFilter.includes(s.inspection_compliance_status || "")) return false;
       if (approvedFilter.length > 0 && !approvedFilter.includes(s.approved_status || "")) return false;
+      if (emailFilter.trim()) {
+        const emailSearch = emailFilter.trim().toLowerCase();
+        const allEmails = (s.email || "").toLowerCase();
+        if (!allEmails.includes(emailSearch)) return false;
+      }
       if (fileStatusFilter.length > 0) {
         const hasFiles = s.has_rfi || s.has_invoice || s.has_lab || s.has_compliance;
         if (fileStatusFilter.includes("HAS_FILES") && fileStatusFilter.includes("NO_FILES")) { /* both = no filter */ }
@@ -1270,6 +1276,10 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
                   <IrMultiSelect label="Approved Status" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
                   <IrMultiSelect label="File Status" options={["HAS_FILES", "NO_FILES"]} selected={fileStatusFilter} onChange={setFileStatusFilter} />
+                  <div className="ir-filter-field">
+                    <label className="ir-form-label">Email</label>
+                    <input type="text" className="ir-form-control" value={emailFilter} onChange={e => setEmailFilter(e.target.value)} placeholder="Filter by email..." />
+                  </div>
                 </div>
 
                 {/* Row 3 — lab tech only */}
@@ -1285,7 +1295,7 @@ export default function InspectionsPage() {
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
-                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); }}>
+                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); }}>
                     <i className="fas fa-times" /> Clear All
                   </button>
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}>
