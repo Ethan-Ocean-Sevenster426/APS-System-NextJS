@@ -264,8 +264,11 @@ export default function ClientsPage() {
       params.set("page", String(pageNum));
 
       try {
+        console.log(`[Clients] Fetching: /api/clients?${params.toString()}`);
         const res = await fetch(`/api/clients?${params.toString()}`);
         const data: ApiResponse = await res.json();
+        console.log(`[Clients] Response:`, { total: data.total_count, clients: data.clients?.length, error: data.error });
+        if (data.clients?.length) console.log(`[Clients] First 3:`, data.clients.slice(0, 3).map(c => c.name));
         setClients(data.clients || []);
         setTotalCount(data.total_count || 0);
         setPage(data.page || 1);
@@ -412,14 +415,15 @@ export default function ClientsPage() {
         }),
       });
       const data = await res.json();
+      console.log(`[AddClient] Response:`, data);
       if (data.success) {
-        alert(data.message || "Client added successfully!");
         setShowAddModal(false);
         fetchClients(page);
       } else {
         alert("Error: " + (data.error || "Unknown error"));
       }
     } catch (e) {
+      console.error(`[AddClient] Error:`, e);
       alert("Network error: " + String(e));
     } finally {
       setModalSaving(false);

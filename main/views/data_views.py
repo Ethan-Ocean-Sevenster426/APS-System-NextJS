@@ -1570,6 +1570,20 @@ def api_client_add(request):
             manually_added=True,
         )
 
+        # Also create a Client record so it shows in the clients list
+        from ..models import Client
+        Client.objects.get_or_create(
+            name=business_name,
+            defaults={
+                'facility_type': facility_type,
+                'group_type': group_type,
+                'corporate_group': corporate_group,
+                'town': province,
+                'internal_account_code': internal_account_code,
+                'email': representative_email,
+            }
+        )
+
         return _cors(JsonResponse({
             'success': True,
             'message': f'Client {client_id} - {business_name} added successfully!',
