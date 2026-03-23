@@ -150,7 +150,6 @@ export default function LabAnalyticsPage() {
           <StatCard label="Tests Run"          value={data?.total_tests ?? 0}      icon="fa-flask"           color="#8b5cf6" loading={loading} />
           <StatCard label="Needs COA Upload"   value={data?.needs_coa ?? 0}        icon="fa-file-upload"     color="#f97316" loading={loading} />
           <StatCard label="Needs Retest"       value={data?.needs_retest ?? 0}     icon="fa-redo-alt"        color="#ef4444" loading={loading} />
-          <StatCard label="Labs Used"          value={data?.labs.length ?? 0}      icon="fa-hospital-symbol" color="#f59e0b" loading={loading} />
         </div>
 
         {/* Mid row: Tests breakdown + Monthly trend */}
