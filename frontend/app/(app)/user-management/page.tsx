@@ -505,16 +505,16 @@ export default function UserManagementPage() {
 .um-status-inactive { background-color: rgba(239, 68, 68, 0.12); color: #dc2626; }
 
 /* Form styles */
-.um-form-group { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 0.625rem; margin-bottom: 0.625rem; width: 100%; }
-.um-form-label { font-size: 0.6875rem; font-weight: 500; color: #1f2937; margin-bottom: 0.2rem; display: block; }
-.um-form-control { padding: 0.4rem 0.55rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.75rem; transition: all 0.2s ease; color: #1f2937; background-color: #ffffff; width: 100%; box-sizing: border-box; }
+.um-form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; width: 100%; }
+.um-form-label { font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.35rem; display: block; }
+.um-form-control { padding: 0.5rem 0.75rem; border: 1.5px solid #e5e7eb; border-radius: 6px; font-size: 0.85rem; transition: all 0.2s ease; color: #1f2937; background-color: #ffffff; width: 100%; box-sizing: border-box; }
 .um-form-control:focus { outline: none; border-color: #007890; box-shadow: 0 0 0 3px #e6f3f7; }
 
 /* Modal styles */
 .um-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; }
-.um-modal-content { background: #ffffff; padding: 1.25rem; border-radius: 10px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
-.um-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb; }
-.um-modal-title { font-size: 1.1rem; font-weight: 600; color: #1f2937; margin: 0; }
+.um-modal-content { background: #ffffff; padding: 1.5rem 2rem; border-radius: 12px; max-width: 600px; width: 92%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+.um-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e5e7eb; }
+.um-modal-title { font-size: 1.2rem; font-weight: 700; color: #1f2937; margin: 0; display: flex; align-items: center; gap: 8px; }
 .um-modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
 .um-modal-close:hover { background: #f3f4f6; }
 .um-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
