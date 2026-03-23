@@ -16434,7 +16434,6 @@ def get_zip_contents(request):
 
 
 @csrf_exempt
-@login_required
 def send_group_documents(request):
     """Send all documents for a grouped inspection via email and mark as sent."""
     if request.method != 'POST':
