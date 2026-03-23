@@ -1020,17 +1020,35 @@ def api_inspections(request):
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
 
-        # Compute duplicate groups: same client_name + date_of_inspection + inspector_name
-        # across multiple groups (different inspectors at same client on same day is NOT a duplicate)
+        # Compute duplicate groups: same client_name + date + inspector + SAME products
+        # Step 1: find client+date+inspector combos with >1 group
         _dup_triples = list(
             InspectionGroup.objects.values('client_name', 'date_of_inspection', 'inspector_name')
             .annotate(_gc=Count('id'))
             .filter(_gc__gt=1)
             .values_list('client_name', 'date_of_inspection', 'inspector_name')
         )
-        _dup_q = Q()
+        # Step 2: for each combo, get product signatures and only flag true duplicates
+        _dup_group_ids = set()
         for _dc, _dd, _di in _dup_triples:
-            _dup_q |= Q(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
+            _candidate_groups = list(
+                InspectionGroup.objects.filter(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
+                .prefetch_related('inspections')
+            )
+            # Build signature per group: sorted tuple of (commodity, product_name)
+            _sig_map = {}  # signature -> [group_ids]
+            for _cg in _candidate_groups:
+                _products = tuple(sorted(
+                    (_i.commodity or '', _i.product_name or '')
+                    for _i in _cg.inspections.all()
+                ))
+                _sig_map.setdefault(_products, []).append(_cg.id)
+            # Only groups sharing the same product signature are duplicates
+            for _sig, _gids in _sig_map.items():
+                if len(_gids) > 1:
+                    _dup_group_ids.update(_gids)
+
+        _dup_q = Q(id__in=_dup_group_ids) if _dup_group_ids else Q(pk__in=[])
 
         insp = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=OuterRef('pk'))
         groups_qs = (
@@ -1123,8 +1141,10 @@ def api_inspections(request):
 
         # Filter to only duplicates if requested
         if show_duplicates:
-            if _dup_q:
+            if _dup_group_ids:
                 groups_qs = groups_qs.filter(_dup_q)
+                # Sort by client_name then date so duplicates appear next to each other
+                groups_qs = groups_qs.order_by('client_name', '-date_of_inspection', 'id')
             else:
                 groups_qs = groups_qs.none()
 
