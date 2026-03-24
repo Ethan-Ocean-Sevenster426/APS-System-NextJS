@@ -57,33 +57,32 @@ function StatCard({ label, value, icon, color, borderColor, loading }: { label: 
   return (
     <div style={{
       background: "#fff",
-      borderRadius: 14,
-      padding: "22px 24px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)",
+      borderRadius: 8,
+      padding: "12px 14px",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
       border: "1px solid #e5e7eb",
-      borderLeft: `4px solid ${borderColor}`,
+      borderLeft: `3px solid ${borderColor}`,
       display: "flex",
       alignItems: "center",
-      gap: 16,
-      transition: "box-shadow 0.2s ease, transform 0.2s ease",
+      gap: 10,
     }}>
       <div style={{
-        width: 50,
-        height: 50,
-        borderRadius: 12,
-        background: `linear-gradient(135deg, ${color}15, ${color}25)`,
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: `${color}12`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
       }}>
-        <i className={`fas ${icon}`} style={{ fontSize: "1.3rem", color }} />
+        <i className={`fas ${icon}`} style={{ fontSize: "0.85rem", color }} />
       </div>
       <div>
-        <div style={{ fontSize: "1.9rem", fontWeight: 800, color: "#111827", lineHeight: 1, marginBottom: 5 }}>
+        <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", lineHeight: 1, marginBottom: 2 }}>
           {loading ? <Spinner /> : value.toLocaleString()}
         </div>
-        <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+        <div style={{ fontSize: "0.62rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
       </div>
     </div>
   );
