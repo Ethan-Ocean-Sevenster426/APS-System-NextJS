@@ -1206,7 +1206,14 @@ def api_inspections(request):
             has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in insp_ids)
             has_compliance = any(_has_file(pid, 'compliance') for pid in insp_ids)
             has_lab_form = any(_has_file(pid, 'lab_form') for pid in insp_ids)
-            is_non_compliant = any(not getattr(p, 'is_product_compliant', True) for p in inspections)
+            has_non_compliant = any(not getattr(p, 'is_product_compliant', True) for p in inspections)
+            has_assessed = any(getattr(p, 'is_sample_taken', False) for p in inspections)
+            if has_non_compliant:
+                _compliance_status = 'NON_COMPLIANT'
+            elif has_assessed:
+                _compliance_status = 'COMPLIANT'
+            else:
+                _compliance_status = 'PENDING'
 
             # Build products (lightweight — skip file checks per product)
             products = []
@@ -1269,7 +1276,7 @@ def api_inspections(request):
                 'telephone': first_insp.telephone if first_insp and first_insp.telephone else '',
                 'time_of_visit': first_insp.time_of_visit.strftime('%H:%M') if first_insp and first_insp.time_of_visit else '',
                 'has_lab_form': has_lab_form,
-                'inspection_compliance_status': 'NON_COMPLIANT' if is_non_compliant else 'COMPLIANT',
+                'inspection_compliance_status': _compliance_status,
                 'products': products,
             })
 
