@@ -141,6 +141,7 @@ export default function AddInspectionPage() {
   const [physicalAddress, setPhysicalAddress] = useState("");
   const [telephone, setTelephone] = useState("");
   const [timeOfVisit, setTimeOfVisit] = useState("");
+  const [occurrenceDescription, setOccurrenceDescription] = useState("");
 
   // Step 2
   const [products, setProducts] = useState<ProductEntry[]>([]);
@@ -431,24 +432,28 @@ export default function AddInspectionPage() {
               </select>
             </div>
 
-            {/* Occurrence Report Toggle */}
-            <div className="form-group">
-              <label className="checkbox-card sample-taken-card" style={{ marginBottom: 0, border: isOccurrence ? "2px solid #007890" : undefined, background: isOccurrence ? "#f0fdfa" : undefined }}>
-                <input type="checkbox" checked={isOccurrence}
-                  onChange={e => {
-                    setIsOccurrence(e.target.checked);
-                    if (e.target.checked) {
-                      setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 });
-                      setProducts([]);
-                    }
-                  }} />
-                <div className="custom-check"><i className="fas fa-check" /></div>
-                <span className="checkbox-content">
-                  <span style={{ fontWeight: 600 }}>Occurrence Report</span>
-                  <small style={{ display: "block", color: "#6b7280", fontSize: 12, marginTop: 2 }}>Switch to occurrence report mode (no products/commodities required)</small>
-                </span>
-              </label>
-            </div>
+            {/* Occurrence Report Toggle - amber button like Django */}
+            {!isOccurrence ? (
+              <div style={{ marginTop: 4 }}>
+                <button type="button" onClick={() => { setIsOccurrence(true); setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 }); setProducts([]); }}
+                  style={{ background: "#f59e0b", color: "white", border: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#d97706")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#f59e0b")}>
+                  <i className="fas fa-exclamation-triangle" /> Occurrence Report
+                </button>
+              </div>
+            ) : (
+              <div style={{ background: "#fef3c7", border: "2px solid #f59e0b", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-exclamation-triangle" style={{ color: "#d97706", fontSize: "1.1rem" }} />
+                  <span style={{ fontWeight: 600, color: "#92400e" }}>Occurrence Report Mode</span>
+                </div>
+                <button type="button" onClick={() => setIsOccurrence(false)}
+                  style={{ background: "#fff", border: "1px solid #d1d5db", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500 }}>
+                  Cancel
+                </button>
+              </div>
+            )}
 
             {/* Occurrence-specific fields */}
             {isOccurrence && (
@@ -470,6 +475,10 @@ export default function AddInspectionPage() {
                     <label className="form-label">Time of Visit</label>
                     <input type="time" className="form-control" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)} />
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description of Events</label>
+                  <textarea className="form-control" rows={5} value={occurrenceDescription} onChange={e => setOccurrenceDescription(e.target.value)} placeholder="Describe what was found during the visit..." style={{ resize: "vertical" }} />
                 </div>
               </>
             )}
