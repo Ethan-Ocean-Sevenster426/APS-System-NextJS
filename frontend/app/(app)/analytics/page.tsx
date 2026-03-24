@@ -337,19 +337,10 @@ export default function AnalyticsPage() {
     return PANELS; // admins, super_admin, developer see all
   }, [isInspector]);
 
-  const fetchData = useCallback(async (f?: Filters) => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const p = f || filters;
-      const qp = new URLSearchParams();
-      if (p.date_from) qp.set("date_from", p.date_from);
-      if (p.date_to) qp.set("date_to", p.date_to);
-      if (p.year) qp.set("year", p.year);
-      if (p.month) qp.set("month", p.month);
-      if (p.inspector.length) qp.set("inspector", p.inspector.join(","));
-      if (p.commodity.length) qp.set("commodity", p.commodity.join(","));
-      const url = `/api/analytics${qp.toString() ? `?${qp}` : ""}`;
-      const res = await fetch(url);
+      const res = await fetch("/api/analytics");
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       if (json.salaries) setSalaries(json.salaries);
@@ -366,7 +357,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -1525,8 +1516,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
       </Card>
 
       {/* Compliance Per Inspector */}
-      <Card title="Compliance Per Inspector" icon="fas fa-exclamation-triangle" tooltip="Directions issued and non-compliance findings per inspector. More directions = more thorough inspections."
-        subtitle="Directions issued = good inspector work identifying client issues">
+      <Card title="Compliance Per Inspector" icon="fas fa-exclamation-triangle" tooltip="Non-compliance findings per inspector.">
         <ChartWrap height="280px">
           <Bar data={dirData} options={stackedOpts as never} />
         </ChartWrap>
