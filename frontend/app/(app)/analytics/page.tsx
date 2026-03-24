@@ -218,7 +218,7 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
         align: "top" as const,
         font: { size: 11, weight: "bold" as const },
         color: "#374151",
-        formatter: opts?.datalabelFormatter ?? ((v: number) => v === 0 ? "" : (Number.isInteger(v) ? String(v) : v.toFixed(1))),
+        formatter: opts?.datalabelFormatter ?? ((v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : (Number.isInteger(n) ? String(n) : n.toFixed(1)); }),
         clamp: true,
         clip: false,
       } : { display: false },
@@ -1636,7 +1636,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
     })),
   };
   const stackedOpts = {
-    ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: number) => v === 0 ? "" : v.toFixed(1) + "%" }),
+    ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : n.toFixed(1) + "%"; } }),
     scales: {
       x: { stacked: false, ticks: { font: { size: 10 }, maxRotation: 45 } },
       y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: (v: unknown) => v + "%" } },
@@ -1666,7 +1666,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
     indexAxis: "y" as const,
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : v.toFixed(1) },
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : n.toFixed(1); } },
     },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } } },
@@ -1783,7 +1783,7 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
     indexAxis: "y" as const,
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) },
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : (Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1)); } },
     },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } } },
@@ -1850,7 +1850,7 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
     indexAxis: "y" as const,
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : v.toFixed(1) },
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : n.toFixed(1); } },
     },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } }, title: { display: true, text: "Avg Days", font: { size: 11 } } },
