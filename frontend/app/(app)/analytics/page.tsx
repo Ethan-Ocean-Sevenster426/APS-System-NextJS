@@ -18,6 +18,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Line, Doughnut, Radar } from "react-chartjs-2";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 
 ChartJS.register(
   CategoryScale,
@@ -30,7 +31,8 @@ ChartJS.register(
   Filler,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ChartDataLabels
 );
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -201,15 +203,25 @@ function isSampleCommodity(commodity: string): boolean {
 
 // ── Shared Chart Defaults ──────────────────────────────────────────────────────
 
-const lineDefaults = { tension: 0.3, fill: false, pointRadius: 2, borderWidth: 2 };
+const lineDefaults = { tension: 0.3, fill: false, pointRadius: 3, borderWidth: 2 };
 
-function baseChartOptions(title?: string, yLabel?: string): Record<string, unknown> {
+function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?: boolean; datalabelFormatter?: (v: number) => string }): Record<string, unknown> {
+  const showLabels = opts?.datalabels !== false; // default true
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 } } },
       title: title ? { display: true, text: title, font: { size: 13 } } : { display: false },
+      datalabels: showLabels ? {
+        anchor: "end" as const,
+        align: "top" as const,
+        font: { size: 9, weight: "bold" as const },
+        color: "#374151",
+        formatter: opts?.datalabelFormatter ?? ((v: number) => v === 0 ? "" : (Number.isInteger(v) ? String(v) : v.toFixed(1))),
+        clamp: true,
+        clip: false,
+      } : { display: false },
     },
     scales: {
       x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
@@ -225,6 +237,13 @@ function doughnutOptions(title?: string): Record<string, unknown> {
     plugins: {
       legend: { position: "bottom" as const, labels: { boxWidth: 12, font: { size: 11 } } },
       title: title ? { display: true, text: title, font: { size: 13 } } : { display: false },
+      datalabels: {
+        color: "#fff",
+        font: { size: 10, weight: "bold" as const },
+        formatter: (v: number) => v === 0 ? "" : String(v),
+        textShadowColor: "rgba(0,0,0,0.4)",
+        textShadowBlur: 3,
+      },
     },
   };
 }
@@ -597,7 +616,7 @@ export default function AnalyticsPage() {
       const finRows = (data.inspectorFinancials ?? []).map(r => {
         const sal = lookupSalary(salaries, r.inspector_name);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
-        const mgmt = (sal + exp) * 0.2;
+        const mgmt = r.total_revenue * 0.15;
         const cost = sal + exp + mgmt;
         return {
           Inspector: r.inspector_name,
@@ -777,7 +796,7 @@ export default function AnalyticsPage() {
       const finRows = (data.inspectorFinancials ?? []).map(r => {
         const sal = lookupSalary(salaries, r.inspector_name);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
-        const mgmt = (sal + exp) * 0.2;
+        const mgmt = r.total_revenue * 0.15;
         const cost = sal + exp + mgmt;
         const rph = r.total_hours > 0 ? Math.round(r.total_revenue / r.total_hours) : 0;
         const cph = r.total_hours > 0 ? Math.round(cost / r.total_hours) : 0;
@@ -1292,6 +1311,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   filterInspector?: string;
 }) {
   const [radarInspector, setRadarInspector] = useState(filterInspector || "all");
+  const [trendChartType, setTrendChartType] = useState<"bar" | "line">("bar");
   useEffect(() => { setRadarInspector(filterInspector || "all"); }, [filterInspector]);
   const metricLabel: Record<string, string> = { count: "Inspections", total_km: "KM Traveled", total_hours: "Hours", samples: "Samples" };
 
@@ -1322,6 +1342,10 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   };
   const stackedOpts = {
     ...baseChartOptions(),
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { anchor: "center" as const, align: "center" as const, font: { size: 9, weight: "bold" as const }, color: "#fff", formatter: (v: number) => v === 0 ? "" : String(v) },
+    },
     scales: {
       x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
       y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
@@ -1390,7 +1414,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const radarOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 } } } },
+    plugins: { legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 } } }, datalabels: { display: false } },
     scales: { r: { beginAtZero: true, ticks: { font: { size: 10 } }, pointLabels: { font: { size: 11 } } } },
   };
 
@@ -1474,13 +1498,29 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
       {/* Inspector Performance Trend */}
       <Card title="Inspector Performance Trend" icon="fas fa-chart-line" tooltip="Monthly trend of inspector activity — toggle between inspections, KM, hours, or samples."
         headerRight={
-          <select value={inspectorMetric} onChange={(e) => setInspectorMetric(e.target.value as typeof inspectorMetric)}
-            style={{ fontSize: "12px", padding: "6px 28px 6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb", color: "#374151", fontWeight: 500, cursor: "pointer" }}>
-            {Object.entries(metricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>
+              <button onClick={() => setTrendChartType("bar")}
+                style={{ padding: "4px 10px", fontSize: 11, fontWeight: trendChartType === "bar" ? 700 : 400, background: trendChartType === "bar" ? "#007890" : "#fff", color: trendChartType === "bar" ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
+                <i className="fas fa-chart-bar" style={{ marginRight: 4 }} />Bar
+              </button>
+              <button onClick={() => setTrendChartType("line")}
+                style={{ padding: "4px 10px", fontSize: 11, fontWeight: trendChartType === "line" ? 700 : 400, background: trendChartType === "line" ? "#007890" : "#fff", color: trendChartType === "line" ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: "1px solid #d1d5db" }}>
+                <i className="fas fa-chart-line" style={{ marginRight: 4 }} />Line
+              </button>
+            </div>
+            <select value={inspectorMetric} onChange={(e) => setInspectorMetric(e.target.value as typeof inspectorMetric)}
+              style={{ fontSize: "12px", padding: "6px 28px 6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb", color: "#374151", fontWeight: 500, cursor: "pointer" }}>
+              {Object.entries(metricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
         }>
         <ChartWrap height="600px">
-          <Line data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
+          {trendChartType === "bar" ? (
+            <Bar data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
+          ) : (
+            <Line data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
+          )}
         </ChartWrap>
       </Card>
 
@@ -1591,22 +1631,25 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   const compTrend = { labels: trendData.labels, datasets: trendData.datasets };
 
 
-  // Weekly/monthly commodity trends (stacked bar)
-  const trendMonths = [...new Set(data.monthlyCommodityTrends.map((d) => d.month))].sort();
-  const trendCommodities = [...new Set(data.monthlyCommodityTrends.map((d) => d.commodity))];
+  // Weekly compliance trend using real compliance percentages from monthlyComplianceTrend
+  const compMonths = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
+  const compCommodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
   const weeklyData = {
-    labels: trendMonths.map(fmtMonth),
-    datasets: trendCommodities.map((c, i) => ({
+    labels: compMonths.map(fmtMonth),
+    datasets: compCommodities.map((c, i) => ({
       label: c,
-      data: trendMonths.map((m) => data.monthlyCommodityTrends.find((r) => r.month === m && r.commodity === c)?.count ?? 0),
+      data: compMonths.map((m) => {
+        const row = data.monthlyComplianceTrend.find((r) => r.month === m && r.commodity === c);
+        return row ? row.compliance_rate : 0;
+      }),
       backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
     })),
   };
   const stackedOpts = {
-    ...baseChartOptions(),
+    ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: number) => v === 0 ? "" : v.toFixed(1) + "%" }),
     scales: {
-      x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
-      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
+      x: { stacked: false, ticks: { font: { size: 10 }, maxRotation: 45 } },
+      y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: (v: unknown) => v + "%" } },
     },
   };
 
@@ -1631,6 +1674,10 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   const hBarOpts = {
     ...baseChartOptions(),
     indexAxis: "y" as const,
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : v.toFixed(1) },
+    },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } } },
       y: { ticks: { font: { size: 10 } } },
@@ -1677,13 +1724,15 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
           </div>
         }
       >
-        <ChartWrap height="240px">
-          <Line data={compTrend} options={baseChartOptions(undefined, "Compliance %") as never} />
-        </ChartWrap>
+        <div style={{ overflowX: "auto", overflowY: "hidden" }}>
+          <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 240, position: "relative" }}>
+            <Line data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: number) => v === 0 ? "" : v.toFixed(1) + "%" }), maintainAspectRatio: false } as never} />
+          </div>
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Weekly Compliance Trend" icon="fas fa-chart-line" tooltip="Weekly inspection breakdown by commodity showing compliance trends over time.">
+        <Card title="Monthly Compliance %" icon="fas fa-chart-line" tooltip="Monthly compliance rate per commodity — uses real approval percentages.">
           <ChartWrap height="280px"><Bar data={weeklyData} options={stackedOpts as never} /></ChartWrap>
         </Card>
         <Card title="Samples Taken" icon="fas fa-vial" tooltip="Total lab samples collected per commodity type.">
@@ -1742,6 +1791,10 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
   const hBarOpts = {
     ...baseChartOptions(),
     indexAxis: "y" as const,
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) },
+    },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } } },
       y: { ticks: { font: { size: 10 } } },
@@ -1805,6 +1858,10 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
   const hBarOpts = {
     ...baseChartOptions(),
     indexAxis: "y" as const,
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : v.toFixed(1) },
+    },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } }, title: { display: true, text: "Avg Days", font: { size: 11 } } },
       y: { ticks: { font: { size: 10 } } },
@@ -1912,7 +1969,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const rows = fin.map(r => {
     const salary = getSalary(r.inspector_name);
     const expenses = getExpenses(r.inspector_name);
-    const mgmtFees = (salary + expenses) * 0.2;
+    const mgmtFees = r.total_revenue * 0.15; // 15% of revenue
     const totalCost = salary + expenses + mgmtFees;
     const revPerHr = r.total_hours > 0 ? Math.round(r.total_revenue / r.total_hours) : 0;
     const costPerHr = r.total_hours > 0 ? Math.round(totalCost / r.total_hours) : 0;
@@ -1953,6 +2010,10 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   };
   const stackedOpts = {
     ...baseChartOptions(),
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { anchor: "center" as const, align: "center" as const, font: { size: 8, weight: "bold" as const }, color: "#fff", formatter: (v: number) => v === 0 ? "" : "R" + Math.round(v).toLocaleString() },
+    },
     scales: {
       x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
       y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => "R" + Number(v).toLocaleString() } },
