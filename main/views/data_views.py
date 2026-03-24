@@ -1222,9 +1222,7 @@ def api_inspections(request):
                         _any_compliant = True
                     else:
                         _any_non_compliant = True
-                elif not getattr(p, 'is_product_compliant', True):
-                    # Explicitly marked non-compliant even without file
-                    _any_non_compliant = True
+                # No file = N/A, ignore is_product_compliant value
 
             if _any_non_compliant:
                 _compliance_status = 'NON_COMPLIANT'
