@@ -616,7 +616,7 @@ export default function AnalyticsPage() {
       const finRows = (data.inspectorFinancials ?? []).map(r => {
         const sal = lookupSalary(salaries, r.inspector_name);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
-        const mgmt = r.total_revenue * 0.15;
+        const mgmt = (sal + exp) * 0.20;
         const cost = sal + exp + mgmt;
         return {
           Inspector: r.inspector_name,
@@ -796,7 +796,7 @@ export default function AnalyticsPage() {
       const finRows = (data.inspectorFinancials ?? []).map(r => {
         const sal = lookupSalary(salaries, r.inspector_name);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
-        const mgmt = r.total_revenue * 0.15;
+        const mgmt = (sal + exp) * 0.20;
         const cost = sal + exp + mgmt;
         const rph = r.total_hours > 0 ? Math.round(r.total_revenue / r.total_hours) : 0;
         const cph = r.total_hours > 0 ? Math.round(cost / r.total_hours) : 0;
@@ -1969,7 +1969,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const rows = fin.map(r => {
     const salary = getSalary(r.inspector_name);
     const expenses = getExpenses(r.inspector_name);
-    const mgmtFees = r.total_revenue * 0.15; // 15% of revenue
+    const mgmtFees = (salary + expenses) * 0.20; // 20% of (salary + expenses)
     const totalCost = salary + expenses + mgmtFees;
     const revPerHr = r.total_hours > 0 ? Math.round(r.total_revenue / r.total_hours) : 0;
     const costPerHr = r.total_hours > 0 ? Math.round(totalCost / r.total_hours) : 0;
