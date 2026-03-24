@@ -149,12 +149,10 @@ export default function AdminAnalyticsPage() {
   useEffect(() => { fetchData(); }, []);
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "#6b7280", fontSize: "0.9rem" }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: TEAL, animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        Loading analytics...
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#fff" }}>
+      <img src="/logo.png" alt="FSA" style={{ width: 64, height: 64, borderRadius: 12, marginBottom: 16, animation: "pulse 1.5s ease-in-out infinite" }} />
+      <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
     </div>
   );
 

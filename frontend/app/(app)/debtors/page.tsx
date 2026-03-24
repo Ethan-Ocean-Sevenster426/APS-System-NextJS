@@ -223,6 +223,14 @@ export default function DebtorsPage() {
   const collapseAll = () => setExpanded(new Set());
 
   /* ---------- Render ---------- */
+  if (loading) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#fff" }}>
+      <img src="/logo.png" alt="FSA" style={{ width: 64, height: 64, borderRadius: 12, marginBottom: 16, animation: "pulse 1.5s ease-in-out infinite" }} />
+      <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+    </div>
+  );
+
   return (
     <div style={{ maxWidth: 1600, margin: "0 auto", padding: 16 }}>
       {/* ---- Action Bar ---- */}
