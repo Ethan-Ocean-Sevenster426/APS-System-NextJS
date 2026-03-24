@@ -444,7 +444,7 @@ export default function AnalyticsPage() {
 
     return {
       ...rawData,
-      totalInspections: filteredList.length,
+      totalInspections: rawData.totalInspections ?? filteredList.length,
       complianceRate: totalForRate > 0 ? (totalCompliant / totalForRate) * 100 : 0,
       activeInspectors: new Set(filteredList.map(s => s.inspector_name)).size,
       totalHours: filteredTime.reduce((s, r) => s + r.total_hours, 0),
