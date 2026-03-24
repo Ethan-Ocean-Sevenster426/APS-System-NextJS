@@ -9106,6 +9106,9 @@ def analytics_dashboard(request):
             non_inspector_names.add(u.username)
     non_inspector_names.discard('')
     non_inspector_names.add('admin')
+    non_inspector_names.add('API User')
+    non_inspector_names.add('API Test')
+    non_inspector_names.add('api_user')
 
     # Date ranges for analysis
     now = datetime.now()
@@ -10199,6 +10202,9 @@ def analytics_dashboard_api(request):
             non_inspector_names.add(u.username)
     non_inspector_names.discard('')
     non_inspector_names.add('admin')
+    non_inspector_names.add('API User')
+    non_inspector_names.add('API Test')
+    non_inspector_names.add('api_user')
 
     # Get filter params
     year = request.GET.get('year')
