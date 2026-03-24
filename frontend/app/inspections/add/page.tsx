@@ -274,11 +274,15 @@ export default function AddInspectionPage() {
   const validateOccStep = (s: number): string[] => {
     if (s === 1) {
       const m: string[] = [];
-      if (!dateOfInspection) m.push("Date of Inspection");
+      if (!facilityType.trim()) m.push("Facility Type");
       if (!clientName.trim()) m.push("Client Name");
+      if (!physicalAddress.trim()) m.push("Physical Address");
       if (!town.trim()) m.push("Town");
-      if (!corporateGroup.trim()) m.push("Corporate Group");
-      if (!groupType.trim()) m.push("Group Type");
+      if (!dateOfInspection) m.push("Date of Visit");
+      if (!kmTraveled) m.push("KM Traveled");
+      if (!hoursWorked) m.push("Hours Worked");
+      if (!travelStart.trim()) m.push("Travel Start");
+      if (!travelEnd.trim()) m.push("Travel End");
       return m;
     }
     if (s === 2) {
@@ -415,64 +419,164 @@ export default function AddInspectionPage() {
                 <i className="fas fa-building" style={{ color: "#f59e0b", marginRight: 8 }} />Facility Information
               </h3>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Date of Inspection <span style={{ color: "#ef4444" }}>*</span></label>
-                <input type="date" className="form-control occ-input" value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
-              </div>
-
-              <Autocomplete label="Client" required options={options?.clients.map(c => c.name) ?? []} value={clientName}
-                onChange={v => {
-                  setClientName(v);
-                  const found = options?.clients.find(c => c.name === v);
-                  if (found) {
-                    if (found.town && !town) setTown(found.town);
-                    if (found.email && !primaryEmail) setPrimaryEmail(found.email);
-                    if (found.corporate_group && !corporateGroup) setCorporateGroup(found.corporate_group);
-                    if (found.group_type && !groupType) setGroupType(found.group_type);
-                    if (found.facility_type && !facilityType) setFacilityType(found.facility_type);
-                  }
-                }}
-                placeholder="Start typing to search clients..." />
-
-              <Autocomplete label="Town" required options={options?.towns ?? []} value={town} onChange={setTown} placeholder="Start typing to search towns..." />
-
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Registration Code</label>
-                <input type="text" className="form-control occ-input" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="e.g. ABC-123-456" />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Physical Address</label>
-                <textarea className="form-control occ-input" rows={3} value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)} placeholder="Physical address of the facility" style={{ resize: "vertical" }} />
-              </div>
-
-              <div className="product-fields-grid">
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Telephone</label>
-                  <input type="text" className="form-control occ-input" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="e.g. 012 345 6789" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Time of Visit</label>
-                  <input type="time" className="form-control occ-input" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)} />
+              {/* Section 1: Facility Type */}
+              <div style={{ background: "#fef3c7", border: "2px solid #f59e0b", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem" }}>
+                  <i className="fas fa-industry" style={{ color: "#f59e0b" }} /> Facility Type
+                </h4>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: "#92400e" }}>Facility Type <span style={{ color: "#ef4444" }}>*</span></label>
+                  <select className="form-control occ-input" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
+                    <option value="">Select facility type (required)</option>
+                    {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Corporate Group <span style={{ color: "#ef4444" }}>*</span></label>
-                <select className="form-control occ-input" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
-                  <option value="">Select corporate group (required)</option>
-                  {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
-                  <option value="Not Applicable">Not Applicable (None)</option>
-                  <option value="Other">Other (Unlisted Group)</option>
-                </select>
+              {/* Section 2: Client Details */}
+              <div style={{ background: "#f9fafb", border: "2px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem" }}>
+                  <i className="fas fa-user" style={{ color: "#f59e0b" }} /> Client Details
+                </h4>
+
+                <Autocomplete label="Client Name" required options={options?.clients.map(c => c.name) ?? []} value={clientName}
+                  onChange={v => {
+                    setClientName(v);
+                    const found = options?.clients.find(c => c.name === v);
+                    if (found) {
+                      if (found.town && !town) setTown(found.town);
+                      if (found.email && !primaryEmail) setPrimaryEmail(found.email);
+                      if (found.corporate_group && !corporateGroup) setCorporateGroup(found.corporate_group);
+                      if (found.group_type && !groupType) setGroupType(found.group_type);
+                      if (found.facility_type && !facilityType) setFacilityType(found.facility_type);
+                    }
+                  }}
+                  placeholder="Start typing to search clients..." />
+
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Registration Code <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontWeight: 400 }}>(if applicable)</span></label>
+                  <input type="text" className="form-control occ-input" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="e.g. ABC-123-456" />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Physical Address <span style={{ color: "#ef4444" }}>*</span></label>
+                  <textarea className="form-control occ-input" rows={3} value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)} placeholder="Physical address of the facility" style={{ resize: "vertical" }} />
+                </div>
+
+                <Autocomplete label="Town" required options={options?.towns ?? []} value={town} onChange={setTown} placeholder="Start typing to search towns..." />
+
+                <div className="product-fields-grid" style={{ marginBottom: 0 }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Telephone</label>
+                    <input type="text" className="form-control occ-input" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="e.g. 012 345 6789" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Client Email</label>
+                    <input type="email" className="form-control occ-input" value={primaryEmail} onChange={e => setPrimaryEmail(e.target.value)} placeholder="client@example.com" />
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Group Type <span style={{ color: "#ef4444" }}>*</span></label>
-                <select className="form-control occ-input" value={groupType} onChange={e => setGroupType(e.target.value)}>
-                  <option value="">Select group type (required)</option>
-                  {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+              {/* Section 3: Visit Details */}
+              <div style={{ background: "#f0f9ff", border: "2px solid #0ea5e9", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem" }}>
+                  <i className="fas fa-calendar-check" style={{ color: "#0ea5e9" }} /> Visit Details
+                </h4>
+                <div className="product-fields-grid" style={{ marginBottom: 0 }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Date of Visit <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input type="date" className="form-control occ-input" value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Time of Visit</label>
+                    <select className="form-control occ-input" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)}>
+                      <option value="">Select time</option>
+                      <option value="06:00 AM">06:00 AM</option>
+                      <option value="06:30 AM">06:30 AM</option>
+                      <option value="07:00 AM">07:00 AM</option>
+                      <option value="07:30 AM">07:30 AM</option>
+                      <option value="08:00 AM">08:00 AM</option>
+                      <option value="08:30 AM">08:30 AM</option>
+                      <option value="09:00 AM">09:00 AM</option>
+                      <option value="09:30 AM">09:30 AM</option>
+                      <option value="10:00 AM">10:00 AM</option>
+                      <option value="10:30 AM">10:30 AM</option>
+                      <option value="11:00 AM">11:00 AM</option>
+                      <option value="11:30 AM">11:30 AM</option>
+                      <option value="12:00 PM">12:00 PM</option>
+                      <option value="12:30 PM">12:30 PM</option>
+                      <option value="01:00 PM">01:00 PM</option>
+                      <option value="01:30 PM">01:30 PM</option>
+                      <option value="02:00 PM">02:00 PM</option>
+                      <option value="02:30 PM">02:30 PM</option>
+                      <option value="03:00 PM">03:00 PM</option>
+                      <option value="03:30 PM">03:30 PM</option>
+                      <option value="04:00 PM">04:00 PM</option>
+                      <option value="04:30 PM">04:30 PM</option>
+                      <option value="05:00 PM">05:00 PM</option>
+                      <option value="05:30 PM">05:30 PM</option>
+                      <option value="06:00 PM">06:00 PM</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Corporate Information */}
+              <div style={{ background: "#f9fafb", border: "2px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem" }}>
+                  <i className="fas fa-sitemap" style={{ color: "#f59e0b" }} /> Corporate Information
+                </h4>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Corporate Group</label>
+                  <select className="form-control occ-input" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
+                    <option value="">Select corporate group (optional)</option>
+                    {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+                    <option value="Not Applicable">Not Applicable (None)</option>
+                    <option value="Other">Other (Unlisted Group)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: "#92400e" }}>Group Type</label>
+                  <select className="form-control occ-input" value={groupType} onChange={e => setGroupType(e.target.value)}>
+                    <option value="">Select group type (optional)</option>
+                    {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Section 5: Trip Information */}
+              <div style={{ background: "#f9fafb", border: "2px solid #e5e7eb", borderRadius: 12, padding: 20, marginBottom: 8 }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem" }}>
+                  <i className="fas fa-route" style={{ color: "#f59e0b" }} /> Trip Information
+                </h4>
+
+                <div className="product-fields-grid">
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>KM Traveled <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input type="number" step="0.1" className="form-control occ-input" value={kmTraveled} onChange={e => setKmTraveled(Number(e.target.value))} placeholder="0" min={0} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Hours Worked <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input type="number" step="0.5" className="form-control occ-input" value={hoursWorked} readOnly placeholder="0" min={0}
+                      style={{ textAlign: "center" }} />
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      <button type="button" onClick={() => setHoursWorked(h => h <= 0 ? 0 : h <= 1 ? 0 : Math.round((h - 0.5) * 2) / 2)}
+                        style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>−</button>
+                      <button type="button" onClick={() => setHoursWorked(h => h < 1 ? 1 : Math.round((h + 0.5) * 2) / 2)}
+                        style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>+</button>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Travel Start <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input type="time" className="form-control occ-input" value={travelStart} onChange={e => setTravelStart(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: "#92400e" }}>Travel End <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input type="time" className="form-control occ-input" value={travelEnd} onChange={e => setTravelEnd(e.target.value)} />
+                  </div>
+                </div>
               </div>
 
               {occError.length > 0 && occStep === 1 && (
@@ -486,10 +590,10 @@ export default function AddInspectionPage() {
               )}
             </div>
 
-            {/* ===== OCC STEP 2: FINDINGS & TRIP INFO ===== */}
+            {/* ===== OCC STEP 2: DESCRIPTION & DOCUMENTS ===== */}
             <div className={`wizard-step-content${occStep === 2 ? " active" : ""}`}>
               <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#92400e", marginBottom: 24 }}>
-                <i className="fas fa-clipboard-list" style={{ color: "#f59e0b", marginRight: 8 }} />Findings &amp; Trip Info
+                <i className="fas fa-clipboard-list" style={{ color: "#f59e0b", marginRight: 8 }} />Findings &amp; Documents
               </h3>
 
               <div className="form-group">
@@ -531,32 +635,6 @@ export default function AddInspectionPage() {
                   onChange={e => { if (e.target.files?.[0]) setOccFile(e.target.files[0]); }} />
               </div>
 
-              <div className="product-fields-grid">
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>KM Traveled</label>
-                  <input type="number" step="0.1" className="form-control occ-input" value={kmTraveled} onChange={e => setKmTraveled(Number(e.target.value))} placeholder="0" min={0} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Hours Worked</label>
-                  <input type="number" step="0.5" className="form-control occ-input" value={hoursWorked} readOnly placeholder="0" min={0}
-                    style={{ textAlign: "center" }} />
-                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                    <button type="button" onClick={() => setHoursWorked(h => h <= 0 ? 0 : h <= 1 ? 0 : Math.round((h - 0.5) * 2) / 2)}
-                      style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>−</button>
-                    <button type="button" onClick={() => setHoursWorked(h => h < 1 ? 1 : Math.round((h + 0.5) * 2) / 2)}
-                      style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>+</button>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Travel Start Time</label>
-                  <input type="time" className="form-control occ-input" value={travelStart} onChange={e => setTravelStart(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Travel End Time</label>
-                  <input type="time" className="form-control occ-input" value={travelEnd} onChange={e => setTravelEnd(e.target.value)} />
-                </div>
-              </div>
-
               {occError.length > 0 && occStep === 2 && (
                 <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "12px 16px", color: "#92400e", fontSize: 14, marginTop: 16 }}>
                   <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />
@@ -574,22 +652,30 @@ export default function AddInspectionPage() {
                 <i className="fas fa-check-circle" style={{ color: "#f59e0b", marginRight: 8 }} />Review &amp; Submit
               </h3>
 
-              {/* Facility Info Card */}
+              {/* Facility Type Card */}
               <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
                 <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="fas fa-building" style={{ color: "#f59e0b" }} /> Facility Information
+                  <i className="fas fa-industry" style={{ color: "#f59e0b" }} /> Facility Type
+                </h4>
+                <div style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #fcd34d" }}>
+                  <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Facility Type</span>
+                  <span style={{ fontWeight: 600, color: "#1f2937" }}>{facilityType || "\u2014"}</span>
+                </div>
+              </div>
+
+              {/* Client Details Card */}
+              <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-user" style={{ color: "#f59e0b" }} /> Client Details
                 </h4>
                 <div className="review-summary-grid">
                   {[
-                    ["Date", dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "\u2014"],
-                    ["Client", clientName || "\u2014"],
-                    ["Town", town || "\u2014"],
+                    ["Client Name", clientName || "\u2014"],
                     ["Registration Code", registrationCode || "\u2014"],
                     ["Physical Address", physicalAddress || "\u2014"],
+                    ["Town", town || "\u2014"],
                     ["Telephone", telephone || "\u2014"],
-                    ["Time of Visit", timeOfVisit || "\u2014"],
-                    ["Corporate Group", corporateGroup || "\u2014"],
-                    ["Group Type", groupType || "\u2014"],
+                    ["Client Email", primaryEmail || "\u2014"],
                   ].map(([label, val]) => (
                     <div key={label} style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #fcd34d" }}>
                       <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</span>
@@ -599,23 +685,33 @@ export default function AddInspectionPage() {
                 </div>
               </div>
 
-              {/* Findings & Trip Card */}
+              {/* Visit Details Card */}
               <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
                 <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="fas fa-clipboard-list" style={{ color: "#f59e0b" }} /> Findings &amp; Trip Info
+                  <i className="fas fa-calendar-check" style={{ color: "#f59e0b" }} /> Visit Details
                 </h4>
-                <div style={{ padding: 16, background: "white", borderRadius: 8, border: "1px solid #fcd34d", marginBottom: 12 }}>
-                  <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Description of Events</span>
-                  <span style={{ fontWeight: 500, color: "#1f2937", whiteSpace: "pre-wrap", fontSize: 14 }}>{occurrenceDescription || "\u2014"}</span>
-                </div>
-                {occFile && (
-                  <div style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #22c55e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                    <i className="fas fa-file-pdf" style={{ color: "#22c55e" }} />
-                    <span style={{ fontWeight: 500, color: "#166534", fontSize: 14 }}>{occFile.name}</span>
-                  </div>
-                )}
                 <div className="review-summary-grid">
                   {[
+                    ["Date of Visit", dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "\u2014"],
+                    ["Time of Visit", timeOfVisit || "\u2014"],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #fcd34d" }}>
+                      <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: "#1f2937" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Corporate & Trip Info Card */}
+              <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-sitemap" style={{ color: "#f59e0b" }} /> Corporate &amp; Trip Info
+                </h4>
+                <div className="review-summary-grid">
+                  {[
+                    ["Corporate Group", corporateGroup || "\u2014"],
+                    ["Group Type", groupType || "\u2014"],
                     ["KM Traveled", `${kmTraveled} km`],
                     ["Hours Worked", `${hoursWorked} hrs`],
                     ["Travel Start", travelStart || "\u2014"],
@@ -627,6 +723,23 @@ export default function AddInspectionPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Findings & Document Card */}
+              <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-clipboard-list" style={{ color: "#f59e0b" }} /> Findings &amp; Documents
+                </h4>
+                <div style={{ padding: 16, background: "white", borderRadius: 8, border: "1px solid #fcd34d", marginBottom: 12 }}>
+                  <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Description of Events</span>
+                  <span style={{ fontWeight: 500, color: "#1f2937", whiteSpace: "pre-wrap", fontSize: 14 }}>{occurrenceDescription || "\u2014"}</span>
+                </div>
+                {occFile && (
+                  <div style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #22c55e", display: "flex", alignItems: "center", gap: 8 }}>
+                    <i className="fas fa-file-pdf" style={{ color: "#22c55e" }} />
+                    <span style={{ fontWeight: 500, color: "#166534", fontSize: 14 }}>{occFile.name}</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "14px 18px", color: "#92400e", fontSize: 14 }}>
