@@ -456,6 +456,7 @@ class InspectionGroup(models.Model):
         indexes = [
             models.Index(fields=['client_name', 'date_of_inspection'], name='idx_group_client_date'),
             models.Index(fields=['created_at'], name='idx_group_created'),
+            models.Index(fields=['client_name', 'date_of_inspection', 'inspector_name'], name='idx_group_dup_check'),
         ]
 
     def __str__(self):

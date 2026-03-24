@@ -1017,36 +1017,46 @@ def api_inspections(request):
 
     try:
         show_duplicates = request.GET.get('show_duplicates') == 'true'
+        show_undeliverable = request.GET.get('show_undeliverable') == 'true'
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
 
         # Compute duplicate groups: same client_name + date + inspector + SAME products
-        # Step 1: find client+date+inspector combos with >1 group
+        # Single query to get all candidate duplicate group IDs with their product signatures
+        from collections import defaultdict
         _dup_triples = list(
             InspectionGroup.objects.values('client_name', 'date_of_inspection', 'inspector_name')
             .annotate(_gc=Count('id'))
             .filter(_gc__gt=1)
             .values_list('client_name', 'date_of_inspection', 'inspector_name')
         )
-        # Step 2: for each combo, get product signatures and only flag true duplicates
         _dup_group_ids = set()
-        for _dc, _dd, _di in _dup_triples:
+        if _dup_triples:
+            # Build Q filter for all candidate combos at once
+            _combo_q = Q()
+            for _dc, _dd, _di in _dup_triples:
+                _combo_q |= Q(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
+            # Single query: fetch all candidate groups + their inspections
             _candidate_groups = list(
-                InspectionGroup.objects.filter(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
+                InspectionGroup.objects.filter(_combo_q)
                 .prefetch_related('inspections')
             )
-            # Build signature per group: sorted tuple of (commodity, product_name)
-            _sig_map = {}  # signature -> [group_ids]
+            # Group by (client_name, date, inspector) then by product signature
+            _combo_map = defaultdict(list)  # (client, date, inspector) -> [(group_id, signature)]
             for _cg in _candidate_groups:
                 _products = tuple(sorted(
                     (_i.commodity or '', _i.product_name or '')
                     for _i in _cg.inspections.all()
                 ))
-                _sig_map.setdefault(_products, []).append(_cg.id)
-            # Only groups sharing the same product signature are duplicates
-            for _sig, _gids in _sig_map.items():
-                if len(_gids) > 1:
-                    _dup_group_ids.update(_gids)
+                _combo_map[(_cg.client_name, _cg.date_of_inspection, _cg.inspector_name)].append((_cg.id, _products))
+            # Find true duplicates: groups with identical product signatures
+            for _combo_key, _entries in _combo_map.items():
+                _sig_map = defaultdict(list)
+                for _gid, _sig in _entries:
+                    _sig_map[_sig].append(_gid)
+                for _sig, _gids in _sig_map.items():
+                    if len(_gids) > 1:
+                        _dup_group_ids.update(_gids)
 
         _dup_q = Q(id__in=_dup_group_ids) if _dup_group_ids else Q(pk__in=[])
 
@@ -1095,49 +1105,60 @@ def api_inspections(request):
         # Count duplicate groups for the badge
         duplicate_groups_count = groups_qs.filter(_dup_q).count() if _dup_q else 0
 
-        # Count undeliverable email groups for the badge
+        # Undeliverable email check — only do the full lookup when
+        # show_undeliverable=true; otherwise use a cached count for the badge.
         undeliverable_count = 0
-        try:
-            from ..graph_inbox_reader import fetch_undeliverable_emails
-            from ..models import Client as _UndelClient
-            _bounced_emails = fetch_undeliverable_emails()
-            if _bounced_emails:
-                _bounced_lower = {e.lower() for e in _bounced_emails}
-                _undel_clients = _UndelClient.objects.all().only('name', 'email', 'manual_email').prefetch_related('additional_emails')
-                _undeliverable_client_names = set()
-                for _uc in _undel_clients:
-                    _uc_emails = set()
-                    if _uc.email:
-                        for _e in _uc.email.replace(';', ',').split(','):
-                            _e = _e.strip().lower()
-                            if _e:
-                                _uc_emails.add(_e)
-                    if _uc.manual_email:
-                        for _e in _uc.manual_email.replace(';', ',').split(','):
-                            _e = _e.strip().lower()
-                            if _e:
-                                _uc_emails.add(_e)
-                    for _ae in _uc.additional_emails.all():
-                        if _ae.email:
-                            _uc_emails.add(_ae.email.strip().lower())
-                    if _uc_emails & _bounced_lower:
-                        _undeliverable_client_names.add(_uc.name)
-                if _undeliverable_client_names:
-                    from django.db.models import Q as _Q2
-                    _undel_q = _Q2()
-                    for _ucn in _undeliverable_client_names:
-                        _undel_q |= _Q2(client_name=_ucn)
-                    undeliverable_count = groups_qs.filter(_undel_q).count()
-        except Exception as _e:
-            print(f"[WARN] api_inspections undeliverable check failed: {_e}")
-
-        # Filter to only undeliverable if requested
-        show_undeliverable = request.GET.get('show_undeliverable') == 'true'
-        if show_undeliverable and undeliverable_count > 0:
+        _undel_q = None
+        if show_undeliverable:
+            # Full check: fetch bounced emails and resolve to client names
             try:
-                groups_qs = groups_qs.filter(_undel_q)
+                from ..graph_inbox_reader import fetch_undeliverable_emails
+                from ..models import Client as _UndelClient
+                from django.core.cache import cache as _dj_cache
+                _bounced_emails = fetch_undeliverable_emails()
+                if _bounced_emails:
+                    _bounced_lower = {e.lower() for e in _bounced_emails}
+                    _undel_clients = _UndelClient.objects.all().only('name', 'email', 'manual_email').prefetch_related('additional_emails')
+                    _undeliverable_client_names = set()
+                    for _uc in _undel_clients:
+                        _uc_emails = set()
+                        if _uc.email:
+                            for _e in _uc.email.replace(';', ',').split(','):
+                                _e = _e.strip().lower()
+                                if _e:
+                                    _uc_emails.add(_e)
+                        if _uc.manual_email:
+                            for _e in _uc.manual_email.replace(';', ',').split(','):
+                                _e = _e.strip().lower()
+                                if _e:
+                                    _uc_emails.add(_e)
+                        for _ae in _uc.additional_emails.all():
+                            if _ae.email:
+                                _uc_emails.add(_ae.email.strip().lower())
+                        if _uc_emails & _bounced_lower:
+                            _undeliverable_client_names.add(_uc.name)
+                    if _undeliverable_client_names:
+                        _undel_q = Q()
+                        for _ucn in _undeliverable_client_names:
+                            _undel_q |= Q(client_name=_ucn)
+                        undeliverable_count = groups_qs.filter(_undel_q).count()
+                        # Cache the count for non-show_undeliverable requests
+                        _dj_cache.set('inspections_undeliverable_count', undeliverable_count, 600)
+            except Exception as _e:
+                print(f"[WARN] api_inspections undeliverable check failed: {_e}")
+        else:
+            # Badge count only — use cached value (avoid Graph API call)
+            try:
+                from django.core.cache import cache as _dj_cache
+                _cached_count = _dj_cache.get('inspections_undeliverable_count')
+                if _cached_count is not None:
+                    undeliverable_count = _cached_count
             except Exception:
                 pass
+
+        # Filter to only undeliverable if requested
+        if show_undeliverable and _undel_q is not None and undeliverable_count > 0:
+            groups_qs = groups_qs.filter(_undel_q)
 
         # Filter to only duplicates if requested
         if show_duplicates:
@@ -1150,12 +1171,45 @@ def api_inspections(request):
 
         groups = groups_qs[:200]
 
+        # ── Batch filesystem scan ──────────────────────────────────────
+        # Instead of calling os.path.isdir + os.listdir per inspection per
+        # category (8+ calls each), scan all relevant client dirs once and
+        # build a lookup dict: _file_map[(inspection_id, category)] = True
+        _file_map = {}  # (insp_id_str, category) -> bool
+        _FILE_CATEGORIES = ('lab', 'coa', 'composition', 'compliance',
+                            'occurrence', 'retest', 'other', 'lab_form',
+                            'rfi', 'invoice')
+        _scanned_clients = set()
+        _docs_root = os.path.join(settings.MEDIA_ROOT, 'docs')
+        # Collect unique client_ids from the groups we're about to iterate
+        for _g in groups:
+            for _insp in _g.inspections.all():
+                if _insp.client_id and _insp.client_id not in _scanned_clients:
+                    _scanned_clients.add(_insp.client_id)
+                    _client_dir = os.path.join(_docs_root, str(_insp.client_id))
+                    if not os.path.isdir(_client_dir):
+                        continue
+                    try:
+                        for _insp_dir_name in os.listdir(_client_dir):
+                            _insp_dir_path = os.path.join(_client_dir, _insp_dir_name)
+                            if not os.path.isdir(_insp_dir_path):
+                                continue
+                            try:
+                                for _cat_name in os.listdir(_insp_dir_path):
+                                    if _cat_name in _FILE_CATEGORIES:
+                                        _cat_path = os.path.join(_insp_dir_path, _cat_name)
+                                        if os.path.isdir(_cat_path) and os.listdir(_cat_path):
+                                            _file_map[(_insp_dir_name, _cat_name)] = True
+                            except OSError:
+                                pass
+                    except OSError:
+                        pass
+
         def _has_file(insp_obj, category):
-            """Check if a file exists on disk for this inspection + category."""
+            """Check the pre-scanned file map instead of hitting the filesystem."""
             if not insp_obj.client_id:
                 return False
-            cat_dir = os.path.join(settings.MEDIA_ROOT, 'docs', str(insp_obj.client_id), str(insp_obj.id), category)
-            return os.path.isdir(cat_dir) and bool(os.listdir(cat_dir))
+            return _file_map.get((str(insp_obj.id), category), False)
 
         results = []
         for g in groups:
