@@ -7246,9 +7246,19 @@ def get_fee_rate(fee_code, default_value, inspection_date=None):
     Returns:
         Float rate value (historical if date provided, current if not)
     """
+    # Map alternate fee codes to DB codes
+    _ALT_CODES = {
+        'travel_rate_per_km': 'inspection_km_rate',
+        'fat_test_rate': 'lab_test_fat',
+        'protein_test_rate': 'lab_test_protein',
+        'calcium_test_rate': 'lab_test_calcium',
+        'dna_test_rate': 'lab_test_dna',
+    }
     try:
         from ..models import InspectionFee
         fee = InspectionFee.objects.filter(fee_code=fee_code).first()
+        if not fee and fee_code in _ALT_CODES:
+            fee = InspectionFee.objects.filter(fee_code=_ALT_CODES[fee_code]).first()
         if not fee:
             return default_value
 
