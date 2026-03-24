@@ -204,7 +204,7 @@ export default function AddInspectionPage() {
       if (!corporateGroup.trim()) m.push("Corporate Group");
       if (!groupType.trim()) m.push("Group Type");
       if (!facilityType.trim()) m.push("Facility Type");
-      if (!isOccurrence && Object.values(commodities).every(v => v === 0)) m.push("At least one commodity");
+      if (Object.values(commodities).every(v => v === 0)) m.push("At least one commodity");
       return m;
     }
     if (s === 2) {
@@ -220,20 +220,12 @@ export default function AddInspectionPage() {
     if (step === 1) setStep1Error(errors);
     if (step === 2) setStep2Error(errors);
     if (errors.length > 0) return;
-    if (step === 1 && !isOccurrence) rebuildProducts();
-    if (step === 1 && isOccurrence) {
-      setStep(3); // skip Step 2 (Product Info)
-    } else {
-      setStep(s => s + 1);
-    }
+    if (step === 1) rebuildProducts();
+    setStep(s => s + 1);
   };
 
   const goPrev = () => {
-    if (step === 3 && isOccurrence) {
-      setStep(1); // skip back over Step 2
-    } else {
-      setStep(s => s - 1);
-    }
+    setStep(s => s - 1);
   };
 
   const handleSubmit = async () => {
@@ -254,15 +246,8 @@ export default function AddInspectionPage() {
           travel_end_time: travelEnd,
           follow_up: followUp,
           dispensation_application: dispensation,
-          products: isOccurrence ? [] : products,
+          products,
       };
-      if (isOccurrence) {
-          payload.is_occurrence_report = true;
-          payload.registration_code = registrationCode;
-          payload.physical_address = physicalAddress;
-          payload.telephone = telephone;
-          payload.time_of_visit = timeOfVisit;
-      }
       const res = await fetch("/api/add-inspection/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -281,7 +266,79 @@ export default function AddInspectionPage() {
     }
   };
 
-  const stepLabels = isOccurrence ? ["Basic Info", "—", "Invoice Info", "Review"] : ["Basic Info", "Product Info", "Invoice Info", "Review"];
+  /* ── Occurrence Report state ── */
+  const [occStep, setOccStep] = useState(1);
+  const [occError, setOccError] = useState<string[]>([]);
+
+  const validateOccStep = (s: number): string[] => {
+    if (s === 1) {
+      const m: string[] = [];
+      if (!dateOfInspection) m.push("Date of Inspection");
+      if (!clientName.trim()) m.push("Client Name");
+      if (!town.trim()) m.push("Town");
+      if (!corporateGroup.trim()) m.push("Corporate Group");
+      if (!groupType.trim()) m.push("Group Type");
+      return m;
+    }
+    if (s === 2) {
+      const m: string[] = [];
+      if (!occurrenceDescription.trim()) m.push("Description of Events");
+      return m;
+    }
+    return [];
+  };
+
+  const occGoNext = () => {
+    const errors = validateOccStep(occStep);
+    setOccError(errors);
+    if (errors.length > 0) return;
+    setOccStep(s => s + 1);
+  };
+
+  const occGoPrev = () => setOccStep(s => s - 1);
+
+  const handleOccurrenceSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        client_name: clientName,
+        town,
+        date_of_inspection: dateOfInspection,
+        corporate_group: corporateGroup,
+        group_type: groupType,
+        facility_type: facilityType,
+        additional_email: [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; '),
+        comment: occurrenceDescription,
+        km_traveled: kmTraveled,
+        hours: hoursWorked,
+        travel_start_time: travelStart,
+        travel_end_time: travelEnd,
+        follow_up: false,
+        dispensation_application: false,
+        products: [],
+        is_occurrence_report: true,
+        registration_code: registrationCode,
+        physical_address: physicalAddress,
+        telephone,
+        time_of_visit: timeOfVisit,
+      };
+      const res = await fetch("/api/add-inspection/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = "/inspections";
+      } else {
+        setToast({ msg: "Error: " + (data.error || "Unknown error"), ok: false });
+      }
+    } catch (e) {
+      setToast({ msg: "Network error: " + (e instanceof Error ? e.message : String(e)), ok: false });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   /* ── Loading ── */
   if (loading) return (
@@ -296,6 +353,283 @@ export default function AddInspectionPage() {
     </>
   );
 
+  /* ── Occurrence Report Form (completely separate) ── */
+  if (isOccurrence) {
+    const occStepLabels = ["Facility Info", "Findings", "Review"];
+    return (
+      <>
+        <style>{pageStyles}</style>
+        <style>{occurrenceStyles}</style>
+
+        {/* Toast */}
+        {toast && (
+          <div style={{ position: "fixed", top: 24, right: 24, zIndex: 10000, background: toast.ok ? "#059669" : "#dc2626", color: "#fff", padding: "14px 24px", borderRadius: 10, fontSize: "0.9rem", fontWeight: 500, boxShadow: "0 4px 12px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: 10 }}>
+            <i className={`fas ${toast.ok ? "fa-check-circle" : "fa-exclamation-circle"}`} />
+            {toast.msg}
+          </div>
+        )}
+
+        <div className="max-w-3xl mx-auto" style={{ padding: "32px 16px" }}>
+
+          {/* Header */}
+          <div className="header-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, borderLeft: "4px solid #f59e0b" }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 700, color: "#92400e", display: "flex", alignItems: "center", gap: 10 }}>
+                <i className="fas fa-exclamation-triangle" style={{ color: "#f59e0b" }} />
+                Occurrence Report
+              </h1>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => { setIsOccurrence(false); setOccStep(1); setOccError([]); }}
+                className="btn btn-outline" style={{ fontSize: 13, borderColor: "#f59e0b", color: "#92400e" }}>
+                <i className="fas fa-arrow-left" /> Back to Normal Inspection
+              </button>
+              <a href="/inspections" className="btn btn-outline" style={{ fontSize: 13 }}>
+                <i className="fas fa-times" /> Cancel
+              </a>
+            </div>
+          </div>
+
+          {/* Wizard container */}
+          <div className="wizard-container occ-wizard" style={{ padding: 32, border: "2px solid #f59e0b" }}>
+
+            {/* Steps */}
+            <div className="wizard-steps">
+              {occStepLabels.map((label, i) => {
+                const n = i + 1;
+                const isActive = occStep === n;
+                const isCompleted = occStep > n;
+                return (
+                  <div key={n} className={`step${isActive ? " active" : ""}${isCompleted ? " completed" : ""}`}>
+                    <div className="step-circle" style={isActive ? { background: "#f59e0b", color: "white", boxShadow: "0 0 0 4px rgba(245,158,11,0.2)" } : isCompleted ? { background: "#f59e0b", color: "white" } : {}}>
+                      {isCompleted ? <i className="fas fa-check" style={{ fontSize: 16 }} /> : n}
+                    </div>
+                    <span className="step-label" style={isActive || isCompleted ? { color: "#92400e" } : {}}>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ===== OCC STEP 1: FACILITY INFO ===== */}
+            <div className={`wizard-step-content${occStep === 1 ? " active" : ""}`}>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#92400e", marginBottom: 24 }}>
+                <i className="fas fa-building" style={{ color: "#f59e0b", marginRight: 8 }} />Facility Information
+              </h3>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Date of Inspection <span style={{ color: "#ef4444" }}>*</span></label>
+                <input type="date" className="form-control occ-input" value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
+              </div>
+
+              <Autocomplete label="Client" required options={options?.clients.map(c => c.name) ?? []} value={clientName}
+                onChange={v => {
+                  setClientName(v);
+                  const found = options?.clients.find(c => c.name === v);
+                  if (found) {
+                    if (found.town && !town) setTown(found.town);
+                    if (found.email && !primaryEmail) setPrimaryEmail(found.email);
+                    if (found.corporate_group && !corporateGroup) setCorporateGroup(found.corporate_group);
+                    if (found.group_type && !groupType) setGroupType(found.group_type);
+                    if (found.facility_type && !facilityType) setFacilityType(found.facility_type);
+                  }
+                }}
+                placeholder="Start typing to search clients..." />
+
+              <Autocomplete label="Town" required options={options?.towns ?? []} value={town} onChange={setTown} placeholder="Start typing to search towns..." />
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Registration Code</label>
+                <input type="text" className="form-control occ-input" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="e.g. ABC-123-456" />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Physical Address</label>
+                <textarea className="form-control occ-input" rows={3} value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)} placeholder="Physical address of the facility" style={{ resize: "vertical" }} />
+              </div>
+
+              <div className="product-fields-grid">
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Telephone</label>
+                  <input type="text" className="form-control occ-input" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="e.g. 012 345 6789" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Time of Visit</label>
+                  <input type="time" className="form-control occ-input" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Corporate Group <span style={{ color: "#ef4444" }}>*</span></label>
+                <select className="form-control occ-input" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
+                  <option value="">Select corporate group (required)</option>
+                  {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+                  <option value="Not Applicable">Not Applicable (None)</option>
+                  <option value="Other">Other (Unlisted Group)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Group Type <span style={{ color: "#ef4444" }}>*</span></label>
+                <select className="form-control occ-input" value={groupType} onChange={e => setGroupType(e.target.value)}>
+                  <option value="">Select group type (required)</option>
+                  {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+
+              {occError.length > 0 && occStep === 1 && (
+                <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "12px 16px", color: "#92400e", fontSize: 14, marginTop: 16 }}>
+                  <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />
+                  <strong>Missing Required Fields:</strong>
+                  <ul style={{ margin: "8px 0 0 24px", padding: 0, listStyleType: "disc" }}>
+                    {occError.map(e => <li key={e}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* ===== OCC STEP 2: FINDINGS & TRIP INFO ===== */}
+            <div className={`wizard-step-content${occStep === 2 ? " active" : ""}`}>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#92400e", marginBottom: 24 }}>
+                <i className="fas fa-clipboard-list" style={{ color: "#f59e0b", marginRight: 8 }} />Findings &amp; Trip Info
+              </h3>
+
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Description of Events <span style={{ color: "#ef4444" }}>*</span></label>
+                <textarea className="form-control occ-input" rows={8} value={occurrenceDescription} onChange={e => setOccurrenceDescription(e.target.value)}
+                  placeholder="Describe in detail what was found during the visit, including any non-conformances, observations, and corrective actions discussed..."
+                  style={{ resize: "vertical", minHeight: 180 }} />
+                <small style={{ color: "#92400e", fontSize: 11, opacity: 0.7 }}>Provide a thorough account of all events and findings during this occurrence visit.</small>
+              </div>
+
+              <div className="product-fields-grid">
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>KM Traveled</label>
+                  <input type="number" step="0.1" className="form-control occ-input" value={kmTraveled} onChange={e => setKmTraveled(Number(e.target.value))} placeholder="0" min={0} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Hours Worked</label>
+                  <input type="number" step="0.5" className="form-control occ-input" value={hoursWorked} onChange={e => setHoursWorked(Number(e.target.value))} placeholder="0" min={0} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Travel Start Time</label>
+                  <input type="time" className="form-control occ-input" value={travelStart} onChange={e => setTravelStart(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: "#92400e" }}>Travel End Time</label>
+                  <input type="time" className="form-control occ-input" value={travelEnd} onChange={e => setTravelEnd(e.target.value)} />
+                </div>
+              </div>
+
+              {occError.length > 0 && occStep === 2 && (
+                <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "12px 16px", color: "#92400e", fontSize: 14, marginTop: 16 }}>
+                  <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />
+                  <strong>Missing Required Fields:</strong>
+                  <ul style={{ margin: "8px 0 0 24px", padding: 0, listStyleType: "disc" }}>
+                    {occError.map(e => <li key={e}>{e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* ===== OCC STEP 3: REVIEW & SUBMIT ===== */}
+            <div className={`wizard-step-content${occStep === 3 ? " active" : ""}`}>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#92400e", marginBottom: 24 }}>
+                <i className="fas fa-check-circle" style={{ color: "#f59e0b", marginRight: 8 }} />Review &amp; Submit
+              </h3>
+
+              {/* Facility Info Card */}
+              <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-building" style={{ color: "#f59e0b" }} /> Facility Information
+                </h4>
+                <div className="review-summary-grid">
+                  {[
+                    ["Date", dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "\u2014"],
+                    ["Client", clientName || "\u2014"],
+                    ["Town", town || "\u2014"],
+                    ["Registration Code", registrationCode || "\u2014"],
+                    ["Physical Address", physicalAddress || "\u2014"],
+                    ["Telephone", telephone || "\u2014"],
+                    ["Time of Visit", timeOfVisit || "\u2014"],
+                    ["Corporate Group", corporateGroup || "\u2014"],
+                    ["Group Type", groupType || "\u2014"],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #fcd34d" }}>
+                      <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: "#1f2937" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Findings & Trip Card */}
+              <div style={{ background: "#fffbeb", borderRadius: 12, padding: 24, marginBottom: 20, border: "2px solid #f59e0b" }}>
+                <h4 style={{ fontWeight: 600, color: "#92400e", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-clipboard-list" style={{ color: "#f59e0b" }} /> Findings &amp; Trip Info
+                </h4>
+                <div style={{ padding: 16, background: "white", borderRadius: 8, border: "1px solid #fcd34d", marginBottom: 12 }}>
+                  <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Description of Events</span>
+                  <span style={{ fontWeight: 500, color: "#1f2937", whiteSpace: "pre-wrap", fontSize: 14 }}>{occurrenceDescription || "\u2014"}</span>
+                </div>
+                <div className="review-summary-grid">
+                  {[
+                    ["KM Traveled", `${kmTraveled} km`],
+                    ["Hours Worked", `${hoursWorked} hrs`],
+                    ["Travel Start", travelStart || "\u2014"],
+                    ["Travel End", travelEnd || "\u2014"],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #fcd34d" }}>
+                      <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: "#1f2937" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "14px 18px", color: "#92400e", fontSize: 14 }}>
+                <i className="fas fa-exclamation-triangle" style={{ marginRight: 8, color: "#f59e0b" }} />
+                Ready to submit occurrence report. Click "Submit Occurrence Report" to save.
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32, paddingTop: 24, borderTop: "1px solid #fcd34d" }}>
+              <button type="button" className="btn btn-outline" onClick={occGoPrev} style={{ visibility: occStep === 1 ? "hidden" : "visible", borderColor: "#f59e0b", color: "#92400e" }}>
+                <i className="fas fa-arrow-left" /> Back
+              </button>
+              <div style={{ display: "flex", gap: 12 }}>
+                {occStep < 3 && (
+                  <button type="button" onClick={occGoNext}
+                    style={{ background: "#f59e0b", color: "white", border: "none", padding: "12px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 15, display: "inline-flex", alignItems: "center", gap: 8, transition: "all 0.2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#d97706")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#f59e0b")}>
+                    Next <i className="fas fa-arrow-right" />
+                  </button>
+                )}
+                {occStep === 3 && (
+                  <button type="button" onClick={handleOccurrenceSubmit} disabled={submitting}
+                    style={{ background: "#f59e0b", color: "white", border: "none", padding: "12px 24px", borderRadius: 8, fontWeight: 600, cursor: submitting ? "not-allowed" : "pointer", fontSize: 15, display: "inline-flex", alignItems: "center", gap: 8, opacity: submitting ? 0.6 : 1, transition: "all 0.2s" }}
+                    onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = "#d97706"; }}
+                    onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = "#f59e0b"; }}>
+                    {submitting
+                      ? <><div style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "white", animation: "spin 0.8s linear infinite", verticalAlign: "middle" }} /> Submitting...</>
+                      : <><i className="fas fa-exclamation-triangle" /> Submit Occurrence Report</>}
+                  </button>
+                )}
+              </div>
+            </div>
+
+          </div>{/* end occ wizard-container */}
+
+          <div style={{ textAlign: "center", marginTop: 24, color: "white", fontSize: 13, opacity: 0.8 }}>
+            Food Safety Agency (Pty) Ltd - Inspection Management System
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* ── Normal Inspection Form ── */
   return (
     <>
       <style>{pageStyles}</style>
@@ -328,15 +662,14 @@ export default function AddInspectionPage() {
 
           {/* Steps */}
           <div className="wizard-steps">
-            {(isOccurrence ? [1, 3, 4] : [1, 2, 3, 4]).map((n) => {
+            {[1, 2, 3, 4].map((n) => {
               const isActive = step === n;
               const isCompleted = step > n;
               const displayLabel = n === 1 ? "Basic Info" : n === 2 ? "Product Info" : n === 3 ? "Invoice Info" : "Review";
-              const displayNum = isOccurrence ? (n === 1 ? 1 : n === 3 ? 2 : 3) : n;
               return (
                 <div key={n} className={`step${isActive ? " active" : ""}${isCompleted ? " completed" : ""}`}>
                   <div className="step-circle">
-                    {isCompleted ? <i className="fas fa-check" style={{ fontSize: 16 }} /> : displayNum}
+                    {isCompleted ? <i className="fas fa-check" style={{ fontSize: 16 }} /> : n}
                   </div>
                   <span className="step-label">{displayLabel}</span>
                 </div>
@@ -432,50 +765,6 @@ export default function AddInspectionPage() {
               </select>
             </div>
 
-            {/* Occurrence banner when active */}
-            {isOccurrence && (
-              <div style={{ background: "#fef3c7", border: "2px solid #f59e0b", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <i className="fas fa-exclamation-triangle" style={{ color: "#d97706", fontSize: "1.1rem" }} />
-                  <span style={{ fontWeight: 600, color: "#92400e" }}>Occurrence Report Mode</span>
-                </div>
-                <button type="button" onClick={() => setIsOccurrence(false)}
-                  style={{ background: "#fff", border: "1px solid #d1d5db", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500 }}>
-                  Back to Normal Inspection
-                </button>
-              </div>
-            )}
-
-            {/* Occurrence-specific fields */}
-            {isOccurrence && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Registration Code</label>
-                  <input type="text" className="form-control" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="e.g. ABC-123-456" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Physical Address</label>
-                  <textarea className="form-control" rows={3} value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)} placeholder="Physical address of the facility" style={{ resize: "vertical" }} />
-                </div>
-                <div className="product-fields-grid">
-                  <div className="form-group">
-                    <label className="form-label">Telephone</label>
-                    <input type="text" className="form-control" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="e.g. 012 345 6789" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Time of Visit</label>
-                    <input type="time" className="form-control" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Description of Events</label>
-                  <textarea className="form-control" rows={5} value={occurrenceDescription} onChange={e => setOccurrenceDescription(e.target.value)} placeholder="Describe what was found during the visit..." style={{ resize: "vertical" }} />
-                </div>
-              </>
-            )}
-
-            {/* Commodity cards - hidden in occurrence mode */}
-            {!isOccurrence && (
             <div className="form-group">
               <label className="form-label">Commodity Types <span style={{ color: "#ef4444" }}>*</span></label>
               <div className="commodity-grid">
@@ -492,7 +781,6 @@ export default function AddInspectionPage() {
                 ))}
               </div>
             </div>
-            )}
 
             {step1Error.length > 0 && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", color: "#991b1b", fontSize: 14, marginTop: 16 }}>
@@ -666,26 +954,19 @@ export default function AddInspectionPage() {
 
             <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
               <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>
-                {isOccurrence ? "Occurrence Report Summary" : "Inspection Summary"}
+                Inspection Summary
               </h4>
               <div className="review-summary-grid">
                 {[
-                  ...(isOccurrence ? [["Type", "Occurrence Report"]] : []),
-                  ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"],
-                  ["Client",          clientName || "—"],
-                  ["Town",            town || "—"],
-                  ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "—"],
-                  ["Corporate Group", corporateGroup || "—"],
-                  ["Group Type",      groupType || "—"],
-                  ["Facility Type",   facilityType || "—"],
-                  ...(isOccurrence ? [
-                    ["Registration Code", registrationCode || "—"],
-                    ["Physical Address",  physicalAddress || "—"],
-                    ["Telephone",         telephone || "—"],
-                    ["Time of Visit",     timeOfVisit || "—"],
-                  ] : []),
+                  ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "\u2014"],
+                  ["Client",          clientName || "\u2014"],
+                  ["Town",            town || "\u2014"],
+                  ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "\u2014"],
+                  ["Corporate Group", corporateGroup || "\u2014"],
+                  ["Group Type",      groupType || "\u2014"],
+                  ["Facility Type",   facilityType || "\u2014"],
                   ["KM / Hours",      `${kmTraveled} km / ${hoursWorked} hrs`],
-                  ["Travel Times",    travelStart && travelEnd ? `${travelStart} → ${travelEnd}` : "—"],
+                  ["Travel Times",    travelStart && travelEnd ? `${travelStart} \u2192 ${travelEnd}` : "\u2014"],
                 ].map(([label, val]) => (
                   <div key={label} style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
                     <span style={{ display: "block", fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</span>
@@ -695,7 +976,7 @@ export default function AddInspectionPage() {
               </div>
             </div>
 
-            {!isOccurrence && products.length > 0 && (
+            {products.length > 0 && (
               <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
                 <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>Products ({products.length})</h4>
                 {products.map((p, i) => {
@@ -728,8 +1009,8 @@ export default function AddInspectionPage() {
               <i className="fas fa-arrow-left" /> Back
             </button>
             <div style={{ display: "flex", gap: 12 }}>
-              {step === 1 && !isOccurrence && (
-                <button type="button" onClick={() => { setIsOccurrence(true); setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 }); setProducts([]); }}
+              {step === 1 && (
+                <button type="button" onClick={() => { setIsOccurrence(true); setOccStep(1); setOccError([]); setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 }); setProducts([]); }}
                   style={{ background: "#f59e0b", color: "white", border: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#d97706")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#f59e0b")}>
@@ -922,5 +1203,28 @@ const pageStyles = `
     .step-circle { width: 30px; height: 30px; font-size: 12px; }
     .step-label { font-size: 9px; }
     .wizard-steps::before { left: 15px; right: 15px; }
+  }
+`;
+
+const occurrenceStyles = `
+  .occ-wizard {
+    background: rgba(255,251,235,0.97) !important;
+  }
+  .occ-wizard .wizard-steps::before {
+    background: #fcd34d !important;
+  }
+  .occ-input:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 4px rgba(245,158,11,0.15) !important;
+  }
+  .occ-wizard .form-label {
+    color: #92400e;
+  }
+  .occ-wizard .client-dropdown {
+    border-color: #f59e0b !important;
+  }
+  .occ-wizard .client-dropdown-item:hover {
+    background: #fef3c7 !important;
+    border-left: 3px solid #f59e0b !important;
   }
 `;
