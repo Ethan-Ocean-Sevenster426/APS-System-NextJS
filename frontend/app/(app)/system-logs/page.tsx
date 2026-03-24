@@ -261,10 +261,12 @@ export default function SystemLogsPage() {
   /*  Render                                                           */
   /* ================================================================ */
   if (loading) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#fff" }}>
-      <img src="/logo.png" alt="FSA" style={{ width: 64, height: 64, borderRadius: 12, marginBottom: 16, animation: "pulse 1.5s ease-in-out infinite" }} />
-      <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
-      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     </div>
   );
 
