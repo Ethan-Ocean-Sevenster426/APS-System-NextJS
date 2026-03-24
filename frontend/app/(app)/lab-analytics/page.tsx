@@ -124,7 +124,7 @@ export default function LabAnalyticsPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes barGrow { from { width: 0; } }
         @keyframes barHeight { from { height: 0; } }
-        .la-page-bg { background: #f8fafc; min-height: 100vh; }
+        .la-page-bg { min-height: 100vh; }
         .la-wrap { padding: 32px 32px 48px; max-width: 1340px; margin: 0 auto; }
         .la-section-title {
           font-size: 0.72rem; font-weight: 700; color: #6b7280;
