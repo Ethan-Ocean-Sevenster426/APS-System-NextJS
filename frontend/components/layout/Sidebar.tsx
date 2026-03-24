@@ -152,7 +152,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
       {/* Brand — only when expanded */}
       {!collapsed && (
         <div style={{ padding: "12px 10px", borderBottom: "1px solid #1e293b", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", flexShrink: 0 }}>
-          <Image src="/logo.png" alt="FSA Logo" width={44} height={44} style={{ borderRadius: "8px", marginBottom: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
+          <Image src="/logo.png" alt="FSA Logo" width={72} height={72} style={{ borderRadius: "10px", marginBottom: "6px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.2 }}>Food Safety Agency</div>
             <div style={{ fontSize: "0.55rem", color: "#64748b", marginTop: "1px" }}>Management Platform</div>
