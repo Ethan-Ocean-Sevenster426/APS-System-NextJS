@@ -2763,13 +2763,15 @@ def api_add_inspection(request):
         if missing:
             return _cors(JsonResponse({'success': False, 'error': f"Required fields missing: {', '.join(missing)}"}))
 
+        is_occurrence = bool(data.get('is_occurrence_report', False))
         products_data = data.get('products', [])
-        if not products_data:
-            return _cors(JsonResponse({'success': False, 'error': 'Please add at least one product'}))
+        if not is_occurrence:
+            if not products_data:
+                return _cors(JsonResponse({'success': False, 'error': 'Please add at least one product'}))
 
-        for i, p in enumerate(products_data):
-            if not p.get('product_name', '').strip():
-                return _cors(JsonResponse({'success': False, 'error': f'Product name is required for product {i + 1}'}))
+            for i, p in enumerate(products_data):
+                if not p.get('product_name', '').strip():
+                    return _cors(JsonResponse({'success': False, 'error': f'Product name is required for product {i + 1}'}))
 
         from django.utils.dateparse import parse_date as _pd
         date_obj = _pd(data['date_of_inspection'])
@@ -2819,8 +2821,23 @@ def api_add_inspection(request):
             )
 
             total_created = 0
-            for seq, prod in enumerate(products_data, start=1):
-                # Generate unique negative remote_id
+
+            # Occurrence report fields (shared across all child inspections)
+            occurrence_kwargs = {}
+            if is_occurrence:
+                occurrence_kwargs = {
+                    'is_occurrence_report': True,
+                    'registration_code': data.get('registration_code', ''),
+                    'physical_address': data.get('physical_address', ''),
+                    'telephone': data.get('telephone', ''),
+                }
+                time_of_visit_str = data.get('time_of_visit', '')
+                if time_of_visit_str:
+                    from django.utils.dateparse import parse_time as _pt
+                    occurrence_kwargs['time_of_visit'] = _pt(time_of_visit_str)
+
+            if is_occurrence and not products_data:
+                # Create a single inspection record for occurrence reports with no products
                 min_rid = _Insp.objects.filter(is_manual=True).aggregate(Min('remote_id'))['remote_id__min']
                 remote_id = -1 if (min_rid is None or min_rid >= 0) else min_rid - 1
 
@@ -2829,18 +2846,13 @@ def api_add_inspection(request):
                     client=client,
                     client_name=client_name,
                     date_of_inspection=date_obj,
-                    commodity=prod.get('commodity', ''),
-                    product_name=prod.get('product_name', ''),
-                    product_class=prod.get('product_class', ''),
+                    commodity='',
+                    product_name='Occurrence Report',
+                    product_class='',
                     inspector_name=data.get('inspector_name', 'API User'),
                     town=data.get('town', ''),
-                    is_sample_taken=bool(prod.get('is_sample_taken', False)),
-                    needs_retest=prod.get('needs_retest', 'NO'),
-                    fat=bool(prod.get('fat', False)),
-                    protein=bool(prod.get('protein', False)),
-                    calcium=bool(prod.get('calcium', False)),
-                    dna=bool(prod.get('dna', False)),
-                    lab=prod.get('lab', ''),
+                    is_sample_taken=False,
+                    needs_retest='NO',
                     km_traveled=float(data.get('km_traveled', 0) or 0),
                     hours=float(data.get('hours', 0) or 0),
                     additional_email=data.get('additional_email', ''),
@@ -2853,18 +2865,62 @@ def api_add_inspection(request):
                     group_type=data.get('group_type', ''),
                     facility_type=data.get('facility_type', ''),
                     remote_id=remote_id,
-                    inspection_sequence=seq,
+                    inspection_sequence=1,
                     internal_account_code=account_code,
+                    **occurrence_kwargs,
                 )
-                total_created += 1
+                total_created = 1
+            else:
+                for seq, prod in enumerate(products_data, start=1):
+                    # Generate unique negative remote_id
+                    min_rid = _Insp.objects.filter(is_manual=True).aggregate(Min('remote_id'))['remote_id__min']
+                    remote_id = -1 if (min_rid is None or min_rid >= 0) else min_rid - 1
+
+                    _Insp.objects.create(
+                        inspection_group=parent_group,
+                        client=client,
+                        client_name=client_name,
+                        date_of_inspection=date_obj,
+                        commodity=prod.get('commodity', ''),
+                        product_name=prod.get('product_name', ''),
+                        product_class=prod.get('product_class', ''),
+                        inspector_name=data.get('inspector_name', 'API User'),
+                        town=data.get('town', ''),
+                        is_sample_taken=bool(prod.get('is_sample_taken', False)),
+                        needs_retest=prod.get('needs_retest', 'NO'),
+                        fat=bool(prod.get('fat', False)),
+                        protein=bool(prod.get('protein', False)),
+                        calcium=bool(prod.get('calcium', False)),
+                        dna=bool(prod.get('dna', False)),
+                        lab=prod.get('lab', ''),
+                        km_traveled=float(data.get('km_traveled', 0) or 0),
+                        hours=float(data.get('hours', 0) or 0),
+                        additional_email=data.get('additional_email', ''),
+                        comment=data.get('comment', ''),
+                        is_manual=True,
+                        inspected=True,
+                        follow_up=bool(data.get('follow_up', False)),
+                        dispensation_application=bool(data.get('dispensation_application', False)),
+                        corporate_group=data.get('corporate_group', ''),
+                        group_type=data.get('group_type', ''),
+                        facility_type=data.get('facility_type', ''),
+                        remote_id=remote_id,
+                        inspection_sequence=seq,
+                        internal_account_code=account_code,
+                        **occurrence_kwargs,
+                    )
+                    total_created += 1
 
             # Clear cache
             from django.core.cache import cache as _fc
             _fc.delete('add_inspection_form_data')
 
-            from collections import Counter
-            commodity_counts = Counter(p.get('commodity', '') for p in products_data)
-            commodity_summary = ', '.join([f"{c}: {n}" for c, n in commodity_counts.items()])
+            if is_occurrence:
+                commodity_summary = 'Occurrence Report'
+            else:
+                from collections import Counter
+                commodity_counts = Counter(p.get('commodity', '') for p in products_data)
+                commodity_summary = ', '.join([f"{c}: {n}" for c, n in commodity_counts.items()])
 
         return _cors(JsonResponse({
             'success': True,

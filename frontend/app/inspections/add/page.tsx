@@ -135,6 +135,13 @@ export default function AddInspectionPage() {
   const [facilityType, setFacilityType] = useState("");
   const [commodities, setCommodities] = useState<Record<CommodityKey, number>>({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 });
 
+  // Occurrence Report
+  const [isOccurrence, setIsOccurrence] = useState(false);
+  const [registrationCode, setRegistrationCode] = useState("");
+  const [physicalAddress, setPhysicalAddress] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [timeOfVisit, setTimeOfVisit] = useState("");
+
   // Step 2
   const [products, setProducts] = useState<ProductEntry[]>([]);
 
@@ -196,7 +203,7 @@ export default function AddInspectionPage() {
       if (!corporateGroup.trim()) m.push("Corporate Group");
       if (!groupType.trim()) m.push("Group Type");
       if (!facilityType.trim()) m.push("Facility Type");
-      if (Object.values(commodities).every(v => v === 0)) m.push("At least one commodity");
+      if (!isOccurrence && Object.values(commodities).every(v => v === 0)) m.push("At least one commodity");
       return m;
     }
     if (s === 2) {
@@ -212,19 +219,26 @@ export default function AddInspectionPage() {
     if (step === 1) setStep1Error(errors);
     if (step === 2) setStep2Error(errors);
     if (errors.length > 0) return;
-    if (step === 1) rebuildProducts();
-    setStep(s => s + 1);
+    if (step === 1 && !isOccurrence) rebuildProducts();
+    if (step === 1 && isOccurrence) {
+      setStep(3); // skip Step 2 (Product Info)
+    } else {
+      setStep(s => s + 1);
+    }
   };
 
-  const goPrev = () => setStep(s => s - 1);
+  const goPrev = () => {
+    if (step === 3 && isOccurrence) {
+      setStep(1); // skip back over Step 2
+    } else {
+      setStep(s => s - 1);
+    }
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const res = await fetch("/api/add-inspection/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload: Record<string, unknown> = {
           client_name: clientName,
           town,
           date_of_inspection: dateOfInspection,
@@ -239,8 +253,19 @@ export default function AddInspectionPage() {
           travel_end_time: travelEnd,
           follow_up: followUp,
           dispensation_application: dispensation,
-          products,
-        }),
+          products: isOccurrence ? [] : products,
+      };
+      if (isOccurrence) {
+          payload.is_occurrence_report = true;
+          payload.registration_code = registrationCode;
+          payload.physical_address = physicalAddress;
+          payload.telephone = telephone;
+          payload.time_of_visit = timeOfVisit;
+      }
+      const res = await fetch("/api/add-inspection/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -255,7 +280,7 @@ export default function AddInspectionPage() {
     }
   };
 
-  const stepLabels = ["Basic Info", "Product Info", "Invoice Info", "Review"];
+  const stepLabels = isOccurrence ? ["Basic Info", "—", "Invoice Info", "Review"] : ["Basic Info", "Product Info", "Invoice Info", "Review"];
 
   /* ── Loading ── */
   if (loading) return (
@@ -302,15 +327,17 @@ export default function AddInspectionPage() {
 
           {/* Steps */}
           <div className="wizard-steps">
-            {[1, 2, 3, 4].map((n, i) => {
+            {(isOccurrence ? [1, 3, 4] : [1, 2, 3, 4]).map((n) => {
               const isActive = step === n;
               const isCompleted = step > n;
+              const displayLabel = n === 1 ? "Basic Info" : n === 2 ? "Product Info" : n === 3 ? "Invoice Info" : "Review";
+              const displayNum = isOccurrence ? (n === 1 ? 1 : n === 3 ? 2 : 3) : n;
               return (
                 <div key={n} className={`step${isActive ? " active" : ""}${isCompleted ? " completed" : ""}`}>
                   <div className="step-circle">
-                    {isCompleted ? <i className="fas fa-check" style={{ fontSize: 16 }} /> : n}
+                    {isCompleted ? <i className="fas fa-check" style={{ fontSize: 16 }} /> : displayNum}
                   </div>
-                  <span className="step-label">{stepLabels[i]}</span>
+                  <span className="step-label">{displayLabel}</span>
                 </div>
               );
             })}
@@ -404,7 +431,51 @@ export default function AddInspectionPage() {
               </select>
             </div>
 
-            {/* Commodity cards */}
+            {/* Occurrence Report Toggle */}
+            <div className="form-group">
+              <label className="checkbox-card sample-taken-card" style={{ marginBottom: 0, border: isOccurrence ? "2px solid #007890" : undefined, background: isOccurrence ? "#f0fdfa" : undefined }}>
+                <input type="checkbox" checked={isOccurrence}
+                  onChange={e => {
+                    setIsOccurrence(e.target.checked);
+                    if (e.target.checked) {
+                      setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 });
+                      setProducts([]);
+                    }
+                  }} />
+                <div className="custom-check"><i className="fas fa-check" /></div>
+                <span className="checkbox-content">
+                  <span style={{ fontWeight: 600 }}>Occurrence Report</span>
+                  <small style={{ display: "block", color: "#6b7280", fontSize: 12, marginTop: 2 }}>Switch to occurrence report mode (no products/commodities required)</small>
+                </span>
+              </label>
+            </div>
+
+            {/* Occurrence-specific fields */}
+            {isOccurrence && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Registration Code</label>
+                  <input type="text" className="form-control" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="e.g. ABC-123-456" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Physical Address</label>
+                  <textarea className="form-control" rows={3} value={physicalAddress} onChange={e => setPhysicalAddress(e.target.value)} placeholder="Physical address of the facility" style={{ resize: "vertical" }} />
+                </div>
+                <div className="product-fields-grid">
+                  <div className="form-group">
+                    <label className="form-label">Telephone</label>
+                    <input type="text" className="form-control" value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="e.g. 012 345 6789" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Time of Visit</label>
+                    <input type="time" className="form-control" value={timeOfVisit} onChange={e => setTimeOfVisit(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Commodity cards - hidden in occurrence mode */}
+            {!isOccurrence && (
             <div className="form-group">
               <label className="form-label">Commodity Types <span style={{ color: "#ef4444" }}>*</span></label>
               <div className="commodity-grid">
@@ -421,6 +492,7 @@ export default function AddInspectionPage() {
                 ))}
               </div>
             </div>
+            )}
 
             {step1Error.length > 0 && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", color: "#991b1b", fontSize: 14, marginTop: 16 }}>
@@ -593,9 +665,12 @@ export default function AddInspectionPage() {
             </h3>
 
             <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
-              <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>Inspection Summary</h4>
+              <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>
+                {isOccurrence ? "Occurrence Report Summary" : "Inspection Summary"}
+              </h4>
               <div className="review-summary-grid">
                 {[
+                  ...(isOccurrence ? [["Type", "Occurrence Report"]] : []),
                   ["Date",            dateOfInspection ? new Date(dateOfInspection + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"],
                   ["Client",          clientName || "—"],
                   ["Town",            town || "—"],
@@ -603,6 +678,12 @@ export default function AddInspectionPage() {
                   ["Corporate Group", corporateGroup || "—"],
                   ["Group Type",      groupType || "—"],
                   ["Facility Type",   facilityType || "—"],
+                  ...(isOccurrence ? [
+                    ["Registration Code", registrationCode || "—"],
+                    ["Physical Address",  physicalAddress || "—"],
+                    ["Telephone",         telephone || "—"],
+                    ["Time of Visit",     timeOfVisit || "—"],
+                  ] : []),
                   ["KM / Hours",      `${kmTraveled} km / ${hoursWorked} hrs`],
                   ["Travel Times",    travelStart && travelEnd ? `${travelStart} → ${travelEnd}` : "—"],
                 ].map(([label, val]) => (
@@ -614,7 +695,7 @@ export default function AddInspectionPage() {
               </div>
             </div>
 
-            {products.length > 0 && (
+            {!isOccurrence && products.length > 0 && (
               <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
                 <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>Products ({products.length})</h4>
                 {products.map((p, i) => {
