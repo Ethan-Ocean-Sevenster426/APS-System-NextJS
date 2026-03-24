@@ -142,6 +142,7 @@ export default function AddInspectionPage() {
   const [telephone, setTelephone] = useState("");
   const [timeOfVisit, setTimeOfVisit] = useState("");
   const [occurrenceDescription, setOccurrenceDescription] = useState("");
+  const [occFile, setOccFile] = useState<File | null>(null);
 
   // Step 2
   const [products, setProducts] = useState<ProductEntry[]>([]);
@@ -499,6 +500,37 @@ export default function AddInspectionPage() {
                 <small style={{ color: "#92400e", fontSize: 11, opacity: 0.7 }}>Provide a thorough account of all events and findings during this occurrence visit.</small>
               </div>
 
+              {/* Document Upload */}
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Occurrence Document <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontWeight: 400 }}>(optional)</span></label>
+                <div
+                  style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: 24, textAlign: "center", cursor: "pointer", background: occFile ? "#f0fdf4" : "white", transition: "all 0.2s" }}
+                  onClick={() => document.getElementById("occFileInput")?.click()}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.background = "#fffbeb"; }}
+                  onDragLeave={e => { e.currentTarget.style.borderColor = "#d1d5db"; e.currentTarget.style.background = occFile ? "#f0fdf4" : "white"; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#d1d5db"; e.currentTarget.style.background = "#f0fdf4"; if (e.dataTransfer.files[0]) setOccFile(e.dataTransfer.files[0]); }}
+                >
+                  {occFile ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                      <i className="fas fa-file-pdf" style={{ color: "#22c55e", fontSize: "1.5rem" }} />
+                      <span style={{ color: "#166534", fontWeight: 500 }}>{occFile.name}</span>
+                      <button type="button" onClick={e => { e.stopPropagation(); setOccFile(null); }}
+                        style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 4 }}>
+                        <i className="fas fa-times" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <i className="fas fa-cloud-upload-alt" style={{ fontSize: "2rem", color: "#9ca3af", display: "block", marginBottom: 6 }} />
+                      <p style={{ margin: 0, color: "#6b7280", fontSize: 14 }}>Click to browse or drag &amp; drop</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>PDF files only</p>
+                    </>
+                  )}
+                </div>
+                <input type="file" id="occFileInput" accept=".pdf" style={{ display: "none" }}
+                  onChange={e => { if (e.target.files?.[0]) setOccFile(e.target.files[0]); }} />
+              </div>
+
               <div className="product-fields-grid">
                 <div className="form-group">
                   <label className="form-label" style={{ color: "#92400e" }}>KM Traveled</label>
@@ -569,6 +601,12 @@ export default function AddInspectionPage() {
                   <span style={{ display: "block", fontSize: 11, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Description of Events</span>
                   <span style={{ fontWeight: 500, color: "#1f2937", whiteSpace: "pre-wrap", fontSize: 14 }}>{occurrenceDescription || "\u2014"}</span>
                 </div>
+                {occFile && (
+                  <div style={{ padding: 12, background: "white", borderRadius: 8, border: "1px solid #22c55e", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                    <i className="fas fa-file-pdf" style={{ color: "#22c55e" }} />
+                    <span style={{ fontWeight: 500, color: "#166534", fontSize: 14 }}>{occFile.name}</span>
+                  </div>
+                )}
                 <div className="review-summary-grid">
                   {[
                     ["KM Traveled", `${kmTraveled} km`],
