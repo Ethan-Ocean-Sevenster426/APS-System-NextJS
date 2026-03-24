@@ -817,7 +817,7 @@ export default function AnalyticsPage() {
         y += 5;
         const compHeaders = ["Commodity", "Total", "Compliant", "Non-Compliant", "Compliance Rate"];
         const compColW = [50, 30, 30, 30, 35];
-        const compRows = data.complianceByCommodity.map(c => [c.commodity, String(c.total), String(c.compliant), String(c.non_compliant), `${c.compliance_rate.toFixed(1)}%`]);
+        const compRows = (data.complianceByCommodity || []).map(c => [c.commodity, String(c.total), String(c.compliant), String(c.non_compliant), `${c.compliance_rate.toFixed(1)}%`]);
         y = drawTable(compHeaders, compRows, y, compColW, { fontSize: 8 });
       }
 
@@ -832,7 +832,7 @@ export default function AnalyticsPage() {
         y += 5;
         const perfHeaders = ["Inspector", "Total Inspections", "Compliant", "Non-Compliant"];
         const perfColW = [60, 35, 35, 35];
-        const perfRows = data.inspectorPerformance.map(p => [p.inspector_name, String(p.total_inspections), String(p.compliant), String(p.non_compliant)]);
+        const perfRows = (data.inspectorPerformance || []).map(p => [p.inspector_name, String(p.total_inspections), String(p.compliant), String(p.non_compliant)]);
         y = drawTable(perfHeaders, perfRows, y, perfColW, { fontSize: 8 });
       }
 
@@ -847,7 +847,7 @@ export default function AnalyticsPage() {
         y += 5;
         const tHeaders = ["Inspector", "Total KM", "Total Hours", "Inspections", "Avg KM"];
         const tColW = [55, 30, 30, 30, 30];
-        const tRows = data.travelPerInspector.map(t => [t.inspector_name, t.total_km.toLocaleString(), t.total_hours.toFixed(1), String(t.inspection_count), t.avg_km.toFixed(1)]);
+        const tRows = (data.travelPerInspector || []).map(t => [t.inspector_name, t.total_km.toLocaleString(), t.total_hours.toFixed(1), String(t.inspection_count), t.avg_km.toFixed(1)]);
         y = drawTable(tHeaders, tRows, y, tColW, { fontSize: 8 });
       }
 
@@ -1157,14 +1157,14 @@ export default function AnalyticsPage() {
 
 function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }: { data: AnalyticsData; totalKm: number; avgDocSend: number; avgApproval: number; totalSamples: number }) {
   // Daily compliance trend
-  const dailyDays = [...new Set(data.dailyComplianceTrend.map((d) => d.day))].sort();
-  const dailyCommodities = [...new Set(data.dailyComplianceTrend.map((d) => d.commodity))];
+  const dailyDays = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
+  const dailyCommodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
   const dailyChartData = {
     labels: dailyDays.map(fmtDay),
     datasets: dailyCommodities.map((c, i) => ({
       label: c,
       data: dailyDays.map((day) => {
-        const row = data.dailyComplianceTrend.find((r) => r.day === day && r.commodity === c);
+        const row = (data.dailyComplianceTrend || []).find((r) => r.day === day && r.commodity === c);
         return row ? row.compliance_rate : 0;
       }),
       borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
@@ -1174,14 +1174,14 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
   };
 
   // Monthly inspections
-  const miLabels = data.monthlyInspectionsTrend.map((d) => fmtMonth(d.month));
+  const miLabels = (data.monthlyInspectionsTrend || []).map((d) => fmtMonth(d.month));
   const miData = {
     labels: miLabels,
-    datasets: [{ label: "Inspections", data: data.monthlyInspectionsTrend.map((d) => d.count), backgroundColor: "#007890", borderRadius: 4 }],
+    datasets: [{ label: "Inspections", data: (data.monthlyInspectionsTrend || []).map((d) => d.count), backgroundColor: "#007890", borderRadius: 4 }],
   };
 
   // Monthly compliance (aggregated)
-  const mcMonths = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
+  const mcMonths = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.month))].sort();
   const mcAgg = mcMonths.map((m) => {
     const rows = data.monthlyComplianceTrend.filter((r) => r.month === m);
     const totalCompliant = rows.reduce((s, r) => s + r.compliant, 0);
@@ -1195,8 +1195,8 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
 
   // Occurrence trend
   const occData = {
-    labels: data.monthlyOccurrenceTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Occurrences", data: data.monthlyOccurrenceTrend.map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
+    labels: (data.monthlyOccurrenceTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Occurrences", data: (data.monthlyOccurrenceTrend || []).map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
   };
 
   // Samples by commodity (exclude Eggs & Poultry)
@@ -1208,10 +1208,10 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
 
   // Facility types doughnut
   const ftData = {
-    labels: data.facilityTypeDistribution.map((d) => d.facility_type),
+    labels: (data.facilityTypeDistribution || []).map((d) => d.facility_type),
     datasets: [{
-      data: data.facilityTypeDistribution.map((d) => d.count),
-      backgroundColor: data.facilityTypeDistribution.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+      data: (data.facilityTypeDistribution || []).map((d) => d.count),
+      backgroundColor: (data.facilityTypeDistribution || []).map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
     }],
   };
 
@@ -1237,7 +1237,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       {/* Compliance per commodity */}
       <Card title="Compliance Per Commodity" icon="fas fa-shield-alt" tooltip="Approval rate breakdown by commodity type (RAW, PMP, EGGS, POULTRY) for the selected period.">
         <div className="space-y-3">
-          {data.complianceByCommodity.map((c) => (
+          {(data.complianceByCommodity || []).map((c) => (
             <div key={c.commodity} className="flex items-center gap-3">
               <span className="font-semibold text-sm text-gray-800 w-20 flex-shrink-0">{c.commodity}</span>
               <div className="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden relative">
@@ -1307,14 +1307,14 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const metricLabel: Record<string, string> = { count: "Inspections", total_km: "KM Traveled", total_hours: "Hours", samples: "Samples" };
 
   // Inspector trend
-  const days = [...new Set(data.monthlyInspectorTrend.map((d) => d.day))].sort();
-  const inspectors = [...new Set(data.monthlyInspectorTrend.map((d) => d.inspector_name))];
+  const days = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.day))].sort();
+  const inspectors = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.inspector_name))];
   const trendData = {
     labels: days.map(fmtDay),
     datasets: inspectors.map((name, i) => ({
       label: name,
       data: days.map((day) => {
-        const row = data.monthlyInspectorTrend.find((r) => r.day === day && r.inspector_name === name);
+        const row = (data.monthlyInspectorTrend || []).find((r) => r.day === day && r.inspector_name === name);
         return row ? row[inspectorMetric] : 0;
       }),
       borderColor: CHART_PALETTE[i % CHART_PALETTE.length],
@@ -1325,10 +1325,10 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
 
   // Compliance per inspector (stacked bar)
   const dirData = {
-    labels: data.directionsPerInspector.map((d) => d.inspector_name),
+    labels: (data.directionsPerInspector || []).map((d) => d.inspector_name),
     datasets: [
-      { label: "Directions", data: data.directionsPerInspector.map((d) => d.directions), backgroundColor: "#f59e0b" },
-      { label: "Non-Compliant Products", data: data.directionsPerInspector.map((d) => d.non_compliant_products), backgroundColor: "#ef4444" },
+      { label: "Directions", data: (data.directionsPerInspector || []).map((d) => d.directions), backgroundColor: "#f59e0b" },
+      { label: "Non-Compliant Products", data: (data.directionsPerInspector || []).map((d) => d.non_compliant_products), backgroundColor: "#ef4444" },
     ],
   };
   const stackedOpts = {
@@ -1547,7 +1547,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         datasets: commodities.map((c, i) => ({
           label: c,
           data: visibleMonths.map((m) => {
-            const row = data.monthlyComplianceTrend.find((r) => r.month === m && r.commodity === c);
+            const row = (data.monthlyComplianceTrend || []).find((r) => r.month === m && r.commodity === c);
             return row ? row.compliance_rate : 0;
           }),
           borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
@@ -1569,7 +1569,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         datasets: commodities.map((c, i) => ({
           label: c,
           data: visibleDays.map((day) => {
-            const row = data.dailyComplianceTrend.find((r) => r.day === day && r.commodity === c);
+            const row = (data.dailyComplianceTrend || []).find((r) => r.day === day && r.commodity === c);
             return row ? row.compliance_rate : 0;
           }),
           borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
@@ -1622,14 +1622,14 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
 
   // Weekly compliance trend using real compliance percentages from monthlyComplianceTrend
-  const compMonths = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
-  const compCommodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
+  const compMonths = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.month))].sort();
+  const compCommodities = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.commodity))];
   const weeklyData = {
     labels: compMonths.map(fmtMonth),
     datasets: compCommodities.map((c, i) => ({
       label: c,
       data: compMonths.map((m) => {
-        const row = data.monthlyComplianceTrend.find((r) => r.month === m && r.commodity === c);
+        const row = (data.monthlyComplianceTrend || []).find((r) => r.month === m && r.commodity === c);
         return row ? row.compliance_rate : 0;
       }),
       backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
@@ -1652,14 +1652,14 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
   // Facility types
   const ftData = {
-    labels: data.facilityTypeDistribution.map((d) => d.facility_type),
-    datasets: [{ data: data.facilityTypeDistribution.map((d) => d.count), backgroundColor: data.facilityTypeDistribution.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]) }],
+    labels: (data.facilityTypeDistribution || []).map((d) => d.facility_type),
+    datasets: [{ data: (data.facilityTypeDistribution || []).map((d) => d.count), backgroundColor: (data.facilityTypeDistribution || []).map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]) }],
   };
 
   // Time allocation (horizontal bar)
   const taData = {
-    labels: data.timeAllocation.map((d) => d.inspector_name),
-    datasets: [{ label: "Hours", data: data.timeAllocation.map((d) => d.total_hours), backgroundColor: "#007890" }],
+    labels: (data.timeAllocation || []).map((d) => d.inspector_name),
+    datasets: [{ label: "Hours", data: (data.timeAllocation || []).map((d) => d.total_hours), backgroundColor: "#007890" }],
   };
   const hBarOpts = {
     ...baseChartOptions(),
@@ -1676,20 +1676,20 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
   // Occurrence reports per inspector
   const orData = {
-    labels: data.occurrenceReports.map((d) => d.inspector_name),
-    datasets: [{ label: "Reports", data: data.occurrenceReports.map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
+    labels: (data.occurrenceReports || []).map((d) => d.inspector_name),
+    datasets: [{ label: "Reports", data: (data.occurrenceReports || []).map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
   };
 
   // Commodity count doughnut
   const caData = {
-    labels: data.commodityAnalysis.map((d) => d.commodity),
-    datasets: [{ data: data.commodityAnalysis.map((d) => d.total_inspections), backgroundColor: data.commodityAnalysis.map((d) => colorForCommodity(d.commodity)) }],
+    labels: (data.commodityAnalysis || []).map((d) => d.commodity),
+    datasets: [{ data: (data.commodityAnalysis || []).map((d) => d.total_inspections), backgroundColor: (data.commodityAnalysis || []).map((d) => colorForCommodity(d.commodity)) }],
   };
 
   // Occurrence monthly trend
   const omtData = {
-    labels: data.monthlyOccurrenceTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Occurrences", data: data.monthlyOccurrenceTrend.map((d) => d.count), borderColor: "#EC343C", backgroundColor: "rgba(236,52,60,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyOccurrenceTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Occurrences", data: (data.monthlyOccurrenceTrend || []).map((d) => d.count), borderColor: "#EC343C", backgroundColor: "rgba(236,52,60,0.1)", ...lineDefaults, fill: true }],
   };
 
   return (
@@ -1763,20 +1763,20 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 function OperationsPanel({ data }: { data: AnalyticsData }) {
   // Monthly travel distance (area)
   const mtdData = {
-    labels: data.monthlyTravelTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "KM", data: data.monthlyTravelTrend.map((d) => d.total_km), borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.15)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyTravelTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "KM", data: (data.monthlyTravelTrend || []).map((d) => d.total_km), borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.15)", ...lineDefaults, fill: true }],
   };
 
   // Travel hours trend
   const thtData = {
-    labels: data.monthlyTravelHoursTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Hours", data: data.monthlyTravelHoursTrend.map((d) => d.total_hours), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyTravelHoursTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Hours", data: (data.monthlyTravelHoursTrend || []).map((d) => d.total_hours), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
   };
 
   // Travel distance per inspector (horizontal bar)
   const tdpData = {
-    labels: data.travelPerInspector.map((d) => d.inspector_name),
-    datasets: [{ label: "KM", data: data.travelPerInspector.map((d) => d.total_km), backgroundColor: "#0078d4" }],
+    labels: (data.travelPerInspector || []).map((d) => d.inspector_name),
+    datasets: [{ label: "KM", data: (data.travelPerInspector || []).map((d) => d.total_km), backgroundColor: "#0078d4" }],
   };
   const hBarOpts = {
     ...baseChartOptions(),
@@ -1793,8 +1793,8 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
 
   // Travel time per inspector (horizontal bar)
   const ttpData = {
-    labels: data.travelTimePerInspector.map((d) => d.inspector_name),
-    datasets: [{ label: "Hours", data: data.travelTimePerInspector.map((d) => d.total_hours), backgroundColor: "#8764b8" }],
+    labels: (data.travelTimePerInspector || []).map((d) => d.inspector_name),
+    datasets: [{ label: "Hours", data: (data.travelTimePerInspector || []).map((d) => d.total_hours), backgroundColor: "#8764b8" }],
   };
 
   return (
@@ -1829,20 +1829,20 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
   const lineOpts = baseChartOptions(undefined, "Avg Days");
 
   const docSendTrend = {
-    labels: data.monthlyDocSendTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: data.monthlyDocSendTrend.map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyDocSendTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Avg Days", data: (data.monthlyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
   };
   const invoiceTrend = {
-    labels: data.monthlyInvoiceTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: data.monthlyInvoiceTrend.map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyInvoiceTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Avg Days", data: (data.monthlyInvoiceTrend || []).map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
   };
   const coaTrend = {
-    labels: data.monthlyCoaTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: data.monthlyCoaTrend.map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyCoaTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Avg Days", data: (data.monthlyCoaTrend || []).map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
   };
   const approvalTrend = {
-    labels: data.monthlyApprovalTrend.map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: data.monthlyApprovalTrend.map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+    labels: (data.monthlyApprovalTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "Avg Days", data: (data.monthlyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
   };
 
   const hBarOpts = {
@@ -1859,20 +1859,20 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
   };
 
   const docSendBar = {
-    labels: data.docSendTime.map((d) => d.name),
-    datasets: [{ label: "Avg Days", data: data.docSendTime.map((d) => d.avg_days), backgroundColor: "#0078d4" }],
+    labels: (data.docSendTime || []).map((d) => d.name),
+    datasets: [{ label: "Avg Days", data: (data.docSendTime || []).map((d) => d.avg_days), backgroundColor: "#0078d4" }],
   };
   const invoiceBar = {
-    labels: data.invoiceUploadTime.map((d) => d.name),
-    datasets: [{ label: "Avg Days", data: data.invoiceUploadTime.map((d) => d.avg_days), backgroundColor: "#f59e0b" }],
+    labels: (data.invoiceUploadTime || []).map((d) => d.name),
+    datasets: [{ label: "Avg Days", data: (data.invoiceUploadTime || []).map((d) => d.avg_days), backgroundColor: "#f59e0b" }],
   };
   const coaBar = {
-    labels: data.coaAnalysisTime.map((d) => d.commodity),
-    datasets: [{ label: "Avg Days", data: data.coaAnalysisTime.map((d) => d.avg_days), backgroundColor: "#10b981" }],
+    labels: (data.coaAnalysisTime || []).map((d) => d.commodity),
+    datasets: [{ label: "Avg Days", data: (data.coaAnalysisTime || []).map((d) => d.avg_days), backgroundColor: "#10b981" }],
   };
   const approvalBar = {
-    labels: data.approvalTime.map((d) => d.inspector_name),
-    datasets: [{ label: "Avg Days", data: data.approvalTime.map((d) => d.avg_days), backgroundColor: "#8764b8" }],
+    labels: (data.approvalTime || []).map((d) => d.inspector_name),
+    datasets: [{ label: "Avg Days", data: (data.approvalTime || []).map((d) => d.avg_days), backgroundColor: "#8764b8" }],
   };
 
   return (
