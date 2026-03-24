@@ -1403,9 +1403,9 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
     radarDatasets.push({
       label: "Target",
       data: [qt.eggs, qt.poultry, qt.raw, qt.pmp, qt.raw_samples, qt.pmp_samples],
-      borderColor: "#9ca3af",
-      backgroundColor: "rgba(156,163,175,0.08)",
-      pointBackgroundColor: "#9ca3af",
+      borderColor: "#ef4444",
+      backgroundColor: "rgba(239,68,68,0.08)",
+      pointBackgroundColor: "#ef4444",
       borderWidth: 2,
     });
   }
@@ -1484,7 +1484,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
                     return (
                       <Fragment key={c}>
                         <td style={{ padding: "0.5rem 0.5rem", textAlign: "center", fontWeight: 600, color: target > 0 ? (met ? "#059669" : "#ef4444") : "#374151" }}>{actual}</td>
-                        <td style={{ padding: "0.5rem 0.5rem", textAlign: "center", color: "#9ca3af" }}>{target}</td>
+                        <td style={{ padding: "0.5rem 0.5rem", textAlign: "center", color: "#ef4444", fontWeight: 500 }}>{target}</td>
                       </Fragment>
                     );
                   })}
