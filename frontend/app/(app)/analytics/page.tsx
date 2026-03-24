@@ -2136,13 +2136,13 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                   <td style={tdStyle}>{fmtRInt(Math.round(r.revenue_km))}</td>
                   <td style={tdStyle}>{fmtRInt(Math.round(r.revenue_samples))}</td>
                   <td style={{ ...tdStyle, fontWeight: 600, color: "#059669" }}>{fmtRInt(Math.round(r.total_revenue))}</td>
-                  <td style={tdStyle}>{r.salary > 0 ? fmtRInt(Math.round(r.salary)) : "—"}</td>
-                  <td style={tdStyle}>{r.expenses > 0 ? fmtRInt(Math.round(r.expenses)) : "—"}</td>
-                  <td style={tdStyle}>{r.mgmtFees > 0 ? fmtRInt(Math.round(r.mgmtFees)) : "—"}</td>
-                  <td style={tdStyle}>{r.totalCost > 0 ? fmtRInt(Math.round(r.totalCost)) : "—"}</td>
-                  <td style={tdStyle}>{r.revPerHr > 0 ? fmtRInt(r.revPerHr) : "—"}</td>
-                  <td style={tdStyle}>{r.costPerHr > 0 ? fmtRInt(r.costPerHr) : "—"}</td>
-                  <td style={{ ...tdStyle, fontWeight: 600, color: r.profit >= 0 ? "#059669" : "#dc2626" }}>{r.total_revenue > 0 || r.totalCost > 0 ? fmtRInt(Math.round(r.profit)) : "—"}</td>
+                  <td style={{ ...tdStyle, color: "#dc2626" }}>{r.salary > 0 ? fmtRInt(Math.round(r.salary)) : "—"}</td>
+                  <td style={{ ...tdStyle, color: r.expenses > 0 ? "#dc2626" : undefined }}>{r.expenses > 0 ? fmtRInt(Math.round(r.expenses)) : "—"}</td>
+                  <td style={{ ...tdStyle, color: "#dc2626" }}>{r.mgmtFees > 0 ? fmtRInt(Math.round(r.mgmtFees)) : "—"}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600, color: "#dc2626" }}>{r.totalCost > 0 ? fmtRInt(Math.round(r.totalCost)) : "—"}</td>
+                  <td style={{ ...tdStyle, color: "#059669" }}>{r.revPerHr > 0 ? fmtRInt(r.revPerHr) : "—"}</td>
+                  <td style={{ ...tdStyle, color: "#dc2626" }}>{r.costPerHr > 0 ? fmtRInt(r.costPerHr) : "—"}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: r.profit >= 0 ? "#059669" : "#dc2626" }}>{r.total_revenue > 0 || r.totalCost > 0 ? fmtRInt(Math.round(r.profit)) : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -2158,13 +2158,13 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <td style={totalStyle}>{fmtRInt(Math.round(totals.revenue_km))}</td>
                 <td style={totalStyle}>{fmtRInt(Math.round(totals.revenue_samples))}</td>
                 <td style={{ ...totalStyle, color: "#059669" }}>{fmtRInt(Math.round(totals.total_revenue))}</td>
-                <td style={totalStyle}>{fmtRInt(Math.round(totals.salary))}</td>
-                <td style={totalStyle}>{totals.expenses > 0 ? fmtRInt(Math.round(totals.expenses)) : "R0"}</td>
-                <td style={totalStyle}>{fmtRInt(Math.round(totals.mgmtFees))}</td>
-                <td style={totalStyle}>{fmtRInt(Math.round(totals.totalCost))}</td>
-                <td style={totalStyle}>{fmtRInt(totalRevPerHr)}</td>
-                <td style={totalStyle}>{fmtRInt(totalCostPerHr)}</td>
-                <td style={{ ...totalStyle, color: totals.profit >= 0 ? "#059669" : "#dc2626" }}>{fmtRInt(Math.round(totals.profit))}</td>
+                <td style={{ ...totalStyle, color: "#dc2626" }}>{fmtRInt(Math.round(totals.salary))}</td>
+                <td style={{ ...totalStyle, color: "#dc2626" }}>{totals.expenses > 0 ? fmtRInt(Math.round(totals.expenses)) : "R0"}</td>
+                <td style={{ ...totalStyle, color: "#dc2626" }}>{fmtRInt(Math.round(totals.mgmtFees))}</td>
+                <td style={{ ...totalStyle, color: "#dc2626" }}>{fmtRInt(Math.round(totals.totalCost))}</td>
+                <td style={{ ...totalStyle, color: "#059669" }}>{fmtRInt(totalRevPerHr)}</td>
+                <td style={{ ...totalStyle, color: "#dc2626" }}>{fmtRInt(totalCostPerHr)}</td>
+                <td style={{ ...totalStyle, fontWeight: 700, color: totals.profit >= 0 ? "#059669" : "#dc2626" }}>{fmtRInt(Math.round(totals.profit))}</td>
               </tr>
             </tfoot>
           </table>
