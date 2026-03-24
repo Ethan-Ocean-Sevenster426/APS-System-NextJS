@@ -136,8 +136,8 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
 
   return (
     <aside style={{
-      width: collapsed ? 48 : 200,
-      minWidth: collapsed ? 48 : 200,
+      width: collapsed ? 48 : 220,
+      minWidth: collapsed ? 48 : 220,
       height: "100vh",
       backgroundColor: "#0f172a",
       color: "#cbd5e1",
@@ -201,11 +201,11 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: collapsed ? 0 : 6,
-                        padding: collapsed ? "7px 0" : "4px 6px",
+                        gap: collapsed ? 0 : 8,
+                        padding: collapsed ? "7px 0" : "6px 10px",
                         justifyContent: collapsed ? "center" : "flex-start",
-                        borderRadius: collapsed ? 0 : 4,
-                        fontSize: "0.68rem",
+                        borderRadius: collapsed ? 0 : 5,
+                        fontSize: "0.78rem",
                         fontWeight: isActive ? 600 : 400,
                         color: isActive ? "#ffffff" : "#94a3b8",
                         textDecoration: "none",
