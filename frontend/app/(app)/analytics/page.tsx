@@ -1723,7 +1723,10 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Compliance %" icon="fas fa-chart-line" tooltip="Monthly compliance rate per commodity — uses real approval percentages.">
-          <ChartWrap height="280px"><Bar data={weeklyData} options={stackedOpts as never} /></ChartWrap>
+          <ChartWrap height="280px"><Bar data={weeklyData} options={{
+            ...baseChartOptions(undefined, "Compliance %", { datalabels: false }),
+            scales: { x: { stacked: false, ticks: { font: { size: 10 } } }, y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: (v: unknown) => v + "%" } } },
+          } as never} /></ChartWrap>
         </Card>
         <Card title="Samples Taken" icon="fas fa-vial" tooltip="Total lab samples collected per commodity type.">
           <ChartWrap height="280px"><Bar data={samplesData} options={baseChartOptions() as never} /></ChartWrap>
