@@ -1265,7 +1265,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
           <ChartWrap height="200px"><Bar data={miData} options={baseChartOptions() as never} /></ChartWrap>
         </Card>
         <Card title="Approval Rate" icon="fas fa-check-double" tooltip="Percentage of inspections approved per month.">
-          <ChartWrap height="200px"><Line data={mcData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="200px"><Line data={mcData} options={baseChartOptions(undefined, undefined, { datalabels: false }) as never} /></ChartWrap>
         </Card>
         <Card title="Occurrence Trend" icon="fas fa-exclamation-triangle" tooltip="Monthly trend of occurrence reports (non-compliance incidents) filed.">
           <ChartWrap height="200px"><Bar data={occData} options={baseChartOptions() as never} /></ChartWrap>
@@ -1510,7 +1510,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
           {trendChartType === "bar" ? (
             <Bar data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
           ) : (
-            <Line data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
+            <Line data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric], { datalabels: false }) as never} />
           )}
         </ChartWrap>
       </Card>
@@ -1752,7 +1752,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
           <ChartWrap height="280px"><Doughnut data={caData} options={doughnutOptions() as never} /></ChartWrap>
         </Card>
         <Card title="Occurrence Reports Monthly Trend" icon="fas fa-chart-line" tooltip="Monthly trend showing how occurrence report volume changes over time.">
-          <ChartWrap height="240px"><Line data={omtData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="240px"><Line data={omtData} options={baseChartOptions(undefined, undefined, { datalabels: false }) as never} /></ChartWrap>
         </Card>
       </div>
     </div>
@@ -1804,10 +1804,10 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Travel Distance (km)" icon="fas fa-chart-area" tooltip="Total kilometres driven by all inspectors each month.">
-          <ChartWrap height="180px"><Line data={mtdData} options={baseChartOptions(undefined, "KM") as never} /></ChartWrap>
+          <ChartWrap height="180px"><Line data={mtdData} options={baseChartOptions(undefined, "KM", { datalabels: false }) as never} /></ChartWrap>
         </Card>
         <Card title="Travel Hours Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly trend of hours spent travelling by all inspectors.">
-          <ChartWrap height="180px"><Line data={thtData} options={baseChartOptions(undefined, "Hours") as never} /></ChartWrap>
+          <ChartWrap height="180px"><Line data={thtData} options={baseChartOptions(undefined, "Hours", { datalabels: false }) as never} /></ChartWrap>
         </Card>
       </div>
       <Card title="Travel Distance Per Inspector" icon="fas fa-route" tooltip="Total kilometres driven by each inspector for the selected period.">
