@@ -69,13 +69,13 @@ export default function HomePage() {
     <>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
-        .hp-wrap { min-height: 100%; display: flex; align-items: flex-start; justify-content: center; padding: 24px 24px 16px; box-sizing: border-box; }
+        .hp-wrap { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 24px 16px; box-sizing: border-box; }
         .hp-inner { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 14px; }
-        .hp-header { text-align: center; }
+        .hp-header { text-align: center; margin-bottom: 8px; }
         .hp-title { color: #fff; font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.45); line-height: 1.2; }
         .hp-subtitle { color: rgba(255,255,255,0.88); font-size: 0.88rem; font-weight: 400; text-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: 0; }
-        .hp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .hp-stat { background: rgba(255,255,255,0.96); border-radius: 12px; padding: 18px 24px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.6); }
+        .hp-stats { display: flex; justify-content: center; gap: 14px; }
+        .hp-stat { background: rgba(255,255,255,0.96); border-radius: 12px; padding: 18px 40px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.6); }
         .hp-stat-num { color: #007890; font-size: 2.4rem; font-weight: 800; line-height: 1; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; min-height: 2.4rem; }
         .hp-stat-label { color: #6b7280; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin: 0; }
         .hp-quick { background: rgba(255,255,255,0.96); border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.6); }
