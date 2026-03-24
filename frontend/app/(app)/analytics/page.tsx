@@ -1264,7 +1264,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       {/* Daily compliance trend */}
       <Card title="Daily Compliance Trend by Commodity" icon="fas fa-chart-line" tooltip="Daily compliance percentage trends across all commodity types over time.">
         <ChartWrap height="260px">
-          <Line data={dailyChartData} options={baseChartOptions(undefined, "Compliance %") as never} />
+          <Line data={dailyChartData} options={baseChartOptions(undefined, "Compliance %", { datalabels: false }) as never} />
         </ChartWrap>
       </Card>
 
@@ -1546,12 +1546,12 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   // Build trend data based on selected view
   const buildTrendData = () => {
     if (trendView === "monthly") {
-      const months = [...new Set(data.monthlyComplianceTrend.map((d) => d.month))].sort();
+      const months = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.month))].sort();
       const windowSize = 6;
       const end = months.length + trendOffset;
       const start = Math.max(0, end - windowSize);
       const visibleMonths = months.slice(start, end > 0 ? end : months.length);
-      const commodities = [...new Set(data.monthlyComplianceTrend.map((d) => d.commodity))];
+      const commodities = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.commodity))];
       return {
         labels: visibleMonths.map(fmtMonth),
         datasets: commodities.map((c, i) => ({
@@ -1568,12 +1568,12 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         canForward: trendOffset < 0,
       };
     } else if (trendView === "daily") {
-      const days = [...new Set(data.dailyComplianceTrend.map((d) => d.day))].sort();
+      const days = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
       const windowSize = 14;
       const end = days.length + trendOffset;
       const start = Math.max(0, end - windowSize);
       const visibleDays = days.slice(start, end > 0 ? end : days.length);
-      const commodities = [...new Set(data.dailyComplianceTrend.map((d) => d.commodity))];
+      const commodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
       return {
         labels: visibleDays.map(d => { const dt = new Date(d + "T12:00:00"); return `${dt.getDate()}/${dt.getMonth()+1}`; }),
         datasets: commodities.map((c, i) => ({
@@ -1591,8 +1591,8 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
       };
     } else {
       // Weekly: group daily data by week
-      const days = [...new Set(data.dailyComplianceTrend.map((d) => d.day))].sort();
-      const commodities = [...new Set(data.dailyComplianceTrend.map((d) => d.commodity))];
+      const days = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
+      const commodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
       const weekMap: Record<string, Record<string, { total: number; compliant: number }>> = {};
       data.dailyComplianceTrend.forEach(d => {
         const dt = new Date(d.day + "T12:00:00");
@@ -1726,7 +1726,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
       >
         <div style={{ overflowX: "auto", overflowY: "hidden" }}>
           <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 240, position: "relative" }}>
-            <Line data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: number) => v === 0 ? "" : v.toFixed(1) + "%" }), maintainAspectRatio: false } as never} />
+            <Line data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabels: false }), maintainAspectRatio: false } as never} />
           </div>
         </div>
       </Card>
