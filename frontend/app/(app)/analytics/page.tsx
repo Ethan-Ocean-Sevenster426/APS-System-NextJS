@@ -926,7 +926,7 @@ export default function AnalyticsPage() {
               borderRadius: 6,
               border: "none",
               borderLeft: activePanel === p.key ? "3px solid #fff" : "3px solid transparent",
-              background: activePanel === p.key ? "#007890" : "rgba(255,255,255,0.9)",
+              background: activePanel === p.key ? "#007890" : "#ffffff",
               color: activePanel === p.key ? "#ffffff" : "#64748b",
               fontWeight: activePanel === p.key ? 600 : 500,
               fontSize: "0.875rem",
