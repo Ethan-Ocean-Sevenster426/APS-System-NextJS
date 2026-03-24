@@ -538,7 +538,14 @@ export default function AddInspectionPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "#92400e" }}>Hours Worked</label>
-                  <input type="number" step="0.5" className="form-control occ-input" value={hoursWorked} onChange={e => setHoursWorked(Number(e.target.value))} placeholder="0" min={0} />
+                  <input type="number" step="0.5" className="form-control occ-input" value={hoursWorked} readOnly placeholder="0" min={0}
+                    style={{ textAlign: "center" }} />
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    <button type="button" onClick={() => setHoursWorked(h => h <= 0 ? 0 : h <= 1 ? 0 : Math.round((h - 0.5) * 2) / 2)}
+                      style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>−</button>
+                    <button type="button" onClick={() => setHoursWorked(h => h < 1 ? 1 : Math.round((h + 0.5) * 2) / 2)}
+                      style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>+</button>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ color: "#92400e" }}>Travel Start Time</label>
@@ -951,7 +958,14 @@ export default function AddInspectionPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Hours Worked</label>
-                <input type="number" step="0.5" className="form-control" value={hoursWorked} onChange={e => setHoursWorked(Number(e.target.value))} placeholder="0" min={0} />
+                <input type="number" step="0.5" className="form-control" value={hoursWorked} readOnly placeholder="0" min={0}
+                  style={{ textAlign: "center" }} />
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  <button type="button" onClick={() => setHoursWorked(h => h <= 0 ? 0 : h <= 1 ? 0 : Math.round((h - 0.5) * 2) / 2)}
+                    style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>−</button>
+                  <button type="button" onClick={() => setHoursWorked(h => h < 1 ? 1 : Math.round((h + 0.5) * 2) / 2)}
+                    style={{ flex: 1, padding: "6px 0", border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 16, fontWeight: 600 }}>+</button>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Travel Start</label>
