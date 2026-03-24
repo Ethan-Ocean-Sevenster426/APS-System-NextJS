@@ -1206,27 +1206,29 @@ def api_inspections(request):
             has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in insp_ids)
             has_compliance = any(_has_file(pid, 'compliance') for pid in insp_ids)
             has_lab_form = any(_has_file(pid, 'lab_form') for pid in insp_ids)
-            # Compliance: check each product's actual status
-            # A product is "assessed" if it was sampled, has tests, or was explicitly marked non-compliant
+            # Compliance: matches frontend badge logic
+            # Product is "assessed" if it has compliance or composition file uploaded
+            # NON_COMPLIANT if any product is non-compliant (with file proof)
+            # COMPLIANT if at least one product is assessed+compliant and none are non-compliant
+            # PENDING if no products are assessed
             _any_non_compliant = False
-            _any_na = False
-            _all_compliant = True
+            _any_compliant = False
             for p in inspections:
-                is_compliant = getattr(p, 'is_product_compliant', True)
-                is_sampled = getattr(p, 'is_sample_taken', False)
-                has_tests = any([getattr(p, 'fat', False), getattr(p, 'protein', False),
-                                 getattr(p, 'dna', False), getattr(p, 'calcium', False)])
-                if not is_compliant:
+                has_compliance_doc = _has_file(p.id, 'compliance')
+                has_composition_doc = _has_file(p.id, 'composition')
+                is_assessed = has_compliance_doc or has_composition_doc
+                if is_assessed:
+                    if getattr(p, 'is_product_compliant', True):
+                        _any_compliant = True
+                    else:
+                        _any_non_compliant = True
+                elif not getattr(p, 'is_product_compliant', True):
+                    # Explicitly marked non-compliant even without file
                     _any_non_compliant = True
-                    _all_compliant = False
-                elif not is_sampled and not has_tests:
-                    # Product is default True but never assessed
-                    _any_na = True
-                    _all_compliant = False
 
             if _any_non_compliant:
                 _compliance_status = 'NON_COMPLIANT'
-            elif _all_compliant and not _any_na:
+            elif _any_compliant:
                 _compliance_status = 'COMPLIANT'
             else:
                 _compliance_status = 'PENDING'
