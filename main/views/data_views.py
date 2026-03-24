@@ -1066,10 +1066,6 @@ def api_inspections(request):
             .select_related('client')
             .prefetch_related('inspections')
             .annotate(
-                has_rfi=Exists(insp.filter(rfi_uploaded_date__isnull=False)),
-                has_invoice=Exists(insp.filter(invoice_uploaded_date__isnull=False)),
-                has_lab=Exists(insp.filter(coa_uploaded_date__isnull=False)),
-                has_compliance=Exists(insp.filter(composition_uploaded_by__isnull=False)),
                 is_occurrence_report=Exists(insp.filter(is_occurrence_report=True)),
                 first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
                 first_sent=Subquery(insp.order_by('id').values('sent_date')[:1]),
@@ -1171,54 +1167,49 @@ def api_inspections(request):
 
         groups = groups_qs[:200]
 
-        # ── Batch filesystem scan ──────────────────────────────────────
-        # Instead of calling os.path.isdir + os.listdir per inspection per
-        # category (8+ calls each), scan all relevant client dirs once and
-        # build a lookup dict: _file_map[(inspection_id, category)] = True
+        # ── Batch filesystem scan (single pass) ───────────────────────
         _file_map = {}  # (insp_id_str, category) -> bool
-        _FILE_CATEGORIES = ('lab', 'coa', 'composition', 'compliance',
+        _FILE_CATEGORIES = {'lab', 'coa', 'composition', 'compliance',
                             'occurrence', 'retest', 'other', 'lab_form',
-                            'rfi', 'invoice')
-        _scanned_clients = set()
+                            'rfi', 'invoice'}
         _docs_root = os.path.join(settings.MEDIA_ROOT, 'docs')
-        # Collect unique client_ids from the groups we're about to iterate
-        for _g in groups:
-            for _insp in _g.inspections.all():
-                if _insp.client_id and _insp.client_id not in _scanned_clients:
-                    _scanned_clients.add(_insp.client_id)
-                    _client_dir = os.path.join(_docs_root, str(_insp.client_id))
+        if os.path.isdir(_docs_root):
+            try:
+                for _cid in os.listdir(_docs_root):
+                    _client_dir = os.path.join(_docs_root, _cid)
                     if not os.path.isdir(_client_dir):
                         continue
-                    try:
-                        for _insp_dir_name in os.listdir(_client_dir):
-                            _insp_dir_path = os.path.join(_client_dir, _insp_dir_name)
-                            if not os.path.isdir(_insp_dir_path):
-                                continue
-                            try:
-                                for _cat_name in os.listdir(_insp_dir_path):
-                                    if _cat_name in _FILE_CATEGORIES:
-                                        _cat_path = os.path.join(_insp_dir_path, _cat_name)
-                                        if os.path.isdir(_cat_path) and os.listdir(_cat_path):
-                                            _file_map[(_insp_dir_name, _cat_name)] = True
-                            except OSError:
-                                pass
-                    except OSError:
-                        pass
+                    for _iid in os.listdir(_client_dir):
+                        _insp_dir = os.path.join(_client_dir, _iid)
+                        if not os.path.isdir(_insp_dir):
+                            continue
+                        for _cat in os.listdir(_insp_dir):
+                            if _cat in _FILE_CATEGORIES:
+                                _cat_path = os.path.join(_insp_dir, _cat)
+                                if os.path.isdir(_cat_path) and os.listdir(_cat_path):
+                                    _file_map[(_iid, _cat)] = True
+            except OSError:
+                pass
 
-        def _has_file(insp_obj, category):
-            """Check the pre-scanned file map instead of hitting the filesystem."""
-            if not insp_obj.client_id:
-                return False
-            return _file_map.get((str(insp_obj.id), category), False)
+        def _has_file(insp_id, category):
+            return _file_map.get((str(insp_id), category), False)
 
         results = []
         for g in groups:
-            # Use prefetched inspections (no extra DB query)
-            inspections = sorted(g.inspections.all(), key=lambda x: x.id)
+            inspections = list(g.inspections.all())
             first_insp = inspections[0] if inspections else None
+            insp_ids = [p.id for p in inspections]
 
-            products = []
+            # Group-level file flags (no per-product detail needed for list)
+            has_rfi = any(_has_file(pid, 'rfi') for pid in insp_ids)
+            has_invoice = any(_has_file(pid, 'invoice') for pid in insp_ids)
+            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in insp_ids)
+            has_compliance = any(_has_file(pid, 'compliance') for pid in insp_ids)
+            has_lab_form = any(_has_file(pid, 'lab_form') for pid in insp_ids)
             is_non_compliant = any(getattr(p, 'is_direction_present_for_this_inspection', False) for p in inspections)
+
+            # Build products (lightweight — skip file checks per product)
+            products = []
             for p in inspections:
                 products.append({
                     'id': p.id,
@@ -1233,17 +1224,17 @@ def api_inspections(request):
                     'is_product_compliant': bool(p.is_product_compliant),
                     'is_sample_taken': bool(p.is_sample_taken) if p.is_sample_taken is not None else False,
                     'needs_retest': p.needs_retest or '',
-                    'coa_uploaded': _has_file(p, 'lab') or _has_file(p, 'coa'),
-                    'composition_uploaded': _has_file(p, 'composition'),
-                    'compliance_uploaded': _has_file(p, 'compliance'),
-                    'occurrence_uploaded': _has_file(p, 'occurrence'),
-                    'retest_uploaded': _has_file(p, 'retest'),
-                    'other_uploaded': _has_file(p, 'other'),
-                    'lab_form_uploaded': _has_file(p, 'lab_form'),
+                    'coa_uploaded': _has_file(p.id, 'lab') or _has_file(p.id, 'coa'),
+                    'composition_uploaded': _has_file(p.id, 'composition'),
+                    'compliance_uploaded': _has_file(p.id, 'compliance'),
+                    'occurrence_uploaded': _has_file(p.id, 'occurrence'),
+                    'retest_uploaded': _has_file(p.id, 'retest'),
+                    'other_uploaded': _has_file(p.id, 'other'),
+                    'lab_form_uploaded': _has_file(p.id, 'lab_form'),
                     'lab': p.get_lab_display() if p.lab else '',
                 })
 
-            # Build fallback_group_id string: clientSlug_YYYYMMDD_g{pk}
+            # Build fallback_group_id string
             client_slug = re.sub(r'[^a-zA-Z0-9]', '_', g.client_name or 'Unknown')
             client_slug = re.sub(r'_+', '_', client_slug).strip('_')
             date_str = g.date_of_inspection.strftime('%Y%m%d') if g.date_of_inspection else '00000000'
@@ -1259,10 +1250,10 @@ def api_inspections(request):
                 'approved_status': g.first_approved or 'PENDING',
                 'sent_date': g.first_sent.isoformat() if g.first_sent else None,
                 'is_occurrence_report': g.is_occurrence_report,
-                'has_rfi': any(_has_file(p_obj, 'rfi') for p_obj in inspections),
-                'has_invoice': any(_has_file(p_obj, 'invoice') for p_obj in inspections),
-                'has_lab': any(_has_file(p_obj, 'lab') or _has_file(p_obj, 'coa') for p_obj in inspections),
-                'has_compliance': any(p['compliance_uploaded'] for p in products),
+                'has_rfi': has_rfi,
+                'has_invoice': has_invoice,
+                'has_lab': has_lab,
+                'has_compliance': has_compliance,
                 'email': '; '.join(filter(None, [
                     g.client.email if g.client else '',
                     g.additional_email or '',
@@ -1277,7 +1268,7 @@ def api_inspections(request):
                 'physical_address': first_insp.physical_address if first_insp and first_insp.physical_address else '',
                 'telephone': first_insp.telephone if first_insp and first_insp.telephone else '',
                 'time_of_visit': first_insp.time_of_visit.strftime('%H:%M') if first_insp and first_insp.time_of_visit else '',
-                'has_lab_form': any(p['lab_form_uploaded'] for p in products),
+                'has_lab_form': has_lab_form,
                 'inspection_compliance_status': 'NON_COMPLIANT' if is_non_compliant else 'COMPLIANT',
                 'products': products,
             })
