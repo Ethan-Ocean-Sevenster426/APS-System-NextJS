@@ -316,10 +316,16 @@ export default function LabAnalyticsPage() {
                           : <span style={{ color: "#d1d5db", fontSize: "0.72rem" }}>None</span>}
                       </td>
                       <td>
-                        <span className={`la-badge ${r.needs_retest === "YES" ? "la-retest-yes" : "la-retest-no"}`}>
-                          <i className={`fas fa-${r.needs_retest === "YES" ? "exclamation-circle" : "check-circle"}`} />
-                          {r.needs_retest === "YES" ? "Retest" : "OK"}
-                        </span>
+                        {(() => {
+                          const nr = (r.needs_retest || "").toUpperCase();
+                          const isYes = nr === "YES" || nr === "Y";
+                          return (
+                            <span className={`la-badge ${isYes ? "la-retest-yes" : "la-retest-no"}`}>
+                              <i className={`fas fa-${isYes ? "exclamation-circle" : "check-circle"}`} />
+                              {isYes ? "Yes" : "No"}
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}

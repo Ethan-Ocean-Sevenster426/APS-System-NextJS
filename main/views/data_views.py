@@ -2271,7 +2271,7 @@ def api_lab_analytics(request):
         total_samples   = base.count()
         total_inspections = _I.objects.count()
         needs_coa       = base.filter(coa_uploaded_date__isnull=True).count()
-        needs_retest    = base.filter(needs_retest='YES').count()
+        needs_retest    = base.filter(needs_retest__in=['Yes', 'YES', 'yes']).count()
         fat_count       = base.filter(fat=True).count()
         protein_count   = base.filter(protein=True).count()
         calcium_count   = base.filter(calcium=True).count()
