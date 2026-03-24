@@ -216,7 +216,7 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
       datalabels: showLabels ? {
         anchor: "end" as const,
         align: "top" as const,
-        font: { size: 9, weight: "bold" as const },
+        font: { size: 11, weight: "bold" as const },
         color: "#374151",
         formatter: opts?.datalabelFormatter ?? ((v: number) => v === 0 ? "" : (Number.isInteger(v) ? String(v) : v.toFixed(1))),
         clamp: true,
