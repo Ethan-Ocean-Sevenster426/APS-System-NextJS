@@ -3057,6 +3057,11 @@ def api_export_sheet(request):
         inspections = _I.objects.filter(
             commodity__in=['RAW', 'PMP'], hours__isnull=False, km_traveled__isnull=False,
             date_of_inspection__gte=start_date, date_of_inspection__lte=end_date
+        ).only(
+            'id', 'commodity', 'date_of_inspection', 'inspector_name', 'client_name',
+            'town', 'product_name', 'product_class', 'hours', 'km_traveled',
+            'is_sample_taken', 'bought_sample', 'fat', 'protein', 'calcium', 'dna',
+            'lab', 'invoice_number', 'corporate_group',
         ).order_by('client_name', 'date_of_inspection', 'commodity')
 
         visits = defaultdict(list)

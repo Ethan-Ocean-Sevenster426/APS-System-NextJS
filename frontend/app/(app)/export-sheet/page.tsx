@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import MultiSelectDropdown from "@/components/ui/MultiSelectDropdown";
 
 interface ExportItem {
   client_name: string;
@@ -71,7 +72,7 @@ export default function ExportSheetPage() {
   // ── Client-side filters ─────────────────────────────────────────────────────
   const [clientFilter, setClientFilter] = useState("");
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
-  const [inspectorFilter, setInspectorFilter] = useState("");
+  const [inspectorFilter, setInspectorFilter] = useState<string[]>([]);
   const [groupFilter, setGroupFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
 
@@ -199,7 +200,7 @@ export default function ExportSheetPage() {
   const filteredItems = useMemo(() => {
     return allItems.filter(item => {
       if (clientFilter && !item.client_name?.toLowerCase().includes(clientFilter.toLowerCase())) return false;
-      if (inspectorFilter && item.inspector_name !== inspectorFilter) return false;
+      if (inspectorFilter.length > 0 && !inspectorFilter.includes(item.inspector_name)) return false;
       if (groupFilter && (item.corporate_group || "") !== groupFilter) return false;
       if (monthFilter) {
         // invoice_date is "DD/MM/YYYY"
@@ -218,7 +219,7 @@ export default function ExportSheetPage() {
 
   // ── Clear filters ───────────────────────────────────────────────────────────
   const handleClear = () => {
-    setClientFilter(""); setInspectorFilter(""); setGroupFilter(""); setMonthFilter("");
+    setClientFilter(""); setInspectorFilter([]); setGroupFilter(""); setMonthFilter("");
     const from = getDefaultFrom(); const to = getDefaultTo();
     setDateFrom(from); setDateTo(to);
     fetchData(from, to);
@@ -409,10 +410,13 @@ export default function ExportSheetPage() {
               </div>
               <div>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Inspector</label>
-                <select value={inspectorFilter} onChange={e => setInspectorFilter(e.target.value)} style={inp}>
-                  <option value="">All Inspectors</option>
-                  {inspectors.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
+                <MultiSelectDropdown
+                  label="Inspector"
+                  options={inspectors}
+                  selected={inspectorFilter}
+                  onChange={setInspectorFilter}
+                  placeholder="All Inspectors"
+                />
               </div>
               <div>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Month</label>
