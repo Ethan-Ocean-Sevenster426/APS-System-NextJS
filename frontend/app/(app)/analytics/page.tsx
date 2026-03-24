@@ -2105,22 +2105,22 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
             <thead>
               <tr>
                 <th style={{ ...thStyle, textAlign: "left", position: "sticky", left: 0, zIndex: 1 }}>Inspector</th>
-                <th style={thStyle}>Inspections</th>
-                <th style={thStyle}>Billable Hrs</th>
-                <th style={thStyle}>KM</th>
-                <th style={thStyle}>R/km</th>
-                <th style={thStyle}>On-Site Hrs</th>
-                <th style={thStyle}>Rev (Hours)</th>
-                <th style={thStyle}>Rev (KM)</th>
-                <th style={thStyle}>Rev (Samples)</th>
-                <th style={thStyle}>Total Revenue</th>
-                <th style={costThStyle}>Salary (CTC)</th>
-                <th style={costThStyle}>Expenses</th>
-                <th style={costThStyle}>Management Fees</th>
-                <th style={costThStyle}>Total Cost</th>
-                <th style={profitThStyle}>Rev/Hr</th>
-                <th style={profitThStyle}>Cost/Hr</th>
-                <th style={profitThStyle}>Profit</th>
+                <th style={thStyle} title="Total number of inspections completed">Inspections <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Total billable hours = Hours field from each inspection">Billable Hrs <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Total kilometers traveled across all inspections">KM <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Revenue from KM = KM × R6.50/km rate">R/km <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Actual time spent on-site at the facility (hours)">On-Site Hrs <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Revenue from hours = Billable Hours × R510/hr">Rev (Hours) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Revenue from travel = KM × R6.50/km">Rev (KM) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Revenue from lab samples collected (sample fees)">Rev (Samples) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Total Revenue = Rev(Hours) + Rev(KM) + Rev(Samples)">Total Revenue <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={costThStyle} title="Monthly Cost-To-Company salary for the inspector">Salary (CTC) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={costThStyle} title="Additional expenses logged for this inspector (fuel, equipment, etc.)">Expenses <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={costThStyle} title="Management Fees = 20% × (Salary + Expenses)">Management Fees <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={costThStyle} title="Total Cost = Salary + Expenses + Management Fees">Total Cost <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={profitThStyle} title="Revenue per Hour = Total Revenue ÷ Billable Hours">Rev/Hr <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={profitThStyle} title="Cost per Hour = Total Cost ÷ Billable Hours">Cost/Hr <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={profitThStyle} title="Profit = Total Revenue − Total Cost">Profit <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
               </tr>
             </thead>
             <tbody>
