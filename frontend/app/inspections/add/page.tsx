@@ -432,17 +432,8 @@ export default function AddInspectionPage() {
               </select>
             </div>
 
-            {/* Occurrence Report Toggle - amber button like Django */}
-            {!isOccurrence ? (
-              <div style={{ marginTop: 4 }}>
-                <button type="button" onClick={() => { setIsOccurrence(true); setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 }); setProducts([]); }}
-                  style={{ background: "#f59e0b", color: "white", border: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#d97706")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#f59e0b")}>
-                  <i className="fas fa-exclamation-triangle" /> Occurrence Report
-                </button>
-              </div>
-            ) : (
+            {/* Occurrence banner when active */}
+            {isOccurrence && (
               <div style={{ background: "#fef3c7", border: "2px solid #f59e0b", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <i className="fas fa-exclamation-triangle" style={{ color: "#d97706", fontSize: "1.1rem" }} />
@@ -450,7 +441,7 @@ export default function AddInspectionPage() {
                 </div>
                 <button type="button" onClick={() => setIsOccurrence(false)}
                   style={{ background: "#fff", border: "1px solid #d1d5db", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500 }}>
-                  Cancel
+                  Back to Normal Inspection
                 </button>
               </div>
             )}
@@ -737,6 +728,14 @@ export default function AddInspectionPage() {
               <i className="fas fa-arrow-left" /> Back
             </button>
             <div style={{ display: "flex", gap: 12 }}>
+              {step === 1 && !isOccurrence && (
+                <button type="button" onClick={() => { setIsOccurrence(true); setCommodities({ POULTRY: 0, RAW: 0, PMP: 0, EGGS: 0 }); setProducts([]); }}
+                  style={{ background: "#f59e0b", color: "white", border: "none", padding: "10px 20px", borderRadius: 8, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#d97706")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#f59e0b")}>
+                  <i className="fas fa-exclamation-triangle" /> Occurrence Report
+                </button>
+              )}
               {step < 4 && (
                 <button type="button" className="btn btn-primary" onClick={goNext}>
                   Next <i className="fas fa-arrow-right" />
