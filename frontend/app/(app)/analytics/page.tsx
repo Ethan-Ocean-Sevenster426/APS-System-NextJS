@@ -318,10 +318,19 @@ export default function AnalyticsPage() {
     return PANELS; // admins, super_admin, developer see all
   }, [isInspector]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (f?: Filters) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/analytics`);
+      const p = f || filters;
+      const qp = new URLSearchParams();
+      if (p.date_from) qp.set("date_from", p.date_from);
+      if (p.date_to) qp.set("date_to", p.date_to);
+      if (p.year) qp.set("year", p.year);
+      if (p.month) qp.set("month", p.month);
+      if (p.inspector.length) qp.set("inspector", p.inspector.join(","));
+      if (p.commodity.length) qp.set("commodity", p.commodity.join(","));
+      const url = `/api/analytics${qp.toString() ? `?${qp}` : ""}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       if (json.salaries) setSalaries(json.salaries);
@@ -338,7 +347,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
