@@ -1283,7 +1283,7 @@ export default function InspectionsPage() {
                     <input type="date" className="ir-form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                   </div>
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
-                  <IrMultiSelect label="Compliance Status" options={["COMPLIANT", "NON_COMPLIANT", "NOT_ASSESSED"]} selected={complianceFilter} onChange={setComplianceFilter} />
+                  <IrMultiSelect label="Compliance Status" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved Status" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
                   <IrMultiSelect label="File Status" options={["HAS_FILES", "NO_FILES"]} selected={fileStatusFilter} onChange={setFileStatusFilter} />
                   <div className="ir-filter-field">
