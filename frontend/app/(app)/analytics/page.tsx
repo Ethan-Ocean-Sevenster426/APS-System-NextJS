@@ -1183,7 +1183,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
   // Monthly compliance (aggregated)
   const mcMonths = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.month))].sort();
   const mcAgg = mcMonths.map((m) => {
-    const rows = data.monthlyComplianceTrend.filter((r) => r.month === m);
+    const rows = (data.monthlyComplianceTrend || []).filter((r) => r.month === m);
     const totalCompliant = rows.reduce((s, r) => s + r.compliant, 0);
     const totalAll = rows.reduce((s, r) => s + r.total, 0);
     return totalAll > 0 ? (totalCompliant / totalAll) * 100 : 0;
@@ -1200,7 +1200,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
   };
 
   // Samples by commodity (exclude Eggs & Poultry)
-  const filteredSamples = data.samplesByCommodity.filter(d => isSampleCommodity(d.commodity));
+  const filteredSamples = (data.samplesByCommodity || []).filter(d => isSampleCommodity(d.commodity));
   const samplesData = {
     labels: filteredSamples.map((d) => d.commodity),
     datasets: [{ label: "Samples", data: filteredSamples.map((d) => d.count), backgroundColor: filteredSamples.map((d) => colorForCommodity(d.commodity)) }],
@@ -1349,7 +1349,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
 
   function getActual(inspector: string, commodity: string): number {
     const c = commodity === "EGG" ? "EGGS" : commodity;
-    const row = data.inspectorCommodityMatrix.find(
+    const row = (data.inspectorCommodityMatrix || []).find(
       (r) => r.inspector_name === inspector && r.commodity.toUpperCase() === c
     );
     return row?.count ?? 0;
@@ -1365,7 +1365,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   }
 
   function getSampleActual(inspector: string, commodity: string): number {
-    return data.inspectorSampleMatrix.find(r => r.inspector_name === inspector && r.commodity.toUpperCase().includes(commodity))?.count ?? 0;
+    return (data.inspectorSampleMatrix || []).find(r => r.inspector_name === inspector && r.commodity.toUpperCase().includes(commodity))?.count ?? 0;
   }
 
   // Radar chart data — use quarterly targets for target ring, actuals for data
@@ -1584,7 +1584,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
       const days = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
       const commodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
       const weekMap: Record<string, Record<string, { total: number; compliant: number }>> = {};
-      data.dailyComplianceTrend.forEach(d => {
+      (data.dailyComplianceTrend || []).forEach(d => {
         const dt = new Date(d.day + "T12:00:00");
         const weekStart = new Date(dt);
         weekStart.setDate(dt.getDate() - dt.getDay());
@@ -1644,7 +1644,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   };
 
   // Samples (exclude Eggs & Poultry)
-  const filteredSamples = data.samplesByCommodity.filter(d => isSampleCommodity(d.commodity));
+  const filteredSamples = (data.samplesByCommodity || []).filter(d => isSampleCommodity(d.commodity));
   const samplesData = {
     labels: filteredSamples.map((d) => d.commodity),
     datasets: [{ label: "Samples", data: filteredSamples.map((d) => d.count), backgroundColor: filteredSamples.map((d) => colorForCommodity(d.commodity)) }],
