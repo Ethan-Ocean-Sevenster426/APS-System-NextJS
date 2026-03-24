@@ -69,26 +69,23 @@ export default function HomePage() {
     <>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
-        .hp-wrap { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 24px 16px; box-sizing: border-box; }
-        .hp-inner { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 14px; }
-        .hp-header { text-align: center; margin-bottom: 8px; }
-        .hp-title { color: #fff; font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.45); line-height: 1.2; }
-        .hp-subtitle { color: rgba(255,255,255,0.88); font-size: 0.88rem; font-weight: 400; text-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: 0; }
-        .hp-stats { display: flex; justify-content: center; gap: 14px; }
-        .hp-stat { background: rgba(255,255,255,0.96); border-radius: 12px; padding: 18px 40px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.6); }
-        .hp-stat-num { color: #007890; font-size: 2.4rem; font-weight: 800; line-height: 1; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; min-height: 2.4rem; }
-        .hp-stat-label { color: #6b7280; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin: 0; }
-        .hp-quick { background: rgba(255,255,255,0.96); border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.6); }
-        .hp-quick-head { font-size: 0.95rem; font-weight: 700; color: #1f2937; margin: 0 0 3px; }
-        .hp-quick-desc { color: #4b5563; font-size: 0.75rem; line-height: 1.5; margin: 0 0 14px; }
-        .hp-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .hp-link { width: 160px; flex-shrink: 0; background: #fff; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 10px; text-decoration: none; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s; }
-        .hp-link:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.12); transform: translateY(-2px); border-color: #007890; }
-        .hp-link-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-        .hp-link-title { font-weight: 700; color: #1f2937; margin: 0; font-size: 0.78rem; line-height: 1.3; }
-        .hp-link-sub { font-size: 0.68rem; color: #6b7280; margin: 0; line-height: 1.3; }
-        .hp-footer { text-align: center; color: rgba(255,255,255,0.65); font-size: 0.68rem; margin: 0; }
-        @media (max-width: 480px) { .hp-wrap { padding: 60px 12px 16px; } .hp-link { width: 140px; } }
+        .hp-wrap { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 32px 24px 24px; box-sizing: border-box; }
+        .hp-inner { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+        .hp-header { text-align: center; margin-bottom: 4px; }
+        .hp-title { color: #fff; font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+        .hp-subtitle { color: rgba(255,255,255,0.85); font-size: 0.82rem; text-shadow: 0 1px 4px rgba(0,0,0,0.35); margin: 0; }
+        .hp-stats { display: flex; justify-content: center; gap: 16px; }
+        .hp-stat { background: rgba(255,255,255,0.97); border-radius: 10px; padding: 14px 32px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #007890; }
+        .hp-stat-num { color: #007890; font-size: 1.8rem; font-weight: 800; line-height: 1; margin-bottom: 2px; display: flex; align-items: center; justify-content: center; }
+        .hp-stat-label { color: #6b7280; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin: 0; }
+        .hp-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+        .hp-link { background: rgba(255,255,255,0.97); border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; text-decoration: none; display: flex; align-items: center; gap: 12px; transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s; }
+        .hp-link:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-1px); border-color: #007890; }
+        .hp-link-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+        .hp-link-title { font-weight: 600; color: #1f2937; margin: 0; font-size: 0.78rem; line-height: 1.2; }
+        .hp-link-sub { font-size: 0.65rem; color: #6b7280; margin: 2px 0 0; line-height: 1.2; }
+        .hp-footer { text-align: center; color: rgba(255,255,255,0.6); font-size: 0.65rem; margin: 0; }
+        @media (max-width: 480px) { .hp-wrap { padding: 60px 12px 16px; } .hp-links { grid-template-columns: 1fr 1fr; } }
       `}</style>
 
       <div className="hp-wrap">
@@ -109,32 +106,28 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="hp-quick">
-            <h2 className="hp-quick-head">Quick Access</h2>
-            <p className="hp-quick-desc">Data syncs automatically every hour in the background. Use the navigation menu to access all platform features.</p>
-            {role === null ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#6b7280", fontSize: 13, padding: "8px 0" }}>
-                <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
-                Loading...
-              </div>
-            ) : (
-              <div className="hp-links">
-                {quickLinks.map(link => (
-                  <a key={link.href} href={link.href} className="hp-link">
-                    <div className="hp-link-icon" style={{ background: link.bg }}>
-                      <i className={link.icon} style={{ color: link.color }} />
-                    </div>
-                    <div>
-                      <p className="hp-link-title">{link.title}</p>
-                      <p className="hp-link-sub">{link.sub}</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
+          {role === null ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "#6b7280", fontSize: 13, padding: "16px 0" }}>
+              <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+              Loading...
+            </div>
+          ) : (
+            <div className="hp-links">
+              {quickLinks.map(link => (
+                <a key={link.href} href={link.href} className="hp-link">
+                  <div className="hp-link-icon" style={{ background: link.bg }}>
+                    <i className={link.icon} style={{ color: link.color }} />
+                  </div>
+                  <div>
+                    <p className="hp-link-title">{link.title}</p>
+                    <p className="hp-link-sub">{link.sub}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
 
-          <p className="hp-footer">Food Safety Agency (Pty) Ltd -- Inspection Management System</p>
+          <p className="hp-footer">Food Safety Agency (Pty) Ltd — Inspection Management System</p>
         </div>
       </div>
     </>
