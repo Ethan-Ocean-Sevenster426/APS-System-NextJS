@@ -181,15 +181,15 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
       </button>
 
       {/* Nav */}
-      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "2px 0" : "4px 6px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "2px 0" : "8px 8px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         {sections.map((section) => (
-          <div key={section.label} style={{ marginBottom: collapsed ? 0 : 4 }}>
+          <div key={section.label} style={{ marginBottom: collapsed ? 0 : 8 }}>
             {!collapsed && (
-              <div style={{ fontSize: "0.5rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 6px", marginBottom: "1px" }}>
+              <div style={{ fontSize: "0.55rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 8px", marginBottom: "3px" }}>
                 {section.label}
               </div>
             )}
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 0 }}>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 2 }}>
               {section.items.map((item) => {
                 const isActive = pathname === item.href;
                 return (
