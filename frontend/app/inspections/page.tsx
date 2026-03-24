@@ -1291,8 +1291,8 @@ export default function InspectionsPage() {
                   </div>
                 </div>
 
-                {/* Row 3 — lab tech only */}
-                {roleLoaded && isLabTech && (
+                {/* Row 3 — lab filters (lab tech, super_admin, developer) */}
+                {roleLoaded && (isLabTech || role === "super_admin" || role === "developer") && (
                   <div className="ir-filter-row">
                     <IrMultiSelect label="Lab" options={["Food Safety Laboratory", "Merieux NutriSciences", "AGRI Food Laboratory (SGS)", "SANBI", "SMT", "ARC"]} selected={labFilter} onChange={setLabFilter} />
                     <IrMultiSelect label="Test Type" options={["DNA", "FAT", "PROTEIN", "CALCIUM"]} selected={testTypeFilter} onChange={setTestTypeFilter} />
