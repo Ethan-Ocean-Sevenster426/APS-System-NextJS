@@ -186,7 +186,7 @@ export default function LabAnalyticsPage() {
           Product: r.product_name,
           Commodity: COMMODITY_LABEL[r.commodity] || r.commodity,
           Lab: r.lab,
-          Tests: r.tests.join(", "),
+          Tests: (r.tests || []).join(", "),
           "Needs Retest": r.needs_retest,
         }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Samples");
@@ -242,7 +242,7 @@ export default function LabAnalyticsPage() {
         if (y + rowH > doc.internal.pageSize.getHeight() - 10) { doc.addPage(); y = 14; }
         if (ri % 2 === 0) { doc.setFillColor(245, 247, 250); doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH, "F"); }
         cx = margin;
-        const vals = [r.date || "", r.client_name, r.product_name, COMMODITY_LABEL[r.commodity] || r.commodity, r.lab, r.tests.join(", "), r.needs_retest || "No"];
+        const vals = [r.date || "", r.client_name, r.product_name, COMMODITY_LABEL[r.commodity] || r.commodity, r.lab, (r.tests || []).join(", "), r.needs_retest || "No"];
         vals.forEach((v, i) => { doc.text(String(v).substring(0, 35), cx + 1.5, y + rowH / 2 + 1, { baseline: "middle" }); cx += colW[i]; });
         y += rowH;
       });
@@ -477,10 +477,10 @@ export default function LabAnalyticsPage() {
                 <div style={{ position: "relative", height: 180 }}>
                   <Bar
                     data={{
-                      labels: data.monthly.map(m => m.month),
+                      labels: (data.monthly || []).map(m => m.month),
                       datasets: [{
                         label: "Samples",
-                        data: data.monthly.map(m => m.count),
+                        data: (data.monthly || []).map(m => m.count),
                         backgroundColor: "rgba(0,120,144,0.75)",
                         borderRadius: 4,
                         barThickness: 28,
@@ -619,8 +619,8 @@ export default function LabAnalyticsPage() {
                         </td>
                         <td style={{ color: "#6b7280", fontWeight: 500 }}>{r.lab || <span style={{ color: "#d1d5db" }}>{"\u2014"}</span>}</td>
                         <td>
-                          {r.tests.length > 0
-                            ? r.tests.map(t => <span key={t} className="la-test-tag">{t.toUpperCase()}</span>)
+                          {(r.tests || []).length > 0
+                            ? (r.tests || []).map(t => <span key={t} className="la-test-tag">{t.toUpperCase()}</span>)
                             : <span style={{ color: "#d1d5db", fontSize: "0.72rem" }}>None</span>}
                         </td>
                         <td>
