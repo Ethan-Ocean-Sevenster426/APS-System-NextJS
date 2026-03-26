@@ -68,6 +68,9 @@ from .views.data_views import (
     api_delete_file,
     api_get_inspection_group,
     api_edit_inspection_group,
+    api_inspector_mappings,
+    api_onedrive_view,
+    api_convert_docx_to_pdf,
 )
 from .views.xero_views import (
     xero_connect, xero_callback, xero_disconnect, xero_status,
@@ -176,6 +179,7 @@ urlpatterns = [
     path('api/delete-file/', api_delete_file, name='api_delete_file'),
     path('api/debtors/', api_debtors, name='api_debtors'),
     path('api/analytics/', api_analytics, name='api_analytics'),
+    path('api/convert-docx-to-pdf/', api_convert_docx_to_pdf, name='api_convert_docx_to_pdf'),
     path('api/react/inspector-salaries/', api_inspector_salaries, name='api_inspector_salaries_react'),
     path('api/react/quarterly-targets/', api_quarterly_targets, name='api_quarterly_targets_react'),
     path('api/react/fees/get/', api_react_fees_get, name='api_react_fees_get'),
@@ -268,9 +272,11 @@ urlpatterns = [
     path('inspector-mappings/add/', views.add_inspector_mapping, name='add_inspector_mapping'),
     path('inspector-mappings/edit/<int:pk>/', views.edit_inspector_mapping, name='edit_inspector_mapping'),
     path('inspector-mappings/delete/<int:pk>/', views.delete_inspector_mapping, name='delete_inspector_mapping'),
-    
+    path('api/inspector-mappings/', api_inspector_mappings, name='api_inspector_mappings'),
+    path('api/onedrive-view/', api_onedrive_view, name='api_onedrive_view'),
 
-    
+
+
 
     
     

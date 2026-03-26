@@ -17,7 +17,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar, Line, Doughnut, Radar } from "react-chartjs-2";
+import { Bar, Line, Radar } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
 ChartJS.register(
@@ -50,6 +50,7 @@ interface AnalyticsData {
   facilityTypeDistribution: { facility_type: string; count: number }[];
   monthlyCommodityTrends: { month: string; commodity: string; count: number }[];
   monthlyComplianceTrend: { month: string; commodity: string; total: number; compliant: number; compliance_rate: number }[];
+  weeklyComplianceTrend: { week: string; total: number; compliant: number; compliance_rate: number }[];
   dailyComplianceTrend: { day: string; commodity: string; total: number; compliant: number; compliance_rate: number }[];
   timeAllocation: { inspector_name: string; total_hours: number }[];
   inspectionsList: { date_of_inspection: string; inspector_name: string; client_name: string; commodity: string; facility_type: string; is_sample_taken: boolean; approved_status: string; town: string }[];
@@ -66,10 +67,14 @@ interface AnalyticsData {
   monthlyOccurrenceTrend: { month: string; count: number }[];
   monthlyTravelTrend: { month: string; total_km: number }[];
   monthlyDocSendTrend: { month: string; avg_days: number; count: number }[];
+  weeklyDocSendTrend: { week: string; avg_days: number; count: number }[];
   monthlyInvoiceTrend: { month: string; avg_days: number; count: number }[];
+  weeklyInvoiceTrend: { week: string; avg_days: number; count: number }[];
   monthlyInspectionsTrend: { month: string; count: number }[];
   monthlyCoaTrend: { month: string; avg_days: number; count: number }[];
+  weeklyCoaTrend: { week: string; avg_days: number; count: number }[];
   monthlyApprovalTrend: { month: string; avg_days: number; count: number }[];
+  weeklyApprovalTrend: { week: string; avg_days: number; count: number }[];
   monthlyTravelHoursTrend: { month: string; total_hours: number }[];
   docSendTime: { name: string; avg_days: number; count: number }[];
   invoiceUploadTime: { name: string; avg_days: number; count: number }[];
@@ -205,8 +210,9 @@ function isSampleCommodity(commodity: string): boolean {
 
 const lineDefaults = { tension: 0.3, fill: false, pointRadius: 3, borderWidth: 2 };
 
-function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?: boolean; datalabelFormatter?: (v: number) => string }): Record<string, unknown> {
+function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?: boolean; datalabelColor?: string; datalabelSuffix?: string; datalabelFormatter?: (v: number) => string }): Record<string, unknown> {
   const showLabels = opts?.datalabels !== false; // default true
+  const suffix = opts?.datalabelSuffix ?? "";
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -215,10 +221,11 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
       title: title ? { display: true, text: title, font: { size: 13 } } : { display: false },
       datalabels: showLabels ? {
         anchor: "end" as const,
-        align: "top" as const,
-        font: { size: 11, weight: "bold" as const },
-        color: "#374151",
-        formatter: opts?.datalabelFormatter ?? ((v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : (Number.isInteger(n) ? String(n) : n.toFixed(1)); }),
+        align: "end" as const,
+        offset: -2,
+        font: { size: 9, weight: "bold" as const },
+        color: opts?.datalabelColor ?? "#fff",
+        formatter: opts?.datalabelFormatter ?? ((v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : (Number.isInteger(n) ? String(n) + suffix : n.toFixed(1) + suffix); }),
         clamp: true,
         clip: false,
       } : { display: false },
@@ -226,24 +233,6 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
     scales: {
       x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
       y: { beginAtZero: true, ticks: { font: { size: 10 } }, title: yLabel ? { display: true, text: yLabel, font: { size: 11 } } : undefined },
-    },
-  };
-}
-
-function doughnutOptions(title?: string): Record<string, unknown> {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "bottom" as const, labels: { boxWidth: 12, font: { size: 11 } } },
-      title: title ? { display: true, text: title, font: { size: 13 } } : { display: false },
-      datalabels: {
-        color: "#fff",
-        font: { size: 10, weight: "bold" as const },
-        formatter: (v: number) => v === 0 ? "" : String(v),
-        textShadowColor: "rgba(0,0,0,0.4)",
-        textShadowBlur: 3,
-      },
     },
   };
 }
@@ -322,7 +311,6 @@ export default function AnalyticsPage() {
   const userRole = user?.role ?? "developer";
   const isInspector = userRole === "inspector" || userRole === "inspector_manager";
   const isAdmin = userRole === "admin";
-  const isFullAccess = userRole === "developer" || userRole === "super_admin";
   // Inspector's display name for matching against data (e.g. "Lwandile Dlamini")
   const userFullName = user ? `${user.first_name} ${user.last_name}`.trim() : "";
 
@@ -337,10 +325,20 @@ export default function AnalyticsPage() {
     return PANELS; // admins, super_admin, developer see all
   }, [isInspector]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (f?: Filters) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/analytics");
+      const active = f ?? filters;
+      const p = new URLSearchParams();
+      if (active.date_from) p.set("date_from", active.date_from);
+      if (active.date_to) p.set("date_to", active.date_to);
+      if (active.year) p.set("year", active.year);
+      if (active.month) p.set("month", active.month);
+      // Send single inspector/commodity to API if only one selected
+      if (active.inspector.length === 1) p.set("inspector", active.inspector[0]);
+      if (active.commodity.length === 1) p.set("commodity", active.commodity[0]);
+      const qs = p.toString();
+      const res = await fetch(`/api/analytics${qs ? "?" + qs : ""}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       if (json.salaries) setSalaries(json.salaries);
@@ -385,24 +383,26 @@ export default function AnalyticsPage() {
 
     const matchMonth = (m: string) => {
       if (!m) return true;
-      if (filters.year && !m.startsWith(filters.year)) return false;
+      const ym = m.substring(0, 7); // "2026-02-01" → "2026-02"
+      if (filters.year && !ym.startsWith(filters.year)) return false;
       if (filters.month) {
         const mm = filters.month.padStart(2, "0");
-        if (!m.endsWith(`-${mm}`)) return false;
+        if (!ym.endsWith(`-${mm}`)) return false;
       }
-      if (filters.date_from && m < filters.date_from.substring(0, 7)) return false;
-      if (filters.date_to && m > filters.date_to.substring(0, 7)) return false;
+      if (filters.date_from && ym < filters.date_from.substring(0, 7)) return false;
+      if (filters.date_to && ym > filters.date_to.substring(0, 7)) return false;
       return true;
     };
 
     const matchDay = (d: string) => {
       if (!d) return true;
-      if (filters.date_from && d < filters.date_from) return false;
-      if (filters.date_to && d > filters.date_to) return false;
-      if (filters.year && !d.startsWith(filters.year)) return false;
+      const ds = d.substring(0, 10); // normalize "2026-02-01T00:00:00" → "2026-02-01"
+      if (filters.date_from && ds < filters.date_from) return false;
+      if (filters.date_to && ds > filters.date_to) return false;
+      if (filters.year && !ds.startsWith(filters.year)) return false;
       if (filters.month) {
         const part = `-${filters.month.padStart(2, "0")}-`;
-        if (!d.includes(part)) return false;
+        if (!ds.includes(part)) return false;
       }
       return true;
     };
@@ -435,9 +435,11 @@ export default function AnalyticsPage() {
 
     return {
       ...rawData,
-      totalInspections: rawData.totalInspections ?? filteredList.length,
-      complianceRate: totalForRate > 0 ? (totalCompliant / totalForRate) * 100 : 0,
-      activeInspectors: new Set(filteredList.map(s => s.inspector_name)).size,
+      // Use API-computed values (which cover ALL records, not just the 200 in inspectionsList)
+      // Only override if client-side inspector/commodity filters are applied
+      totalInspections: (hasI || hasC) ? filteredList.length : rawData.totalInspections,
+      complianceRate: (hasI || hasC) ? (totalForRate > 0 ? (totalCompliant / totalForRate) * 100 : 0) : rawData.complianceRate,
+      activeInspectors: (hasI || hasC) ? new Set(filteredList.map(s => s.inspector_name)).size : rawData.activeInspectors,
       totalHours: filteredTime.reduce((s, r) => s + r.total_hours, 0),
       avgHours: filteredTime.length > 0 ? filteredTime.reduce((s, r) => s + r.total_hours, 0) / filteredTime.length : 0,
       totalOccurrenceReports: filteredOcc.reduce((s, r) => s + r.count, 0),
@@ -466,14 +468,30 @@ export default function AnalyticsPage() {
       monthlyInspectorTrend: fi(rawData.monthlyInspectorTrend ?? []).filter(r => matchDay(r.day)),
       monthlyCommodityTrends: fc(rawData.monthlyCommodityTrends ?? []).filter(r => matchMonth(r.month)),
       monthlyComplianceTrend: fc(rawData.monthlyComplianceTrend ?? []).filter(r => matchMonth(r.month)),
-      dailyComplianceTrend: fc(rawData.dailyComplianceTrend ?? []).filter(r => matchDay(r.day)),
+      weeklyComplianceTrend: rawData.weeklyComplianceTrend ?? [],
+      dailyComplianceTrend: (() => {
+        const raw = rawData.dailyComplianceTrend ?? [];
+        const afterCommodity = fc(raw);
+        const afterDay = afterCommodity.filter(r => matchDay(r.day));
+        console.log("[DailyCompliance] raw from API:", raw.length, "items, first 3:", raw.slice(0, 3));
+        console.log("[DailyCompliance] after commodity filter:", afterCommodity.length);
+        console.log("[DailyCompliance] after matchDay filter:", afterDay.length, "| date_from:", filters.date_from, "| date_to:", filters.date_to);
+        if (raw.length > 0 && afterDay.length === 0) {
+          console.log("[DailyCompliance] matchDay is filtering everything out! Sample day values:", raw.slice(0, 5).map(r => r.day));
+        }
+        return afterDay;
+      })(),
       monthlyOccurrenceTrend: (rawData.monthlyOccurrenceTrend ?? []).filter(r => matchMonth(r.month)),
       monthlyTravelTrend: (rawData.monthlyTravelTrend ?? []).filter(r => matchMonth(r.month)),
       monthlyDocSendTrend: (rawData.monthlyDocSendTrend ?? []).filter(r => matchMonth(r.month)),
+      weeklyDocSendTrend: rawData.weeklyDocSendTrend ?? [],
       monthlyInvoiceTrend: (rawData.monthlyInvoiceTrend ?? []).filter(r => matchMonth(r.month)),
+      weeklyInvoiceTrend: rawData.weeklyInvoiceTrend ?? [],
       monthlyInspectionsTrend: (rawData.monthlyInspectionsTrend ?? []).filter(r => matchMonth(r.month)),
       monthlyCoaTrend: (rawData.monthlyCoaTrend ?? []).filter(r => matchMonth(r.month)),
+      weeklyCoaTrend: rawData.weeklyCoaTrend ?? [],
       monthlyApprovalTrend: (rawData.monthlyApprovalTrend ?? []).filter(r => matchMonth(r.month)),
+      weeklyApprovalTrend: rawData.weeklyApprovalTrend ?? [],
       monthlyTravelHoursTrend: (rawData.monthlyTravelHoursTrend ?? []).filter(r => matchMonth(r.month)),
     };
   }, [rawData, filters, isAdmin, userFullName]);
@@ -585,9 +603,11 @@ export default function AnalyticsPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [newExpense, setNewExpense] = useState({ inspector: "", amount: "", description: "", date: "" });
 
-  const handleApply = () => { /* filters applied live via useMemo — no API call needed */ };
+  const handleApply = () => fetchData(filters);
   const handleReset = () => {
-    setFilters({ date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] });
+    const empty: Filters = { date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] };
+    setFilters(empty);
+    fetchData(empty);
   };
 
   // ── Export: Excel ───────────────────────────────────────────────────────────
@@ -657,212 +677,430 @@ export default function AnalyticsPage() {
     });
   };
 
-  // ── Export: PDF ─────────────────────────────────────────────────────────────
-  const handleExportPdf = () => {
-    if (!data) return;
-    import("jspdf").then(mod => {
-      const jsPDF = mod.default || mod.jsPDF;
-      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-      const margin = 14;
-      let y = 0;
+  // ── Build Word document (shared by Word export + PDF conversion) ────────
+  const buildWordDoc = async () => {
+    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, ImageRun, WidthType, AlignmentType, BorderStyle, ShadingType, Header, Footer, PageOrientation, PageBreak, convertInchesToTwip } = await import("docx");
+    const html2canvas = (await import("html2canvas")).default;
 
-      // Helper: draw a table
-      const drawTable = (headers: string[], rows: string[][], startY: number, colWidths: number[], opts?: { headerBg?: number[]; fontSize?: number }) => {
-        const fs = opts?.fontSize ?? 6;
-        const hBg = opts?.headerBg ?? [0, 120, 144];
-        const rowH = fs * 0.8 + 3;
-        const headerH = rowH + 1;
-        let cy = startY;
+    // ── Brand colors ──
+    const TEAL = "007890";
+    const DARK = "0F172A";
+    const TEAL_LIGHT = "E6F3F7";
+    const GREEN = "059669";
+    const RED = "DC2626";
+    const AMBER = "F59E0B";
+    const GRAY = "6B7280";
+    const GRAY_LIGHT = "9CA3AF";
+    const WHITE = "FFFFFF";
 
-        // Header
-        doc.setFillColor(hBg[0], hBg[1], hBg[2]);
-        doc.rect(margin, cy, colWidths.reduce((a, b) => a + b, 0), headerH, "F");
-        doc.setFontSize(fs);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        let cx = margin;
-        headers.forEach((h, i) => {
-          doc.text(h, cx + 1.5, cy + headerH / 2 + fs * 0.15, { baseline: "middle" });
-          cx += colWidths[i];
-        });
-        cy += headerH;
+    const noBorders = { top: { style: BorderStyle.NONE, size: 0, color: WHITE }, bottom: { style: BorderStyle.NONE, size: 0, color: WHITE }, left: { style: BorderStyle.NONE, size: 0, color: WHITE }, right: { style: BorderStyle.NONE, size: 0, color: WHITE } };
+    const thinBorder = { bottom: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" }, top: { style: BorderStyle.NONE, size: 0, color: WHITE }, left: { style: BorderStyle.NONE, size: 0, color: WHITE }, right: { style: BorderStyle.NONE, size: 0, color: WHITE } };
 
-        // Body rows
-        doc.setFont("helvetica", "normal");
-        rows.forEach((row, ri) => {
-          if (cy + rowH > pageH - 10) {
-            doc.addPage();
-            cy = 14;
-            // Redraw header on new page
-            doc.setFillColor(hBg[0], hBg[1], hBg[2]);
-            doc.rect(margin, cy, colWidths.reduce((a, b) => a + b, 0), headerH, "F");
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold");
-            let hx = margin;
-            headers.forEach((h, i) => { doc.text(h, hx + 1.5, cy + headerH / 2 + fs * 0.15, { baseline: "middle" }); hx += colWidths[i]; });
-            cy += headerH;
-            doc.setFont("helvetica", "normal");
-          }
-          // Alternating row bg
-          if (ri % 2 === 0) { doc.setFillColor(245, 247, 250); doc.rect(margin, cy, colWidths.reduce((a, b) => a + b, 0), rowH, "F"); }
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(fs);
-          cx = margin;
-          row.forEach((cell, i) => {
-            const txt = String(cell ?? "");
-            doc.text(txt, i === 0 ? cx + 1.5 : cx + colWidths[i] - 1.5, cy + rowH / 2 + fs * 0.15, { baseline: "middle", align: i === 0 ? "left" : "right" });
-            cx += colWidths[i];
+    const filterDesc = [
+      filters.year && `Year: ${filters.year}`,
+      filters.month && `Month: ${MONTHS[Number(filters.month) - 1]}`,
+      filters.inspector.length > 0 && `Inspector: ${filters.inspector.join(", ")}`,
+      filters.commodity.length > 0 && `Commodity: ${filters.commodity.join(", ")}`,
+      filters.date_from && `From: ${filters.date_from}`,
+      filters.date_to && `To: ${filters.date_to}`,
+    ].filter(Boolean).join("  |  ") || "All Time — No Filters Applied";
+
+    // ── Fetch logo as base64 ──
+    let logoBuffer: ArrayBuffer | null = null;
+    try {
+      const logoRes = await fetch("/logo.png");
+      if (logoRes.ok) logoBuffer = await logoRes.arrayBuffer();
+    } catch { /* skip logo */ }
+
+    // ── Capture charts from DOM as images ──
+    const captureChart = async (selector: string): Promise<ArrayBuffer | null> => {
+      try {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (!el) return null;
+        const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2, logging: false });
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+        return blob ? await blob.arrayBuffer() : null;
+      } catch { return null; }
+    };
+
+    // Capture visible chart canvases
+    const chartCanvases = document.querySelectorAll("canvas");
+    const chartImages: ArrayBuffer[] = [];
+    for (const cvs of Array.from(chartCanvases)) {
+      try {
+        const parent = cvs.closest("[class*='chart-wrap'], [style]")?.parentElement;
+        if (parent) {
+          const canvas = await html2canvas(parent as HTMLElement, { backgroundColor: "#ffffff", scale: 2, logging: false, useCORS: true });
+          const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+          if (blob) chartImages.push(await blob.arrayBuffer());
+        }
+      } catch { /* skip */ }
+    }
+
+    // ── Helper: create a styled table ──
+    const makeTable = (headers: string[], rows: string[][], opts?: { colWidths?: number[]; highlightCol?: number }) => {
+      const colW = opts?.colWidths ?? headers.map(() => Math.floor(100 / headers.length));
+      const headerRow = new TableRow({
+        tableHeader: true,
+        children: headers.map((h, i) => new TableCell({
+          width: { size: colW[i], type: WidthType.PERCENTAGE },
+          shading: { type: ShadingType.SOLID, color: DARK, fill: DARK },
+          borders: noBorders,
+          children: [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.RIGHT, spacing: { before: 50, after: 50 }, children: [new TextRun({ text: h, bold: true, size: 15, color: WHITE, font: "Calibri" })] })],
+        })),
+      });
+      const bodyRows = rows.map((row, ri) => new TableRow({
+        children: row.map((cell, ci) => {
+          const isHighlight = opts?.highlightCol === ci;
+          return new TableCell({
+            width: { size: colW[ci], type: WidthType.PERCENTAGE },
+            shading: ri % 2 === 0 ? { type: ShadingType.SOLID, color: "F8FAFC", fill: "F8FAFC" } : undefined,
+            borders: thinBorder,
+            children: [new Paragraph({
+              alignment: ci === 0 ? AlignmentType.LEFT : AlignmentType.RIGHT,
+              spacing: { before: 35, after: 35 },
+              children: [new TextRun({
+                text: cell,
+                size: 15,
+                color: isHighlight ? (cell.startsWith("-") ? RED : GREEN) : "374151",
+                bold: isHighlight,
+                font: "Calibri",
+              })],
+            })],
           });
-          // Row border
-          doc.setDrawColor(220, 220, 220);
-          doc.line(margin, cy + rowH, margin + colWidths.reduce((a, b) => a + b, 0), cy + rowH);
-          cy += rowH;
-        });
-        return cy;
+        }),
+      }));
+      return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] });
+    };
+
+    // ── KPI cards row ──
+    const kpiRow = (items: { label: string; value: string; color?: string }[]) => {
+      return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: items.map(item => new TableCell({
+              width: { size: Math.floor(100 / items.length), type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: TEAL_LIGHT, fill: TEAL_LIGHT },
+              borders: { top: { style: BorderStyle.SINGLE, size: 3, color: item.color ?? TEAL }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" }, left: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" }, right: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" } },
+              margins: { top: convertInchesToTwip(0.1), bottom: convertInchesToTwip(0.1), left: convertInchesToTwip(0.1), right: convertInchesToTwip(0.1) },
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 30 }, children: [new TextRun({ text: item.value, bold: true, size: 28, color: item.color ?? TEAL, font: "Calibri" })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: item.label.toUpperCase(), size: 12, color: GRAY, font: "Calibri", bold: true })] }),
+              ],
+            })),
+          }),
+        ],
+      });
+    };
+
+    // ── Compliance visual bars ──
+    const complianceBars = (items: { commodity: string; compliance_rate: number; total: number; compliant: number }[]) => {
+      const COMMODITY_HEX: Record<string, string> = { EGG: "F59E0B", PMP: "3B82F6", POULTRY: "10B981", RAW: "EF4444" };
+      const getColor = (c: string) => {
+        const k = c?.toUpperCase?.() ?? "";
+        if (k.includes("EGG")) return COMMODITY_HEX.EGG;
+        if (k.includes("PMP")) return COMMODITY_HEX.PMP;
+        if (k.includes("POULTRY")) return COMMODITY_HEX.POULTRY;
+        if (k.includes("RAW")) return COMMODITY_HEX.RAW;
+        return TEAL;
       };
-
-      // ── PAGE 1: Header & KPI Summary ──
-      // Header bar
-      doc.setFillColor(0, 120, 144);
-      doc.rect(0, 0, pageW, 22, "F");
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.text("Food Safety Agency", margin, 10);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text("Analytics Report", margin, 17);
-      doc.setFontSize(8);
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-ZA")}`, pageW - 55, 10);
-      const filterDesc = [
-        filters.year && `Year: ${filters.year}`,
-        filters.month && `Month: ${MONTHS[Number(filters.month) - 1]}`,
-        filters.inspector.length > 0 && `Inspector: ${filters.inspector.join(", ")}`,
-        filters.commodity.length > 0 && `Commodity: ${filters.commodity.join(", ")}`,
-        filters.date_from && `From: ${filters.date_from}`,
-        filters.date_to && `To: ${filters.date_to}`,
-      ].filter(Boolean).join("  |  ");
-      doc.text(filterDesc || "All Time — No Filters Applied", pageW - 55, 17);
-
-      y = 30;
-
-      // KPI Cards
-      const kpis = [
-        { label: "Total Inspections", value: String(data.totalInspections) },
-        { label: "Compliance Rate", value: `${data.complianceRate?.toFixed(1)}%` },
-        { label: "Active Inspectors", value: String(data.activeInspectors) },
-        { label: "Total Hours", value: data.totalHours?.toFixed(1) ?? "0" },
-        { label: "Total Revenue", value: `R${(data.financialSummary?.total_revenue ?? 0).toLocaleString("en-ZA")}` },
-      ];
-      const cardW = (pageW - margin * 2 - 4 * 4) / 5;
-      kpis.forEach((kpi, i) => {
-        const cx = margin + i * (cardW + 4);
-        doc.setFillColor(240, 253, 244);
-        doc.roundedRect(cx, y, cardW, 16, 2, 2, "F");
-        doc.setDrawColor(0, 120, 144);
-        doc.roundedRect(cx, y, cardW, 16, 2, 2, "S");
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 120, 144);
-        doc.text(kpi.value, cx + cardW / 2, y + 7, { align: "center" });
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 100, 100);
-        doc.text(kpi.label.toUpperCase(), cx + cardW / 2, y + 13, { align: "center" });
+      const barSegments = 20; // visual segments for bar
+      return items.map(item => {
+        const filledCount = Math.round((item.compliance_rate / 100) * barSegments);
+        const barColor = getColor(item.commodity);
+        return new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [new TableRow({
+            children: [
+              // Commodity name
+              new TableCell({
+                width: { size: 12, type: WidthType.PERCENTAGE }, borders: noBorders,
+                verticalAlign: "center" as never,
+                children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [new TextRun({ text: item.commodity, bold: true, size: 17, color: "374151", font: "Calibri" })] })],
+              }),
+              // Visual bar using filled/empty cells
+              ...Array.from({ length: barSegments }, (_, i) => new TableCell({
+                width: { size: 3.2, type: WidthType.PERCENTAGE }, borders: noBorders,
+                shading: i < filledCount ? { type: ShadingType.SOLID, color: barColor, fill: barColor } : { type: ShadingType.SOLID, color: "E5E7EB", fill: "E5E7EB" },
+                children: [new Paragraph({ spacing: { before: 10, after: 10 }, children: [new TextRun({ text: " ", size: 10 })] })],
+              })),
+              // Rate text
+              new TableCell({
+                width: { size: 24, type: WidthType.PERCENTAGE }, borders: noBorders,
+                verticalAlign: "center" as never,
+                children: [new Paragraph({
+                  alignment: AlignmentType.RIGHT, spacing: { before: 20, after: 20 },
+                  children: [
+                    new TextRun({ text: `${item.compliance_rate.toFixed(1)}%`, bold: true, size: 17, color: barColor, font: "Calibri" }),
+                    new TextRun({ text: `  (${item.compliant}/${item.total})`, size: 14, color: GRAY_LIGHT, font: "Calibri" }),
+                  ],
+                })],
+              }),
+            ],
+          })],
+        });
       });
-      y += 24;
+    };
 
-      // ── FINANCIAL TABLE ──
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 120, 144);
-      doc.text("Revenue Per Inspector", margin, y);
-      y += 5;
-
-      const kmR = data.financialSummary?.km_rate ?? 4.5;
-      const finHeaders = ["Inspector", "Insp", "Hrs", "KM", "R/km", "On-Site", "Rev(Hrs)", "Rev(KM)", "Rev(Sam)", "Revenue", "Salary", "Exp", "Mgmt", "Cost", "R/Hr", "C/Hr", "Profit"];
-      const finColW = [30, 10, 10, 13, 14, 11, 14, 14, 13, 15, 14, 10, 13, 14, 10, 10, 14];
-      const finRows = (data.inspectorFinancials ?? []).map(r => {
-        const sal = lookupSalary(salaries, r.inspector_name);
-        const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
-        const mgmt = (sal + exp) * 0.20;
-        const cost = sal + exp + mgmt;
-        const rph = r.total_hours > 0 ? Math.round(r.total_revenue / r.total_hours) : 0;
-        const cph = r.total_hours > 0 ? Math.round(cost / r.total_hours) : 0;
-        const profit = Math.round(r.total_revenue - cost);
-        return [
-          r.inspector_name, String(r.total_inspections), r.total_hours > 0 ? r.total_hours.toFixed(1) : "-",
-          r.total_km > 0 ? r.total_km.toLocaleString() : "-", r.total_km > 0 ? `R${Math.round(r.total_km * kmR).toLocaleString()}` : "—",
-          r.inspection_time > 0 ? r.inspection_time.toFixed(1) : "-",
-          `R${Math.round(r.revenue_hours).toLocaleString()}`, `R${Math.round(r.revenue_km).toLocaleString()}`,
-          `R${Math.round(r.revenue_samples).toLocaleString()}`, `R${Math.round(r.total_revenue).toLocaleString()}`,
-          sal > 0 ? `R${Math.round(sal).toLocaleString()}` : "—", exp > 0 ? `R${Math.round(exp).toLocaleString()}` : "—",
-          mgmt > 0 ? `R${Math.round(mgmt).toLocaleString()}` : "—", cost > 0 ? `R${Math.round(cost).toLocaleString()}` : "—",
-          rph > 0 ? `R${rph.toLocaleString()}` : "—", cph > 0 ? `R${cph.toLocaleString()}` : "—",
-          profit !== 0 ? `R${profit.toLocaleString()}` : "—",
-        ];
-      });
-      y = drawTable(finHeaders, finRows, y, finColW);
-
-      // ── PAGE: COMPLIANCE ──
-      if (data.complianceByCommodity?.length) {
-        doc.addPage();
-        y = 14;
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 120, 144);
-        doc.text("Compliance by Commodity", margin, y);
-        y += 5;
-        const compHeaders = ["Commodity", "Total", "Compliant", "Non-Compliant", "Compliance Rate"];
-        const compColW = [50, 30, 30, 30, 35];
-        const compRows = (data.complianceByCommodity || []).map(c => [c.commodity, String(c.total), String(c.compliant), String(c.non_compliant), `${c.compliance_rate.toFixed(1)}%`]);
-        y = drawTable(compHeaders, compRows, y, compColW, { fontSize: 8 });
-      }
-
-      // ── PAGE: INSPECTOR PERFORMANCE ──
-      if (data.inspectorPerformance?.length) {
-        doc.addPage();
-        y = 14;
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 120, 144);
-        doc.text("Inspector Performance", margin, y);
-        y += 5;
-        const perfHeaders = ["Inspector", "Total Inspections", "Compliant", "Non-Compliant"];
-        const perfColW = [60, 35, 35, 35];
-        const perfRows = (data.inspectorPerformance || []).map(p => [p.inspector_name, String(p.total_inspections), String(p.compliant), String(p.non_compliant)]);
-        y = drawTable(perfHeaders, perfRows, y, perfColW, { fontSize: 8 });
-      }
-
-      // ── PAGE: TRAVEL ──
-      if (data.travelPerInspector?.length) {
-        doc.addPage();
-        y = 14;
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 120, 144);
-        doc.text("Travel Per Inspector", margin, y);
-        y += 5;
-        const tHeaders = ["Inspector", "Total KM", "Total Hours", "Inspections", "Avg KM"];
-        const tColW = [55, 30, 30, 30, 30];
-        const tRows = (data.travelPerInspector || []).map(t => [t.inspector_name, t.total_km.toLocaleString(), t.total_hours.toFixed(1), String(t.inspection_count), t.avg_km.toFixed(1)]);
-        y = drawTable(tHeaders, tRows, y, tColW, { fontSize: 8 });
-      }
-
-      // Footer on all pages
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Page ${i} of ${totalPages}`, pageW / 2, pageH - 6, { align: "center" });
-        doc.text("Food Safety Agency — Confidential", margin, pageH - 6);
-      }
-
-      doc.save(`Analytics_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    const sectionTitle = (text: string, icon?: string) => new Paragraph({
+      spacing: { before: 340, after: 140 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" } },
+      children: [
+        new TextRun({ text: icon ? `${icon}  ` : "", size: 22, color: TEAL, font: "Calibri" }),
+        new TextRun({ text, bold: true, size: 26, color: DARK, font: "Calibri" }),
+      ],
     });
+
+    const spacer = () => new Paragraph({ spacing: { before: 80, after: 80 }, children: [] });
+    const pageBreak = () => new Paragraph({ children: [new PageBreak()] });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BUILD SECTIONS
+    // ══════════════════════════════════════════════════════════════════════
+    const children: (typeof Paragraph.prototype | typeof Table.prototype)[] = [];
+
+    // ── COVER HEADER ──
+    // Dark branded header bar (using a full-width table)
+    children.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({
+        children: [
+          // Logo cell
+          new TableCell({
+            width: { size: 12, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: DARK, fill: DARK },
+            borders: noBorders,
+            margins: { top: convertInchesToTwip(0.15), bottom: convertInchesToTwip(0.15), left: convertInchesToTwip(0.15), right: convertInchesToTwip(0.05) },
+            children: logoBuffer ? [new Paragraph({
+              children: [new ImageRun({ data: logoBuffer, transformation: { width: 70, height: 50 }, type: "png" })],
+            })] : [new Paragraph({ children: [] })],
+          }),
+          // Title cell
+          new TableCell({
+            width: { size: 55, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: DARK, fill: DARK },
+            borders: noBorders,
+            margins: { top: convertInchesToTwip(0.15), bottom: convertInchesToTwip(0.15), left: convertInchesToTwip(0.1) },
+            verticalAlign: "center" as never,
+            children: [
+              new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "FOOD SAFETY AGENCY", bold: true, size: 32, color: WHITE, font: "Calibri" })] }),
+              new Paragraph({ children: [new TextRun({ text: "Analytics Report", size: 20, color: GRAY_LIGHT, font: "Calibri" })] }),
+            ],
+          }),
+          // Date/filter cell
+          new TableCell({
+            width: { size: 33, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: DARK, fill: DARK },
+            borders: noBorders,
+            margins: { top: convertInchesToTwip(0.15), bottom: convertInchesToTwip(0.15), right: convertInchesToTwip(0.15) },
+            verticalAlign: "center" as never,
+            children: [
+              new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 0 }, children: [new TextRun({ text: new Date().toLocaleDateString("en-ZA", { weekday: "long", year: "numeric", month: "long", day: "numeric" }), size: 16, color: WHITE, font: "Calibri" })] }),
+              new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: filterDesc, size: 14, color: GRAY_LIGHT, font: "Calibri", italics: true })] }),
+            ],
+          }),
+        ],
+      })],
+    }));
+    // Teal accent line under header
+    children.push(new Paragraph({ spacing: { after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: TEAL } }, children: [] }));
+
+    // ── KPI CARDS ──
+    children.push(kpiRow([
+      { label: "Total Inspections", value: String(data!.totalInspections ?? 0), color: TEAL },
+      { label: "Compliance Rate", value: `${Number(data!.complianceRate ?? 0).toFixed(1)}%`, color: GREEN },
+      { label: "Active Inspectors", value: String(data!.activeInspectors ?? 0), color: AMBER },
+      { label: "Total Hours", value: Number(data!.totalHours ?? 0).toFixed(1), color: "3B82F6" },
+      { label: "Total Revenue", value: `R${Number(data!.financialSummary?.total_revenue ?? 0).toLocaleString("en-ZA")}`, color: GREEN },
+    ]));
+
+    // Secondary KPIs
+    children.push(spacer());
+    children.push(kpiRow([
+      { label: "Occurrence Reports", value: String(data!.totalOccurrenceReports ?? 0), color: RED },
+      { label: "Total KM Traveled", value: (data!.travelPerInspector ?? []).reduce((s, t) => s + (t.total_km || 0), 0).toLocaleString("en-ZA"), color: "3B82F6" },
+      { label: "Days Worked", value: String((data! as unknown as Record<string, unknown>).daysWorked ?? 0), color: TEAL },
+      { label: "Total Samples", value: String((data!.samplesByCommodity ?? []).reduce((s, d) => s + (d.count || 0), 0)), color: GREEN },
+    ]));
+
+    // ── COMPLIANCE VISUAL BARS ──
+    if (data!.complianceByCommodity?.length) {
+      children.push(sectionTitle("Compliance by Commodity"));
+      const bars = complianceBars(data!.complianceByCommodity || []);
+      bars.forEach(b => children.push(b));
+    }
+
+    // ── CHART IMAGES ──
+    if (chartImages.length > 0) {
+      children.push(pageBreak());
+      children.push(sectionTitle("Charts & Trends"));
+      for (let i = 0; i < Math.min(chartImages.length, 8); i++) {
+        children.push(new Paragraph({
+          spacing: { before: 100, after: 100 },
+          alignment: AlignmentType.CENTER,
+          children: [new ImageRun({ data: chartImages[i], transformation: { width: 680, height: 280 }, type: "png" })],
+        }));
+      }
+    }
+
+    // ── FINANCIAL TABLE ──
+    children.push(pageBreak());
+    const kmR = data!.financialSummary?.km_rate ?? 4.5;
+    const finData = (data!.inspectorFinancials ?? []).map(r => {
+      const sal = lookupSalary(salaries, r.inspector_name ?? "");
+      const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + (e.amount || 0), 0);
+      const hrs = r.total_hours || 0; const km = r.total_km || 0;
+      const revT = r.total_revenue || 0; const mgmt = (sal + exp) * 0.20;
+      const cost = sal + exp + mgmt; const profit = Math.round(revT - cost);
+      return [
+        r.inspector_name ?? "", String(r.total_inspections ?? 0),
+        hrs > 0 ? hrs.toFixed(1) : "-", km > 0 ? km.toLocaleString() : "-",
+        `R${Math.round(r.revenue_hours || 0).toLocaleString()}`, `R${Math.round(r.revenue_km || 0).toLocaleString()}`,
+        `R${Math.round(r.revenue_samples || 0).toLocaleString()}`, `R${Math.round(revT).toLocaleString()}`,
+        sal > 0 ? `R${Math.round(sal).toLocaleString()}` : "-",
+        exp > 0 ? `R${Math.round(exp).toLocaleString()}` : "-",
+        `R${Math.round(cost).toLocaleString()}`,
+        profit >= 0 ? `R${profit.toLocaleString()}` : `-R${Math.abs(profit).toLocaleString()}`,
+      ];
+    });
+    if (finData.length) {
+      children.push(sectionTitle("Revenue Per Inspector"));
+      children.push(makeTable(
+        ["Inspector", "Insp", "Hrs", "KM", "Rev(Hrs)", "Rev(KM)", "Rev(Sam)", "Revenue", "Salary", "Exp", "Cost", "Profit"],
+        finData,
+        { colWidths: [14, 5, 5, 6, 8, 8, 8, 9, 8, 7, 8, 8], highlightCol: 11 },
+      ));
+    }
+
+    // ── INSPECTOR PERFORMANCE ──
+    if (data!.inspectorPerformance?.length) {
+      children.push(sectionTitle("Inspector Performance"));
+      children.push(makeTable(
+        ["Inspector", "Total Inspections", "Compliant", "Non-Compliant", "Compliance %"],
+        (data!.inspectorPerformance || []).map(p => [
+          p.inspector_name, String(p.total_inspections), String(p.compliant), String(p.non_compliant),
+          p.total_inspections > 0 ? `${((p.compliant / p.total_inspections) * 100).toFixed(1)}%` : "0%",
+        ]),
+        { colWidths: [28, 18, 18, 18, 18] },
+      ));
+    }
+
+    // ── TRAVEL ──
+    if (data!.travelPerInspector?.length) {
+      children.push(sectionTitle("Travel Per Inspector"));
+      children.push(makeTable(
+        ["Inspector", "Total KM", "Total Hours", "Inspections", "Avg KM/Inspection"],
+        (data!.travelPerInspector || []).map(t => [
+          t.inspector_name ?? "", (t.total_km ?? 0).toLocaleString(),
+          (t.total_hours ?? 0).toFixed(1), String(t.inspection_count ?? 0), (t.avg_km ?? 0).toFixed(1),
+        ]),
+        { colWidths: [28, 18, 18, 17, 19] },
+      ));
+    }
+
+    // ── APPROVAL STATUS ──
+    if (data!.approvalPerInspector?.length) {
+      children.push(sectionTitle("Approval Status Per Inspector"));
+      children.push(makeTable(
+        ["Inspector", "Total", "Approved", "Pending", "Approval Rate"],
+        (data!.approvalPerInspector || []).map(a => [
+          a.inspector_name, String(a.total), String(a.approved), String(a.pending),
+          a.total > 0 ? `${((a.approved / a.total) * 100).toFixed(1)}%` : "0%",
+        ]),
+        { colWidths: [28, 15, 18, 17, 22], highlightCol: 4 },
+      ));
+    }
+
+    // ── COMPLIANCE TABLE (detailed) ──
+    if (data!.complianceByCommodity?.length) {
+      children.push(sectionTitle("Compliance Breakdown"));
+      children.push(makeTable(
+        ["Commodity", "Total Inspections", "Compliant", "Non-Compliant", "Compliance Rate"],
+        (data!.complianceByCommodity || []).map(c => [
+          c.commodity ?? "", String(c.total ?? 0), String(c.compliant ?? 0),
+          String(c.non_compliant ?? 0), `${(c.compliance_rate ?? 0).toFixed(1)}%`,
+        ]),
+        { colWidths: [25, 20, 18, 19, 18], highlightCol: 4 },
+      ));
+    }
+
+    children.push(spacer());
+
+    // ── Confidential footer note ──
+    children.push(new Paragraph({
+      spacing: { before: 400 },
+      border: { top: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" } },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "This document is confidential and intended for authorized personnel only.", size: 14, color: GRAY_LIGHT, italics: true, font: "Calibri" })],
+    }));
+
+    const doc = new Document({
+      styles: { default: { document: { run: { font: "Calibri", size: 20 } } } },
+      sections: [{
+        properties: {
+          page: {
+            size: { orientation: PageOrientation.LANDSCAPE },
+            margin: { top: convertInchesToTwip(0.5), bottom: convertInchesToTwip(0.5), left: convertInchesToTwip(0.6), right: convertInchesToTwip(0.6) },
+          },
+        },
+        headers: {
+          default: new Header({
+            children: [new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              children: [
+                new TextRun({ text: "Food Safety Agency", bold: true, size: 14, color: TEAL, font: "Calibri" }),
+                new TextRun({ text: "  |  Confidential", size: 14, color: GRAY_LIGHT, italics: true, font: "Calibri" }),
+              ],
+            })],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [new Paragraph({
+              alignment: AlignmentType.CENTER,
+              border: { top: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" } },
+              children: [
+                new TextRun({ text: "Food Safety Agency (Pty) Ltd  |  Analytics Report  |  ", size: 13, color: GRAY_LIGHT, font: "Calibri" }),
+                new TextRun({ text: new Date().toLocaleDateString("en-ZA"), size: 13, color: GRAY_LIGHT, font: "Calibri" }),
+              ],
+            })],
+          }),
+        },
+        children: children as (typeof Paragraph.prototype)[],
+      }],
+    });
+
+    return await Packer.toBlob(doc);
+  };
+
+  // ── Export: PDF (builds Word doc in background → sends to backend for conversion) ──
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const handleExportPdf = async () => {
+    if (!data) return;
+    setPdfLoading(true);
+    try {
+      const blob = await buildWordDoc();
+      const formData = new FormData();
+      formData.append("file", blob, "report.docx");
+      const res = await fetch("/api/convert-docx-to-pdf", { method: "POST", body: formData });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `Server error ${res.status}`);
+      }
+      const pdfBlob = await res.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Analytics_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const dateRangeSet = filters.date_from !== "" || filters.date_to !== "";
@@ -880,7 +1118,7 @@ export default function AnalyticsPage() {
   if (!user) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
       <div style={{ textAlign: "center", color: "#6b7280" }}>
-        <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <div style={{ width: 32, height: 32, borderRadius: "50%", borderTop: "3px solid #007890", borderRight: "3px solid #e5e7eb", borderBottom: "3px solid #e5e7eb", borderLeft: "3px solid #e5e7eb", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         Loading...
       </div>
@@ -893,7 +1131,7 @@ export default function AnalyticsPage() {
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <div style={{ width: 36, height: 36, borderTop: "3px solid #007890", borderRight: "3px solid #e2e8f0", borderBottom: "3px solid #e2e8f0", borderLeft: "3px solid #e2e8f0", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
         <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -994,17 +1232,21 @@ export default function AnalyticsPage() {
             />
           </div>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
+            <button onClick={handleApply}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+              <i className="fas fa-filter" /> Apply
+            </button>
             <button onClick={handleReset}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <i className="fas fa-undo" /> Reset
             </button>
             <button onClick={handleExtractExcel}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-file-download" /> Extract
+              <i className="fas fa-file-excel" /> Export Excel
             </button>
-            <button onClick={handleExportPdf}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#d13438", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-file-pdf" /> PDF
+            <button onClick={handleExportPdf} disabled={pdfLoading}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: pdfLoading ? "wait" : "pointer", background: pdfLoading ? "#9ca3af" : "#d13438", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", opacity: pdfLoading ? 0.7 : 1 }}>
+              <i className={pdfLoading ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} /> {pdfLoading ? "Generating..." : "Export PDF"}
             </button>
             <button onClick={() => { /* TODO: toggle info panel */ }}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6366f1", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
@@ -1033,6 +1275,10 @@ export default function AnalyticsPage() {
             .info-tooltip-text { visibility: hidden; opacity: 0; position: absolute; z-index: 9999; top: calc(100% + 8px); left: 0; background: #1e293b; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 12px; font-weight: 400; line-height: 1.5; white-space: normal; width: 260px; transition: opacity 0.2s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
             .info-tooltip:hover .info-tooltip-text { visibility: visible; opacity: 1; }
             .info-tooltip-text::before { content: ''; position: absolute; bottom: 100%; left: 16px; border-width: 6px; border-style: solid; border-color: transparent transparent #1e293b transparent; }
+            @media (max-width: 768px) {
+              .md\\:grid-cols-2 { grid-template-columns: 1fr !important; }
+              .md\\:grid-cols-3 { grid-template-columns: 1fr !important; }
+            }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
           {activePanel === "inspectors" && <InspectorsPanel data={data} inspectorMetric={inspectorMetric} setInspectorMetric={setInspectorMetric} quarterlyTargets={quarterlyTargets} targetYear={targetYear} targetQuarter={targetQuarter} setTargetYear={setTargetYear} setTargetQuarter={setTargetQuarter} onSetTargets={() => setShowTargetsModal(true)} filterInspector={filters.inspector.length === 1 ? filters.inspector[0] : ""} />}
@@ -1064,37 +1310,87 @@ export default function AnalyticsPage() {
 
           {/* Expense Modal */}
           {showExpenseModal && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowExpenseModal(false)}>
-              <div style={{ background: "white", borderRadius: 12, padding: 24, maxWidth: 550, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                <h3 style={{ margin: "0 0 16px", fontSize: "1.1rem", fontWeight: 600 }}><i className="fas fa-receipt" style={{ marginRight: 8, color: "#f59e0b" }} />Log Expense</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-                  <select value={newExpense.inspector} onChange={e => setNewExpense({ ...newExpense, inspector: e.target.value })} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }}>
-                    <option value="">Select Inspector</option>
-                    {data?.filterOptions?.inspectors?.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                  <input type="number" placeholder="Amount (R)" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }} />
-                  <input type="text" placeholder="Description" value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }} />
-                  <input type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }} />
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowExpenseModal(false)}>
+              <div style={{ background: "white", borderRadius: 14, maxWidth: 620, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <i className="fas fa-receipt" style={{ color: "white", fontSize: 16 }} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#1f2937" }}>Log Expense</h3>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#9ca3af" }}>{expenseLog.length} expense{expenseLog.length !== 1 ? "s" : ""} logged</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowExpenseModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, padding: 4, lineHeight: 1 }}><i className="fas fa-times" /></button>
+                </div>
+
+                {/* Form */}
+                <div style={{ padding: "20px 24px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Inspector</label>
+                      <select value={newExpense.inspector} onChange={e => setNewExpense({ ...newExpense, inspector: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", color: newExpense.inspector ? "#1f2937" : "#9ca3af", background: "white", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"}>
+                        <option value="">Select inspector...</option>
+                        {data?.filterOptions?.inspectors?.map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Amount</label>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "0.85rem", fontWeight: 500 }}>R</span>
+                        <input type="number" placeholder="0.00" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} style={{ width: "100%", padding: "9px 12px 9px 28px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Date</label>
+                      <input type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Description</label>
+                      <input type="text" placeholder="e.g. Fuel, equipment, travel..." value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
+                    </div>
+                  </div>
                   <button onClick={() => {
                     if (!newExpense.inspector || !newExpense.amount) return;
                     const entry = { id: Date.now().toString(), inspector: newExpense.inspector, amount: Number(newExpense.amount), description: newExpense.description, date: newExpense.date || new Date().toISOString().slice(0, 10) };
                     saveExpenses([...expenseLog, entry]);
                     setNewExpense({ inspector: "", amount: "", description: "", date: "" });
-                  }} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#f59e0b", color: "white", cursor: "pointer", fontWeight: 500, fontSize: "0.85rem" }}>Add Expense</button>
+                  }} disabled={!newExpense.inspector || !newExpense.amount} style={{ width: "100%", padding: "10px 16px", borderRadius: 8, border: "none", background: !newExpense.inspector || !newExpense.amount ? "#e5e7eb" : "linear-gradient(135deg, #f59e0b, #d97706)", color: !newExpense.inspector || !newExpense.amount ? "#9ca3af" : "white", cursor: !newExpense.inspector || !newExpense.amount ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.15s" }}>
+                    <i className="fas fa-plus" /> Add Expense
+                  </button>
                 </div>
+
+                {/* Expense List */}
                 {expenseLog.length > 0 && (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
-                    <thead><tr><th style={{ textAlign: "left", padding: 4, borderBottom: "1px solid #e5e7eb" }}>Inspector</th><th style={{ textAlign: "right", padding: 4, borderBottom: "1px solid #e5e7eb" }}>Amount</th><th style={{ textAlign: "left", padding: 4, borderBottom: "1px solid #e5e7eb" }}>Desc</th><th style={{ padding: 4, borderBottom: "1px solid #e5e7eb" }}></th></tr></thead>
-                    <tbody>
+                  <div style={{ borderTop: "1px solid #f0f0f0", padding: "16px 24px 20px" }}>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 10 }}>Logged Expenses</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {expenseLog.map(e => (
-                        <tr key={e.id}><td style={{ padding: 4 }}>{e.inspector}</td><td style={{ padding: 4, textAlign: "right" }}>{fmtRand(e.amount)}</td><td style={{ padding: 4 }}>{e.description}</td><td style={{ padding: 4 }}><button onClick={() => saveExpenses(expenseLog.filter(x => x.id !== e.id))} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}><i className="fas fa-trash" /></button></td></tr>
+                        <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "#fafafa", borderRadius: 8, border: "1px solid #f0f0f0" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <i className="fas fa-receipt" style={{ color: "#d97706", fontSize: 13 }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1f2937" }}>{e.inspector}</span>
+                              <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>{e.date}</span>
+                            </div>
+                            {e.description && <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.description}</div>}
+                          </div>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#d97706", flexShrink: 0 }}>{fmtRand(e.amount)}</span>
+                          <button onClick={() => saveExpenses(expenseLog.filter(x => x.id !== e.id))} style={{ background: "none", border: "none", color: "#d1d5db", cursor: "pointer", padding: 4, fontSize: 13, lineHeight: 1, borderRadius: 4, transition: "color 0.15s" }} onMouseEnter={e => (e.target as HTMLElement).style.color = "#ef4444"} onMouseLeave={e => (e.target as HTMLElement).style.color = "#d1d5db"}>
+                            <i className="fas fa-trash-alt" />
+                          </button>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
+                      <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1f2937" }}>Total: <span style={{ color: "#d97706" }}>{fmtRand(expenseLog.reduce((s, e) => s + (e.amount || 0), 0))}</span></span>
+                    </div>
+                  </div>
                 )}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                  <button onClick={() => setShowExpenseModal(false)} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.85rem" }}>Close</button>
-                </div>
               </div>
             </div>
           )}
@@ -1157,8 +1453,10 @@ export default function AnalyticsPage() {
 
 function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }: { data: AnalyticsData; totalKm: number; avgDocSend: number; avgApproval: number; totalSamples: number }) {
   // Daily compliance trend
+  console.log("[OverviewPanel] dailyComplianceTrend received:", data.dailyComplianceTrend?.length, "items, first 3:", (data.dailyComplianceTrend || []).slice(0, 3));
   const dailyDays = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
   const dailyCommodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
+  console.log("[OverviewPanel] dailyDays:", dailyDays, "dailyCommodities:", dailyCommodities);
   const dailyChartData = {
     labels: dailyDays.map(fmtDay),
     datasets: dailyCommodities.map((c, i) => ({
@@ -1180,17 +1478,19 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
     datasets: [{ label: "Inspections", data: (data.monthlyInspectionsTrend || []).map((d) => d.count), backgroundColor: "#007890", borderRadius: 4 }],
   };
 
-  // Monthly compliance (aggregated)
-  const mcMonths = [...new Set((data.monthlyComplianceTrend || []).map((d) => d.month))].sort();
-  const mcAgg = mcMonths.map((m) => {
-    const rows = (data.monthlyComplianceTrend || []).filter((r) => r.month === m);
-    const totalCompliant = rows.reduce((s, r) => s + r.compliant, 0);
-    const totalAll = rows.reduce((s, r) => s + r.total, 0);
-    return totalAll > 0 ? (totalCompliant / totalAll) * 100 : 0;
-  });
-  const mcData = {
-    labels: mcMonths.map(fmtMonth),
-    datasets: [{ label: "Approval Rate %", data: mcAgg, borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
+  // Weekly compliance (aggregated) for Approval Rate chart
+  const wcWeeks = (data.weeklyComplianceTrend || []).map((d) => d.week).sort();
+  const wcRates = (data.weeklyComplianceTrend || []).sort((a, b) => a.week.localeCompare(b.week)).map((d) => d.compliance_rate);
+  const wcIsSingle = wcWeeks.length <= 1;
+  const wcData = {
+    labels: wcWeeks.map((w) => { try { return new Date(w).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }); } catch { return w; } }),
+    datasets: [{
+      label: "Approval Rate %",
+      data: wcRates,
+      ...(wcIsSingle
+        ? { backgroundColor: "#10b981", borderRadius: 4 }
+        : { borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }),
+    }],
   };
 
   // Occurrence trend
@@ -1199,26 +1499,22 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
     datasets: [{ label: "Occurrences", data: (data.monthlyOccurrenceTrend || []).map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
   };
 
-  // Samples by commodity (exclude Eggs & Poultry)
-  const filteredSamples = (data.samplesByCommodity || []).filter(d => isSampleCommodity(d.commodity));
-  const samplesData = {
-    labels: filteredSamples.map((d) => d.commodity),
-    datasets: [{ label: "Samples", data: filteredSamples.map((d) => d.count), backgroundColor: filteredSamples.map((d) => colorForCommodity(d.commodity)) }],
-  };
-
-  // Facility types doughnut
+  // Facility types bar chart
+  const ftSorted = [...(data.facilityTypeDistribution || [])].sort((a, b) => b.count - a.count);
   const ftData = {
-    labels: (data.facilityTypeDistribution || []).map((d) => d.facility_type),
+    labels: ftSorted.map((d) => d.facility_type),
     datasets: [{
-      data: (data.facilityTypeDistribution || []).map((d) => d.count),
-      backgroundColor: (data.facilityTypeDistribution || []).map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+      label: "Inspections",
+      data: ftSorted.map((d) => d.count),
+      backgroundColor: ftSorted.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+      borderRadius: 4,
     }],
   };
 
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
       {/* Primary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Total Inspections" value={data.totalInspections} />
         <KpiCard label="Compliance Rate" value={`${data.complianceRate.toFixed(1)}%`} color="#10b981" />
         <KpiCard label="Active Inspectors" value={data.activeInspectors} color="#f59e0b" />
@@ -1226,7 +1522,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       </div>
 
       {/* Secondary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Occurrence Reports" value={data.totalOccurrenceReports} color="#ef4444" icon="fas fa-exclamation-circle" />
         <KpiCard label="Total KM Traveled" value={totalKm.toLocaleString("en-ZA")} color="#3b82f6" icon="fas fa-road" />
         <KpiCard label="Avg Days: Doc Send" value={avgDocSend.toFixed(1)} color="#f59e0b" icon="fas fa-paper-plane" />
@@ -1262,25 +1558,29 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       {/* 3-col: Monthly Inspections, Approval Rate, Occurrence Trend */}
       <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Inspections" icon="fas fa-chart-bar" tooltip="Total number of inspections completed each month.">
-          <ChartWrap height="200px"><Bar data={miData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="200px"><Bar data={miData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
         </Card>
-        <Card title="Approval Rate" icon="fas fa-check-double" tooltip="Percentage of inspections approved per month.">
-          <ChartWrap height="200px"><Line data={mcData} options={baseChartOptions(undefined, undefined, { datalabels: false }) as never} /></ChartWrap>
+        <Card title="Approval Rate (Weekly)" icon="fas fa-check-double" tooltip="Percentage of inspections approved per week.">
+          <ChartWrap height="200px">
+            {wcIsSingle
+              ? <Bar data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: true, datalabelColor: "#1f2937", datalabelSuffix: "%" }) as never} />
+              : <Line data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: false }) as never} />
+            }
+          </ChartWrap>
         </Card>
         <Card title="Occurrence Trend" icon="fas fa-exclamation-triangle" tooltip="Monthly trend of occurrence reports (non-compliance incidents) filed.">
-          <ChartWrap height="200px"><Bar data={occData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="200px"><Bar data={occData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
         </Card>
       </div>
 
-      {/* 2-col: Samples, Facility Types */}
-      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Samples Taken by Commodity" icon="fas fa-vial" tooltip="Number of laboratory samples collected, broken down by commodity type.">
-          <ChartWrap height="220px"><Bar data={samplesData} options={baseChartOptions() as never} /></ChartWrap>
-        </Card>
-        <Card title="Facility Types" icon="fas fa-building" tooltip="Distribution of inspections across different facility types (e.g. abattoir, farm, processor).">
-          <ChartWrap height="220px"><Doughnut data={ftData} options={doughnutOptions() as never} /></ChartWrap>
-        </Card>
-      </div>
+      {/* Facility Types — unique to Overview */}
+      <Card title="Facility Types" icon="fas fa-building" tooltip="Distribution of inspections across different facility types (e.g. abattoir, farm, processor).">
+        <ChartWrap height="220px"><Bar data={ftData} options={{
+          ...baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }),
+          indexAxis: "y" as const,
+          scales: { x: { beginAtZero: true, ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } },
+        } as never} /></ChartWrap>
+      </Card>
     </div>
   );
 }
@@ -1302,44 +1602,59 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   filterInspector?: string;
 }) {
   const [radarInspector, setRadarInspector] = useState(filterInspector || "all");
-  const [trendChartType, setTrendChartType] = useState<"bar" | "line">("bar");
   useEffect(() => { setRadarInspector(filterInspector || "all"); }, [filterInspector]);
   const metricLabel: Record<string, string> = { count: "Inspections", total_km: "KM Traveled", total_hours: "Hours", samples: "Samples" };
 
-  // Inspector trend
-  const days = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.day))].sort();
-  const inspectors = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.inspector_name))];
-  const trendData = {
-    labels: days.map(fmtDay),
-    datasets: inspectors.map((name, i) => ({
-      label: name,
-      data: days.map((day) => {
-        const row = (data.monthlyInspectorTrend || []).find((r) => r.day === day && r.inspector_name === name);
-        return row ? row[inspectorMetric] : 0;
-      }),
-      borderColor: CHART_PALETTE[i % CHART_PALETTE.length],
-      backgroundColor: CHART_PALETTE[i % CHART_PALETTE.length],
-      ...lineDefaults,
-    })),
+  // Inspector totals for selected metric — ranked bar chart
+  const inspectorTotals = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.inspector_name))]
+    .map((name) => {
+      const rows = (data.monthlyInspectorTrend || []).filter((r) => r.inspector_name === name);
+      const total = rows.reduce((s, r) => s + (Number(r[inspectorMetric]) || 0), 0);
+      return { name, total };
+    })
+    .sort((a, b) => b.total - a.total);
+  const rankData = {
+    labels: inspectorTotals.map((d) => d.name),
+    datasets: [{
+      label: metricLabel[inspectorMetric],
+      data: inspectorTotals.map((d) => Math.round(d.total * 10) / 10),
+      backgroundColor: inspectorTotals.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+      borderRadius: 4,
+    }],
+  };
+  const rankOpts = {
+    ...baseChartOptions(),
+    indexAxis: "y" as const,
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      legend: { display: false },
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 10, weight: "bold" as const }, color: "#374151", formatter: (v: number) => v === 0 ? "" : String(v) },
+    },
+    layout: { padding: { right: 40 } },
+    scales: {
+      x: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: "#f3f4f6" } },
+      y: { ticks: { font: { size: 11 } }, grid: { display: false } },
+    },
   };
 
-  // Compliance per inspector (stacked bar)
-  const dirData = {
-    labels: (data.directionsPerInspector || []).map((d) => d.inspector_name),
+  // Compliance per inspector (horizontal stacked bar)
+  const compData = {
+    labels: (data.inspectorPerformance || []).map((d) => d.inspector_name),
     datasets: [
-      { label: "Directions", data: (data.directionsPerInspector || []).map((d) => d.directions), backgroundColor: "#f59e0b" },
-      { label: "Non-Compliant Products", data: (data.directionsPerInspector || []).map((d) => d.non_compliant_products), backgroundColor: "#ef4444" },
+      { label: "Compliant", data: (data.inspectorPerformance || []).map((d) => d.compliant), backgroundColor: "#10b981" },
+      { label: "Non-Compliant", data: (data.inspectorPerformance || []).map((d) => d.non_compliant), backgroundColor: "#ef4444" },
     ],
   };
   const stackedOpts = {
     ...baseChartOptions(),
+    indexAxis: "y" as const,
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
       datalabels: { anchor: "center" as const, align: "center" as const, font: { size: 9, weight: "bold" as const }, color: "#fff", formatter: (v: number) => v === 0 ? "" : String(v) },
     },
     scales: {
-      x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
-      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
+      x: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } },
+      y: { stacked: true, ticks: { font: { size: 10 } } },
     },
   };
 
@@ -1371,7 +1686,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   // Radar chart data — use quarterly targets for target ring, actuals for data
   const quarterLabel = `Q${targetQuarter}: ${["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec"][targetQuarter - 1]}`;
   const radarLabels = ["EGG", "POULTRY", "RAW", "PMP", "Raw Samples", "PMP Samples"];
-  const radarInspectors = radarInspector === "all" ? allInspectors.slice(0, 6) : [radarInspector];
+  const radarInspectors = radarInspector === "all" ? allInspectors : [radarInspector];
   const radarDatasets = radarInspectors.map((inspector, i) => ({
     label: inspector,
     data: [
@@ -1405,7 +1720,8 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const radarOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 } } }, datalabels: { display: false } },
+    plugins: { legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 }, padding: 16 } }, datalabels: { display: false } },
+    layout: { padding: { top: 50 } },
     scales: { r: { beginAtZero: true, ticks: { font: { size: 10 } }, pointLabels: { font: { size: 11 } } } },
   };
 
@@ -1486,41 +1802,19 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
         </div>
       </Card>
 
-      {/* Inspector Performance Trend */}
-      <Card title="Inspector Performance Trend" icon="fas fa-chart-line" tooltip="Monthly trend of inspector activity — toggle between inspections, KM, hours, or samples."
+      {/* Inspector Performance Ranking */}
+      <Card title="Inspector Performance Ranking" icon="fas fa-ranking-star" tooltip="Ranked comparison of all inspectors by selected metric — switch between inspections, KM, hours, or samples."
         headerRight={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>
-              <button onClick={() => setTrendChartType("bar")}
-                style={{ padding: "4px 10px", fontSize: 11, fontWeight: trendChartType === "bar" ? 700 : 400, background: trendChartType === "bar" ? "#007890" : "#fff", color: trendChartType === "bar" ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
-                <i className="fas fa-chart-bar" style={{ marginRight: 4 }} />Bar
-              </button>
-              <button onClick={() => setTrendChartType("line")}
-                style={{ padding: "4px 10px", fontSize: 11, fontWeight: trendChartType === "line" ? 700 : 400, background: trendChartType === "line" ? "#007890" : "#fff", color: trendChartType === "line" ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: "1px solid #d1d5db" }}>
-                <i className="fas fa-chart-line" style={{ marginRight: 4 }} />Line
-              </button>
-            </div>
-            <select value={inspectorMetric} onChange={(e) => setInspectorMetric(e.target.value as typeof inspectorMetric)}
-              style={{ fontSize: "12px", padding: "6px 28px 6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb", color: "#374151", fontWeight: 500, cursor: "pointer" }}>
-              {Object.entries(metricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+          <select value={inspectorMetric} onChange={(e) => setInspectorMetric(e.target.value as typeof inspectorMetric)}
+            style={{ fontSize: "12px", padding: "6px 28px 6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb", color: "#374151", fontWeight: 500, cursor: "pointer" }}>
+            {Object.entries(metricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
         }>
-        <ChartWrap height="600px">
-          {trendChartType === "bar" ? (
-            <Bar data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric]) as never} />
-          ) : (
-            <Line data={trendData} options={baseChartOptions(undefined, metricLabel[inspectorMetric], { datalabels: false }) as never} />
-          )}
+        <ChartWrap height={`${Math.max(250, inspectorTotals.length * 36)}px`}>
+          <Bar data={rankData} options={rankOpts as never} />
         </ChartWrap>
       </Card>
 
-      {/* Compliance Per Inspector */}
-      <Card title="Compliance Per Inspector" icon="fas fa-exclamation-triangle" tooltip="Non-compliance findings per inspector.">
-        <ChartWrap height="280px">
-          <Bar data={dirData} options={stackedOpts as never} />
-        </ChartWrap>
-      </Card>
     </div>
   );
 }
@@ -1650,12 +1944,6 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
     datasets: [{ label: "Samples", data: filteredSamples.map((d) => d.count), backgroundColor: filteredSamples.map((d) => colorForCommodity(d.commodity)) }],
   };
 
-  // Facility types
-  const ftData = {
-    labels: (data.facilityTypeDistribution || []).map((d) => d.facility_type),
-    datasets: [{ data: (data.facilityTypeDistribution || []).map((d) => d.count), backgroundColor: (data.facilityTypeDistribution || []).map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]) }],
-  };
-
   // Time allocation (horizontal bar)
   const taData = {
     labels: (data.timeAllocation || []).map((d) => d.inspector_name),
@@ -1678,18 +1966,6 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   const orData = {
     labels: (data.occurrenceReports || []).map((d) => d.inspector_name),
     datasets: [{ label: "Reports", data: (data.occurrenceReports || []).map((d) => d.count), backgroundColor: "#EC343C", borderRadius: 4 }],
-  };
-
-  // Commodity count doughnut
-  const caData = {
-    labels: (data.commodityAnalysis || []).map((d) => d.commodity),
-    datasets: [{ data: (data.commodityAnalysis || []).map((d) => d.total_inspections), backgroundColor: (data.commodityAnalysis || []).map((d) => colorForCommodity(d.commodity)) }],
-  };
-
-  // Occurrence monthly trend
-  const omtData = {
-    labels: (data.monthlyOccurrenceTrend || []).map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Occurrences", data: (data.monthlyOccurrenceTrend || []).map((d) => d.count), borderColor: "#EC343C", backgroundColor: "rgba(236,52,60,0.1)", ...lineDefaults, fill: true }],
   };
 
   return (
@@ -1721,7 +1997,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "1rem", marginBottom: "1rem" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Compliance %" icon="fas fa-chart-line" tooltip="Monthly compliance rate per commodity — uses real approval percentages.">
           <ChartWrap height="280px"><Bar data={weeklyData} options={{
             ...baseChartOptions(undefined, "Compliance %", { datalabels: false }),
@@ -1730,9 +2006,6 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         </Card>
         <Card title="Samples Taken" icon="fas fa-vial" tooltip="Total lab samples collected per commodity type.">
           <ChartWrap height="280px"><Bar data={samplesData} options={baseChartOptions() as never} /></ChartWrap>
-        </Card>
-        <Card title="Facility Types" icon="fas fa-building" tooltip="Breakdown of inspections by facility type.">
-          <ChartWrap height="280px"><Doughnut data={ftData} options={doughnutOptions() as never} /></ChartWrap>
         </Card>
       </div>
 
@@ -1744,15 +2017,6 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         </Card>
         <Card title={`Occurrence Reports (${data.totalOccurrenceReports})`} icon="fas fa-file-alt" tooltip="Number of occurrence reports filed per inspector.">
           <ChartWrap height="280px"><Bar data={orData} options={baseChartOptions() as never} /></ChartWrap>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Commodity Count" icon="fas fa-chart-pie" tooltip="Total inspection count per commodity type.">
-          <ChartWrap height="280px"><Doughnut data={caData} options={doughnutOptions() as never} /></ChartWrap>
-        </Card>
-        <Card title="Occurrence Reports Monthly Trend" icon="fas fa-chart-line" tooltip="Monthly trend showing how occurrence report volume changes over time.">
-          <ChartWrap height="240px"><Line data={omtData} options={baseChartOptions(undefined, undefined, { datalabels: false }) as never} /></ChartWrap>
         </Card>
       </div>
     </div>
@@ -1829,21 +2093,36 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 function TimelinesPanel({ data }: { data: AnalyticsData }) {
+  const [timelineView, setTimelineView] = useState<"weekly" | "monthly">("weekly");
   const lineOpts = baseChartOptions(undefined, "Avg Days");
 
-  const docSendTrend = {
+  const isWeekly = timelineView === "weekly";
+
+  const docSendTrend = isWeekly ? {
+    labels: (data.weeklyDocSendTrend || []).map((d) => d.week),
+    datasets: [{ label: "Avg Days", data: (data.weeklyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
+  } : {
     labels: (data.monthlyDocSendTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
   };
-  const invoiceTrend = {
+  const invoiceTrend = isWeekly ? {
+    labels: (data.weeklyInvoiceTrend || []).map((d) => d.week),
+    datasets: [{ label: "Avg Days", data: (data.weeklyInvoiceTrend || []).map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
+  } : {
     labels: (data.monthlyInvoiceTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyInvoiceTrend || []).map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
   };
-  const coaTrend = {
+  const coaTrend = isWeekly ? {
+    labels: (data.weeklyCoaTrend || []).map((d) => d.week),
+    datasets: [{ label: "Avg Days", data: (data.weeklyCoaTrend || []).map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
+  } : {
     labels: (data.monthlyCoaTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyCoaTrend || []).map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
   };
-  const approvalTrend = {
+  const approvalTrend = isWeekly ? {
+    labels: (data.weeklyApprovalTrend || []).map((d) => d.week),
+    datasets: [{ label: "Avg Days", data: (data.weeklyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+  } : {
     labels: (data.monthlyApprovalTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
   };
@@ -1880,19 +2159,32 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
 
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
+      {/* Weekly / Monthly toggle */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>
+          <button onClick={() => setTimelineView("weekly")}
+            style={{ padding: "5px 14px", fontSize: 12, fontWeight: timelineView === "weekly" ? 700 : 400, background: timelineView === "weekly" ? "#007890" : "#fff", color: timelineView === "weekly" ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
+            <i className="fas fa-calendar-week" style={{ marginRight: 4 }} />Weekly
+          </button>
+          <button onClick={() => setTimelineView("monthly")}
+            style={{ padding: "5px 14px", fontSize: 12, fontWeight: timelineView === "monthly" ? 700 : 400, background: timelineView === "monthly" ? "#007890" : "#fff", color: timelineView === "monthly" ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: "1px solid #d1d5db" }}>
+            <i className="fas fa-calendar-alt" style={{ marginRight: 4 }} />Monthly
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Doc Send Time Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly average days between inspection and document dispatch.">
+        <Card title={`Doc Send Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and document dispatch.`}>
           <ChartWrap height="180px"><Line data={docSendTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
-        <Card title="Invoice Upload Time Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly average days between inspection and invoice upload.">
+        <Card title={`Invoice Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and invoice upload.`}>
           <ChartWrap height="180px"><Line data={invoiceTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="COA Upload Time Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly average days from sample collection to Certificate of Analysis upload.">
+        <Card title={`COA Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from sample collection to Certificate of Analysis upload.`}>
           <ChartWrap height="180px"><Line data={coaTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
-        <Card title="Approval Time Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly average days from document submission to final approval.">
+        <Card title={`Approval Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from document submission to final approval.`}>
           <ChartWrap height="180px"><Line data={approvalTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
@@ -1940,7 +2232,6 @@ interface FinancialPanelProps {
 
 function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, xeroPage, setXeroPage, xeroSyncing, onXeroSync, onXeroConnect, onXeroDisconnect, onOpenSalaryModal, onOpenExpenseModal, userRole, userFullName }: FinancialPanelProps) {
   const kmRate = data.financialSummary?.km_rate ?? 4.5;
-  const hourlyRate = data.financialSummary?.hourly_rate ?? 510;
   const isInspectorRole = userRole === "inspector";
   const isAdminRole = userRole === "admin";
 
@@ -1992,24 +2283,35 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const totalRevPerHr = totals.hours > 0 ? Math.round(totals.total_revenue / totals.hours) : 0;
   const totalCostPerHr = totals.hours > 0 ? Math.round(totals.totalCost / totals.hours) : 0;
 
-  // Revenue sources stacked bar
+  // Revenue sources stacked bar — sorted by total revenue descending
+  const sortedFin = [...fin].sort((a, b) => b.total_revenue - a.total_revenue);
   const revSourceData = {
-    labels: fin.map((d) => d.inspector_name),
+    labels: sortedFin.map((d) => d.inspector_name),
     datasets: [
-      { label: "Rev (Hours)", data: fin.map((d) => d.revenue_hours), backgroundColor: "#0078d4" },
-      { label: "Rev (KM)", data: fin.map((d) => d.revenue_km), backgroundColor: "#f59e0b" },
-      { label: "Rev (Samples)", data: fin.map((d) => d.revenue_samples), backgroundColor: "#10b981" },
+      { label: "Rev (Hours)", data: sortedFin.map((d) => d.revenue_hours), backgroundColor: "#0078d4" },
+      { label: "Rev (KM)", data: sortedFin.map((d) => d.revenue_km), backgroundColor: "#f59e0b" },
+      { label: "Rev (Samples)", data: sortedFin.map((d) => d.revenue_samples), backgroundColor: "#10b981" },
     ],
   };
   const stackedOpts = {
     ...baseChartOptions(),
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { anchor: "center" as const, align: "center" as const, font: { size: 8, weight: "bold" as const }, color: "#fff", formatter: (v: number) => v === 0 ? "" : "R" + Math.round(v).toLocaleString() },
+      datalabels: {
+        display: (ctx: { datasetIndex: number; chart: { data: { datasets: unknown[] } } }) => ctx.datasetIndex === ctx.chart.data.datasets.length - 1,
+        anchor: "end" as const,
+        align: "top" as const,
+        font: { size: 8, weight: "bold" as const },
+        color: "#1f2937",
+        formatter: (_v: number, ctx: { dataIndex: number; chart: { data: { datasets: Array<{ data: number[] }> } } }) => {
+          const total = ctx.chart.data.datasets.reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
+          return "R" + Math.round(total).toLocaleString();
+        },
+      },
     },
     scales: {
-      x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45 } },
-      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => "R" + Number(v).toLocaleString() } },
+      x: { stacked: true, ticks: { font: { size: 9 }, maxRotation: 45 } },
+      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 9 }, callback: (v: unknown) => "R" + Number(v).toLocaleString() } },
     },
   };
 
@@ -2034,9 +2336,13 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   };
   const perfOpts = {
     ...baseChartOptions(),
+    plugins: {
+      ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
+      datalabels: { display: false },
+    },
     scales: {
-      x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
-      y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => perfMetric.includes("revenue") || perfMetric.includes("profit") || perfMetric.includes("cost") ? "R" + Number(v).toLocaleString() : String(v) } },
+      x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+      y: { beginAtZero: true, ticks: { font: { size: 9 }, callback: (v: unknown) => perfMetric.includes("revenue") || perfMetric.includes("profit") || perfMetric.includes("cost") ? "R" + Number(v).toLocaleString() : String(v) } },
     },
   };
 
@@ -2058,8 +2364,8 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const fmtR = (v: unknown) => { const n = Number(v); return isNaN(n) ? "—" : "R" + n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   const fmtRInt = (v: number) => v === 0 ? "—" : "R" + v.toLocaleString("en-ZA");
 
-  const thStyle: React.CSSProperties = { background: "#e6f3f7", padding: "0.6rem 0.75rem", fontWeight: 600, fontSize: "0.75rem", textAlign: "center", whiteSpace: "nowrap", borderBottom: "2px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.3px" };
-  const tdStyle: React.CSSProperties = { padding: "0.5rem 0.75rem", fontSize: "0.8rem", borderBottom: "1px solid #e5e7eb", textAlign: "center", fontVariantNumeric: "tabular-nums" };
+  const thStyle: React.CSSProperties = { background: "#e6f3f7", padding: "0.25rem 0.2rem", fontWeight: 600, fontSize: "0.55rem", textAlign: "center", whiteSpace: "nowrap", borderBottom: "2px solid #e5e7eb", textTransform: "uppercase", letterSpacing: "0.1px" };
+  const tdStyle: React.CSSProperties = { padding: "0.2rem 0.2rem", fontSize: "0.6rem", borderBottom: "1px solid #e5e7eb", textAlign: "center", fontVariantNumeric: "tabular-nums" };
   const totalStyle: React.CSSProperties = { ...tdStyle, fontWeight: 700, background: "#e6f3f7", borderTop: "2px solid #007890" };
   const costThStyle: React.CSSProperties = { ...thStyle, background: "#fff7ed" };
   const profitThStyle: React.CSSProperties = { ...thStyle, background: "#f0fdf4" };
@@ -2098,22 +2404,22 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
             <thead>
               <tr>
                 <th style={{ ...thStyle, textAlign: "left", position: "sticky", left: 0, zIndex: 1 }}>Inspector</th>
-                <th style={thStyle} title="Total number of inspections completed">Inspections <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Total billable hours = Hours field from each inspection">Billable Hrs <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Total kilometers traveled across all inspections">KM <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Revenue from KM = KM × R6.50/km rate">R/km <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Actual time spent on-site at the facility (hours)">On-Site Hrs <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Revenue from hours = Billable Hours × R510/hr">Rev (Hours) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Revenue from travel = KM × R6.50/km">Rev (KM) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Revenue from lab samples collected (sample fees)">Rev (Samples) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={thStyle} title="Total Revenue = Rev(Hours) + Rev(KM) + Rev(Samples)">Total Revenue <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={costThStyle} title="Monthly Cost-To-Company salary for the inspector">Salary (CTC) <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={costThStyle} title="Additional expenses logged for this inspector (fuel, equipment, etc.)">Expenses <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={costThStyle} title="Management Fees = 20% × (Salary + Expenses)">Management Fees <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={costThStyle} title="Total Cost = Salary + Expenses + Management Fees">Total Cost <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={profitThStyle} title="Revenue per Hour = Total Revenue ÷ Billable Hours">Rev/Hr <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={profitThStyle} title="Cost per Hour = Total Cost ÷ Billable Hours">Cost/Hr <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
-                <th style={profitThStyle} title="Profit = Total Revenue − Total Cost">Profit <i className="fas fa-info-circle" style={{ fontSize: 9, color: "#9ca3af" }} /></th>
+                <th style={thStyle} title="Total number of inspections completed">Insp</th>
+                <th style={thStyle} title="Total billable hours">Bill Hrs</th>
+                <th style={thStyle} title="Total kilometers traveled">KM</th>
+                <th style={thStyle} title="Revenue from KM">R/km</th>
+                <th style={thStyle} title="On-site hours at facility">Site Hrs</th>
+                <th style={thStyle} title="Revenue from hours">Rev(Hrs)</th>
+                <th style={thStyle} title="Revenue from KM">Rev(KM)</th>
+                <th style={thStyle} title="Revenue from samples">Rev(Smp)</th>
+                <th style={thStyle} title="Total Revenue">Tot Rev</th>
+                <th style={costThStyle} title="Monthly salary CTC">Salary</th>
+                <th style={costThStyle} title="Logged expenses">Exp</th>
+                <th style={costThStyle} title="Management Fees = 20% × (Salary+Expenses)">Mgmt</th>
+                <th style={costThStyle} title="Total Cost">Tot Cost</th>
+                <th style={profitThStyle} title="Revenue per hour">R/Hr</th>
+                <th style={profitThStyle} title="Cost per hour">C/Hr</th>
+                <th style={profitThStyle} title="Profit = Revenue − Cost">Profit</th>
               </tr>
             </thead>
             <tbody>

@@ -31,6 +31,7 @@ const ALL_SECTIONS: NavSection[] = [
       { href: "/user-management", label: "User Management", icon: "fas fa-user-shield" },
       { href: "/system-logs",     label: "System Logs",     icon: "fas fa-history"     },
       { href: "/server-view",     label: "Server View",     icon: "fas fa-database"    },
+      { href: "/onedrive-view",  label: "OneDrive View",   icon: "fab fa-microsoft"   },
       { href: "/training",        label: "Training",         icon: "fas fa-video"       },
     ],
   },
@@ -53,19 +54,19 @@ const ALL_SECTIONS: NavSection[] = [
 const ROLE_ALLOWED: Record<Role, Set<string>> = {
   inspector: new Set([
     "/", "/inspections", "/analytics",
-    "/training", "/submit-ticket",
+    "/training", "/submit-ticket", "/inspector-settings",
   ]),
   inspector_manager: new Set([
     "/", "/inspections", "/analytics",
-    "/training", "/submit-ticket",
+    "/training", "/submit-ticket", "/inspector-settings",
   ]),
   lab_technician: new Set([
     "/", "/inspections", "/lab-analytics",
     "/training", "/submit-ticket",
   ]),
   admin: new Set([
-    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/debtors",
-    "/training", "/submit-ticket",
+    "/", "/inspections", "/clients", "/admin-analytics", "/lab-analytics", "/export-sheet", "/debtors",
+    "/system-logs", "/training", "/submit-ticket", "/settings",
   ]),
   financial: new Set([
     "/", "/inspections", "/clients", "/export-sheet", "/debtors",
@@ -78,7 +79,7 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
   ]),
   developer: new Set([
     "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/debtors",
-    "/user-management", "/system-logs", "/server-view",
+    "/user-management", "/system-logs", "/server-view", "/onedrive-view",
     "/training", "/support", "/submit-ticket", "/settings",
   ]),
 };
@@ -136,8 +137,8 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
 
   return (
     <aside style={{
-      width: collapsed ? 48 : 220,
-      minWidth: collapsed ? 48 : 220,
+      width: collapsed ? 44 : 195,
+      minWidth: collapsed ? 44 : 195,
       height: "100vh",
       backgroundColor: "#0f172a",
       color: "#cbd5e1",
@@ -151,11 +152,11 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
 
       {/* Brand — only when expanded */}
       {!collapsed && (
-        <div style={{ padding: "12px 10px", borderBottom: "1px solid #1e293b", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", flexShrink: 0 }}>
-          <Image src="/logo.png" alt="FSA Logo" width={72} height={72} style={{ borderRadius: "10px", marginBottom: "6px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
+        <div style={{ padding: "8px 8px", borderBottom: "1px solid #1e293b", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", flexShrink: 0 }}>
+          <Image src="/logo.png" alt="FSA Logo" width={56} height={56} style={{ borderRadius: "8px", marginBottom: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.2 }}>Food Safety Agency</div>
-            <div style={{ fontSize: "0.55rem", color: "#64748b", marginTop: "1px" }}>Management Platform</div>
+            <div style={{ fontSize: "0.62rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.2 }}>Food Safety Agency</div>
+            <div style={{ fontSize: "0.5rem", color: "#64748b", marginTop: "1px" }}>Management Platform</div>
           </div>
         </div>
       )}
@@ -167,11 +168,11 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
         style={{
           display: "flex", alignItems: "center",
           justifyContent: collapsed ? "center" : "flex-end",
-          padding: collapsed ? "6px 0" : "5px 10px",
+          padding: collapsed ? "4px 0" : "4px 8px",
           background: "none", border: "none",
           borderBottom: "1px solid #1e293b",
           color: "#475569", cursor: "pointer",
-          fontSize: "0.7rem", transition: "color 0.15s",
+          fontSize: "0.6rem", transition: "color 0.15s",
           flexShrink: 0, width: "100%",
         }}
         onMouseEnter={e => e.currentTarget.style.color = "#007890"}
@@ -181,15 +182,15 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
       </button>
 
       {/* Nav */}
-      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "2px 0" : "8px 8px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "2px 0" : "2px 6px", display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
         {sections.map((section) => (
-          <div key={section.label} style={{ marginBottom: collapsed ? 0 : 8 }}>
+          <div key={section.label} style={{ marginBottom: 0 }}>
             {!collapsed && (
-              <div style={{ fontSize: "0.55rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 8px", marginBottom: "3px" }}>
+              <div style={{ fontSize: "0.55rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 6px", marginBottom: 1, marginTop: "6px" }}>
                 {section.label}
               </div>
             )}
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 0 }}>
               {section.items.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -202,9 +203,9 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                         display: "flex",
                         alignItems: "center",
                         gap: collapsed ? 0 : 8,
-                        padding: collapsed ? "7px 0" : "6px 10px",
+                        padding: collapsed ? "6px 0" : "5px 8px",
                         justifyContent: collapsed ? "center" : "flex-start",
-                        borderRadius: collapsed ? 0 : 5,
+                        borderRadius: collapsed ? 0 : 4,
                         fontSize: "0.78rem",
                         fontWeight: isActive ? 600 : 400,
                         color: isActive ? "#ffffff" : "#94a3b8",
@@ -227,7 +228,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                         }
                       }}
                     >
-                      <i className={item.icon} style={{ width: collapsed ? "100%" : 12, textAlign: "center", fontSize: collapsed ? "0.8rem" : "0.65rem", flexShrink: 0 }} />
+                      <i className={item.icon} style={{ width: collapsed ? "100%" : 14, textAlign: "center", fontSize: collapsed ? "0.75rem" : "0.7rem", flexShrink: 0 }} />
                       {!collapsed && <span>{item.label}</span>}
                     </Link>
                   </li>

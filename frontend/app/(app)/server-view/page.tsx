@@ -34,6 +34,26 @@ interface ServerViewResponse {
   total_files: number;
 }
 
+interface ServerHealth {
+  cpu_percent?: number;
+  memory_percent?: number;
+  memory_available_gb?: number;
+  disk_percent?: number;
+  disk_free_gb?: number;
+  total_inspections?: number;
+  total_clients?: number;
+}
+
+interface ServiceInfo {
+  name: string;
+  running: boolean;
+}
+
+interface ServiceStatusResponse {
+  success?: boolean;
+  services?: ServiceInfo[];
+}
+
 // ── Helpers ────────────────────────────────────────────────────────
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -228,6 +248,105 @@ const styles = {
     padding: "3rem",
     color: "rgba(255,255,255,0.7)",
   } as React.CSSProperties,
+
+  metricsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "1rem",
+  } as React.CSSProperties,
+
+  metricItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.35rem",
+  } as React.CSSProperties,
+
+  metricLabel: {
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    color: "#6b7280",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.03em",
+  } as React.CSSProperties,
+
+  metricValue: {
+    fontSize: "1.5rem",
+    fontWeight: 700,
+    color: "#1f2937",
+    lineHeight: 1.1,
+  } as React.CSSProperties,
+
+  metricSub: {
+    fontSize: "0.7rem",
+    color: "#9ca3af",
+    fontWeight: 500,
+  } as React.CSSProperties,
+
+  progressBarOuter: {
+    width: "100%",
+    height: "8px",
+    background: "#e5e7eb",
+    borderRadius: "4px",
+    overflow: "hidden",
+    marginTop: "0.2rem",
+  } as React.CSSProperties,
+
+  serviceRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.6rem",
+    padding: "0.5rem 0",
+    borderBottom: "1px solid #f3f4f6",
+  } as React.CSSProperties,
+
+  statusDot: (running: boolean) =>
+    ({
+      width: "10px",
+      height: "10px",
+      borderRadius: "50%",
+      background: running ? "#22c55e" : "#ef4444",
+      flexShrink: 0,
+      boxShadow: running
+        ? "0 0 6px rgba(34,197,94,0.4)"
+        : "0 0 6px rgba(239,68,68,0.4)",
+    }) as React.CSSProperties,
+
+  serviceName: {
+    flex: 1,
+    fontSize: "0.825rem",
+    fontWeight: 500,
+    color: "#374151",
+  } as React.CSSProperties,
+
+  serviceStatusText: (running: boolean) =>
+    ({
+      fontSize: "0.7rem",
+      fontWeight: 600,
+      color: running ? "#16a34a" : "#dc2626",
+    }) as React.CSSProperties,
+
+  serviceBtn: (variant: "start" | "stop") =>
+    ({
+      padding: "0.4rem 1rem",
+      background: variant === "start" ? "#22c55e" : "#ef4444",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "0.8rem",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "0.4rem",
+      fontWeight: 600,
+      transition: "opacity 0.2s",
+    }) as React.CSSProperties,
+
+  cardsRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "1rem",
+    marginBottom: "1rem",
+  } as React.CSSProperties,
 };
 
 // ── Component ──────────────────────────────────────────────────────
@@ -240,6 +359,13 @@ export default function ServerViewPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Health & service state
+  const [health, setHealth] = useState<ServerHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [services, setServices] = useState<ServiceInfo[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [serviceActionLoading, setServiceActionLoading] = useState(false);
 
   // Fetch data
   useEffect(() => {
@@ -263,6 +389,85 @@ export default function ServerViewPage() {
         setLoading(false);
       });
   }, []);
+
+  // Fetch server health
+  const fetchHealth = useCallback(() => {
+    setHealthLoading(true);
+    fetch("/api/server-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.html) {
+          setHealth(data);
+        } else {
+          // Fallback: parse from HTML or set defaults
+          setHealth(null);
+        }
+        setHealthLoading(false);
+      })
+      .catch(() => setHealthLoading(false));
+  }, []);
+
+  // Fetch service status
+  const fetchServices = useCallback(() => {
+    setServicesLoading(true);
+    fetch("/api/service-status")
+      .then((r) => r.json())
+      .then((data: ServiceStatusResponse) => {
+        if (data.services) {
+          setServices(data.services);
+        }
+        setServicesLoading(false);
+      })
+      .catch(() => setServicesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchHealth();
+    fetchServices();
+    // Refresh health every 30s
+    const interval = setInterval(fetchHealth, 30000);
+    return () => clearInterval(interval);
+  }, [fetchHealth, fetchServices]);
+
+  // Service control action
+  const handleServiceAction = useCallback(
+    async (action: "start-all" | "stop-all") => {
+      setServiceActionLoading(true);
+      try {
+        await fetch("/api/service-control", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        // Re-fetch service status after action
+        setTimeout(() => {
+          fetchServices();
+          setServiceActionLoading(false);
+        }, 1500);
+      } catch {
+        setServiceActionLoading(false);
+      }
+    },
+    [fetchServices]
+  );
+
+  // Progress bar color helper
+  const barColor = (pct: number): string => {
+    if (pct < 60) return "#22c55e";
+    if (pct < 80) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  // Default service list when API hasn't responded
+  const displayServices: ServiceInfo[] =
+    services.length > 0
+      ? services
+      : [
+          { name: "Daily Compliance Sync", running: false },
+          { name: "Scheduled Sync", running: false },
+          { name: "Scheduled Backup", running: false },
+          { name: "OneDrive Upload", running: false },
+        ];
 
   // Build a key for every expandable node
   const key = useCallback(
@@ -594,6 +799,179 @@ export default function ServerViewPage() {
           <i className="fa fa-database" style={{ color: "#5ee8ff" }} />
           Server View
         </h1>
+
+        {/* Server Health & Service Status */}
+        <div style={styles.cardsRow}>
+          {/* ── Server Health Card ── */}
+          <div style={styles.filterCard}>
+            <div style={styles.filterTitle}>
+              <i className="fa fa-heartbeat" style={{ color: "#ef4444" }} />
+              Server Health
+            </div>
+
+            {healthLoading && !health ? (
+              <div style={{ textAlign: "center", padding: "1.5rem 0", color: "#9ca3af", fontSize: "0.8rem" }}>
+                <i className="fa fa-spinner fa-spin" style={{ marginRight: 6 }} />
+                Loading metrics...
+              </div>
+            ) : (
+              <div style={styles.metricsGrid}>
+                {/* CPU Usage */}
+                <div style={styles.metricItem}>
+                  <span style={styles.metricLabel}>
+                    <i className="fa fa-microchip" style={{ marginRight: 4 }} />
+                    CPU Usage
+                  </span>
+                  <span style={styles.metricValue}>
+                    {health?.cpu_percent != null ? `${health.cpu_percent}%` : "--"}
+                  </span>
+                  <div style={styles.progressBarOuter}>
+                    <div
+                      style={{
+                        width: `${health?.cpu_percent ?? 0}%`,
+                        height: "100%",
+                        borderRadius: "4px",
+                        background: barColor(health?.cpu_percent ?? 0),
+                        transition: "width 0.5s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Memory Usage */}
+                <div style={styles.metricItem}>
+                  <span style={styles.metricLabel}>
+                    <i className="fa fa-memory" style={{ marginRight: 4 }} />
+                    Memory Usage
+                  </span>
+                  <span style={styles.metricValue}>
+                    {health?.memory_percent != null ? `${health.memory_percent}%` : "--"}
+                  </span>
+                  <div style={styles.progressBarOuter}>
+                    <div
+                      style={{
+                        width: `${health?.memory_percent ?? 0}%`,
+                        height: "100%",
+                        borderRadius: "4px",
+                        background: barColor(health?.memory_percent ?? 0),
+                        transition: "width 0.5s ease",
+                      }}
+                    />
+                  </div>
+                  <span style={styles.metricSub}>
+                    {health?.memory_available_gb != null
+                      ? `${health.memory_available_gb} GB available`
+                      : ""}
+                  </span>
+                </div>
+
+                {/* Disk Usage */}
+                <div style={styles.metricItem}>
+                  <span style={styles.metricLabel}>
+                    <i className="fa fa-hard-drive" style={{ marginRight: 4 }} />
+                    Disk Usage
+                  </span>
+                  <span style={styles.metricValue}>
+                    {health?.disk_percent != null ? `${health.disk_percent}%` : "--"}
+                  </span>
+                  <div style={styles.progressBarOuter}>
+                    <div
+                      style={{
+                        width: `${health?.disk_percent ?? 0}%`,
+                        height: "100%",
+                        borderRadius: "4px",
+                        background: barColor(health?.disk_percent ?? 0),
+                        transition: "width 0.5s ease",
+                      }}
+                    />
+                  </div>
+                  <span style={styles.metricSub}>
+                    {health?.disk_free_gb != null
+                      ? `${health.disk_free_gb} GB free`
+                      : ""}
+                  </span>
+                </div>
+
+                {/* Totals */}
+                <div style={styles.metricItem}>
+                  <span style={styles.metricLabel}>
+                    <i className="fa fa-database" style={{ marginRight: 4 }} />
+                    Records
+                  </span>
+                  <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.15rem" }}>
+                    <div>
+                      <span style={{ ...styles.metricValue, fontSize: "1.25rem" }}>
+                        {health?.total_inspections != null
+                          ? health.total_inspections.toLocaleString()
+                          : "--"}
+                      </span>
+                      <div style={styles.metricSub}>Inspections</div>
+                    </div>
+                    <div>
+                      <span style={{ ...styles.metricValue, fontSize: "1.25rem" }}>
+                        {health?.total_clients != null
+                          ? health.total_clients.toLocaleString()
+                          : "--"}
+                      </span>
+                      <div style={styles.metricSub}>Clients</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Service Status Card ── */}
+          <div style={styles.filterCard}>
+            <div style={{ ...styles.filterTitle, justifyContent: "space-between" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                <i className="fa fa-server" style={{ color: PRIMARY }} />
+                Service Status
+              </span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  style={styles.serviceBtn("start")}
+                  disabled={serviceActionLoading}
+                  onClick={() => handleServiceAction("start-all")}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  <i className={serviceActionLoading ? "fa fa-spinner fa-spin" : "fa fa-play"} />
+                  Start All
+                </button>
+                <button
+                  style={styles.serviceBtn("stop")}
+                  disabled={serviceActionLoading}
+                  onClick={() => handleServiceAction("stop-all")}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  <i className={serviceActionLoading ? "fa fa-spinner fa-spin" : "fa fa-stop"} />
+                  Stop All
+                </button>
+              </div>
+            </div>
+
+            {servicesLoading && services.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "1.5rem 0", color: "#9ca3af", fontSize: "0.8rem" }}>
+                <i className="fa fa-spinner fa-spin" style={{ marginRight: 6 }} />
+                Loading services...
+              </div>
+            ) : (
+              <div>
+                {displayServices.map((svc) => (
+                  <div key={svc.name} style={styles.serviceRow}>
+                    <div style={styles.statusDot(svc.running)} />
+                    <span style={styles.serviceName}>{svc.name}</span>
+                    <span style={styles.serviceStatusText(svc.running)}>
+                      {svc.running ? "Running" : "Stopped"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Search & Controls */}
         <div style={styles.filterCard}>

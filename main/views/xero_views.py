@@ -9,6 +9,7 @@ from decimal import Decimal
 from django.shortcuts import redirect, render
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, Q, Count
@@ -19,17 +20,14 @@ from ..models import XeroToken, XeroInvoice
 logger = logging.getLogger(__name__)
 
 
-@login_required
+@csrf_exempt
 def xero_connect(request):
     """Redirect user to Xero OAuth2 authorization page."""
-    if request.user.role not in ('admin', 'super_admin', 'developer'):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-
     url = xero_service.get_authorization_url()
     return redirect(url)
 
 
-@login_required
+@csrf_exempt
 def xero_callback(request):
     """Handle Xero OAuth2 callback after user authorizes."""
     code = request.GET.get('code')
@@ -37,11 +35,11 @@ def xero_callback(request):
 
     if error:
         logger.error(f'Xero OAuth error: {error}')
-        return redirect('/analytics-dashboard/#financial')
+        return redirect('http://localhost:3000/debtors')
 
     if not code:
         logger.error('Xero callback: no code received')
-        return redirect('/analytics-dashboard/#financial')
+        return redirect('http://localhost:3000/debtors')
 
     try:
         # Exchange code for tokens
@@ -74,21 +72,18 @@ def xero_callback(request):
     except Exception as e:
         logger.error(f'Xero callback error: {e}')
 
-    return redirect('/analytics-dashboard/#financial')
+    return redirect('http://localhost:3000/debtors')
 
 
-@login_required
+@csrf_exempt
 def xero_disconnect(request):
     """Disconnect from Xero by removing stored tokens."""
-    if request.user.role not in ('admin', 'super_admin', 'developer'):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-
     XeroToken.objects.all().delete()
     logger.info('Xero disconnected')
     return JsonResponse({'status': 'disconnected'})
 
 
-@login_required
+@csrf_exempt
 def xero_status(request):
     """Check Xero connection status."""
     token = XeroToken.objects.first()
@@ -103,13 +98,9 @@ def xero_status(request):
     })
 
 
-@login_required
-@require_POST
+@csrf_exempt
 def xero_sync_invoices(request):
     """Trigger a sync of invoices from Xero."""
-    if request.user.role not in ('admin', 'super_admin', 'developer'):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-
     try:
         result = xero_service.sync_invoices_to_db()
         return JsonResponse({
@@ -123,7 +114,7 @@ def xero_sync_invoices(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-@login_required
+@csrf_exempt
 def xero_invoices_list(request):
     """Return synced Xero invoices as JSON for the dashboard."""
     invoices = XeroInvoice.objects.all()

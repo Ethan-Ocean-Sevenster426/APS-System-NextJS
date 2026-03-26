@@ -214,9 +214,9 @@ GRAPH_TENANT_ID = env('GRAPH_TENANT_ID', default='')
 GRAPH_INTERNAL_DOMAINS = env('GRAPH_INTERNAL_DOMAINS', default='fsa-pty.co.za,moc-pty.com,afsq.co.za')
 
 # Xero Accounting Integration (Web App - created March 5, 2026)
-XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='CD1AB8B76E8D43B99547973C9BB25CF0')
-XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='H0uPFSJs2kfwH4aZ17BB6WTDWuYKkzycrOxpYIc2st8KnYEb')
-XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='https://portal-test.fsa-pty.co.za/xero/callback/')
+XERO_CLIENT_ID = env('XERO_CLIENT_ID', default='48718D689A564D20AF03CEE9E8D8563E')
+XERO_CLIENT_SECRET = env('XERO_CLIENT_SECRET', default='hZ6yz1lwe_TYrcQ_T1z90bDKViSirJgz75M_tki9Synl3T9s')
+XERO_REDIRECT_URI = env('XERO_REDIRECT_URI', default='http://localhost:8000/xero/callback/')
 
 # Legacy SMTP Configuration (Backup)
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

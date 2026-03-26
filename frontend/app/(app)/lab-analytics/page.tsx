@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface LabData {
   total_samples:      number;
@@ -89,24 +95,168 @@ function StatCard({ label, value, icon, color, borderColor, loading }: { label: 
 }
 
 export default function LabAnalyticsPage() {
-  const [data, setData] = useState<LabData | null>(null);
+  const [rawData, setRawData] = useState<LabData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [labFilter, setLabFilter] = useState("");
+  const [commodityFilter, setCommodityFilter] = useState("");
 
   useEffect(() => {
     fetch("/api/lab-analytics")
       .then(r => r.json())
       .then(d => {
-        if (d.success) setData(d);
+        if (d.success) setRawData(d);
         else setError(d.error || "Failed to load");
       })
       .catch(() => setError("Network error"))
       .finally(() => setLoading(false));
   }, []);
 
+  // Client-side filtering
+  const data = rawData ? (() => {
+    let recent = rawData.recent;
+    if (dateFrom) recent = recent.filter(r => r.date >= dateFrom);
+    if (dateTo) recent = recent.filter(r => r.date <= dateTo);
+    if (labFilter) recent = recent.filter(r => r.lab === labFilter);
+    if (commodityFilter) recent = recent.filter(r => r.commodity === commodityFilter);
+
+    const hasFilter = dateFrom || dateTo || labFilter || commodityFilter;
+    if (!hasFilter) return rawData;
+
+    // Recompute stats from filtered recent
+    const total_samples = recent.length;
+    const fat_count = recent.filter(r => r.tests.includes("fat") || r.tests.includes("FAT")).length;
+    const protein_count = recent.filter(r => r.tests.includes("protein") || r.tests.includes("PROTEIN")).length;
+    const calcium_count = recent.filter(r => r.tests.includes("calcium") || r.tests.includes("CALCIUM")).length;
+    const dna_count = recent.filter(r => r.tests.includes("dna") || r.tests.includes("DNA")).length;
+    const needs_retest = recent.filter(r => r.needs_retest === "Yes" || r.needs_retest === "YES").length;
+    const total_tests = fat_count + protein_count + calcium_count + dna_count;
+
+    // Recalculate labs
+    const labCounts: Record<string, number> = {};
+    recent.forEach(r => { if (r.lab) labCounts[r.lab] = (labCounts[r.lab] || 0) + 1; });
+    const labs = Object.entries(labCounts).map(([lab, n]) => ({ lab, n })).sort((a, b) => b.n - a.n);
+
+    // Recalculate commodities
+    const comCounts: Record<string, number> = {};
+    recent.forEach(r => { if (r.commodity) comCounts[r.commodity] = (comCounts[r.commodity] || 0) + 1; });
+    const commodities = Object.entries(comCounts).map(([commodity, n]) => ({ commodity, n })).sort((a, b) => b.n - a.n);
+
+    return {
+      ...rawData,
+      total_samples,
+      total_tests,
+      fat_count,
+      protein_count,
+      calcium_count,
+      dna_count,
+      needs_retest,
+      labs,
+      commodities,
+      recent,
+    };
+  })() : null;
+
+  const handleReset = () => { setDateFrom(""); setDateTo(""); setLabFilter(""); setCommodityFilter(""); };
+
+  const handleExtractExcel = () => {
+    if (!data) return;
+    import("xlsx").then(XLSX => {
+      const wb = XLSX.utils.book_new();
+      // Summary sheet
+      const summary = [
+        { Metric: "Total Inspections", Value: data.total_inspections },
+        { Metric: "Total Samples", Value: data.total_samples },
+        { Metric: "Tests Run", Value: data.total_tests },
+        { Metric: "Fat Tests", Value: data.fat_count },
+        { Metric: "Protein Tests", Value: data.protein_count },
+        { Metric: "Calcium Tests", Value: data.calcium_count },
+        { Metric: "DNA Tests", Value: data.dna_count },
+        { Metric: "Needs COA Upload", Value: data.needs_coa },
+        { Metric: "Needs Retest", Value: data.needs_retest },
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Summary");
+      // Samples sheet
+      if (data.recent.length) {
+        const rows = data.recent.map(r => ({
+          Date: r.date,
+          Client: r.client_name,
+          Product: r.product_name,
+          Commodity: COMMODITY_LABEL[r.commodity] || r.commodity,
+          Lab: r.lab,
+          Tests: r.tests.join(", "),
+          "Needs Retest": r.needs_retest,
+        }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Samples");
+      }
+      XLSX.writeFile(wb, `Lab_Analytics_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+  };
+
+  const handleExportPdf = () => {
+    if (!data) return;
+    import("jspdf").then(mod => {
+      const jsPDF = mod.default || mod.jsPDF;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 14;
+      let y = 0;
+
+      // Header
+      doc.setFillColor(0, 120, 144);
+      doc.rect(0, 0, pageW, 20, "F");
+      doc.setFontSize(14); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold");
+      doc.text("Lab Analytics Report", margin, 10);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-ZA")}`, pageW - 55, 10);
+      y = 28;
+
+      // KPIs
+      const kpis = [
+        `Inspections: ${data.total_inspections}`,
+        `Samples: ${data.total_samples}`,
+        `Tests: ${data.total_tests}`,
+        `Needs COA: ${data.needs_coa}`,
+        `Needs Retest: ${data.needs_retest}`,
+      ];
+      doc.setFontSize(9); doc.setTextColor(50, 50, 50); doc.setFont("helvetica", "bold");
+      doc.text(kpis.join("   |   "), margin, y);
+      y += 10;
+
+      // Table
+      const headers = ["Date", "Client", "Product", "Commodity", "Lab", "Tests", "Retest"];
+      const colW = [22, 55, 45, 28, 45, 40, 16];
+      const rowH = 5.5;
+      // Header row
+      doc.setFillColor(0, 120, 144);
+      doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH + 1, "F");
+      doc.setFontSize(6); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold");
+      let cx = margin;
+      headers.forEach((h, i) => { doc.text(h, cx + 1.5, y + rowH / 2 + 1.5, { baseline: "middle" }); cx += colW[i]; });
+      y += rowH + 1;
+      // Body
+      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 50);
+      data.recent.forEach((r, ri) => {
+        if (y + rowH > doc.internal.pageSize.getHeight() - 10) { doc.addPage(); y = 14; }
+        if (ri % 2 === 0) { doc.setFillColor(245, 247, 250); doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH, "F"); }
+        cx = margin;
+        const vals = [r.date || "", r.client_name, r.product_name, COMMODITY_LABEL[r.commodity] || r.commodity, r.lab, r.tests.join(", "), r.needs_retest || "No"];
+        vals.forEach((v, i) => { doc.text(String(v).substring(0, 35), cx + 1.5, y + rowH / 2 + 1, { baseline: "middle" }); cx += colW[i]; });
+        y += rowH;
+      });
+      doc.save(`Lab_Analytics_${new Date().toISOString().slice(0, 10)}.pdf`);
+    });
+  };
+
   const maxMonthly = data ? Math.max(...data.monthly.map(m => m.count), 1) : 1;
   const maxLab     = data ? Math.max(...data.labs.map(l => l.n), 1) : 1;
   const maxCommodity = data ? Math.max(...data.commodities.map(c => c.n), 1) : 1;
+
+  // Unique labs and commodities for filter dropdowns
+  const allLabs = rawData ? [...new Set(rawData.recent.map(r => r.lab).filter(Boolean))] : [];
+  const allCommodities = rawData ? [...new Set(rawData.recent.map(r => r.commodity).filter(Boolean))] : [];
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f8fafc" }}>
@@ -200,6 +350,50 @@ export default function LabAnalyticsPage() {
             <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 6 }}>Sample testing overview and results</p>
           </div>
 
+          {/* Filter Bar */}
+          <div style={{ background: "rgba(255,255,255,0.95)", borderRadius: 10, padding: "12px 16px", marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", border: "1px solid #e5e7eb" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
+                <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
+                <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date To</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 140px", minWidth: 140 }}>
+                <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Lab</label>
+                <select value={labFilter} onChange={e => setLabFilter(e.target.value)}
+                  style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
+                  <option value="">All Labs</option>
+                  {allLabs.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
+                <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Commodity</label>
+                <select value={commodityFilter} onChange={e => setCommodityFilter(e.target.value)}
+                  style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
+                  <option value="">All Commodities</option>
+                  {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
+                </select>
+              </div>
+              <button onClick={handleReset}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white" }}>
+                <i className="fas fa-undo" style={{ marginRight: 6 }} />Reset
+              </button>
+              <button onClick={handleExtractExcel}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
+                <i className="fas fa-file-download" style={{ marginRight: 6 }} />Extract
+              </button>
+              <button onClick={handleExportPdf}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#d13438", color: "white" }}>
+                <i className="fas fa-file-pdf" style={{ marginRight: 6 }} />PDF
+              </button>
+            </div>
+          </div>
+
           {error && (
             <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 18px", color: "#dc2626", marginBottom: 24, fontSize: "0.85rem" }}>
               <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />{error}
@@ -209,10 +403,10 @@ export default function LabAnalyticsPage() {
           {/* Stat cards */}
           <div className="la-stat-grid">
             <StatCard label="Total Inspections" value={data?.total_inspections ?? 0} icon="fa-clipboard-list" color="#0d9488" borderColor="#0d9488" loading={loading} />
-            <StatCard label="Total Samples"     value={data?.total_samples ?? 0}    icon="fa-vial"           color="#8b5cf6" borderColor="#8b5cf6" loading={loading} />
-            <StatCard label="Tests Run"         value={data?.total_tests ?? 0}      icon="fa-flask"          color="#3b82f6" borderColor="#3b82f6" loading={loading} />
-            <StatCard label="Needs COA Upload"  value={data?.needs_coa ?? 0}        icon="fa-file-upload"    color="#f97316" borderColor="#f97316" loading={loading} />
-            <StatCard label="Needs Retest"      value={data?.needs_retest ?? 0}     icon="fa-redo-alt"       color="#ef4444" borderColor="#ef4444" loading={loading} />
+            <StatCard label="Total Samples Collected" value={data?.total_samples ?? 0} icon="fa-vial" color="#8b5cf6" borderColor="#8b5cf6" loading={loading} />
+            <StatCard label="Lab Tests Completed" value={data?.total_tests ?? 0} icon="fa-flask" color="#3b82f6" borderColor="#3b82f6" loading={loading} />
+            <StatCard label="Awaiting COA Upload" value={data?.needs_coa ?? 0} icon="fa-file-upload" color="#f97316" borderColor="#f97316" loading={loading} />
+            <StatCard label="Samples Needing Retest" value={data?.needs_retest ?? 0} icon="fa-redo-alt" color="#ef4444" borderColor="#ef4444" loading={loading} />
           </div>
 
           {/* Mid row: Tests breakdown + Monthly trend */}
@@ -222,7 +416,7 @@ export default function LabAnalyticsPage() {
             <div className="la-card">
               <p className="la-section-title">
                 <i className="fas fa-chart-pie" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
-                Tests by Type
+                Lab Test Results by Type
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
@@ -275,32 +469,36 @@ export default function LabAnalyticsPage() {
             <div className="la-card">
               <p className="la-section-title">
                 <i className="fas fa-chart-bar" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
-                Samples per Month (Last 6 Months)
+                Monthly Sample Collection (Last 6 Months)
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
               ) : data ? (
-                <div>
-                  <div className="la-month-chart">
-                    {data.monthly.map(m => (
-                      <div key={m.month} className="la-month-bar-wrap">
-                        <div style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          color: "#007890",
-                          marginBottom: 2,
-                        }}>{m.count}</div>
-                        <div className="la-month-bar" style={{ height: `${Math.max((m.count / maxMonthly) * 90, 4)}px` }} title={`${m.count} samples`} />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    {data.monthly.map(m => (
-                      <div key={m.month} style={{ flex: 1, textAlign: "center", fontSize: "0.65rem", color: "#6b7280", fontWeight: 500 }}>
-                        {m.month.split(" ")[0]}
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ position: "relative", height: 180 }}>
+                  <Bar
+                    data={{
+                      labels: data.monthly.map(m => m.month),
+                      datasets: [{
+                        label: "Samples",
+                        data: data.monthly.map(m => m.count),
+                        backgroundColor: "rgba(0,120,144,0.75)",
+                        borderRadius: 4,
+                        barThickness: 28,
+                      }],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx: unknown) => `${(ctx as { parsed: { y: number } }).parsed.y} samples` } },
+                      },
+                      scales: {
+                        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { font: { size: 10 }, stepSize: Math.ceil(maxMonthly / 5) } },
+                      },
+                    }}
+                  />
                 </div>
               ) : null}
             </div>
@@ -313,7 +511,7 @@ export default function LabAnalyticsPage() {
             <div className="la-card">
               <p className="la-section-title">
                 <i className="fas fa-building" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
-                By Lab
+                Samples Processed per Laboratory
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
@@ -348,7 +546,7 @@ export default function LabAnalyticsPage() {
             <div className="la-card">
               <p className="la-section-title">
                 <i className="fas fa-boxes" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
-                By Commodity
+                Samples by Commodity Type
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>

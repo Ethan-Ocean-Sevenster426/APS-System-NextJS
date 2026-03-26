@@ -184,20 +184,45 @@ export default function DebtorsPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
+  const [syncing, setSyncing] = useState(false);
+
   useEffect(() => {
-    fetch("/api/debtors")
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d: DebtorsData) => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch((e) => {
-        setError(e.message);
-        setLoading(false);
-      });
+    let cancelled = false;
+
+    async function init() {
+      try {
+        // 1. Check Xero connection status
+        const statusRes = await fetch("/api/xero/status");
+        const statusData = await statusRes.json();
+
+        if (!statusData.connected) {
+          // Not connected — auto-redirect to Xero OAuth
+          const connectRes = await fetch("/api/xero/connect");
+          const connectData = await connectRes.json();
+          if (connectData.redirect) {
+            window.location.href = connectData.redirect;
+            return;
+          }
+          throw new Error("Could not get Xero authorization URL");
+        }
+
+        // 2. Auto-sync invoices from Xero
+        if (!cancelled) setSyncing(true);
+        await fetch("/api/xero/sync", { method: "POST" });
+        if (!cancelled) setSyncing(false);
+
+        // 3. Load debtors data
+        const res = await fetch("/api/debtors");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d: DebtorsData = await res.json();
+        if (!cancelled) { setData(d); setLoading(false); }
+      } catch (e: unknown) {
+        if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false); setSyncing(false); }
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   const filteredClients = useMemo(() => {
@@ -227,7 +252,7 @@ export default function DebtorsPage() {
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
+        <div style={{ fontSize: 14, color: "#64748b" }}>{syncing ? "Syncing invoices from Xero..." : "Connecting to Xero..."}</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>

@@ -45,6 +45,7 @@ interface Inspection {
   date_of_inspection: string;
   approved_status?: string;
   sent_date?: string;
+  sent_by_name?: string;
   has_rfi?: boolean;
   has_invoice?: boolean;
   has_lab?: boolean;
@@ -148,6 +149,9 @@ export default function InspectionsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_SIZE = 50;
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [showUndeliverable, setShowUndeliverable] = useState(false);
   const [duplicateGroupsCount, setDuplicateGroupsCount] = useState(0);
@@ -206,13 +210,15 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string) => {
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number) => {
     setLoading(true);
     const p = new URLSearchParams();
     if (duplicates) p.set("show_duplicates", "true");
     if (from) p.set("date_from", from);
     if (to) p.set("date_to", to);
-    const qs = p.toString() ? `?${p.toString()}` : "";
+    p.set("page", String(page ?? currentPage));
+    p.set("page_size", String(PAGE_SIZE));
+    const qs = `?${p.toString()}`;
     fetch(`/api/inspections${qs}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -220,49 +226,50 @@ export default function InspectionsPage() {
       })
       .then(data => {
         const results = data.results || data || [];
-        console.log("[Inspections] Loaded", results.length, "inspections");
-        // Log file status for first 5 inspections
-        results.slice(0, 5).forEach((insp: Inspection) => {
-          console.log(`[Inspection] ${insp.client_name} (group ${insp.group_id}):`, {
-            has_rfi: insp.has_rfi, has_invoice: insp.has_invoice,
-            has_lab: insp.has_lab, has_compliance: insp.has_compliance,
-            products: insp.products?.map(p => ({
-              id: p.id, product: p.product_name,
-              coa: p.coa_uploaded, composition: p.composition_uploaded,
-              other: p.other_uploaded, retest: p.retest_uploaded,
-            })),
-          });
-        });
         setInspections(results);
         setTotal(data.count || results.length);
-        if (data.duplicate_groups_count !== undefined) {
-          setDuplicateGroupsCount(data.duplicate_groups_count);
-        }
-        if (data.undeliverable_count !== undefined) {
-          setUndeliverableCount(data.undeliverable_count);
-        }
+        if (data.total_pages !== undefined) setTotalPages(data.total_pages);
+        if (data.duplicate_groups_count !== undefined) setDuplicateGroupsCount(data.duplicate_groups_count);
+        if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
       })
       .catch(err => console.error("Fetch inspections failed:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentPage]);
 
-  const fetchUndeliverable = useCallback(() => {
+  const [bouncedEmails, setBouncedEmails] = useState<Set<string>>(new Set());
+
+  const fetchUndeliverable = useCallback((page?: number) => {
     setLoading(true);
-    fetch(`/api/inspections?show_undeliverable=true`)
+    const pg = page ?? 1;
+    fetch(`/api/inspections?show_undeliverable=true&page=${pg}&page_size=${PAGE_SIZE}`)
       .then(r => r.json())
       .then(data => {
         const results = data.results || data || [];
         setInspections(results);
         setTotal(data.count || results.length);
+        if (data.total_pages !== undefined) setTotalPages(data.total_pages);
+        if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
+        if (data.bounced_emails) setBouncedEmails(new Set(data.bounced_emails.map((e: string) => e.toLowerCase())));
       })
       .catch(err => console.error("Fetch undeliverable failed:", err))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchInspections(false, dateFrom, dateTo);
+    setCurrentPage(1);
+    fetchInspections(false, dateFrom, dateTo, 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
+
+  // Background sync: refresh undeliverable count silently on page load
+  useEffect(() => {
+    fetch("/api/inspections?show_undeliverable=true&page=1&page_size=1")
+      .then(r => r.json())
+      .then(data => {
+        if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/me", { credentials: "include" })
@@ -422,7 +429,7 @@ export default function InspectionsPage() {
         showToast(data.message || 'Documents sent successfully!');
         setInspections(prev => prev.map(item =>
           item.group_id === inspection.group_id
-            ? { ...item, sent_date: new Date().toISOString() }
+            ? { ...item, sent_date: data.sent_time || new Date().toISOString(), sent_by_name: data.sent_by || '' }
             : item
         ));
       } else {
@@ -607,6 +614,20 @@ export default function InspectionsPage() {
       return true;
     });
   }, [inspections, isLabTech, clientSearch, inspectorFilter, corpGroupFilter, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter]);
+
+  // Server-side pagination — inspections are already the current page
+  const paginatedInspections = filteredInspections;
+  const safeCurrentPage = currentPage;
+
+  // When page changes, re-fetch from server
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    if (showUndeliverable) {
+      fetchUndeliverable(page);
+    } else {
+      fetchInspections(showDuplicates, dateFrom, dateTo, page);
+    }
+  };
 
   const expandAll = () => setExpandedGroups(new Set(filteredInspections.map(i => String(i.id))));
   const collapseAll = () => setExpandedGroups(new Set());
@@ -1313,12 +1334,12 @@ export default function InspectionsPage() {
                   </button>
                   {roleLoaded && !isLabTech && (showDuplicates ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(false); fetchInspections(false); }}>
+                      onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1); }}>
                       <i className="fas fa-times" /> Clear Duplicates
                     </button>
                   ) : (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#f59e0b", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(true); fetchInspections(true); }}>
+                      onClick={() => { setShowDuplicates(true); setCurrentPage(1); fetchInspections(true, dateFrom, dateTo, 1); }}>
                       <i className="fas fa-copy" /> View Duplicates
                       {duplicateGroupsCount > 0 && (
                         <span style={{ background: "#fff", color: "#f59e0b", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{duplicateGroupsCount}</span>
@@ -1327,12 +1348,12 @@ export default function InspectionsPage() {
                   ))}
                   {roleLoaded && !isLabTech && (showUndeliverable ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); fetchInspections(false, dateFrom, dateTo); }}>
+                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1); }}>
                       <i className="fas fa-times" /> Clear Undeliverable
                     </button>
                   ) : (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#ef4444", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowUndeliverable(true); setShowDuplicates(false); fetchUndeliverable(); }}>
+                      onClick={() => { setShowUndeliverable(true); setShowDuplicates(false); setCurrentPage(1); fetchUndeliverable(1); }}>
                       <i className="fas fa-envelope-open-text" /> Undeliverable Emails
                       <span style={{ background: "#fff", color: "#ef4444", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{undeliverableCount}</span>
                     </button>
@@ -1350,7 +1371,7 @@ export default function InspectionsPage() {
             </div>
             <div className="ir-card-body">
               <div className="ir-table-info">
-                {loading ? "Loading..." : `Showing ${filteredInspections.length} of ${total} inspection${total !== 1 ? "s" : ""}`}
+                {loading ? "Loading..." : `Showing ${(safeCurrentPage - 1) * PAGE_SIZE + 1}–${Math.min(safeCurrentPage * PAGE_SIZE, total)} of ${total} inspections`}
               </div>
 
               {/* Mobile Card Layout */}
@@ -1359,7 +1380,7 @@ export default function InspectionsPage() {
                   <div style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                     <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 8 }} />Loading...
                   </div>
-                ) : filteredInspections.map(s => (
+                ) : paginatedInspections.map(s => (
                   <div key={`mobile-${s.id}`} style={{ background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
                     {/* Card Header */}
                     <div
@@ -1395,7 +1416,9 @@ export default function InspectionsPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Sent:</span>
                         <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
-                          {s.sent_date ? "Sent" : "Not Sent"}
+                          {s.sent_date
+                            ? `Sent: ${s.sent_by_name || "Unknown"} - ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`
+                            : "Not Sent"}
                         </span>
                       </div>
                       {/* File Status Row */}
@@ -1459,11 +1482,11 @@ export default function InspectionsPage() {
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
-                    ) : filteredInspections.length === 0 ? (
+                    ) : paginatedInspections.length === 0 ? (
                       <tr>
                         <td colSpan={isLabTech ? 6 : 11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
-                    ) : filteredInspections.map(s => {
+                    ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
                       const isExpanded = expandedGroups.has(gid);
                       return (
@@ -1526,11 +1549,30 @@ export default function InspectionsPage() {
                                 </select>
                               )}
                             </td>
-                            {roleLoaded && !isLabTech && <td style={{ fontSize: "0.75rem", color: "#6b7280" }}>{s.email || "-"}</td>}
+                            {roleLoaded && !isLabTech && (
+                              <td style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                                {s.email ? s.email.split(/[;,]/).map((e, ei) => {
+                                  const trimmed = e.trim();
+                                  const isBounced = showUndeliverable && bouncedEmails.has(trimmed.toLowerCase());
+                                  return (
+                                    <span key={ei}>
+                                      {ei > 0 && "; "}
+                                      <span style={isBounced ? { color: "#dc2626", fontWeight: 700, background: "#fef2f2", padding: "0 3px", borderRadius: 3 } : undefined}>
+                                        {trimmed}
+                                        {isBounced && <i className="fas fa-exclamation-triangle" style={{ fontSize: 9, marginLeft: 3, color: "#dc2626" }} />}
+                                      </span>
+                                    </span>
+                                  );
+                                }) : "-"}
+                              </td>
+                            )}
                             <td className="center">
                               {(isLabTech || isInspector) ? (
                                 <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.sent_date ? "Sent" : "Not Sent"}
+                                  <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} />
+                                  {s.sent_date
+                                    ? `Sent: ${s.sent_by_name || "Unknown"} - ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${new Date(s.sent_date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                                    : "Not Sent"}
                                 </span>
                               ) : (
                                 <button
@@ -1539,9 +1581,12 @@ export default function InspectionsPage() {
                                     e.stopPropagation();
                                     if (!s.sent_date) {
                                       handleSendDocuments(s);
+                                    } else {
+                                      alert("Documents already sent.");
                                     }
                                   }}
                                   disabled={sendingId === s.id}
+                                  title={s.sent_date ? `Documents sent by ${s.sent_by_name || "Unknown"} at ${new Date(s.sent_date).toLocaleString("en-GB")}` : "Send documents to client"}
                                   style={{
                                     padding: "4px 12px",
                                     border: "none",
@@ -1550,12 +1595,17 @@ export default function InspectionsPage() {
                                     fontSize: 11,
                                     fontWeight: 600,
                                     whiteSpace: "nowrap",
-                                    background: s.sent_date ? "#10b981" : sendingId === s.id ? "#f59e0b" : "#e5e7eb",
+                                    background: s.sent_date ? "#10b981" : sendingId === s.id ? "#fbbf24" : "#e5e7eb",
                                     color: s.sent_date ? "white" : sendingId === s.id ? "white" : "#6b7280",
                                     opacity: sendingId === s.id ? 0.8 : 1,
+                                    maxWidth: s.sent_date ? 260 : undefined,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
                                   }}
                                 >
-                                  {s.sent_date ? "Sent" : sendingId === s.id ? "Sending..." : "Send"}
+                                  {s.sent_date
+                                    ? `Sent: ${s.sent_by_name || "Unknown"} - ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${new Date(s.sent_date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                                    : sendingId === s.id ? "Sending..." : "Send"}
                                 </button>
                               )}
                             </td>
@@ -1587,7 +1637,7 @@ export default function InspectionsPage() {
                                           if (data.success) {
                                             setInspections(prev => prev.filter(i => i.id !== s.id));
                                             // Refetch to get updated list from server
-                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo), 500);
+                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage), 500);
                                           } else {
                                             alert("Delete failed: " + (data.error || "Unknown error"));
                                           }
@@ -1616,6 +1666,66 @@ export default function InspectionsPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px 0", borderTop: "1px solid #e5e7eb", marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    disabled={safeCurrentPage === 1}
+                    onClick={() => goToPage(1)}
+                    style={{ padding: "5px 10px", fontSize: "0.75rem", border: "1px solid #d1d5db", borderRadius: 4, background: "#fff", color: safeCurrentPage === 1 ? "#d1d5db" : "#374151", cursor: safeCurrentPage === 1 ? "default" : "pointer" }}
+                  >
+                    <i className="fas fa-angle-double-left" />
+                  </button>
+                  <button
+                    disabled={safeCurrentPage === 1}
+                    onClick={() => goToPage(Math.max(1, safeCurrentPage - 1))}
+                    style={{ padding: "5px 10px", fontSize: "0.75rem", border: "1px solid #d1d5db", borderRadius: 4, background: "#fff", color: safeCurrentPage === 1 ? "#d1d5db" : "#374151", cursor: safeCurrentPage === 1 ? "default" : "pointer" }}
+                  >
+                    <i className="fas fa-angle-left" />
+                  </button>
+                  {(() => {
+                    const pages: number[] = [];
+                    const maxVisible = 5;
+                    let start = Math.max(1, safeCurrentPage - Math.floor(maxVisible / 2));
+                    let end = Math.min(totalPages, start + maxVisible - 1);
+                    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                    for (let i = start; i <= end; i++) pages.push(i);
+                    return pages.map(p => (
+                      <button
+                        key={p}
+                        onClick={() => goToPage(p)}
+                        style={{
+                          padding: "5px 11px", fontSize: "0.75rem", borderRadius: 4, fontWeight: p === safeCurrentPage ? 700 : 400,
+                          border: p === safeCurrentPage ? "1px solid #007890" : "1px solid #d1d5db",
+                          background: p === safeCurrentPage ? "#007890" : "#fff",
+                          color: p === safeCurrentPage ? "#fff" : "#374151",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ));
+                  })()}
+                  <button
+                    disabled={safeCurrentPage === totalPages}
+                    onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
+                    style={{ padding: "5px 10px", fontSize: "0.75rem", border: "1px solid #d1d5db", borderRadius: 4, background: "#fff", color: safeCurrentPage === totalPages ? "#d1d5db" : "#374151", cursor: safeCurrentPage === totalPages ? "default" : "pointer" }}
+                  >
+                    <i className="fas fa-angle-right" />
+                  </button>
+                  <button
+                    disabled={safeCurrentPage === totalPages}
+                    onClick={() => goToPage(totalPages)}
+                    style={{ padding: "5px 10px", fontSize: "0.75rem", border: "1px solid #d1d5db", borderRadius: 4, background: "#fff", color: safeCurrentPage === totalPages ? "#d1d5db" : "#374151", cursor: safeCurrentPage === totalPages ? "default" : "pointer" }}
+                  >
+                    <i className="fas fa-angle-double-right" />
+                  </button>
+                  <span style={{ fontSize: "0.72rem", color: "#6b7280", marginLeft: 8 }}>
+                    Page {safeCurrentPage} of {totalPages}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1762,23 +1872,32 @@ export default function InspectionsPage() {
                     color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
                   }}
                   onClick={async () => {
-                    // Collect all file paths
-                    const allFiles: { url: string; name: string }[] = [];
-                    Object.values(filesModal.files).forEach(files => {
-                      files?.forEach(f => {
-                        const filePath = f.relative_path || f.path || "";
-                        allFiles.push({ url: `/api/serve-file?file=${encodeURIComponent(filePath)}&action=download`, name: f.name });
+                    try {
+                      const res = await fetch("/api/download-all-files", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          client_name: filesModal.clientName,
+                          inspection_date: filesModal.inspectionDate,
+                          group_id: filesModal.groupId,
+                        }),
                       });
-                    });
-                    // Download each file with a small delay
-                    for (const file of allFiles) {
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({ error: "Download failed" }));
+                        alert(err.error || "Failed to download files");
+                        return;
+                      }
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
-                      a.href = file.url;
-                      a.download = file.name;
+                      a.href = url;
+                      a.download = `${filesModal.clientName}_inspection_files.zip`;
                       document.body.appendChild(a);
                       a.click();
                       document.body.removeChild(a);
-                      await new Promise(r => setTimeout(r, 300));
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      alert("Download error: " + (err instanceof Error ? err.message : String(err)));
                     }
                   }}
                 >

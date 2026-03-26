@@ -16,9 +16,8 @@ XERO_TOKEN_URL = 'https://identity.xero.com/connect/token'
 XERO_API_URL = 'https://api.xero.com/api.xro/2.0'
 XERO_CONNECTIONS_URL = 'https://api.xero.com/connections'
 
-# Granular scopes required for apps created after March 2, 2026
-# Old broad scopes (accounting.transactions) are deprecated for new apps
-XERO_SCOPES = 'openid profile email offline_access accounting.invoices accounting.payments accounting.contacts accounting.settings.read accounting.reports.aged.read accounting.reports.profitandloss.read'
+# Read-only granular scopes for apps created after March 2, 2026
+XERO_SCOPES = 'openid profile email offline_access accounting.invoices.read accounting.contacts.read accounting.settings.read accounting.reports.aged.read accounting.reports.profitandloss.read accounting.reports.balancesheet.read'
 
 
 def get_authorization_url(state='xero_auth'):

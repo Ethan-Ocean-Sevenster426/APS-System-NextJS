@@ -10378,6 +10378,19 @@ def analytics_dashboard_api(request):
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
 
+    # Weekly compliance trend (aggregated across commodities)
+    _wc_qs = qs.exclude(Q(commodity__isnull=True) | Q(commodity='')).exclude(date_of_inspection__isnull=True)
+    if not _has_date_filter:
+        _wc_qs = _wc_qs.filter(date_of_inspection__gte=datetime.now() - timedelta(days=365))
+    weekly_compliance_trend = list(_wc_qs.annotate(
+        week=TruncWeek('date_of_inspection')
+    ).values('week').annotate(
+        total=Count('id'),
+        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+    ).order_by('week'))
+    for item in weekly_compliance_trend:
+        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+
     # Daily compliance trend per commodity (last 30 days, or user's filtered range)
     from django.db.models.functions import TruncDay
     thirty_days_ago = datetime.now() - timedelta(days=30)
@@ -10446,6 +10459,7 @@ def analytics_dashboard_api(request):
         'facilityTypeDistribution': facility_type_distribution,
         'monthlyCommodityTrends': monthly_commodity_trends,
         'monthlyComplianceTrend': monthly_compliance_trend,
+        'weeklyComplianceTrend': weekly_compliance_trend,
         'dailyComplianceTrend': daily_compliance_trend,
         'timeAllocation': time_allocation,
         'inspectionsList': inspections_list,
@@ -10704,45 +10718,73 @@ def analytics_dashboard_api(request):
         count=Count('id')
     ).order_by('month'))
 
+    # Helper: bucket by month and week simultaneously
+    def _week_key(dt):
+        """Return ISO week key like '2026-W09' from a date."""
+        iso = dt.isocalendar()
+        return f'{iso[0]}-W{iso[1]:02d}'
+
     _doc_by_month = {}
+    _doc_by_week = {}
     for _insp in qs.filter(is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False).exclude(sent_by__isnull=True):
         _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
         if _delta < 0:
             continue
         _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        _wk = _week_key(_insp.date_of_inspection)
         if _mk not in _doc_by_month:
             _doc_by_month[_mk] = {'total': 0, 'count': 0}
         _doc_by_month[_mk]['total'] += _delta
         _doc_by_month[_mk]['count'] += 1
+        if _wk not in _doc_by_week:
+            _doc_by_week[_wk] = {'total': 0, 'count': 0}
+        _doc_by_week[_wk]['total'] += _delta
+        _doc_by_week[_wk]['count'] += 1
     data['monthlyDocSendTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
+    data['weeklyDocSendTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_doc_by_week.items())]
 
     _inv_by_month = {}
+    _inv_by_week = {}
     for _insp in qs.filter(invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(invoice_uploaded_by__isnull=True):
         _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
         if _delta < 0:
             continue
         _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        _wk = _week_key(_insp.date_of_inspection)
         if _mk not in _inv_by_month:
             _inv_by_month[_mk] = {'total': 0, 'count': 0}
         _inv_by_month[_mk]['total'] += _delta
         _inv_by_month[_mk]['count'] += 1
+        if _wk not in _inv_by_week:
+            _inv_by_week[_wk] = {'total': 0, 'count': 0}
+        _inv_by_week[_wk]['total'] += _delta
+        _inv_by_week[_wk]['count'] += 1
     data['monthlyInvoiceTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
+    data['weeklyInvoiceTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_inv_by_week.items())]
 
-    # Monthly avg days from sample to COA upload (filtered)
+    # Monthly/weekly avg days from sample to COA upload (filtered)
     _coa_by_month = {}
+    _coa_by_week = {}
     for _insp in qs.filter(is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(Q(commodity__isnull=True) | Q(commodity='')):
         _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
         if _delta < 0:
             continue
         _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        _wk = _week_key(_insp.date_of_inspection)
         if _mk not in _coa_by_month:
             _coa_by_month[_mk] = {'total': 0, 'count': 0}
         _coa_by_month[_mk]['total'] += _delta
         _coa_by_month[_mk]['count'] += 1
+        if _wk not in _coa_by_week:
+            _coa_by_week[_wk] = {'total': 0, 'count': 0}
+        _coa_by_week[_wk]['total'] += _delta
+        _coa_by_week[_wk]['count'] += 1
     data['monthlyCoaTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
+    data['weeklyCoaTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_coa_by_week.items())]
 
-    # Monthly avg days to approval (filtered)
+    # Monthly/weekly avg days to approval (filtered)
     _appr_by_month = {}
+    _appr_by_week = {}
     for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
         _ref = _insp.approved_date or _insp.updated_at
         if _ref is None:
@@ -10751,11 +10793,17 @@ def analytics_dashboard_api(request):
         if _delta < 0:
             continue
         _mk = _insp.date_of_inspection.strftime('%Y-%m')
+        _wk = _week_key(_insp.date_of_inspection)
         if _mk not in _appr_by_month:
             _appr_by_month[_mk] = {'total': 0, 'count': 0}
         _appr_by_month[_mk]['total'] += _delta
         _appr_by_month[_mk]['count'] += 1
+        if _wk not in _appr_by_week:
+            _appr_by_week[_wk] = {'total': 0, 'count': 0}
+        _appr_by_week[_wk]['total'] += _delta
+        _appr_by_week[_wk]['count'] += 1
     data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
+    data['weeklyApprovalTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_appr_by_week.items())]
 
     # Monthly total travel hours (filtered)
     # Monthly travel hours (from InspectionGroup to avoid double-counting)

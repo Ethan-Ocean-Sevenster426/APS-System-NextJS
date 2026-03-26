@@ -55,6 +55,9 @@ export default function SettingsPage() {
   const [runningBackup, setRunningBackup] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -75,6 +78,64 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Load theme preference from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") {
+      setDarkMode(true);
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      setDarkMode(false);
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, []);
+
+  // Fetch user role
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/me");
+        if (res.ok) {
+          const userData = await res.json();
+          setUserRole(userData.role ?? null);
+        }
+      } catch {
+        // silently ignore — role section simply won't show
+      }
+    })();
+  }, []);
+
+  const handleToggleDarkMode = async () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    const themeValue = newMode ? "dark" : "light";
+
+    // Apply immediately
+    localStorage.setItem("theme", themeValue);
+    document.documentElement.setAttribute("data-theme", themeValue);
+
+    // Persist to backend
+    setSavingTheme(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_theme", theme_mode: themeValue }),
+      });
+      if (res.ok) {
+        showToast(`Theme switched to ${newMode ? "dark" : "light"} mode`);
+      } else {
+        showToast("Failed to save theme preference", false);
+      }
+    } catch {
+      showToast("Failed to save theme preference", false);
+    } finally {
+      setSavingTheme(false);
+    }
+  };
+
+  const isAdmin = userRole === "super_admin" || userRole === "developer";
 
   const handleRunBackup = async () => {
     setRunningBackup(true);
@@ -177,6 +238,8 @@ export default function SettingsPage() {
         )}
 
         {!loading && !error && (
+          <>
+          {/* Data Backup Card */}
           <div style={{
             background: "#fff", borderRadius: 12,
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
@@ -289,6 +352,7 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </>

@@ -1069,6 +1069,7 @@ def api_inspections(request):
                 is_occurrence_report=Exists(insp.filter(is_occurrence_report=True)),
                 first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
                 first_sent=Subquery(insp.order_by('id').values('sent_date')[:1]),
+                first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('id').values('sent_by')[:1]),
             )
             .order_by('-date_of_inspection')
         )
@@ -1101,10 +1102,11 @@ def api_inspections(request):
         # Count duplicate groups for the badge
         duplicate_groups_count = groups_qs.filter(_dup_q).count() if _dup_q else 0
 
-        # Undeliverable email check — only do the full lookup when
-        # show_undeliverable=true; otherwise use a cached count for the badge.
+        # Undeliverable email check — scans ALL inspections globally (ignores date filters).
+        # Only does the Graph API call when show_undeliverable=true; otherwise uses cached count.
         undeliverable_count = 0
         _undel_q = None
+        _bounced_emails_list = []
         if show_undeliverable:
             # Full check: fetch bounced emails and resolve to client names
             try:
@@ -1114,6 +1116,7 @@ def api_inspections(request):
                 _bounced_emails = fetch_undeliverable_emails()
                 if _bounced_emails:
                     _bounced_lower = {e.lower() for e in _bounced_emails}
+                    _bounced_emails_list = sorted(_bounced_lower)
                     _undel_clients = _UndelClient.objects.all().only('name', 'email', 'manual_email').prefetch_related('additional_emails')
                     _undeliverable_client_names = set()
                     for _uc in _undel_clients:
@@ -1137,9 +1140,12 @@ def api_inspections(request):
                         _undel_q = Q()
                         for _ucn in _undeliverable_client_names:
                             _undel_q |= Q(client_name=_ucn)
-                        undeliverable_count = groups_qs.filter(_undel_q).count()
-                        # Cache the count for non-show_undeliverable requests
-                        _dj_cache.set('inspections_undeliverable_count', undeliverable_count, 600)
+                        # Count against ALL inspections (no date filter) so badge is global
+                        _all_groups = InspectionGroup.objects.all()
+                        undeliverable_count = _all_groups.filter(_undel_q).count()
+                        # Cache the count and the bounced emails list
+                        _dj_cache.set('inspections_undeliverable_count', undeliverable_count, 3600)
+                        _dj_cache.set('inspections_bounced_emails', _bounced_emails_list, 3600)
             except Exception as _e:
                 print(f"[WARN] api_inspections undeliverable check failed: {_e}")
         else:
@@ -1152,9 +1158,23 @@ def api_inspections(request):
             except Exception:
                 pass
 
-        # Filter to only undeliverable if requested
+        # Filter to only undeliverable if requested — apply against UNFILTERED queryset
+        # so we see ALL undeliverable inspections regardless of date range
         if show_undeliverable and _undel_q is not None and undeliverable_count > 0:
-            groups_qs = groups_qs.filter(_undel_q)
+            # Reset to all inspections (remove date filters) then apply undeliverable filter
+            groups_qs = (
+                InspectionGroup.objects
+                .select_related('client')
+                .prefetch_related('inspections')
+                .annotate(
+                    is_occurrence_report=Exists(insp.filter(is_occurrence_report=True)),
+                    first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
+                    first_sent=Subquery(insp.filter(sent_date__isnull=False).order_by('-id').values('sent_date')[:1]),
+                    first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('-id').values('sent_by')[:1]),
+                )
+                .filter(_undel_q)
+                .order_by('-date_of_inspection')
+            )
 
         # Filter to only duplicates if requested
         if show_duplicates:
@@ -1165,7 +1185,12 @@ def api_inspections(request):
             else:
                 groups_qs = groups_qs.none()
 
-        groups = groups_qs[:200]
+        # Server-side pagination
+        _total_count = groups_qs.count()
+        _page = int(request.GET.get('page', '1'))
+        _page_size = min(int(request.GET.get('page_size', '50')), 200)
+        _offset = (_page - 1) * _page_size
+        groups = groups_qs[_offset:_offset + _page_size]
 
         # ── Batch filesystem scan (single pass) ───────────────────────
         _file_map = {}  # (insp_id_str, category) -> bool
@@ -1193,6 +1218,15 @@ def api_inspections(request):
 
         def _has_file(insp_id, category):
             return _file_map.get((str(insp_id), category), False)
+
+        # Build user-id → name lookup for sent_by
+        _sent_by_ids = set(g.first_sent_by_id for g in groups if getattr(g, 'first_sent_by_id', None))
+        _user_name_map = {}
+        if _sent_by_ids:
+            from django.contrib.auth import get_user_model
+            _U = get_user_model()
+            for _u in _U.objects.filter(id__in=_sent_by_ids).only('id', 'first_name', 'last_name', 'username'):
+                _user_name_map[_u.id] = f"{_u.first_name} {_u.last_name}".strip() or _u.username
 
         results = []
         for g in groups:
@@ -1272,6 +1306,7 @@ def api_inspections(request):
                 'date_of_inspection': g.date_of_inspection.isoformat() if g.date_of_inspection else None,
                 'approved_status': g.first_approved or 'PENDING',
                 'sent_date': g.first_sent.isoformat() if g.first_sent else None,
+                'sent_by_name': _user_name_map.get(g.first_sent_by_id, '') if getattr(g, 'first_sent_by_id', None) else '',
                 'is_occurrence_report': g.is_occurrence_report,
                 'has_rfi': has_rfi,
                 'has_invoice': has_invoice,
@@ -1296,13 +1331,21 @@ def api_inspections(request):
                 'products': products,
             })
 
-        return json_response({
-            'count': len(results),
+        import math as _math
+        _resp = {
+            'count': _total_count,
             'results': results,
+            'page': _page,
+            'page_size': _page_size,
+            'total_pages': _math.ceil(_total_count / _page_size) if _page_size else 1,
             'duplicate_groups_count': duplicate_groups_count,
             'show_duplicates': show_duplicates,
             'undeliverable_count': undeliverable_count,
-        })
+        }
+        # Include bounced emails list so frontend can highlight them
+        if show_undeliverable and _bounced_emails_list:
+            _resp['bounced_emails'] = _bounced_emails_list
+        return json_response(_resp)
 
     except Exception as e:
         return json_response({'error': str(e), 'count': 0, 'results': []}, status=500)
@@ -4427,3 +4470,215 @@ def api_admin_analytics(request):
     except Exception as e:
         import traceback
         return _cors(JsonResponse({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500))
+
+
+# ---------------------------------------------------------------------------
+#  Inspector Mappings API  (JSON, for React frontend)
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_inspector_mappings(request):
+    """JSON API endpoint for inspector mappings CRUD — used by Next.js frontend."""
+    from ..models import InspectorMapping
+
+    def _cors_json(data, status=200):
+        resp = JsonResponse(data, status=status, safe=False)
+        resp['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        resp['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        resp['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+
+    if request.method == 'OPTIONS':
+        return _cors_json({'ok': True})
+
+    # ---------- GET: list all mappings ----------
+    if request.method == 'GET':
+        try:
+            mappings = InspectorMapping.objects.all().order_by('inspector_name')
+            data = [
+                {
+                    'id': m.pk,
+                    'inspector_id': m.inspector_id,
+                    'inspector_name': m.inspector_name,
+                    'is_active': m.is_active,
+                    'created_at': m.created_at.isoformat() if m.created_at else None,
+                    'updated_at': m.updated_at.isoformat() if m.updated_at else None,
+                }
+                for m in mappings
+            ]
+            return _cors_json({'success': True, 'mappings': data})
+        except Exception as e:
+            return _cors_json({'success': False, 'error': str(e)}, status=500)
+
+    # ---------- POST: add / edit / delete ----------
+    if request.method == 'POST':
+        import json as _json
+        try:
+            body = _json.loads(request.body)
+        except Exception:
+            return _cors_json({'success': False, 'error': 'Invalid JSON body'}, status=400)
+
+        action = body.get('action', '')
+
+        # ---- ADD ----
+        if action == 'add':
+            inspector_id = body.get('inspector_id')
+            inspector_name = (body.get('inspector_name') or '').strip()
+            is_active = body.get('is_active', True)
+
+            if not inspector_id or not inspector_name:
+                return _cors_json({'success': False, 'error': 'Inspector ID and name are required.'}, status=400)
+
+            if InspectorMapping.objects.filter(inspector_id=inspector_id).exists():
+                return _cors_json({'success': False, 'error': f'Inspector ID {inspector_id} already exists.'}, status=400)
+
+            try:
+                m = InspectorMapping.objects.create(
+                    inspector_id=int(inspector_id),
+                    inspector_name=inspector_name,
+                    is_active=bool(is_active),
+                )
+                return _cors_json({'success': True, 'message': f'Inspector mapping "{inspector_name}" added.', 'id': m.pk})
+            except Exception as e:
+                return _cors_json({'success': False, 'error': str(e)}, status=500)
+
+        # ---- EDIT ----
+        if action == 'edit':
+            pk = body.get('pk') or body.get('id')
+            if not pk:
+                return _cors_json({'success': False, 'error': 'Missing mapping ID.'}, status=400)
+
+            try:
+                m = InspectorMapping.objects.get(pk=int(pk))
+            except InspectorMapping.DoesNotExist:
+                return _cors_json({'success': False, 'error': 'Mapping not found.'}, status=404)
+
+            inspector_id = body.get('inspector_id')
+            inspector_name = (body.get('inspector_name') or '').strip()
+            is_active = body.get('is_active', m.is_active)
+
+            if inspector_id is not None:
+                # Check uniqueness if changing the inspector_id
+                if int(inspector_id) != m.inspector_id and InspectorMapping.objects.filter(inspector_id=int(inspector_id)).exists():
+                    return _cors_json({'success': False, 'error': f'Inspector ID {inspector_id} already exists.'}, status=400)
+                m.inspector_id = int(inspector_id)
+
+            if inspector_name:
+                m.inspector_name = inspector_name
+
+            m.is_active = bool(is_active)
+            m.save()
+            return _cors_json({'success': True, 'message': f'Inspector mapping "{m.inspector_name}" updated.'})
+
+        # ---- DELETE ----
+        if action == 'delete':
+            pk = body.get('pk') or body.get('id')
+            if not pk:
+                return _cors_json({'success': False, 'error': 'Missing mapping ID.'}, status=400)
+
+            try:
+                m = InspectorMapping.objects.get(pk=int(pk))
+                name = m.inspector_name
+                m.delete()
+                return _cors_json({'success': True, 'message': f'Inspector mapping "{name}" deleted.'})
+            except InspectorMapping.DoesNotExist:
+                return _cors_json({'success': False, 'error': 'Mapping not found.'}, status=404)
+
+        return _cors_json({'success': False, 'error': f'Unknown action: {action}'}, status=400)
+
+    return _cors_json({'success': False, 'error': 'Method not allowed.'}, status=405)
+
+
+@_csrf_exempt
+def api_onedrive_view(request):
+    """JSON API for OneDrive folder listing — used by Next.js frontend."""
+    import os, json as _json
+    from datetime import datetime
+    from django.conf import settings as _settings
+
+    data = {'connected': False, 'folders': [], 'total_files': 0, 'error': None, 'token_refreshed': False}
+
+    try:
+        token_file = os.path.join(_settings.BASE_DIR, 'onedrive_tokens.json')
+        if os.path.exists(token_file):
+            with open(token_file, 'r') as f:
+                tokens = _json.load(f)
+
+            access_token = tokens.get('access_token')
+            expires_at = tokens.get('expires_at', 0)
+            current_time = datetime.now().timestamp()
+
+            if access_token and current_time < expires_at:
+                data['connected'] = True
+            elif access_token:
+                data['token_refreshed'] = True
+                data['connected'] = True
+            else:
+                data['error'] = 'No valid access token found'
+        else:
+            data['error'] = 'OneDrive not connected. Please connect in Settings.'
+
+        if data['connected']:
+            from ..services.onedrive_direct_service import OneDriveDirectUploadService
+            svc = OneDriveDirectUploadService()
+            if svc.authenticate_onedrive():
+                folders = svc.list_folders_in_onedrive(None)
+                if folders:
+                    data['folders'] = folders
+                    data['total_files'] = sum(f.get('file_count', 0) for f in folders)
+                else:
+                    data['error'] = 'No folders found in OneDrive'
+            else:
+                data['error'] = 'Failed to authenticate with OneDrive.'
+                data['connected'] = False
+    except Exception as e:
+        data['error'] = f'Error accessing OneDrive: {str(e)}'
+        data['connected'] = False
+
+    return json_response(data)
+
+
+@_csrf_exempt
+def api_convert_docx_to_pdf(request):
+    """Convert an uploaded .docx file to PDF using docx2pdf (Windows/Word) or LibreOffice."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+    import tempfile, os, subprocess
+    tmp_dir = tempfile.mkdtemp()
+    docx_path = os.path.join(tmp_dir, 'report.docx')
+    pdf_path = os.path.join(tmp_dir, 'report.pdf')
+
+    try:
+        with open(docx_path, 'wb') as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+
+        # Try docx2pdf first (uses MS Word on Windows)
+        try:
+            from docx2pdf import convert
+            convert(docx_path, pdf_path)
+        except Exception:
+            # Fallback: LibreOffice headless
+            try:
+                subprocess.run([
+                    'soffice', '--headless', '--convert-to', 'pdf',
+                    '--outdir', tmp_dir, docx_path
+                ], check=True, timeout=30)
+            except Exception as e2:
+                return JsonResponse({'error': f'PDF conversion failed: {str(e2)}'}, status=500)
+
+        if not os.path.exists(pdf_path):
+            return JsonResponse({'error': 'PDF conversion produced no output'}, status=500)
+
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="Analytics_Report.pdf"'
+        return response
+    finally:
+        import shutil
+        shutil.rmtree(tmp_dir, ignore_errors=True)
