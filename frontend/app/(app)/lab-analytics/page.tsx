@@ -127,10 +127,10 @@ export default function LabAnalyticsPage() {
 
     // Recompute stats from filtered recent
     const total_samples = recent.length;
-    const fat_count = recent.filter(r => r.tests.includes("fat") || r.tests.includes("FAT")).length;
-    const protein_count = recent.filter(r => r.tests.includes("protein") || r.tests.includes("PROTEIN")).length;
-    const calcium_count = recent.filter(r => r.tests.includes("calcium") || r.tests.includes("CALCIUM")).length;
-    const dna_count = recent.filter(r => r.tests.includes("dna") || r.tests.includes("DNA")).length;
+    const fat_count = recent.filter(r => (r.tests || []).includes("fat") || (r.tests || []).includes("FAT")).length;
+    const protein_count = recent.filter(r => (r.tests || []).includes("protein") || (r.tests || []).includes("PROTEIN")).length;
+    const calcium_count = recent.filter(r => (r.tests || []).includes("calcium") || (r.tests || []).includes("CALCIUM")).length;
+    const dna_count = recent.filter(r => (r.tests || []).includes("dna") || (r.tests || []).includes("DNA")).length;
     const needs_retest = recent.filter(r => r.needs_retest === "Yes" || r.needs_retest === "YES").length;
     const total_tests = fat_count + protein_count + calcium_count + dna_count;
 
@@ -250,9 +250,9 @@ export default function LabAnalyticsPage() {
     });
   };
 
-  const maxMonthly = data ? Math.max(...data.monthly.map(m => m.count), 1) : 1;
-  const maxLab     = data ? Math.max(...data.labs.map(l => l.n), 1) : 1;
-  const maxCommodity = data ? Math.max(...data.commodities.map(c => c.n), 1) : 1;
+  const maxMonthly = data && data.monthly?.length ? Math.max(...data.monthly.map(m => m.count), 1) : 1;
+  const maxLab     = data && data.labs?.length ? Math.max(...data.labs.map(l => l.n), 1) : 1;
+  const maxCommodity = data && data.commodities?.length ? Math.max(...data.commodities.map(c => c.n), 1) : 1;
 
   // Unique labs and commodities for filter dropdowns
   const allLabs = rawData ? [...new Set(rawData.recent.map(r => r.lab).filter(Boolean))] : [];
