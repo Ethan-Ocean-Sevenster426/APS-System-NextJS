@@ -31,11 +31,9 @@ ChartJS.register(
   Filler,
   Title,
   Tooltip,
-  Legend,
-  ChartDataLabels
+  Legend
 );
-// Disable datalabels globally by default — only enable per-chart via options
-ChartJS.defaults.set("plugins.datalabels", { display: false });
+// DO NOT register ChartDataLabels globally — pass per-chart via plugins prop
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -282,6 +280,14 @@ function KpiCard({ label, value, color = "#007890", icon }: { label: string; val
 function ChartWrap({ children, height = "300px" }: { children: React.ReactNode; height?: string }) {
   return <div style={{ position: "relative", height }}>{children}</div>;
 }
+
+// Wrapper components that inject ChartDataLabels plugin per-chart (not globally)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DLBar(props: any) { return <Bar {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DLLine(props: any) { return <Line {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DLRadar(props: any) { return <Radar {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
 
 // ── Main Page Component ────────────────────────────────────────────────────────
 
@@ -1553,31 +1559,31 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       {/* Daily compliance trend */}
       <Card title="Daily Compliance Trend by Commodity" icon="fas fa-chart-line" tooltip="Daily compliance percentage trends across all commodity types over time.">
         <ChartWrap height="260px">
-          <Line data={dailyChartData} options={baseChartOptions(undefined, "Compliance %", { datalabels: false }) as never} />
+          <DLLine data={dailyChartData} options={baseChartOptions(undefined, "Compliance %", { datalabels: false }) as never} />
         </ChartWrap>
       </Card>
 
       {/* 3-col: Monthly Inspections, Approval Rate, Occurrence Trend */}
       <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Inspections" icon="fas fa-chart-bar" tooltip="Total number of inspections completed each month.">
-          <ChartWrap height="200px"><Bar data={miData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
+          <ChartWrap height="200px"><DLBar data={miData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
         </Card>
         <Card title="Approval Rate (Weekly)" icon="fas fa-check-double" tooltip="Percentage of inspections approved per week.">
           <ChartWrap height="200px">
             {wcIsSingle
-              ? <Bar data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: true, datalabelColor: "#1f2937", datalabelSuffix: "%" }) as never} />
-              : <Line data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: false }) as never} />
+              ? <DLBar data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: true, datalabelColor: "#1f2937", datalabelSuffix: "%" }) as never} />
+              : <DLLine data={wcData} options={baseChartOptions(undefined, "Approval %", { datalabels: false }) as never} />
             }
           </ChartWrap>
         </Card>
         <Card title="Occurrence Trend" icon="fas fa-exclamation-triangle" tooltip="Monthly trend of occurrence reports (non-compliance incidents) filed.">
-          <ChartWrap height="200px"><Bar data={occData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
+          <ChartWrap height="200px"><DLBar data={occData} options={baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }) as never} /></ChartWrap>
         </Card>
       </div>
 
       {/* Facility Types — unique to Overview */}
       <Card title="Facility Types" icon="fas fa-building" tooltip="Distribution of inspections across different facility types (e.g. abattoir, farm, processor).">
-        <ChartWrap height="220px"><Bar data={ftData} options={{
+        <ChartWrap height="220px"><DLBar data={ftData} options={{
           ...baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }),
           indexAxis: "y" as const,
           scales: { x: { beginAtZero: true, ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } },
@@ -1743,7 +1749,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
         }
       >
         <ChartWrap height="380px">
-          <Radar data={radarChartData} options={radarOpts as never} />
+          <DLRadar data={radarChartData} options={radarOpts as never} />
         </ChartWrap>
       </Card>
 
@@ -1813,7 +1819,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
           </select>
         }>
         <ChartWrap height={`${Math.max(250, inspectorTotals.length * 36)}px`}>
-          <Bar data={rankData} options={rankOpts as never} />
+          <DLBar data={rankData} options={rankOpts as never} />
         </ChartWrap>
       </Card>
 
@@ -1994,31 +2000,31 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
       >
         <div style={{ overflowX: "auto", overflowY: "hidden" }}>
           <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 240, position: "relative" }}>
-            <Line data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabels: false }), maintainAspectRatio: false } as never} />
+            <DLLine data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabels: false }), maintainAspectRatio: false } as never} />
           </div>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Compliance %" icon="fas fa-chart-line" tooltip="Monthly compliance rate per commodity — uses real approval percentages.">
-          <ChartWrap height="280px"><Bar data={weeklyData} options={{
+          <ChartWrap height="280px"><DLBar data={weeklyData} options={{
             ...baseChartOptions(undefined, "Compliance %", { datalabels: false }),
             scales: { x: { stacked: false, ticks: { font: { size: 10 } } }, y: { beginAtZero: true, max: 100, ticks: { font: { size: 10 }, callback: (v: unknown) => v + "%" } } },
           } as never} /></ChartWrap>
         </Card>
         <Card title="Samples Taken" icon="fas fa-vial" tooltip="Total lab samples collected per commodity type.">
-          <ChartWrap height="280px"><Bar data={samplesData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={samplesData} options={baseChartOptions() as never} /></ChartWrap>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Time Allocation (Billable Hours)" icon="fas fa-clock" tooltip="Distribution of billable hours worked across all inspectors.">
           <ChartWrap height="280px">
-            <Bar data={taData} options={hBarOpts as never} />
+            <DLBar data={taData} options={hBarOpts as never} />
           </ChartWrap>
         </Card>
         <Card title={`Occurrence Reports (${data.totalOccurrenceReports})`} icon="fas fa-file-alt" tooltip="Number of occurrence reports filed per inspector.">
-          <ChartWrap height="280px"><Bar data={orData} options={baseChartOptions() as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={orData} options={baseChartOptions() as never} /></ChartWrap>
         </Card>
       </div>
     </div>
@@ -2070,20 +2076,20 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Monthly Travel Distance (km)" icon="fas fa-chart-area" tooltip="Total kilometres driven by all inspectors each month.">
-          <ChartWrap height="180px"><Line data={mtdData} options={baseChartOptions(undefined, "KM", { datalabels: false }) as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={mtdData} options={baseChartOptions(undefined, "KM", { datalabels: false }) as never} /></ChartWrap>
         </Card>
         <Card title="Travel Hours Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly trend of hours spent travelling by all inspectors.">
-          <ChartWrap height="180px"><Line data={thtData} options={baseChartOptions(undefined, "Hours", { datalabels: false }) as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={thtData} options={baseChartOptions(undefined, "Hours", { datalabels: false }) as never} /></ChartWrap>
         </Card>
       </div>
       <Card title="Travel Distance Per Inspector" icon="fas fa-route" tooltip="Total kilometres driven by each inspector for the selected period.">
         <ChartWrap height="300px">
-          <Bar data={tdpData} options={hBarOpts as never} />
+          <DLBar data={tdpData} options={hBarOpts as never} />
         </ChartWrap>
       </Card>
       <Card title="Travel Time Per Inspector (Hours)" icon="fas fa-car" tooltip="Total travel hours logged by each inspector.">
         <ChartWrap height="300px">
-          <Bar data={ttpData} options={hBarOpts as never} />
+          <DLBar data={ttpData} options={hBarOpts as never} />
         </ChartWrap>
       </Card>
     </div>
@@ -2176,34 +2182,34 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title={`Doc Send Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and document dispatch.`}>
-          <ChartWrap height="180px"><Line data={docSendTrend} options={lineOpts as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={docSendTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
         <Card title={`Invoice Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and invoice upload.`}>
-          <ChartWrap height="180px"><Line data={invoiceTrend} options={lineOpts as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={invoiceTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title={`COA Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from sample collection to Certificate of Analysis upload.`}>
-          <ChartWrap height="180px"><Line data={coaTrend} options={lineOpts as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={coaTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
         <Card title={`Approval Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from document submission to final approval.`}>
-          <ChartWrap height="180px"><Line data={approvalTrend} options={lineOpts as never} /></ChartWrap>
+          <ChartWrap height="180px"><DLLine data={approvalTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Avg Days to Send Documents" icon="fas fa-paper-plane" tooltip="Average days each inspector takes to send documents after an inspection.">
-          <ChartWrap height="280px"><Bar data={docSendBar} options={hBarOpts as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={docSendBar} options={hBarOpts as never} /></ChartWrap>
         </Card>
         <Card title="Avg Days to Upload Invoice" icon="fas fa-file-invoice-dollar" tooltip="Average days each inspector takes to upload their invoice.">
-          <ChartWrap height="280px"><Bar data={invoiceBar} options={hBarOpts as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={invoiceBar} options={hBarOpts as never} /></ChartWrap>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Avg Days: Sample to COA Upload" icon="fas fa-flask" tooltip="Average days from sample collection to COA upload per inspector.">
-          <ChartWrap height="280px"><Bar data={coaBar} options={hBarOpts as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={coaBar} options={hBarOpts as never} /></ChartWrap>
         </Card>
         <Card title="Avg Days to Approval" icon="fas fa-hourglass-half" tooltip="Average days from submission to approval per inspector.">
-          <ChartWrap height="280px"><Bar data={approvalBar} options={hBarOpts as never} /></ChartWrap>
+          <ChartWrap height="280px"><DLBar data={approvalBar} options={hBarOpts as never} /></ChartWrap>
         </Card>
       </div>
     </div>
@@ -2558,7 +2564,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Revenue Sources" icon="fas fa-chart-bar" tooltip="Shows where each inspector's revenue comes from: hours billed, kilometres driven, and samples collected.">
           <ChartWrap height="350px">
-            <Bar data={revSourceData} options={stackedOpts as never} />
+            <DLBar data={revSourceData} options={stackedOpts as never} />
           </ChartWrap>
         </Card>
         <Card title="Inspector Performance" icon="fas fa-chart-line" tooltip="Compare inspectors side by side on any metric: profit, revenue, hours, kilometres, or inspections."
@@ -2569,7 +2575,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
           }
         >
           <ChartWrap height="350px">
-            <Bar data={perfData} options={perfOpts as never} />
+            <DLBar data={perfData} options={perfOpts as never} />
           </ChartWrap>
         </Card>
       </div>
