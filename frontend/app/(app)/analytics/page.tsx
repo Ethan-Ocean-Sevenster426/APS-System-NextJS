@@ -34,6 +34,8 @@ ChartJS.register(
   Legend,
   ChartDataLabels
 );
+// Disable datalabels globally by default — only enable per-chart via options
+ChartJS.defaults.set("plugins.datalabels", { display: false });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

@@ -491,9 +491,8 @@ export default function LabAnalyticsPage() {
                       maintainAspectRatio: false,
                       plugins: {
                         legend: { display: false },
-                        datalabels: { display: false },
                         tooltip: { callbacks: { label: (ctx: unknown) => `${(ctx as { parsed: { y: number } }).parsed.y} samples` } },
-                      } as never,
+                      },
                       scales: {
                         x: { ticks: { font: { size: 11 } }, grid: { display: false } },
                         y: { beginAtZero: true, ticks: { font: { size: 10 }, stepSize: Math.ceil(maxMonthly / 5) } },
