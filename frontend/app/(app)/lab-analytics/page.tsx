@@ -59,7 +59,8 @@ function Spinner() {
   );
 }
 
-function StatCard({ label, value, icon, color, borderColor, loading }: { label: string; value: number; icon: string; color: string; borderColor: string; loading: boolean }) {
+function StatCard({ label, value, icon, color, borderColor, loading, tooltip }: { label: string; value: number; icon: string; color: string; borderColor: string; loading: boolean; tooltip?: string }) {
+  const [showTip, setShowTip] = useState(false);
   return (
     <div style={{
       background: "#fff",
@@ -71,6 +72,7 @@ function StatCard({ label, value, icon, color, borderColor, loading }: { label: 
       display: "flex",
       alignItems: "center",
       gap: 10,
+      position: "relative",
     }}>
       <div style={{
         width: 32,
@@ -84,12 +86,24 @@ function StatCard({ label, value, icon, color, borderColor, loading }: { label: 
       }}>
         <i className={`fas ${icon}`} style={{ fontSize: "0.85rem", color }} />
       </div>
-      <div>
+      <div style={{ flex: 1 }}>
         <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", lineHeight: 1, marginBottom: 2 }}>
           {loading ? <Spinner /> : value.toLocaleString()}
         </div>
         <div style={{ fontSize: "0.62rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
       </div>
+      {tooltip && (
+        <div style={{ position: "relative" }}
+          onMouseEnter={() => setShowTip(true)} onMouseLeave={() => setShowTip(false)}>
+          <i className="fas fa-info-circle" style={{ fontSize: "0.7rem", color: "#d1d5db", cursor: "help" }} />
+          {showTip && (
+            <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, background: "#1f2937", color: "#fff", padding: "6px 10px", borderRadius: 6, fontSize: "0.68rem", lineHeight: 1.4, whiteSpace: "normal", width: 200, zIndex: 50, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+              {tooltip}
+              <div style={{ position: "absolute", bottom: -4, right: 8, width: 8, height: 8, background: "#1f2937", transform: "rotate(45deg)" }} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -379,11 +393,11 @@ export default function LabAnalyticsPage() {
 
           {/* Stat cards */}
           <div className="la-stat-grid">
-            <StatCard label="Total Inspections" value={data?.total_inspections ?? 0} icon="fa-clipboard-list" color="#0d9488" borderColor="#0d9488" loading={loading} />
-            <StatCard label="Total Samples Collected" value={data?.total_samples ?? 0} icon="fa-vial" color="#8b5cf6" borderColor="#8b5cf6" loading={loading} />
-            <StatCard label="Lab Tests Completed" value={data?.total_tests ?? 0} icon="fa-flask" color="#3b82f6" borderColor="#3b82f6" loading={loading} />
-            <StatCard label="Awaiting COA Upload" value={data?.needs_coa ?? 0} icon="fa-file-upload" color="#f97316" borderColor="#f97316" loading={loading} />
-            <StatCard label="Samples Needing Retest" value={data?.needs_retest ?? 0} icon="fa-redo-alt" color="#ef4444" borderColor="#ef4444" loading={loading} />
+            <StatCard label="Total Inspections" value={data?.total_inspections ?? 0} icon="fa-clipboard-list" color="#0d9488" borderColor="#0d9488" loading={loading} tooltip="Total number of inspections conducted across all inspectors." />
+            <StatCard label="Samples Collected" value={data?.total_samples ?? 0} icon="fa-vial" color="#8b5cf6" borderColor="#8b5cf6" loading={loading} tooltip="Number of inspections where a product sample was collected for lab testing." />
+            <StatCard label="Individual Lab Tests" value={data?.total_tests ?? 0} icon="fa-flask" color="#3b82f6" borderColor="#3b82f6" loading={loading} tooltip="Total individual tests run (Fat, Protein, Calcium, DNA). One sample can have multiple tests, e.g. Fat + Protein = 2 tests." />
+            <StatCard label="Awaiting COA" value={data?.needs_coa ?? 0} icon="fa-file-upload" color="#f97316" borderColor="#f97316" loading={loading} tooltip="Samples still waiting for a Certificate of Analysis (COA) to be uploaded from the lab." />
+            <StatCard label="Needs Retest" value={data?.needs_retest ?? 0} icon="fa-redo-alt" color="#ef4444" borderColor="#ef4444" loading={loading} tooltip="Samples flagged for retesting due to failed or inconclusive lab results." />
           </div>
 
           {/* Mid row: Tests breakdown + Monthly trend */}
