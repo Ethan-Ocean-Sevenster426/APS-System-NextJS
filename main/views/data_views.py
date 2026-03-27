@@ -2324,6 +2324,15 @@ def api_lab_analytics(request):
     try:
         base = _I.objects.filter(is_sample_taken=True)
 
+        _LAB_DISPLAY = {
+            'lab_a': 'Food Safety Laboratory',
+            'lab_b': 'Merieux NutriSciences',
+            'lab_c': 'AGRI Food Laboratory (SGS)',
+            'lab_d': 'SANBI',
+            'lab_e': 'SMT',
+            'lab_f': 'ARC',
+        }
+
         # Apply date filters from query params
         _date_from = request.GET.get('date_from')
         _date_to = request.GET.get('date_to')
@@ -2334,7 +2343,10 @@ def api_lab_analytics(request):
         if _date_to:
             base = base.filter(date_of_inspection__lte=_date_to)
         if _lab_filter:
-            base = base.filter(lab=_lab_filter)
+            # Support both raw key (lab_a) and display name (Food Safety Laboratory)
+            _LAB_REVERSE = {v: k for k, v in _LAB_DISPLAY.items()}
+            _lab_key = _LAB_REVERSE.get(_lab_filter, _lab_filter)
+            base = base.filter(lab=_lab_key)
         if _commodity_filter:
             base = base.filter(commodity=_commodity_filter)
 
@@ -2350,14 +2362,6 @@ def api_lab_analytics(request):
         total_tests     = fat_count + protein_count + calcium_count + dna_count
 
         # By lab
-        _LAB_DISPLAY = {
-            'lab_a': 'Food Safety Laboratory',
-            'lab_b': 'Merieux NutriSciences',
-            'lab_c': 'AGRI Food Laboratory (SGS)',
-            'lab_d': 'SANBI',
-            'lab_e': 'SMT',
-            'lab_f': 'ARC',
-        }
         labs = [
             {'lab': _LAB_DISPLAY.get(row['lab'], row['lab']), 'n': row['n']}
             for row in base.exclude(lab='').exclude(lab__isnull=True)
@@ -2407,6 +2411,12 @@ def api_lab_analytics(request):
                 'date':           r['date_of_inspection'].isoformat() if r['date_of_inspection'] else '',
             })
 
+        # Filter options from UNFILTERED dataset (for dropdowns)
+        _all_base = _I.objects.filter(is_sample_taken=True)
+        all_labs_raw = list(_all_base.exclude(lab='').exclude(lab__isnull=True).values_list('lab', flat=True).distinct())
+        all_labs_options = [_LAB_DISPLAY.get(l, l) for l in all_labs_raw if l]
+        all_commodities_options = list(_all_base.exclude(commodity='').exclude(commodity__isnull=True).values_list('commodity', flat=True).distinct().order_by('commodity'))
+
         return _cors(JsonResponse({
             'success': True,
             'total_samples':      total_samples,
@@ -2422,6 +2432,8 @@ def api_lab_analytics(request):
             'commodities':     commodities,
             'monthly':         monthly,
             'recent':          recent,
+            'allLabs':         sorted(set(all_labs_options)),
+            'allCommodities':  sorted(set(all_commodities_options)),
         }))
 
     except Exception as e:

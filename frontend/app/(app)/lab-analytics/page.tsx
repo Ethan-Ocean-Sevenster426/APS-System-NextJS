@@ -104,6 +104,7 @@ export default function LabAnalyticsPage() {
   const [commodityFilter, setCommodityFilter] = useState("");
   const [allLabsList, setAllLabsList] = useState<string[]>([]);
   const [allCommoditiesList, setAllCommoditiesList] = useState<string[]>([]);
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
   const fetchData = (df?: string, dt?: string, lf?: string, cf?: string) => {
     setLoading(true);
@@ -119,10 +120,11 @@ export default function LabAnalyticsPage() {
       .then(d => {
         if (d.success) {
           setRawData(d);
-          // Populate dropdown options from first (unfiltered) load
-          if (allLabsList.length === 0 && d.recent) {
-            setAllLabsList([...new Set(d.recent.map((r: { lab: string }) => r.lab).filter(Boolean))] as string[]);
-            setAllCommoditiesList([...new Set(d.recent.map((r: { commodity: string }) => r.commodity).filter(Boolean))] as string[]);
+          // Use server-provided filter options (from unfiltered dataset)
+          if (!initialLoaded) {
+            if (d.allLabs) setAllLabsList(d.allLabs);
+            if (d.allCommodities) setAllCommoditiesList(d.allCommodities);
+            setInitialLoaded(true);
           }
         }
         else setError(d.error || "Failed to load");
