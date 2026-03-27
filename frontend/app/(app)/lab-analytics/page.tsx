@@ -122,8 +122,10 @@ export default function LabAnalyticsPage() {
   const [allCommoditiesList, setAllCommoditiesList] = useState<string[]>([]);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
+  const [filtering, setFiltering] = useState(false);
   const fetchData = (df?: string, dt?: string, lf?: string, cf?: string) => {
-    setLoading(true);
+    if (!initialLoaded) setLoading(true);
+    else setFiltering(true);
     const p = new URLSearchParams();
     const _df = df ?? dateFrom, _dt = dt ?? dateTo, _lf = lf ?? labFilter, _cf = cf ?? commodityFilter;
     if (_df) p.set("date_from", _df);
@@ -146,7 +148,7 @@ export default function LabAnalyticsPage() {
         else setError(d.error || "Failed to load");
       })
       .catch(() => setError("Network error"))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setFiltering(false); });
   };
 
   useEffect(() => { fetchData("", "", "", ""); }, []);
@@ -372,6 +374,7 @@ export default function LabAnalyticsPage() {
                   {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
                 </select>
               </div>
+              {filtering && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "#007890" }}><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite" }} /> Filtering...</div>}
               <button onClick={handleReset}
                 style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white" }}>
                 <i className="fas fa-undo" style={{ marginRight: 6 }} />Reset
