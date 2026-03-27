@@ -2368,13 +2368,14 @@ def api_lab_analytics(request):
                 .values('lab').annotate(n=Count('id')).order_by('-n')[:10]
         ]
 
-        # By lab (ALL labs, unfiltered — always show full picture)
+        # By lab (ALL labs, unfiltered — always show full picture, include 0-count labs)
         _all_samples = _I.objects.filter(is_sample_taken=True)
+        _lab_counts = {row['lab']: row['n'] for row in _all_samples.exclude(lab='').exclude(lab__isnull=True).values('lab').annotate(n=Count('id'))}
         all_labs_stats = [
-            {'lab': _LAB_DISPLAY.get(row['lab'], row['lab']), 'n': row['n']}
-            for row in _all_samples.exclude(lab='').exclude(lab__isnull=True)
-                .values('lab').annotate(n=Count('id')).order_by('-n')[:10]
+            {'lab': _LAB_DISPLAY.get(key, key), 'n': _lab_counts.get(key, 0)}
+            for key in _LAB_DISPLAY.keys()
         ]
+        all_labs_stats.sort(key=lambda x: -x['n'])
 
         # By commodity (filtered)
         commodities = list(
@@ -2425,10 +2426,9 @@ def api_lab_analytics(request):
                 'date':           r['date_of_inspection'].isoformat() if r['date_of_inspection'] else '',
             })
 
-        # Filter options from UNFILTERED dataset (for dropdowns)
+        # Filter options — always show ALL known labs (even with 0 samples)
+        all_labs_options = list(_LAB_DISPLAY.values())
         _all_base = _I.objects.filter(is_sample_taken=True)
-        all_labs_raw = list(_all_base.exclude(lab='').exclude(lab__isnull=True).values_list('lab', flat=True).distinct())
-        all_labs_options = [_LAB_DISPLAY.get(l, l) for l in all_labs_raw if l]
         all_commodities_options = list(_all_base.exclude(commodity='').exclude(commodity__isnull=True).values_list('commodity', flat=True).distinct().order_by('commodity'))
 
         return _cors(JsonResponse({
