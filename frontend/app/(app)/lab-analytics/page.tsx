@@ -20,6 +20,8 @@ interface LabData {
   dna_count:          number;
   labs:           { lab: string; n: number }[];
   commodities:    { commodity: string; n: number }[];
+  allLabsStats:   { lab: string; n: number }[];
+  allCommoditiesStats: { commodity: string; n: number }[];
   monthly:        { month: string; count: number }[];
   recent:         {
     client_name:  string;
@@ -506,10 +508,11 @@ export default function LabAnalyticsPage() {
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
-              ) : data && data.labs.length > 0 ? (
+              ) : data && (data.allLabsStats || data.labs).length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {data.labs.map((l, i) => {
-                    const pct = Math.round((l.n / maxLab) * 100);
+                  {(data.allLabsStats || data.labs).map((l, i) => {
+                    const allMax = data.allLabsStats?.length ? Math.max(...data.allLabsStats.map(x => x.n), 1) : maxLab;
+                    const pct = Math.round((l.n / allMax) * 100);
                     const colors = ["#007890","#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#14b8a6","#64748b","#6366f1"];
                     const col = colors[i % colors.length];
                     return (
@@ -541,11 +544,13 @@ export default function LabAnalyticsPage() {
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
-              ) : data && data.commodities.length > 0 ? (
+              ) : data && (data.allCommoditiesStats || data.commodities).length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {data.commodities.map(c => {
-                    const pct = maxCommodity ? Math.round((c.n / maxCommodity) * 100) : 0;
-                    const displayPct = data.total_samples ? Math.round((c.n / data.total_samples) * 100) : 0;
+                  {(data.allCommoditiesStats || data.commodities).map(c => {
+                    const allComMax = data.allCommoditiesStats?.length ? Math.max(...data.allCommoditiesStats.map(x => x.n), 1) : maxCommodity;
+                    const allTotal = data.allCommoditiesStats?.reduce((s, x) => s + x.n, 0) || data.total_samples;
+                    const pct = allComMax ? Math.round((c.n / allComMax) * 100) : 0;
+                    const displayPct = allTotal ? Math.round((c.n / allTotal) * 100) : 0;
                     const col = COMMODITY_COLOR[c.commodity] ?? "#64748b";
                     return (
                       <div key={c.commodity}>

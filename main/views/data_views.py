@@ -2361,16 +2361,30 @@ def api_lab_analytics(request):
         dna_count       = base.filter(dna=True).count()
         total_tests     = fat_count + protein_count + calcium_count + dna_count
 
-        # By lab
+        # By lab (filtered for current view)
         labs = [
             {'lab': _LAB_DISPLAY.get(row['lab'], row['lab']), 'n': row['n']}
             for row in base.exclude(lab='').exclude(lab__isnull=True)
                 .values('lab').annotate(n=Count('id')).order_by('-n')[:10]
         ]
 
-        # By commodity
+        # By lab (ALL labs, unfiltered — always show full picture)
+        _all_samples = _I.objects.filter(is_sample_taken=True)
+        all_labs_stats = [
+            {'lab': _LAB_DISPLAY.get(row['lab'], row['lab']), 'n': row['n']}
+            for row in _all_samples.exclude(lab='').exclude(lab__isnull=True)
+                .values('lab').annotate(n=Count('id')).order_by('-n')[:10]
+        ]
+
+        # By commodity (filtered)
         commodities = list(
             base.values('commodity').annotate(n=Count('id')).order_by('-n')
+        )
+
+        # By commodity (ALL, unfiltered)
+        all_commodities_stats = list(
+            _all_samples.exclude(commodity='').exclude(commodity__isnull=True)
+            .values('commodity').annotate(n=Count('id')).order_by('-n')
         )
 
         # Monthly trend — last 6 months
@@ -2430,6 +2444,8 @@ def api_lab_analytics(request):
             'dna_count':       dna_count,
             'labs':            labs,
             'commodities':     commodities,
+            'allLabsStats':    all_labs_stats,
+            'allCommoditiesStats': all_commodities_stats,
             'monthly':         monthly,
             'recent':          recent,
             'allLabs':         sorted(set(all_labs_options)),
