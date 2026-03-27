@@ -2324,6 +2324,20 @@ def api_lab_analytics(request):
     try:
         base = _I.objects.filter(is_sample_taken=True)
 
+        # Apply date filters from query params
+        _date_from = request.GET.get('date_from')
+        _date_to = request.GET.get('date_to')
+        _lab_filter = request.GET.get('lab')
+        _commodity_filter = request.GET.get('commodity')
+        if _date_from:
+            base = base.filter(date_of_inspection__gte=_date_from)
+        if _date_to:
+            base = base.filter(date_of_inspection__lte=_date_to)
+        if _lab_filter:
+            base = base.filter(lab=_lab_filter)
+        if _commodity_filter:
+            base = base.filter(commodity=_commodity_filter)
+
         # Summary stats
         total_samples   = base.count()
         total_inspections = _I.objects.count()

@@ -102,64 +102,40 @@ export default function LabAnalyticsPage() {
   const [dateTo, setDateTo] = useState("");
   const [labFilter, setLabFilter] = useState("");
   const [commodityFilter, setCommodityFilter] = useState("");
+  const [allLabsList, setAllLabsList] = useState<string[]>([]);
+  const [allCommoditiesList, setAllCommoditiesList] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetch("/api/lab-analytics")
+  const fetchData = (df?: string, dt?: string, lf?: string, cf?: string) => {
+    setLoading(true);
+    const p = new URLSearchParams();
+    const _df = df ?? dateFrom, _dt = dt ?? dateTo, _lf = lf ?? labFilter, _cf = cf ?? commodityFilter;
+    if (_df) p.set("date_from", _df);
+    if (_dt) p.set("date_to", _dt);
+    if (_lf) p.set("lab", _lf);
+    if (_cf) p.set("commodity", _cf);
+    const qs = p.toString();
+    fetch(`/api/lab-analytics${qs ? "?" + qs : ""}`)
       .then(r => r.json())
       .then(d => {
-        if (d.success) setRawData(d);
+        if (d.success) {
+          setRawData(d);
+          // Populate dropdown options from first (unfiltered) load
+          if (allLabsList.length === 0 && d.recent) {
+            setAllLabsList([...new Set(d.recent.map((r: { lab: string }) => r.lab).filter(Boolean))] as string[]);
+            setAllCommoditiesList([...new Set(d.recent.map((r: { commodity: string }) => r.commodity).filter(Boolean))] as string[]);
+          }
+        }
         else setError(d.error || "Failed to load");
       })
       .catch(() => setError("Network error"))
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  // Client-side filtering
-  const data = rawData ? (() => {
-    let recent = rawData.recent;
-    if (dateFrom) recent = recent.filter(r => r.date >= dateFrom);
-    if (dateTo) recent = recent.filter(r => r.date <= dateTo);
-    if (labFilter) recent = recent.filter(r => r.lab === labFilter);
-    if (commodityFilter) recent = recent.filter(r => r.commodity === commodityFilter);
+  useEffect(() => { fetchData("", "", "", ""); }, []);
 
-    const hasFilter = dateFrom || dateTo || labFilter || commodityFilter;
-    if (!hasFilter) return rawData;
+  const data = rawData;
 
-    // Recompute stats from filtered recent
-    const total_samples = recent.length;
-    const fat_count = recent.filter(r => (r.tests || []).includes("fat") || (r.tests || []).includes("FAT")).length;
-    const protein_count = recent.filter(r => (r.tests || []).includes("protein") || (r.tests || []).includes("PROTEIN")).length;
-    const calcium_count = recent.filter(r => (r.tests || []).includes("calcium") || (r.tests || []).includes("CALCIUM")).length;
-    const dna_count = recent.filter(r => (r.tests || []).includes("dna") || (r.tests || []).includes("DNA")).length;
-    const needs_retest = recent.filter(r => r.needs_retest === "Yes" || r.needs_retest === "YES").length;
-    const total_tests = fat_count + protein_count + calcium_count + dna_count;
-
-    // Recalculate labs
-    const labCounts: Record<string, number> = {};
-    recent.forEach(r => { if (r.lab) labCounts[r.lab] = (labCounts[r.lab] || 0) + 1; });
-    const labs = Object.entries(labCounts).map(([lab, n]) => ({ lab, n })).sort((a, b) => b.n - a.n);
-
-    // Recalculate commodities
-    const comCounts: Record<string, number> = {};
-    recent.forEach(r => { if (r.commodity) comCounts[r.commodity] = (comCounts[r.commodity] || 0) + 1; });
-    const commodities = Object.entries(comCounts).map(([commodity, n]) => ({ commodity, n })).sort((a, b) => b.n - a.n);
-
-    return {
-      ...rawData,
-      total_samples,
-      total_tests,
-      fat_count,
-      protein_count,
-      calcium_count,
-      dna_count,
-      needs_retest,
-      labs,
-      commodities,
-      recent,
-    };
-  })() : null;
-
-  const handleReset = () => { setDateFrom(""); setDateTo(""); setLabFilter(""); setCommodityFilter(""); };
+  const handleReset = () => { setDateFrom(""); setDateTo(""); setLabFilter(""); setCommodityFilter(""); fetchData("", "", "", ""); };
 
   const handleExtractExcel = () => {
     if (!data) return;
@@ -254,9 +230,8 @@ export default function LabAnalyticsPage() {
   const maxLab     = data && data.labs?.length ? Math.max(...data.labs.map(l => l.n), 1) : 1;
   const maxCommodity = data && data.commodities?.length ? Math.max(...data.commodities.map(c => c.n), 1) : 1;
 
-  // Unique labs and commodities for filter dropdowns
-  const allLabs = rawData ? [...new Set(rawData.recent.map(r => r.lab).filter(Boolean))] : [];
-  const allCommodities = rawData ? [...new Set(rawData.recent.map(r => r.commodity).filter(Boolean))] : [];
+  const allLabs = allLabsList;
+  const allCommodities = allCommoditiesList;
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f8fafc" }}>
@@ -355,17 +330,17 @@ export default function LabAnalyticsPage() {
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); fetchData(e.target.value, undefined, undefined, undefined); }}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date To</label>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); fetchData(undefined, e.target.value, undefined, undefined); }}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 140px", minWidth: 140 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Lab</label>
-                <select value={labFilter} onChange={e => setLabFilter(e.target.value)}
+                <select value={labFilter} onChange={e => { setLabFilter(e.target.value); fetchData(undefined, undefined, e.target.value, undefined); }}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
                   <option value="">All Labs</option>
                   {allLabs.map(l => <option key={l} value={l}>{l}</option>)}
@@ -373,7 +348,7 @@ export default function LabAnalyticsPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Commodity</label>
-                <select value={commodityFilter} onChange={e => setCommodityFilter(e.target.value)}
+                <select value={commodityFilter} onChange={e => { setCommodityFilter(e.target.value); fetchData(undefined, undefined, undefined, e.target.value); }}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
                   <option value="">All Commodities</option>
                   {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
