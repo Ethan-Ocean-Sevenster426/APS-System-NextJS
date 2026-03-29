@@ -1020,6 +1020,7 @@ def api_inspections(request):
         show_undeliverable = request.GET.get('show_undeliverable') == 'true'
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
+        client_search = request.GET.get('client_search', '').strip()
 
         # Compute duplicate groups: same client_name + date + inspector + SAME products
         # Single query to get all candidate duplicate group IDs with their product signatures
@@ -1098,6 +1099,8 @@ def api_inspections(request):
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
         if date_to:
             groups_qs = groups_qs.filter(date_of_inspection__lte=date_to)
+        if client_search:
+            groups_qs = groups_qs.filter(client_name__icontains=client_search)
 
         # Count duplicate groups for the badge
         duplicate_groups_count = groups_qs.filter(_dup_q).count() if _dup_q else 0

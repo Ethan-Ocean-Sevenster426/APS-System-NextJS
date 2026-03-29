@@ -185,6 +185,7 @@ export default function InspectionsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [clientSearch, setClientSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -249,12 +250,13 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number) => {
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string) => {
     setLoading(true);
     const p = new URLSearchParams();
     if (duplicates) p.set("show_duplicates", "true");
     if (from) p.set("date_from", from);
     if (to) p.set("date_to", to);
+    if (search) p.set("client_search", search);
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
     const qs = `?${p.toString()}`;
@@ -318,11 +320,17 @@ export default function InspectionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Debounce client search — wait 400ms after typing stops
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(clientSearch), 400);
+    return () => clearTimeout(timer);
+  }, [clientSearch]);
+
   useEffect(() => {
     setCurrentPage(1);
-    fetchInspections(false, dateFrom, dateTo, 1);
+    fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, debouncedSearch]);
 
   // Background sync: refresh undeliverable count silently on page load
   useEffect(() => {
@@ -635,10 +643,7 @@ export default function InspectionsPage() {
     return inspections.filter(s => {
       // Lab tech: only show inspections with at least one sampled product
       if (isLabTech && !(s.products || []).some(p => p.is_sample_taken)) return false;
-      if (clientSearch) {
-        const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
-        if (!normalize(s.client_name || "").includes(normalize(clientSearch))) return false;
-      }
+      // Client search is now server-side (via debouncedSearch → API param)
       if (inspectorFilter.length > 0 && !inspectorFilter.includes(s.inspector_name || "")) return false;
       if (corpGroupFilter.length > 0 && !corpGroupFilter.includes(s.corporate_group || "")) return false;
       if (groupTypeFilter.length > 0 && !groupTypeFilter.includes(s.group_type || "")) return false;
@@ -685,7 +690,7 @@ export default function InspectionsPage() {
       }
       return true;
     });
-  }, [inspections, isLabTech, clientSearch, inspectorFilter, corpGroupFilter, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter]);
+  }, [inspections, isLabTech, inspectorFilter, corpGroupFilter, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter]);
 
   // Server-side pagination — inspections are already the current page
   const paginatedInspections = filteredInspections;
@@ -697,7 +702,7 @@ export default function InspectionsPage() {
     if (showUndeliverable) {
       fetchUndeliverable(page);
     } else {
-      fetchInspections(showDuplicates, dateFrom, dateTo, page);
+      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch);
     }
   };
 
@@ -1406,12 +1411,12 @@ export default function InspectionsPage() {
                   </button>
                   {roleLoaded && !isLabTech && (showDuplicates ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1); }}>
+                      onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
                       <i className="fas fa-times" /> Clear Duplicates
                     </button>
                   ) : (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#f59e0b", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(true); setCurrentPage(1); fetchInspections(true, dateFrom, dateTo, 1); }}>
+                      onClick={() => { setShowDuplicates(true); setCurrentPage(1); fetchInspections(true, dateFrom, dateTo, 1, debouncedSearch); }}>
                       <i className="fas fa-copy" /> View Duplicates
                       {duplicateGroupsCount > 0 && (
                         <span style={{ background: "#fff", color: "#f59e0b", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{duplicateGroupsCount}</span>
@@ -1420,7 +1425,7 @@ export default function InspectionsPage() {
                   ))}
                   {roleLoaded && !isLabTech && (showUndeliverable ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1); }}>
+                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
                       <i className="fas fa-times" /> Clear Undeliverable
                     </button>
                   ) : (
@@ -1709,7 +1714,7 @@ export default function InspectionsPage() {
                                           if (data.success) {
                                             setInspections(prev => prev.filter(i => i.id !== s.id));
                                             // Refetch to get updated list from server
-                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage), 500);
+                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch), 500);
                                           } else {
                                             alert("Delete failed: " + (data.error || "Unknown error"));
                                           }
