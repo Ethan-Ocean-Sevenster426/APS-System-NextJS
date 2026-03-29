@@ -124,7 +124,7 @@ export default function ServerViewPage() {
     fetch("/api/service-status")
       .then((r) => r.json())
       .then((data: ServiceStatusResponse) => {
-        if (data.services) {
+        if (Array.isArray(data?.services)) {
           setServices(data.services);
         }
         setServicesLoading(false);
@@ -167,7 +167,7 @@ export default function ServerViewPage() {
     return "#ef4444";
   };
 
-  const displayServices: ServiceInfo[] = services;
+  const displayServices: ServiceInfo[] = Array.isArray(services) ? services : [];
 
   // Build a key for every expandable node
   const key = useCallback(
