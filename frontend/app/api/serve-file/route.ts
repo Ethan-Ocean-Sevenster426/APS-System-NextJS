@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
   // Prevent directory traversal
   const safePath = file.replace(/\.\./g, "").replace(/^\/+/, "");
 
-  // Redirect to nginx-served media URL (direct file serving, no Django hop)
-  const mediaUrl = `/media/${safePath}`;
-  return NextResponse.redirect(new URL(mediaUrl, req.url));
+  // Rewrite to nginx-served media URL using the original host
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "v4-project.moc-pty.com";
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const mediaUrl = `${proto}://${host}/media/${encodeURI(safePath)}`;
+  return NextResponse.redirect(mediaUrl);
 }
