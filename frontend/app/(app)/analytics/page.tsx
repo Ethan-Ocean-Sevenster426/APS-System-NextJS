@@ -250,8 +250,8 @@ function InfoTooltip({ text }: { text: string }) {
 
 function Card({ title, icon, children, className = "", headerRight, subtitle, tooltip }: { title: string; icon?: string; children: React.ReactNode; className?: string; headerRight?: React.ReactNode; subtitle?: string; tooltip?: string }) {
   return (
-    <div className={`bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5 }}>
-      <div className="border-b border-gray-200 flex items-center justify-between" style={{ padding: "12px 16px" }}>
+    <div className={`analytics-card bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5 }}>
+      <div className="border-b border-gray-200 flex items-center justify-between flex-wrap gap-2" style={{ padding: "12px 16px" }}>
         <div className="flex items-center gap-2">
           {icon && <i className={`${icon} text-[#007890]`} style={{ fontSize: "1rem" }} />}
           <h3 className="font-semibold text-gray-800" style={{ fontSize: "1rem", margin: 0 }}>{title}</h3>
@@ -278,7 +278,7 @@ function KpiCard({ label, value, color = "#007890", icon }: { label: string; val
 }
 
 function ChartWrap({ children, height = "300px" }: { children: React.ReactNode; height?: string }) {
-  return <div style={{ position: "relative", height }}>{children}</div>;
+  return <div className="analytics-chart-wrap" style={{ position: "relative", height, minHeight: 200 }}>{children}</div>;
 }
 
 // Wrapper components that inject ChartDataLabels plugin per-chart (not globally)
@@ -1286,19 +1286,27 @@ export default function AnalyticsPage() {
             @media (max-width: 768px) {
               .md\\:grid-cols-2 { grid-template-columns: 1fr !important; }
               .md\\:grid-cols-3 { grid-template-columns: 1fr !important; }
-              .analytics-page { padding: 16px 12px 24px !important; }
-              .analytics-filter-bar { flex-direction: column !important; }
+              .analytics-page { padding: 12px 10px 20px !important; }
+              .analytics-page h1 { font-size: 1.2rem !important; }
+              .analytics-filter-bar { flex-direction: column !important; gap: 8px !important; }
               .analytics-filter-bar > div { min-width: 100% !important; flex: unset !important; }
-              .analytics-filter-btns { flex-wrap: wrap !important; width: 100% !important; }
-              .analytics-filter-btns button { flex: 1 1 auto; min-width: 0; }
-              .analytics-tabs { gap: 4px !important; }
-              .analytics-tabs button { font-size: 0.75rem !important; padding: 6px 10px !important; min-height: 32px !important; }
+              .analytics-filter-btns { flex-wrap: wrap !important; width: 100% !important; gap: 6px !important; }
+              .analytics-filter-btns button { flex: 1 1 45%; min-width: 0; padding: 8px 10px !important; font-size: 0.7rem !important; }
+              .analytics-tabs { gap: 3px !important; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; padding-bottom: 4px; }
+              .analytics-tabs button { font-size: 0.7rem !important; padding: 6px 8px !important; min-height: 30px !important; white-space: nowrap; flex-shrink: 0; }
               .analytics-tabs button i { display: none; }
               .analytics-modal { width: 95% !important; max-height: 85vh !important; }
+              .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+              .analytics-card { padding: 12px !important; }
+              .analytics-card table { font-size: 0.7rem !important; }
+              .analytics-card table th, .analytics-card table td { padding: 6px 4px !important; }
+              .analytics-chart-wrap { min-height: 180px !important; }
             }
             @media (max-width: 480px) {
-              .analytics-page { padding: 10px 8px 20px !important; }
-              .analytics-tabs button { font-size: 0.65rem !important; padding: 5px 6px !important; }
+              .analytics-page { padding: 8px 6px 16px !important; }
+              .analytics-tabs button { font-size: 0.6rem !important; padding: 5px 6px !important; }
+              .analytics-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+              .analytics-filter-btns button { flex: 1 1 100%; }
             }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
@@ -1535,7 +1543,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
       {/* Primary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+      <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Total Inspections" value={data.totalInspections} />
         <KpiCard label="Compliance Rate" value={`${data.complianceRate.toFixed(1)}%`} color="#10b981" />
         <KpiCard label="Active Inspectors" value={data.activeInspectors} color="#f59e0b" />
@@ -1543,7 +1551,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       </div>
 
       {/* Secondary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+      <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Occurrence Reports" value={data.totalOccurrenceReports} color="#ef4444" icon="fas fa-exclamation-circle" />
         <KpiCard label="Total KM Traveled" value={totalKm.toLocaleString("en-ZA")} color="#3b82f6" icon="fas fa-road" />
         <KpiCard label="Avg Days: Doc Send" value={avgDocSend.toFixed(1)} color="#f59e0b" icon="fas fa-paper-plane" />
