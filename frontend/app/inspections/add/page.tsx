@@ -158,6 +158,7 @@ export default function AddInspectionPage() {
 
   const [step1Error, setStep1Error] = useState<string[]>([]);
   const [step2Error, setStep2Error] = useState<string[]>([]);
+  const [step3Error, setStep3Error] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/inspection-form-data/")
@@ -213,6 +214,14 @@ export default function AddInspectionPage() {
       products.forEach((p, i) => { if (!p.product_name.trim()) m.push(`Product #${i + 1} name`); });
       return m;
     }
+    if (s === 3) {
+      const m: string[] = [];
+      if (!kmTraveled || kmTraveled <= 0) m.push("Kilometers Traveled");
+      if (!hoursWorked || hoursWorked <= 0) m.push("Hours Worked");
+      if (!travelStart.trim()) m.push("Travel Start Time");
+      if (!travelEnd.trim()) m.push("Travel End Time");
+      return m;
+    }
     return [];
   };
 
@@ -220,6 +229,7 @@ export default function AddInspectionPage() {
     const errors = validateStep(step);
     if (step === 1) setStep1Error(errors);
     if (step === 2) setStep2Error(errors);
+    if (step === 3) setStep3Error(errors);
     if (errors.length > 0) return;
     if (step === 1) rebuildProducts();
     setStep(s => s + 1);
@@ -1057,21 +1067,28 @@ export default function AddInspectionPage() {
               <i className="fas fa-file-invoice" style={{ color: "#007890", marginRight: 8 }} />Invoice Info
             </h3>
 
+            {step3Error.length > 0 && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", color: "#991b1b", fontSize: 14, marginBottom: 16 }}>
+                <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />
+                <strong>Missing:</strong> {step3Error.join(", ")}
+              </div>
+            )}
+
             <div className="product-fields-grid">
               <div className="form-group">
-                <label className="form-label">Kilometers Traveled</label>
+                <label className="form-label">Kilometers Traveled <span style={{ color: "#ef4444" }}>*</span></label>
                 <input type="number" step="0.1" className="form-control" value={kmTraveled} onChange={e => setKmTraveled(Number(e.target.value))} placeholder="0" min={0} />
               </div>
               <div className="form-group">
-                <label className="form-label">Hours Worked</label>
+                <label className="form-label">Hours Worked <span style={{ color: "#ef4444" }}>*</span></label>
                 <input type="number" step="0.5" className="form-control" value={hoursWorked} onChange={e => setHoursWorked(Number(e.target.value))} placeholder="0" min={0} />
               </div>
               <div className="form-group">
-                <label className="form-label">Travel Start</label>
+                <label className="form-label">Travel Start <span style={{ color: "#ef4444" }}>*</span></label>
                 <input type="time" className="form-control" value={travelStart} onChange={e => setTravelStart(e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">Travel End</label>
+                <label className="form-label">Travel End <span style={{ color: "#ef4444" }}>*</span></label>
                 <input type="time" className="form-control" value={travelEnd} onChange={e => setTravelEnd(e.target.value)} />
               </div>
             </div>
