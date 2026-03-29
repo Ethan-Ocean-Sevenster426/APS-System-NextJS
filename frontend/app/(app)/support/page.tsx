@@ -56,26 +56,6 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  borderRadius: 10,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-  border: `1px solid ${BORDER}`,
-};
-
-const thStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  textAlign: "left",
-  fontSize: 11,
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: TEXT_LIGHT,
-  background: "#f9fafb",
-  borderBottom: `1px solid ${BORDER}`,
-  whiteSpace: "nowrap",
-};
-
 export default function SupportPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [stats, setStats] = useState<Stats>({ open: 0, in_progress: 0, resolved_today: 0, high_priority: 0, total: 0 });
@@ -90,7 +70,6 @@ export default function SupportPage() {
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  // Create form state
   const [cTitle, setCTitle] = useState("");
   const [cDesc, setCDesc] = useState("");
   const [cStatus, setCStatus] = useState("open");
@@ -193,30 +172,118 @@ export default function SupportPage() {
 
   return (
     <>
+      <style>{`
+/* Support page */
+.sp-container { padding: 1.5rem; min-height: 100vh; background: transparent; box-sizing: border-box; }
+.sp-header { margin-bottom: 20px; text-align: center; }
+.sp-header h1 { font-size: 1.45rem; font-weight: 700; color: white; display: inline-flex; align-items: center; gap: 10px; margin: 0 0 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.sp-header p { color: rgba(255,255,255,0.9); font-size: 13px; margin: 0; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+/* Card base */
+.sp-card { background: #ffffff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
+
+/* Stats grid */
+.sp-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+.sp-stat-card { padding: 10px 12px; text-align: center; }
+.sp-stat-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
+.sp-stat-value { font-size: 1.15rem; font-weight: 700; }
+.sp-stat-label { font-size: 10px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* New ticket button row */
+.sp-new-btn-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.sp-btn-primary { padding: 8px 18px; background: #007890; color: #fff; border: none; border-radius: 7px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+
+/* Filter bar */
+.sp-filter-bar { padding: 12px 16px; margin-bottom: 0.75rem; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sp-search-wrapper { position: relative; flex: 1; min-width: 180px; }
+.sp-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 13px; }
+.sp-search-input { width: 100%; padding: 7px 10px 7px 30px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+.sp-filter-select { padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; min-width: 130px; }
+.sp-clear-btn { padding: 7px 14px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; cursor: pointer; color: #1f2937; }
+
+/* Table */
+.sp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sp-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; background: #f9fafb; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.sp-table tbody tr { border-bottom: 1px solid #e5e7eb; transition: background 0.15s; }
+.sp-table tbody tr:hover { background: #f9fafb; }
+.sp-table td { padding: 10px 14px; }
+
+/* Action buttons */
+.sp-action-btn { padding: 4px 10px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Mobile/Desktop toggle */
+.sp-mobile-only { display: none !important; }
+.sp-desktop-only { display: block; }
+
+/* Modal */
+.sp-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sp-modal { background: #fff; border-radius: 12px; padding: 28px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto; }
+.sp-modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.sp-modal-close { background: none; border: none; cursor: pointer; font-size: 20px; color: #6b7280; padding: 2px 6px; }
+.sp-form-label { display: block; font-size: 12px; font-weight: 600; color: #1f2937; margin-bottom: 5px; }
+.sp-form-input { width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+.sp-form-select { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px; }
+.sp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.sp-modal-footer { display: flex; gap: 10px; flex-wrap: wrap; }
+.sp-modal-meta { border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+
+/* Toast */
+.sp-toast { position: fixed; top: 20px; right: 24px; color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; display: flex; align-items: center; gap: 8px; }
+
+/* Status/Priority badges */
+.sp-badge { padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.sp-status-select { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sp-mobile-only { display: block !important; }
+  .sp-desktop-only { display: none !important; }
+  .sp-container { padding: 0.75rem; }
+  .sp-header h1 { font-size: 1.15rem; }
+  .sp-header p { font-size: 0.75rem; }
+  .sp-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .sp-filter-bar { flex-direction: column; }
+  .sp-search-wrapper { min-width: 0; width: 100%; }
+  .sp-filter-select { width: 100%; }
+  .sp-clear-btn { width: 100%; text-align: center; }
+  .sp-new-btn-row { justify-content: stretch; }
+  .sp-new-btn-row .sp-btn-primary { width: 100%; justify-content: center; }
+  .sp-modal { padding: 20px 16px; max-width: 95%; }
+  .sp-form-grid { grid-template-columns: 1fr; }
+  .sp-modal-meta { grid-template-columns: 1fr; }
+  .sp-toast { right: 12px; left: 12px; font-size: 13px; padding: 10px 16px; }
+}
+@media (max-width: 480px) {
+  .sp-container { padding: 0.5rem; }
+  .sp-header h1 { font-size: 1rem; }
+  .sp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .sp-stat-value { font-size: 1rem; }
+  .sp-stat-label { font-size: 9px; }
+}
+      `}</style>
+
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: 20, right: 24, background: toast.ok ? "#059669" : "#dc2626", color: "#fff", padding: "12px 22px", borderRadius: 8, fontSize: 14, fontWeight: 500, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 10000, display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="sp-toast" style={{ background: toast.ok ? "#059669" : "#dc2626" }}>
           <i className={`fas ${toast.ok ? "fa-check-circle" : "fa-exclamation-circle"}`} /> {toast.msg}
         </div>
       )}
 
       {/* View Ticket Modal */}
       {viewTicket && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewTicket(null)}>
-          <div style={{ background: "#fff", borderRadius: 12, padding: 28, maxWidth: 600, width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div className="sp-modal-backdrop" onClick={() => setViewTicket(null)}>
+          <div className="sp-modal" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+            <div className="sp-modal-header">
               <div>
                 <div style={{ fontSize: 11, color: TEXT_LIGHT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Ticket #{viewTicket.id}</div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, margin: 0 }}>{viewTicket.title}</h2>
               </div>
-              <button onClick={() => setViewTicket(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: TEXT_LIGHT, padding: "2px 6px" }}>
-                <i className="fas fa-times" />
-              </button>
+              <button onClick={() => setViewTicket(null)} className="sp-modal-close"><i className="fas fa-times" /></button>
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-              {(() => { const sc = STATUS_COLORS[viewTicket.status] ?? STATUS_COLORS.open; return <span style={{ padding: "3px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: sc.bg, color: sc.color }}>{viewTicket.status}</span>; })()}
-              {(() => { const pc = PRIORITY_COLORS[viewTicket.priority] ?? PRIORITY_COLORS.medium; return <span style={{ padding: "3px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: pc.bg, color: pc.color }}>{viewTicket.priority}</span>; })()}
-              {viewTicket.issue_type && <span style={{ padding: "3px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "#f3f4f6", color: TEXT }}>{viewTicket.issue_type}</span>}
+              {(() => { const sc = STATUS_COLORS[viewTicket.status] ?? STATUS_COLORS.open; return <span className="sp-badge" style={{ background: sc.bg, color: sc.color }}>{viewTicket.status}</span>; })()}
+              {(() => { const pc = PRIORITY_COLORS[viewTicket.priority] ?? PRIORITY_COLORS.medium; return <span className="sp-badge" style={{ background: pc.bg, color: pc.color }}>{viewTicket.priority}</span>; })()}
+              {viewTicket.issue_type && <span className="sp-badge" style={{ background: "#f3f4f6", color: TEXT }}>{viewTicket.issue_type}</span>}
             </div>
             {[
               { label: "Description", value: viewTicket.description },
@@ -232,7 +299,7 @@ export default function SupportPage() {
                 <div style={{ fontSize: 14, color: TEXT, whiteSpace: "pre-wrap" }}>{f.value}</div>
               </div>
             ))}
-            <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 16, paddingTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 13 }}>
+            <div className="sp-modal-meta">
               <div><span style={{ color: TEXT_LIGHT }}>Submitted by: </span><strong>{viewTicket.created_by || "-"}</strong></div>
               <div><span style={{ color: TEXT_LIGHT }}>Assigned to: </span><strong>{viewTicket.assigned_to || "Unassigned"}</strong></div>
               <div><span style={{ color: TEXT_LIGHT }}>Created: </span>{formatDate(viewTicket.created_at)}</div>
@@ -244,35 +311,32 @@ export default function SupportPage() {
 
       {/* Create Ticket Modal */}
       {showCreate && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setShowCreate(false)}>
-          <div style={{ background: "#fff", borderRadius: 12, padding: 28, maxWidth: 520, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div className="sp-modal-backdrop" onClick={() => setShowCreate(false)}>
+          <div className="sp-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div className="sp-modal-header">
               <h2 style={{ fontSize: 17, fontWeight: 700, color: TEXT, margin: 0 }}><i className="fas fa-plus-circle" style={{ color: PRIMARY, marginRight: 8 }} />Create Ticket</h2>
-              <button onClick={() => setShowCreate(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: TEXT_LIGHT }}>
-                <i className="fas fa-times" />
-              </button>
+              <button onClick={() => setShowCreate(false)} className="sp-modal-close"><i className="fas fa-times" /></button>
             </div>
-            {[
-              { label: "Title *", el: <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Brief summary" style={{ width: "100%", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14, boxSizing: "border-box" as const }} /> },
-              { label: "Description *", el: <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} rows={4} placeholder="Describe the issue..." style={{ width: "100%", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14, resize: "vertical" as const, boxSizing: "border-box" as const }} /> },
-            ].map(f => (
-              <div key={f.label} style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 5 }}>{f.label}</label>
-                {f.el}
-              </div>
-            ))}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div style={{ marginBottom: 14 }}>
+              <label className="sp-form-label">Title *</label>
+              <input value={cTitle} onChange={e => setCTitle(e.target.value)} placeholder="Brief summary" className="sp-form-input" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label className="sp-form-label">Description *</label>
+              <textarea value={cDesc} onChange={e => setCDesc(e.target.value)} rows={4} placeholder="Describe the issue..." className="sp-form-input" style={{ resize: "vertical" }} />
+            </div>
+            <div className="sp-form-grid">
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 5 }}>Status</label>
-                <select value={cStatus} onChange={e => setCStatus(e.target.value)} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14 }}>
+                <label className="sp-form-label">Status</label>
+                <select value={cStatus} onChange={e => setCStatus(e.target.value)} className="sp-form-select">
                   <option value="open">Open</option>
                   <option value="in-progress">In Progress</option>
                   <option value="resolved">Resolved</option>
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 5 }}>Priority</label>
-                <select value={cPriority} onChange={e => setCPriority(e.target.value)} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14 }}>
+                <label className="sp-form-label">Priority</label>
+                <select value={cPriority} onChange={e => setCPriority(e.target.value)} className="sp-form-select">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -280,20 +344,20 @@ export default function SupportPage() {
                 </select>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+            <div className="sp-form-grid" style={{ marginBottom: 20 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 5 }}>Assign To</label>
-                <select value={cAssigned} onChange={e => setCAssigned(e.target.value)} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14 }}>
+                <label className="sp-form-label">Assign To</label>
+                <select value={cAssigned} onChange={e => setCAssigned(e.target.value)} className="sp-form-select">
                   <option value="">Unassigned</option>
                   {allUsers.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: TEXT, marginBottom: 5 }}>Due Date</label>
-                <input type="date" value={cDue} onChange={e => setCDue(e.target.value)} style={{ width: "100%", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 14, boxSizing: "border-box" as const }} />
+                <label className="sp-form-label">Due Date</label>
+                <input type="date" value={cDue} onChange={e => setCDue(e.target.value)} className="sp-form-input" />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="sp-modal-footer">
               <button onClick={handleCreate} disabled={creating || !cTitle.trim() || !cDesc.trim()}
                 style={{ padding: "9px 22px", background: creating ? "#94a3b8" : PRIMARY, color: "#fff", border: "none", borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: creating ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 7 }}>
                 <i className={`fas ${creating ? "fa-spinner fa-spin" : "fa-plus"}`} /> {creating ? "Creating..." : "Create Ticket"}
@@ -306,48 +370,46 @@ export default function SupportPage() {
         </div>
       )}
 
-      <div style={{ padding: "1.5rem", minHeight: "100vh", background: "transparent" }}>
+      <div className="sp-container">
         {/* Header */}
-        <div style={{ marginBottom: 20, textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.45rem", fontWeight: 700, color: "white", display: "inline-flex", alignItems: "center", gap: 10, margin: "0 0 4px", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
-            <i className="fas fa-headset" style={{ color: "#5ee8ff" }} /> Support Tickets
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, margin: 0, textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>Manage and track all support requests</p>
+        <div className="sp-header">
+          <h1><i className="fas fa-headset" style={{ color: "#5ee8ff" }} /> Support Tickets</h1>
+          <p>Manage and track all support requests</p>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button onClick={() => setShowCreate(true)}
-            style={{ padding: "8px 18px", background: PRIMARY, color: "#fff", border: "none", borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+
+        <div className="sp-new-btn-row">
+          <button onClick={() => setShowCreate(true)} className="sp-btn-primary">
             <i className="fas fa-plus" /> New Ticket
           </button>
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <div className="sp-stats-grid">
           {statsCards.map(s => (
-            <div key={s.label} style={{ ...cardStyle, padding: "10px 12px", textAlign: "center" }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
+            <div key={s.label} className="sp-card sp-stat-card">
+              <div className="sp-stat-icon" style={{ background: s.bg }}>
                 <i className={`fas ${s.icon}`} style={{ color: s.color, fontSize: 12 }} />
               </div>
-              <div style={{ fontSize: "1.15rem", fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: TEXT_LIGHT, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.label}</div>
+              <div className="sp-stat-value" style={{ color: s.color }}>{s.value}</div>
+              <div className="sp-stat-label">{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div style={{ ...cardStyle, padding: "12px 16px", marginBottom: "0.75rem", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-            <i className="fas fa-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: TEXT_LIGHT, fontSize: 13 }} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets..." style={{ width: "100%", padding: "7px 10px 7px 30px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, boxSizing: "border-box" as const }} />
+        <div className="sp-card sp-filter-bar">
+          <div className="sp-search-wrapper">
+            <i className="fas fa-search sp-search-icon" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets..." className="sp-search-input" />
           </div>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: "7px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, minWidth: 130 }}>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="sp-filter-select">
             <option value="">All Statuses</option>
             <option value="open">Open</option>
             <option value="in-progress">In Progress</option>
             <option value="resolved">Resolved</option>
             <option value="closed">Closed</option>
           </select>
-          <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} style={{ padding: "7px 10px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, minWidth: 130 }}>
+          <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="sp-filter-select">
             <option value="">All Priorities</option>
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -355,14 +417,14 @@ export default function SupportPage() {
             <option value="urgent">Urgent</option>
           </select>
           {(search || statusFilter || priorityFilter) && (
-            <button onClick={() => { setSearch(""); setStatusFilter(""); setPriorityFilter(""); }} style={{ padding: "7px 14px", background: "#f3f4f6", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, cursor: "pointer", color: TEXT }}>
+            <button onClick={() => { setSearch(""); setStatusFilter(""); setPriorityFilter(""); }} className="sp-clear-btn">
               <i className="fas fa-times" style={{ marginRight: 5 }} />Clear
             </button>
           )}
         </div>
 
-        {/* Table */}
-        <div style={{ ...cardStyle, overflowX: "auto" }}>
+        {/* Table - Desktop */}
+        <div className="sp-card sp-desktop-only" style={{ overflowX: "auto" }}>
           {loading ? (
             <div style={{ padding: 60, textAlign: "center", color: TEXT_LIGHT }}>
               <i className="fas fa-spinner fa-spin" style={{ fontSize: 28, display: "block", marginBottom: 12 }} />Loading tickets...
@@ -372,11 +434,11 @@ export default function SupportPage() {
               <i className="fas fa-exclamation-triangle" style={{ fontSize: 28, display: "block", marginBottom: 12 }} />{error}
             </div>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="sp-table">
               <thead>
                 <tr>
                   {["ID", "Title", "Status", "Priority", "Submitted By", "Assigned To", "Created", "Actions"].map(col => (
-                    <th key={col} style={thStyle}>{col}</th>
+                    <th key={col}>{col}</th>
                   ))}
                 </tr>
               </thead>
@@ -392,40 +454,36 @@ export default function SupportPage() {
                   const sc = STATUS_COLORS[t.status] ?? STATUS_COLORS.open;
                   const pc = PRIORITY_COLORS[t.priority] ?? PRIORITY_COLORS.medium;
                   return (
-                    <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                      <td style={{ padding: "10px 14px", fontWeight: 600, color: TEXT_LIGHT, whiteSpace: "nowrap" }}>#{t.id}</td>
-                      <td style={{ padding: "10px 14px", fontWeight: 500, color: TEXT, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <tr key={t.id}>
+                      <td style={{ fontWeight: 600, color: TEXT_LIGHT, whiteSpace: "nowrap" }}>#{t.id}</td>
+                      <td style={{ fontWeight: 500, color: TEXT, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <button onClick={() => setViewTicket(t)} style={{ background: "none", border: "none", cursor: "pointer", color: PRIMARY, fontWeight: 600, fontSize: 13, textAlign: "left", padding: 0 }}>
                           {t.title}
                         </button>
                       </td>
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                      <td style={{ whiteSpace: "nowrap" }}>
                         <select value={t.status} onChange={e => handleStatusChange(t.id, e.target.value)}
-                          style={{ padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color, border: "none", cursor: "pointer" }}>
+                          className="sp-status-select" style={{ background: sc.bg, color: sc.color }}>
                           <option value="open">Open</option>
                           <option value="in-progress">In Progress</option>
                           <option value="resolved">Resolved</option>
                           <option value="closed">Closed</option>
                         </select>
                       </td>
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                        <span style={{ padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: pc.bg, color: pc.color }}>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <span className="sp-badge" style={{ padding: "2px 10px", fontSize: 11, background: pc.bg, color: pc.color }}>
                           {t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}
                         </span>
                       </td>
-                      <td style={{ padding: "10px 14px", color: TEXT }}>{t.created_by || "-"}</td>
-                      <td style={{ padding: "10px 14px", color: TEXT }}>{t.assigned_to || <span style={{ color: TEXT_LIGHT, fontStyle: "italic" }}>Unassigned</span>}</td>
-                      <td style={{ padding: "10px 14px", color: TEXT_LIGHT, fontSize: 12, whiteSpace: "nowrap" }}>{formatDate(t.created_at)}</td>
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                      <td style={{ color: TEXT }}>{t.created_by || "-"}</td>
+                      <td style={{ color: TEXT }}>{t.assigned_to || <span style={{ color: TEXT_LIGHT, fontStyle: "italic" }}>Unassigned</span>}</td>
+                      <td style={{ color: TEXT_LIGHT, fontSize: 12, whiteSpace: "nowrap" }}>{formatDate(t.created_at)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => setViewTicket(t)} title="View"
-                            style={{ padding: "4px 10px", background: PRIMARY, color: "#fff", border: "none", borderRadius: 5, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                          <button onClick={() => setViewTicket(t)} className="sp-action-btn" style={{ background: PRIMARY, color: "#fff" }}>
                             <i className="fas fa-eye" /> View
                           </button>
-                          <button onClick={() => handleDelete(t.id)} title="Delete"
-                            style={{ padding: "4px 10px", background: "#fee2e2", color: "#b91c1c", border: "none", borderRadius: 5, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                          <button onClick={() => handleDelete(t.id)} className="sp-action-btn" style={{ background: "#fee2e2", color: "#b91c1c" }}>
                             <i className="fas fa-trash" /> Delete
                           </button>
                         </div>
@@ -435,6 +493,65 @@ export default function SupportPage() {
                 })}
               </tbody>
             </table>
+          )}
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="sp-mobile-only" style={{ display: "none" }}>
+          {loading ? (
+            <div className="sp-card" style={{ padding: 40, textAlign: "center", color: TEXT_LIGHT }}>
+              <i className="fas fa-spinner fa-spin" style={{ fontSize: 28, display: "block", marginBottom: 12 }} />Loading tickets...
+            </div>
+          ) : error ? (
+            <div className="sp-card" style={{ padding: 40, textAlign: "center", color: "#dc2626" }}>
+              <i className="fas fa-exclamation-triangle" style={{ fontSize: 28, display: "block", marginBottom: 12 }} />{error}
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="sp-card" style={{ padding: 40, textAlign: "center", color: TEXT_LIGHT }}>
+              <i className="fas fa-ticket-alt" style={{ fontSize: 30, display: "block", marginBottom: 10, opacity: 0.4 }} />
+              No tickets found.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {tickets.map(t => {
+                const sc = STATUS_COLORS[t.status] ?? STATUS_COLORS.open;
+                const pc = PRIORITY_COLORS[t.priority] ?? PRIORITY_COLORS.medium;
+                return (
+                  <div key={t.id} className="sp-card" style={{ padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.65rem", color: TEXT_LIGHT, fontWeight: 600 }}>#{t.id}</div>
+                        <button onClick={() => setViewTicket(t)} style={{ background: "none", border: "none", cursor: "pointer", color: PRIMARY, fontWeight: 700, fontSize: "0.9rem", textAlign: "left", padding: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", width: "100%" }}>
+                          {t.title}
+                        </button>
+                      </div>
+                      <span className="sp-badge" style={{ background: pc.bg, color: pc.color, fontSize: 10, flexShrink: 0, marginLeft: 8 }}>
+                        {t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                      <select value={t.status} onChange={e => handleStatusChange(t.id, e.target.value)}
+                        className="sp-status-select" style={{ background: sc.bg, color: sc.color, fontSize: 10 }}>
+                        <option value="open">Open</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                      <span style={{ fontSize: "0.7rem", color: TEXT_LIGHT }}>{t.created_by || "-"}</span>
+                      <span style={{ fontSize: "0.65rem", color: "#9ca3af", marginLeft: "auto" }}>{formatDate(t.created_at)}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => setViewTicket(t)} className="sp-action-btn" style={{ background: PRIMARY, color: "#fff", flex: 1, justifyContent: "center" }}>
+                        <i className="fas fa-eye" /> View
+                      </button>
+                      <button onClick={() => handleDelete(t.id)} className="sp-action-btn" style={{ background: "#fee2e2", color: "#b91c1c", flex: 1, justifyContent: "center" }}>
+                        <i className="fas fa-trash" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
