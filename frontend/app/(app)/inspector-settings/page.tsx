@@ -138,7 +138,6 @@ export default function InspectorSettingsPage() {
   if (accessDenied) {
     return (
       <>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
         <div style={{ padding: "32px", background: "transparent", minHeight: "100vh" }}>
           <div style={{
             background: "#fff", borderRadius: 12,
@@ -179,8 +178,6 @@ export default function InspectorSettingsPage() {
 
   return (
     <>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
       {/* Toast */}
       {toast && (
         <div style={{

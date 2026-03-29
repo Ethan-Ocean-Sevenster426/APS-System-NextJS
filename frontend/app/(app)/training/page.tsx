@@ -26,7 +26,6 @@ const videos = [
 export default function TrainingPage() {
   return (
     <>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <div style={{ padding: "32px", background: "transparent", minHeight: "100vh" }}>
       {/* Header */}
       <div style={{ marginBottom: 32, textAlign: "center" }}>

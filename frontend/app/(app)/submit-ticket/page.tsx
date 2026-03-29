@@ -91,7 +91,6 @@ export default function SubmitTicketPage() {
 
   return (
     <>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <div style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
       {/* Toast */}
       {toast && (

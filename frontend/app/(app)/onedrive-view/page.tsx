@@ -224,11 +224,6 @@ export default function OneDriveViewPage() {
   // ── Page ────────────────────────────────────────────────────────
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      />
 
       <div style={styles.page}>
         <div style={{ width: "100%", maxWidth: 900, margin: "0 auto" }}>

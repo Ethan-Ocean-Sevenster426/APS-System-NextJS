@@ -774,11 +774,6 @@ export default function ServerViewPage() {
   return (
     <>
       {/* Font Awesome CDN */}
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      />
 
       <div style={styles.page}>
         <div style={{ width: "100%" }}>

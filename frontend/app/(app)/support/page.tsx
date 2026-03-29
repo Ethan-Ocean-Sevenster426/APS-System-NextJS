@@ -193,8 +193,6 @@ export default function SupportPage() {
 
   return (
     <>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
       {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", top: 20, right: 24, background: toast.ok ? "#059669" : "#dc2626", color: "#fff", padding: "12px 22px", borderRadius: 8, fontSize: 14, fontWeight: 500, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 10000, display: "flex", alignItems: "center", gap: 8 }}>
