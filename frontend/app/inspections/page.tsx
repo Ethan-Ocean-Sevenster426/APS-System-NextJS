@@ -8,21 +8,21 @@ interface Product {
   commodity: string;
   product_name: string;
   product_class: string;
-  dna: boolean;
-  fat: boolean;
-  protein: boolean;
-  calcium: boolean;
-  is_direction_present_for_this_inspection: boolean;
+  dna?: boolean;
+  fat?: boolean;
+  protein?: boolean;
+  calcium?: boolean;
+  is_direction_present_for_this_inspection?: boolean;
   is_product_compliant: boolean;
   is_sample_taken: boolean;
   needs_retest: string;
-  coa_uploaded: boolean;
-  compliance_uploaded: boolean;
-  composition_uploaded: boolean;
-  occurrence_uploaded: boolean;
-  retest_uploaded: boolean;
-  other_uploaded: boolean;
-  lab_form_uploaded: boolean;
+  coa_uploaded?: boolean;
+  compliance_uploaded?: boolean;
+  composition_uploaded?: boolean;
+  occurrence_uploaded?: boolean;
+  retest_uploaded?: boolean;
+  other_uploaded?: boolean;
+  lab_form_uploaded?: boolean;
   lab?: string;
 }
 

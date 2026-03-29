@@ -1192,19 +1192,26 @@ def api_inspections(request):
         _offset = (_page - 1) * _page_size
         groups = groups_qs[_offset:_offset + _page_size]
 
-        # ── Batch filesystem scan (single pass) ───────────────────────
+        # ── Batch filesystem scan (only for current page's inspection IDs) ──
         _file_map = {}  # (insp_id_str, category) -> bool
         _FILE_CATEGORIES = {'lab', 'coa', 'composition', 'compliance',
                             'occurrence', 'retest', 'other', 'lab_form',
                             'rfi', 'invoice'}
+        # Collect all inspection IDs for the current page only
+        _page_insp_ids = set()
+        for g in groups:
+            for p in g.inspections.all():
+                _page_insp_ids.add(str(p.id))
         _docs_root = os.path.join(settings.MEDIA_ROOT, 'docs')
-        if os.path.isdir(_docs_root):
+        if os.path.isdir(_docs_root) and _page_insp_ids:
             try:
                 for _cid in os.listdir(_docs_root):
                     _client_dir = os.path.join(_docs_root, _cid)
                     if not os.path.isdir(_client_dir):
                         continue
                     for _iid in os.listdir(_client_dir):
+                        if _iid not in _page_insp_ids:
+                            continue
                         _insp_dir = os.path.join(_client_dir, _iid)
                         if not os.path.isdir(_insp_dir):
                             continue
@@ -1265,31 +1272,33 @@ def api_inspections(request):
             else:
                 _compliance_status = 'PENDING'
 
-            # Build products (lightweight — skip file checks per product)
+            # Build products — compact for list view
             products = []
             for p in inspections:
-                products.append({
+                prod = {
                     'id': p.id,
                     'commodity': p.commodity or '',
                     'product_name': p.product_name or '',
                     'product_class': p.product_class or '',
-                    'dna': bool(p.dna),
-                    'fat': bool(p.fat),
-                    'protein': bool(p.protein),
-                    'calcium': bool(p.calcium),
-                    'is_direction_present_for_this_inspection': bool(p.is_direction_present_for_this_inspection),
                     'is_product_compliant': bool(p.is_product_compliant),
                     'is_sample_taken': bool(p.is_sample_taken) if p.is_sample_taken is not None else False,
                     'needs_retest': p.needs_retest or '',
-                    'coa_uploaded': _has_file(p.id, 'lab') or _has_file(p.id, 'coa'),
-                    'composition_uploaded': _has_file(p.id, 'composition'),
-                    'compliance_uploaded': _has_file(p.id, 'compliance'),
-                    'occurrence_uploaded': _has_file(p.id, 'occurrence'),
-                    'retest_uploaded': _has_file(p.id, 'retest'),
-                    'other_uploaded': _has_file(p.id, 'other'),
-                    'lab_form_uploaded': _has_file(p.id, 'lab_form'),
                     'lab': p.get_lab_display() if p.lab else '',
-                })
+                }
+                # Only include test flags and file flags if they are True (saves bytes)
+                if p.dna: prod['dna'] = True
+                if p.fat: prod['fat'] = True
+                if p.protein: prod['protein'] = True
+                if p.calcium: prod['calcium'] = True
+                if p.is_direction_present_for_this_inspection: prod['is_direction_present_for_this_inspection'] = True
+                if _has_file(p.id, 'lab') or _has_file(p.id, 'coa'): prod['coa_uploaded'] = True
+                if _has_file(p.id, 'composition'): prod['composition_uploaded'] = True
+                if _has_file(p.id, 'compliance'): prod['compliance_uploaded'] = True
+                if _has_file(p.id, 'occurrence'): prod['occurrence_uploaded'] = True
+                if _has_file(p.id, 'retest'): prod['retest_uploaded'] = True
+                if _has_file(p.id, 'other'): prod['other_uploaded'] = True
+                if _has_file(p.id, 'lab_form'): prod['lab_form_uploaded'] = True
+                products.append(prod)
 
             # Build fallback_group_id string
             client_slug = re.sub(r'[^a-zA-Z0-9]', '_', g.client_name or 'Unknown')
