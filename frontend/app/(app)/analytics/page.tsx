@@ -211,14 +211,15 @@ function isSampleCommodity(commodity: string): boolean {
 const lineDefaults = { tension: 0.3, fill: false, pointRadius: 3, borderWidth: 2 };
 
 function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?: boolean; datalabelColor?: string; datalabelSuffix?: string; datalabelFormatter?: (v: number) => string }): Record<string, unknown> {
-  const showLabels = opts?.datalabels !== false; // default true
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const showLabels = !isMobile && opts?.datalabels !== false; // hide on mobile
   const suffix = opts?.datalabelSuffix ?? "";
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 } } },
-      title: title ? { display: true, text: title, font: { size: 13 } } : { display: false },
+      legend: { position: "top" as const, labels: { boxWidth: isMobile ? 8 : 12, font: { size: isMobile ? 9 : 11 }, padding: isMobile ? 6 : 10 } },
+      title: title ? { display: true, text: title, font: { size: isMobile ? 11 : 13 } } : { display: false },
       datalabels: showLabels ? {
         anchor: "end" as const,
         align: "end" as const,
@@ -231,8 +232,8 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
       } : { display: false },
     },
     scales: {
-      x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 30 } },
-      y: { beginAtZero: true, ticks: { font: { size: 9 } }, title: yLabel ? { display: true, text: yLabel, font: { size: 10 } } : undefined },
+      x: { ticks: { font: { size: isMobile ? 7 : 9 }, maxRotation: isMobile ? 70 : 60, minRotation: isMobile ? 45 : 30 } },
+      y: { beginAtZero: true, ticks: { font: { size: isMobile ? 8 : 9 } }, title: yLabel ? { display: true, text: yLabel, font: { size: isMobile ? 9 : 10 } } : undefined },
     },
   };
 }
