@@ -570,8 +570,14 @@ export default function UserManagementPage() {
 /* Container */
 .um-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 1.25rem 1.5rem; box-sizing: border-box; }
 
+/* Mobile card view toggle */
+.um-mobile-only { display: none !important; }
+.um-desktop-only { display: block; }
+
 /* Responsive breakpoints */
 @media (max-width: 768px) {
+  .um-mobile-only { display: block !important; }
+  .um-desktop-only { display: none !important; }
   .um-container { padding: 0 0.75rem 1.25rem; }
   .um-header h1 { font-size: 1.35rem; }
   .um-header h2 { font-size: 0.875rem; }
@@ -582,9 +588,6 @@ export default function UserManagementPage() {
   .um-btn-group { flex-wrap: wrap; width: 100%; }
   .um-btn-group .um-btn { flex: 1 1 45%; min-width: 0; justify-content: center; }
   .um-card-body { padding: 0.75rem; }
-  .um-table th, .um-table td { padding: 8px 6px; font-size: 0.7rem; }
-  .um-col-email { display: none; }
-  .um-table-responsive { -webkit-overflow-scrolling: touch; }
   .um-modal-content { width: 95% !important; max-height: 90vh !important; }
   .um-modal-body { padding: 16px !important; }
   .um-form-actions { justify-content: stretch; }
@@ -594,13 +597,9 @@ export default function UserManagementPage() {
   .um-container { padding: 0 0.5rem 1rem; }
   .um-header h1 { font-size: 1.1rem; }
   .um-header h2 { font-size: 0.75rem; }
-  .um-col-email { display: none; }
-  .um-col-fullname { display: none; }
   .um-btn-group { flex-direction: column; }
   .um-btn-group .um-btn { flex: unset; width: 100%; }
   .um-btn { font-size: 0.65rem; padding: 0.35rem 0.5rem; }
-  .um-table { min-width: 400px; }
-  .um-table th, .um-table td { padding: 6px 4px; font-size: 0.65rem; }
 }
 
 /* Alert boxes */
@@ -751,7 +750,8 @@ export default function UserManagementPage() {
                 </button>
               </div>
             </div>
-            <div className="um-table-responsive">
+            {/* Desktop Table */}
+            <div className="um-table-responsive um-desktop-only">
               <table className="um-table">
                 <thead>
                   <tr>
@@ -874,6 +874,56 @@ export default function UserManagementPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="um-mobile-only" style={{ display: "none" }}>
+              {filteredUsers.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "2rem", color: "#9ca3af" }}>No users found</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px" }}>
+                  {filteredUsers.map((user) => (
+                    <div key={user.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{user.username}</div>
+                          {(user.first_name || user.last_name) && (
+                            <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{`${user.first_name} ${user.last_name}`.trim()}</div>
+                          )}
+                          {user.email && <div style={{ fontSize: "0.7rem", color: "#9ca3af", marginTop: 2 }}>{user.email}</div>}
+                        </div>
+                        <span className={`um-status-badge ${user.is_active ? "um-status-active" : "um-status-inactive"}`}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: user.is_active ? "#059669" : "#dc2626", display: "inline-block" }} />
+                          {user.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span className="um-role-badge" style={{ backgroundColor: ROLE_COLORS[user.role] || "#6b7280" }}>
+                          {ROLE_LABELS[user.role] || user.role}
+                        </span>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button className="um-btn um-btn-info um-btn-xs" title="Edit" onClick={() => openEditModal(user)}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                          <button className="um-btn um-btn-info um-btn-xs" title="Reset Password" onClick={() => openResetModal(user)}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+                          </button>
+                          <button className={`um-btn um-btn-xs ${user.is_active ? "um-btn-warning" : "um-btn-success"}`} title={user.is_active ? "Deactivate" : "Activate"} onClick={() => handleToggleActive(user)}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              {user.is_active ? <><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></> : <polyline points="20 6 9 17 4 12" />}
+                            </svg>
+                          </button>
+                          {user.role !== "developer" && (
+                            <button className="um-btn um-btn-danger um-btn-xs" title="Delete" onClick={() => handleDeleteUser(user)}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
