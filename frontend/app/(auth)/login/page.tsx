@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bgReady, setBgReady] = useState(false);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = "/background.jpg";
+    img.onload = () => setBgReady(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,6 +46,18 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!bgReady) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#007890" }}>
+        <div style={{ textAlign: "center", color: "white" }}>
+          <div style={{ width: "40px", height: "40px", border: "4px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+          <p style={{ fontSize: "0.95rem", opacity: 0.9 }}>Loading...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      </div>
+    );
   }
 
   return (
