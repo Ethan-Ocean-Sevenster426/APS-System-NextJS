@@ -250,7 +250,7 @@ function InfoTooltip({ text }: { text: string }) {
 
 function Card({ title, icon, children, className = "", headerRight, subtitle, tooltip }: { title: string; icon?: string; children: React.ReactNode; className?: string; headerRight?: React.ReactNode; subtitle?: string; tooltip?: string }) {
   return (
-    <div className={`analytics-card bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5 }}>
+    <div className={`analytics-card bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5, overflow: "hidden", maxWidth: "100%" }}>
       <div className="border-b border-gray-200 flex items-center justify-between flex-wrap gap-2" style={{ padding: "12px 16px" }}>
         <div className="flex items-center gap-2">
           {icon && <i className={`${icon} text-[#007890]`} style={{ fontSize: "1rem" }} />}
@@ -1147,7 +1147,7 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="analytics-page" style={{ padding: "28px 20px 32px", minHeight: "100vh", position: "relative" }}>
+    <div className="analytics-page" style={{ padding: "28px 20px 32px", minHeight: "100vh", position: "relative", overflowX: "hidden", maxWidth: "100vw" }}>
       {/* Background image matching Django */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", opacity: 1, zIndex: -2, pointerEvents: "none" }} />
       {/* Panel Tabs */}
@@ -1286,7 +1286,7 @@ export default function AnalyticsPage() {
             @media (max-width: 768px) {
               .md\\:grid-cols-2 { grid-template-columns: 1fr !important; }
               .md\\:grid-cols-3 { grid-template-columns: 1fr !important; }
-              .analytics-page { padding: 12px 10px 20px !important; }
+              .analytics-page { padding: 10px 8px 20px !important; overflow-x: hidden; }
               .analytics-page h1 { font-size: 1.2rem !important; }
               .analytics-filter-bar { flex-direction: column !important; gap: 8px !important; }
               .analytics-filter-bar > div { min-width: 100% !important; flex: unset !important; }
@@ -1297,16 +1297,22 @@ export default function AnalyticsPage() {
               .analytics-tabs button i { display: none; }
               .analytics-modal { width: 95% !important; max-height: 85vh !important; }
               .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-              .analytics-card { padding: 12px !important; }
+              .analytics-card { overflow: hidden !important; }
+              .analytics-card > div:last-child { padding: 10px !important; overflow-x: auto; }
+              .analytics-card > div:first-child { padding: 10px 12px !important; }
+              .analytics-card > div:first-child h3 { font-size: 0.85rem !important; }
               .analytics-card table { font-size: 0.7rem !important; }
               .analytics-card table th, .analytics-card table td { padding: 6px 4px !important; }
-              .analytics-chart-wrap { min-height: 180px !important; }
+              .analytics-chart-wrap { min-height: 180px !important; height: 220px !important; }
+              .grid { gap: 10px !important; }
             }
             @media (max-width: 480px) {
-              .analytics-page { padding: 8px 6px 16px !important; }
+              .analytics-page { padding: 6px 4px 16px !important; }
               .analytics-tabs button { font-size: 0.6rem !important; padding: 5px 6px !important; }
               .analytics-kpi-grid { grid-template-columns: 1fr 1fr !important; }
               .analytics-filter-btns button { flex: 1 1 100%; }
+              .analytics-chart-wrap { height: 180px !important; }
+              .analytics-card > div:last-child { padding: 8px !important; }
             }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
