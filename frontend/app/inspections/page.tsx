@@ -1620,7 +1620,21 @@ export default function InspectionsPage() {
                                   <i className={`fas fa-${s.approved_status === "APPROVED" ? "check" : "clock"}`} style={{ fontSize: 8 }} /> {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
                                 </span>
                               ) : (
-                                <select className="ir-approved-select" onClick={e => e.stopPropagation()} defaultValue={s.approved_status || "PENDING"}>
+                                <select className="ir-approved-select" onClick={e => e.stopPropagation()} value={s.approved_status || "PENDING"}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target.value;
+                                    setInspections(prev => prev.map(i => i.id === s.id ? { ...i, approved_status: newStatus } : i));
+                                    try {
+                                      const res = await fetch("/api/edit-inspection-group/", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        credentials: "include",
+                                        body: JSON.stringify({ inspection_id: s.id, approved_status: newStatus }),
+                                      });
+                                      const data = await res.json();
+                                      if (!data.success) console.error("Failed to update:", data.error);
+                                    } catch (err) { console.error("Failed to update approved status:", err); }
+                                  }}>
                                   <option value="PENDING">Pending</option>
                                   <option value="APPROVED">Approved</option>
                                 </select>

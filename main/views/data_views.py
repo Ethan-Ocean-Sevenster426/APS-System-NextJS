@@ -4193,6 +4193,16 @@ def api_edit_inspection_group(request):
         if not inspection_id:
             return _insp_cors(JsonResponse({'success': False, 'error': 'inspection_id is required'}))
 
+        # Quick update for approved_status only
+        approved_only = data.get('approved_status')
+        if approved_only and len(data) <= 2:  # Only inspection_id + approved_status
+            try:
+                group = _Group.objects.get(pk=inspection_id)
+            except _Group.DoesNotExist:
+                return _insp_cors(JsonResponse({'success': False, 'error': 'Group not found'}))
+            _Insp.objects.filter(inspection_group=group).update(approved_status=approved_only)
+            return _insp_cors(JsonResponse({'success': True}))
+
         # Try as InspectionGroup first, then as FoodSafetyAgencyInspection
         try:
             group = _Group.objects.get(pk=inspection_id)
