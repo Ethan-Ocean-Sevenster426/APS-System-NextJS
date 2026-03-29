@@ -167,16 +167,7 @@ export default function ServerViewPage() {
     return "#ef4444";
   };
 
-  // Default service list when API hasn't responded
-  const displayServices: ServiceInfo[] =
-    services.length > 0
-      ? services
-      : [
-          { name: "Daily Compliance Sync", running: false },
-          { name: "Scheduled Sync", running: false },
-          { name: "Scheduled Backup", running: false },
-          { name: "OneDrive Upload", running: false },
-        ];
+  const displayServices: ServiceInfo[] = services;
 
   // Build a key for every expandable node
   const key = useCallback(
@@ -686,6 +677,10 @@ export default function ServerViewPage() {
               <div style={{ textAlign: "center", padding: "1.5rem 0", color: "#9ca3af", fontSize: "0.8rem" }}>
                 <i className="fa fa-spinner fa-spin" style={{ marginRight: 6 }} />
                 Loading services...
+              </div>
+            ) : displayServices.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "1.5rem 0", color: "#9ca3af", fontSize: "0.8rem" }}>
+                No services found
               </div>
             ) : (
               <div>
