@@ -238,25 +238,6 @@ export default function SystemLogsPage() {
     setActiveView(prev => prev === view ? "logs" : view);
   };
 
-  /* ---- Styles ---- */
-  const cardStyle: React.CSSProperties = {
-    background: "white", borderRadius: 10, border: `1px solid ${BORDER}`,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)", marginBottom: 20,
-  };
-  const thStyle: React.CSSProperties = {
-    padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600,
-    color: TEXT_LIGHT, textTransform: "uppercase", letterSpacing: "0.05em",
-    borderBottom: `1px solid ${BORDER}`, whiteSpace: "nowrap", background: "#f9fafb",
-  };
-  const filterSelectStyle: React.CSSProperties = {
-    width: "100%", padding: "5px 8px", border: "1px solid #d1d5db",
-    borderRadius: 5, fontSize: 12, background: "white", color: TEXT, outline: "none",
-  };
-  const btnBase: React.CSSProperties = {
-    padding: "5px 11px", border: "none", borderRadius: 5, fontSize: 12,
-    fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-  };
-
   /* ================================================================ */
   /*  Render                                                           */
   /* ================================================================ */
@@ -271,288 +252,537 @@ export default function SystemLogsPage() {
   );
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto", boxSizing: "border-box" }}>
-      {/* ---- Header ---- */}
-      <div style={{ marginBottom: 20, textAlign: "center" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "white", margin: 0, display: "inline-flex", alignItems: "center", gap: 8, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
-          <i className="fas fa-shield-alt" style={{ opacity: 0.8, color: "#5ee8ff" }} />
-          System Logs
-        </h1>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", margin: "4px 0 0", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
-          Activity tracking, monitoring &amp; duplicate detection
-        </p>
-      </div>
+    <>
+      <style>{`
+/* System Logs card */
+.sl-card { background: #ffffff; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 10px; border: 1px solid #e5e7eb; width: 100%; }
+.sl-card-header { padding: 0.625rem 0.875rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; min-height: 44px; }
+.sl-card-title { font-size: 0.8125rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 0.375rem; margin: 0; }
+.sl-card-body { padding: 0.875rem 1rem; }
 
-      {/* ---- Filter Card ---- */}
-      <div style={cardStyle}>
-        <div style={{ padding: "12px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 8 }}>
-          <i className="fas fa-filter" style={{ color: PRIMARY, fontSize: 13 }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: TEXT }}>Filter Logs</span>
+/* Header */
+.sl-header { text-align: center; margin-bottom: 1.25rem; padding: 1.5rem 0 1rem; }
+.sl-header h1 { color: white; font-size: 1.375rem; font-weight: 700; margin: 0; display: inline-flex; align-items: center; gap: 8px; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.sl-header p { font-size: 0.8125rem; color: rgba(255,255,255,0.9); margin: 4px 0 0; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+/* Container */
+.sl-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 1.25rem 1.5rem; box-sizing: border-box; }
+
+/* Filter grid */
+.sl-filter-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+.sl-filter-label { display: block; font-size: 10px; font-weight: 600; color: #374151; margin-bottom: 3px; }
+.sl-filter-select { width: 100%; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 12px; background: white; color: #111827; outline: none; box-sizing: border-box; }
+
+/* Buttons */
+.sl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 11px; border: none; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.sl-btn-primary { background: #007890; color: white; }
+.sl-btn-primary:hover { background: #006070; }
+.sl-btn-secondary { border: 1px solid #d1d5db; background: white; color: #374151; }
+.sl-btn-secondary:hover { background: #f9fafb; }
+
+/* Filter actions */
+.sl-filter-actions { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #e5e7eb; flex-wrap: wrap; }
+
+/* Tab buttons */
+.sl-tab-btn { padding: 5px 11px; border: none; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease; }
+.sl-tab-btn.active { color: white; }
+.sl-tab-btn:not(.active) { background: #f3f4f6; color: #374151; }
+.sl-tab-btn:not(.active):hover { background: #e5e7eb; }
+
+/* Table */
+.sl-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: white; }
+.sl-table th { background-color: #f9fafb; color: #6b7280; text-align: left; padding: 10px 16px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.sl-table tbody tr { border-bottom: 1px solid #e5e7eb; transition: background-color 0.15s ease; }
+.sl-table tbody tr:hover { background-color: #f9fafb; }
+.sl-table td { padding: 10px 16px; font-size: 13px; color: #374151; }
+
+/* Action badge */
+.sl-action-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+/* Count badge */
+.sl-count-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 6px; min-width: 28px; height: 22px; padding: 0 8px; color: white; }
+
+/* Type badge */
+.sl-type-badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+/* Change diff */
+.sl-change-item { margin-bottom: 4px; padding: 4px 8px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #7c3aed; font-size: 12px; }
+.sl-change-old { background: #fee2e2; color: #991b1b; padding: 1px 5px; border-radius: 3px; font-family: monospace; }
+.sl-change-new { background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 3px; font-family: monospace; }
+.sl-change-arrow { color: #9ca3af; margin: 0 4px; }
+
+/* Pagination */
+.sl-pagination { padding: 12px 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sl-page-btn { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-size: 12px; cursor: pointer; }
+.sl-page-btn:disabled { color: #9ca3af; cursor: default; }
+.sl-page-btn:not(:disabled) { color: #374151; }
+.sl-page-btn:not(:disabled):hover { background: #f9fafb; }
+
+/* Table responsive */
+.sl-table-responsive { overflow-x: auto; width: 100%; }
+
+/* Mobile/Desktop toggle */
+.sl-mobile-only { display: none !important; }
+.sl-desktop-only { display: block; }
+
+/* View count */
+.sl-view-count { font-size: 12px; color: #6b7280; }
+
+/* Loading / Error */
+.sl-loading { display: flex; justify-content: center; align-items: center; padding: 48px; text-align: center; flex-direction: column; }
+.sl-error { padding: 32px; text-align: center; }
+
+/* Empty state */
+.sl-empty { padding: 40px; text-align: center; color: #6b7280; }
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .sl-mobile-only { display: block !important; }
+  .sl-desktop-only { display: none !important; }
+  .sl-container { padding: 0 0.75rem 1.25rem; }
+  .sl-header h1 { font-size: 1.15rem; }
+  .sl-header p { font-size: 0.75rem; }
+  .sl-header { padding: 1rem 0 0.75rem; margin-bottom: 1rem; }
+  .sl-filter-grid { grid-template-columns: 1fr 1fr; }
+  .sl-card-header { padding: 0.5rem 0.75rem; flex-direction: column; gap: 8px; align-items: stretch; }
+  .sl-card-body { padding: 0.75rem; }
+  .sl-filter-actions { justify-content: stretch; }
+  .sl-filter-actions .sl-btn { flex: 1; justify-content: center; }
+  .sl-pagination { justify-content: center; }
+  .sl-tab-group { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+  .sl-tab-group .sl-tab-btn { flex: 1; justify-content: center; min-width: 0; }
+}
+@media (max-width: 480px) {
+  .sl-container { padding: 0 0.5rem 1rem; }
+  .sl-header h1 { font-size: 1rem; }
+  .sl-header p { font-size: 0.7rem; }
+  .sl-filter-grid { grid-template-columns: 1fr; }
+  .sl-btn { font-size: 11px; padding: 5px 8px; }
+  .sl-tab-group .sl-tab-btn { font-size: 10px; padding: 5px 8px; }
+}
+      `}</style>
+
+      <div style={{ width: "100%", minHeight: "100%", boxSizing: "border-box" }}>
+      <div className="sl-container">
+        {/* Header */}
+        <div className="sl-header">
+          <h1>
+            <i className="fas fa-shield-alt" style={{ opacity: 0.8, color: "#5ee8ff" }} />
+            System Logs
+          </h1>
+          <p>Activity tracking, monitoring &amp; duplicate detection</p>
         </div>
-        <div style={{ padding: "16px 20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#374151", marginBottom: 3 }}>User</label>
-              <select value={userFilter} onChange={e => setUserFilter(e.target.value)} style={filterSelectStyle}>
-                <option value="">All Users</option>
-                {allUsers.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#374151", marginBottom: 3 }}>Action</label>
-              <select value={actionFilter} onChange={e => setActionFilter(e.target.value)} style={filterSelectStyle}>
-                <option value="">All Actions</option>
-                {ALL_ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#374151", marginBottom: 3 }}>Page</label>
-              <select value={pageFilter} onChange={e => setPageFilter(e.target.value)} style={filterSelectStyle}>
-                <option value="">All Pages</option>
-                {allPages.map(p => <option key={p} value={p}>{friendlyPage(p)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#374151", marginBottom: 3 }}>Date From</label>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={filterSelectStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#374151", marginBottom: 3 }}>Date To</label>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={filterSelectStyle} />
+
+        {/* Filter Card */}
+        <div className="sl-card">
+          <div className="sl-card-header">
+            <div className="sl-card-title">
+              <i className="fas fa-filter" style={{ color: PRIMARY, fontSize: 13 }} />
+              Filter Logs
             </div>
           </div>
+          <div className="sl-card-body">
+            <div className="sl-filter-grid">
+              <div>
+                <label className="sl-filter-label">User</label>
+                <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className="sl-filter-select">
+                  <option value="">All Users</option>
+                  {allUsers.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="sl-filter-label">Action</label>
+                <select value={actionFilter} onChange={e => setActionFilter(e.target.value)} className="sl-filter-select">
+                  <option value="">All Actions</option>
+                  {ALL_ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="sl-filter-label">Page</label>
+                <select value={pageFilter} onChange={e => setPageFilter(e.target.value)} className="sl-filter-select">
+                  <option value="">All Pages</option>
+                  {allPages.map(p => <option key={p} value={p}>{friendlyPage(p)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="sl-filter-label">Date From</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="sl-filter-select" />
+              </div>
+              <div>
+                <label className="sl-filter-label">Date To</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="sl-filter-select" />
+              </div>
+            </div>
 
-          <div style={{ display: "flex", gap: 8, paddingTop: 12, borderTop: `1px solid ${BORDER}`, flexWrap: "wrap" }}>
-            <button onClick={handleApply} style={{ ...btnBase, background: PRIMARY, color: "white" }}
-              onMouseOver={e => (e.currentTarget.style.background = PRIMARY_HOVER)}
-              onMouseOut={e => (e.currentTarget.style.background = PRIMARY)}>
-              <i className="fas fa-search" /> Apply Filters
-            </button>
-            <button onClick={handleClear} style={{ ...btnBase, border: "1px solid #d1d5db", background: "white", color: "#374151" }}>
-              <i className="fas fa-times" /> Clear All
-            </button>
+            <div className="sl-filter-actions">
+              <button onClick={handleApply} className="sl-btn sl-btn-primary">
+                <i className="fas fa-search" /> Apply Filters
+              </button>
+              <button onClick={handleClear} className="sl-btn sl-btn-secondary">
+                <i className="fas fa-times" /> Clear All
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ---- Table Card ---- */}
-      <div style={{ background: "white", borderRadius: 10, border: `1px solid ${BORDER}`, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-        {/* Card header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: `1px solid ${BORDER}` }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: TEXT, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            {activeView === "logs" && <><i className="fas fa-list-alt" style={{ color: PRIMARY }} /> Activity Logs</>}
-            {activeView === "dupes" && <><i className="fas fa-copy" style={{ color: "#dc2626" }} /> Duplicate Inspections</>}
-            {activeView === "history" && <><i className="fas fa-history" style={{ color: "#7c3aed" }} /> Inspection Edit History</>}
-          </h3>
-          <span style={{ fontSize: 12, color: TEXT_LIGHT }}>
-            {activeView === "logs" && `Showing ${logs.length} of ${total}`}
-            {activeView === "dupes" && `${duplicateCount} duplicate groups`}
-            {activeView === "history" && `${editHistoryTotal} total edits (showing latest 200)`}
-          </span>
-        </div>
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ padding: 48, textAlign: "center" }}>
-            <i className="fas fa-spinner fa-spin" style={{ fontSize: 28, color: PRIMARY, marginBottom: 12, display: "block" }} />
-            <p style={{ color: TEXT_LIGHT, fontSize: 14, margin: 0 }}>Loading system logs…</p>
+        {/* Table Card */}
+        <div className="sl-card">
+          {/* Card header with tabs */}
+          <div className="sl-card-header">
+            <h3 className="sl-card-title">
+              {activeView === "logs" && <><i className="fas fa-list-alt" style={{ color: PRIMARY }} /> Activity Logs</>}
+              {activeView === "dupes" && <><i className="fas fa-copy" style={{ color: "#dc2626" }} /> Duplicate Inspections</>}
+              {activeView === "history" && <><i className="fas fa-history" style={{ color: "#7c3aed" }} /> Inspection Edit History</>}
+            </h3>
+            <div className="sl-tab-group" style={{ display: "flex", gap: 6 }}>
+              <button className={`sl-tab-btn ${activeView === "logs" ? "active" : ""}`} style={activeView === "logs" ? { background: PRIMARY } : {}} onClick={() => setActiveView("logs")}>
+                <i className="fas fa-list-alt" /> Logs
+              </button>
+              <button className={`sl-tab-btn ${activeView === "dupes" ? "active" : ""}`} style={activeView === "dupes" ? { background: "#dc2626" } : {}} onClick={() => switchView("dupes")}>
+                <i className="fas fa-copy" /> Duplicates
+                {duplicateCount > 0 && <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 8, padding: "0 6px", fontSize: 10, marginLeft: 2 }}>{duplicateCount}</span>}
+              </button>
+              <button className={`sl-tab-btn ${activeView === "history" ? "active" : ""}`} style={activeView === "history" ? { background: "#7c3aed" } : {}} onClick={() => switchView("history")}>
+                <i className="fas fa-history" /> Edit History
+              </button>
+            </div>
+            <span className="sl-view-count">
+              {activeView === "logs" && `Showing ${logs.length} of ${total}`}
+              {activeView === "dupes" && `${duplicateCount} duplicate groups`}
+              {activeView === "history" && `${editHistoryTotal} total edits (showing latest 200)`}
+            </span>
           </div>
-        )}
 
-        {/* Error */}
-        {!loading && error && (
-          <div style={{ padding: 32, textAlign: "center" }}>
-            <i className="fas fa-exclamation-triangle" style={{ fontSize: 28, color: "#dc2626", marginBottom: 12, display: "block" }} />
-            <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}>{error}</p>
-            <button onClick={handleApply} style={{ marginTop: 12, padding: "6px 16px", border: "none", borderRadius: 6, background: PRIMARY, color: "white", fontSize: 13, cursor: "pointer" }}>
-              Retry
-            </button>
-          </div>
-        )}
+          {/* Loading */}
+          {loading && (
+            <div className="sl-loading">
+              <i className="fas fa-spinner fa-spin" style={{ fontSize: 28, color: PRIMARY, marginBottom: 12, display: "block" }} />
+              <p style={{ color: TEXT_LIGHT, fontSize: 14, margin: 0 }}>Loading system logs…</p>
+            </div>
+          )}
 
-        {/* ---- Activity Logs ---- */}
-        {!loading && !error && activeView === "logs" && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  {["Timestamp", "User", "Action", "Page", "Description", "IP Address"].map(col => (
-                    <th key={col} style={thStyle}>{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: 40, textAlign: "center", color: TEXT_LIGHT }}>
-                      <i className="fas fa-list-alt" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12 }} />
-                      No system logs found.
-                    </td>
-                  </tr>
-                ) : logs.map(log => {
-                  const ac = ACTION_COLORS[log.action?.toUpperCase()] ?? { bg: "#f3f4f6", color: "#374151" };
-                  return (
-                    <tr key={log.id} style={{ borderBottom: `1px solid ${BORDER}` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                      <td style={{ padding: "10px 16px", whiteSpace: "nowrap", fontSize: 12, color: TEXT_LIGHT }}>{formatTimestamp(log.timestamp)}</td>
-                      <td style={{ padding: "10px 16px", fontWeight: 500, color: TEXT }}>{log.username}</td>
-                      <td style={{ padding: "10px 16px" }}>
-                        <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: ac.bg, color: ac.color }}>
-                          {log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px 16px", color: TEXT }}>{friendlyPage(log.page)}</td>
-                      <td style={{ padding: "10px 16px", color: TEXT_LIGHT, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description || "-"}</td>
-                      <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT_LIGHT, fontFamily: "monospace", whiteSpace: "nowrap" }}>{log.ip_address || "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          {/* Error */}
+          {!loading && error && (
+            <div className="sl-error">
+              <i className="fas fa-exclamation-triangle" style={{ fontSize: 28, color: "#dc2626", marginBottom: 12, display: "block" }} />
+              <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}>{error}</p>
+              <button onClick={handleApply} style={{ marginTop: 12 }} className="sl-btn sl-btn-primary">
+                Retry
+              </button>
+            </div>
+          )}
 
-        {/* ---- Duplicates ---- */}
-        {!loading && !error && activeView === "dupes" && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  {["Groups", "Client / Facility", "Inspector", "Date", "ID Range", "Action"].map(col => (
-                    <th key={col} style={thStyle}>{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {duplicates.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: 40, textAlign: "center", color: TEXT_LIGHT }}>
-                      <i className="fas fa-check-circle" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12, color: "#15803d" }} />
-                      No duplicate inspection groups found.
-                    </td>
-                  </tr>
-                ) : duplicates.map((dup, idx) => {
-                  const badgeBg = dup.count >= 10 ? "#dc2626" : dup.count >= 5 ? "#f59e0b" : "#6b7280";
-                  return (
-                    <tr key={idx} style={{ borderBottom: `1px solid ${BORDER}` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                      <td style={{ padding: "10px 16px" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, borderRadius: 6, minWidth: 28, height: 22, padding: "0 8px", color: "white", background: badgeBg }}>
-                          {dup.count}x
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px 16px", fontWeight: 500, color: TEXT }}>{dup.client_name}</td>
-                      <td style={{ padding: "10px 16px", color: TEXT }}>{dup.inspector || "-"}</td>
-                      <td style={{ padding: "10px 16px", color: TEXT }}>{formatDate(dup.date)}</td>
-                      <td style={{ padding: "10px 16px", fontSize: 11, color: TEXT_LIGHT }}>#{dup.first_id} - #{dup.last_id}</td>
-                      <td style={{ padding: "10px 16px" }}>
-                        <a
-                          href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
-                          target="_blank" rel="noopener noreferrer"
-                          style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-                        >
-                          <i className="fas fa-external-link-alt" /> View
-                        </a>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ---- Edit History ---- */}
-        {!loading && !error && activeView === "history" && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  {[
-                    { label: "When", w: 140 },
-                    { label: "Edited By", w: 120 },
-                    { label: "Type", w: 70 },
-                    { label: "Client / Facility", w: undefined },
-                    { label: "Date", w: 100 },
-                    { label: "Fields", w: 70 },
-                    { label: "Changes", w: undefined },
-                  ].map(({ label, w }) => (
-                    <th key={label} style={{ ...thStyle, width: w }}>{label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {editHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ padding: 40, textAlign: "center", color: TEXT_LIGHT }}>
-                      <i className="fas fa-history" style={{ fontSize: 32, opacity: 0.3, display: "block", marginBottom: 12 }} />
-                      No edit history yet. Changes to inspections will appear here once someone edits a record.
-                    </td>
-                  </tr>
-                ) : editHistory.map(eh => (
-                  <tr key={eh.id} style={{ borderBottom: `1px solid ${BORDER}`, verticalAlign: "top" }}>
-                    <td style={{ padding: "10px 16px", fontSize: 12, color: TEXT_LIGHT, whiteSpace: "nowrap" }}>{formatDatetime(eh.edited_at)}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 500 }}>{eh.edited_by}</td>
-                    <td style={{ padding: "10px 16px" }}>
-                      <span style={{
-                        background: eh.object_type === "group" ? "#e0f2fe" : "#ede9fe",
-                        color: eh.object_type === "group" ? "#0369a1" : "#6d28d9",
-                        padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600,
-                      }}>
-                        {eh.object_type === "group" ? "Group" : "Row"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 500 }}>{eh.client_name || "-"}</td>
-                    <td style={{ padding: "10px 16px", fontSize: 12 }}>{eh.date_of_inspection ? formatDate(eh.date_of_inspection) : "-"}</td>
-                    <td style={{ padding: "10px 16px", textAlign: "center" }}>
-                      <span style={{ background: "#f3f4f6", color: "#374151", padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
-                        {eh.change_count}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 16px", fontSize: 12 }}>
-                      {Object.entries(eh.changes || {}).map(([field, diff]) => (
-                        <div key={field} style={{ marginBottom: 4, padding: "4px 8px", background: "#f9fafb", borderRadius: 6, borderLeft: "3px solid #7c3aed" }}>
-                          <span style={{ fontWeight: 600, color: "#374151" }}>{diff.label}</span>:{" "}
-                          <span style={{ background: "#fee2e2", color: "#991b1b", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>{diff.old || "—"}</span>
-                          <span style={{ color: "#9ca3af", margin: "0 4px" }}>→</span>
-                          <span style={{ background: "#dcfce7", color: "#166534", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>{diff.new || "—"}</span>
-                        </div>
+          {/* ---- Activity Logs ---- */}
+          {!loading && !error && activeView === "logs" && (
+            <>
+              {/* Desktop Table */}
+              <div className="sl-table-responsive sl-desktop-only">
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      {["Timestamp", "User", "Action", "Page", "Description", "IP Address"].map(col => (
+                        <th key={col}>{col}</th>
                       ))}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="sl-empty">
+                          <i className="fas fa-list-alt" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12 }} />
+                          No system logs found.
+                        </td>
+                      </tr>
+                    ) : logs.map(log => {
+                      const ac = ACTION_COLORS[log.action?.toUpperCase()] ?? { bg: "#f3f4f6", color: "#374151" };
+                      return (
+                        <tr key={log.id}>
+                          <td style={{ whiteSpace: "nowrap", fontSize: 12, color: TEXT_LIGHT }}>{formatTimestamp(log.timestamp)}</td>
+                          <td style={{ fontWeight: 500, color: TEXT }}>{log.username}</td>
+                          <td>
+                            <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                              {log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-"}
+                            </span>
+                          </td>
+                          <td style={{ color: TEXT }}>{friendlyPage(log.page)}</td>
+                          <td style={{ color: TEXT_LIGHT, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description || "-"}</td>
+                          <td style={{ fontSize: 12, color: TEXT_LIGHT, fontFamily: "monospace", whiteSpace: "nowrap" }}>{log.ip_address || "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-        {/* ---- Pagination ---- */}
-        {!loading && !error && activeView === "logs" && !showAll && totalPages > 1 && (
-          <div style={{ padding: "12px 20px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {[
-              { label: "First", target: 1, disabled: pageNum === 1 },
-              { label: "Previous", target: pageNum - 1, disabled: pageNum === 1 },
-            ].map(({ label, target, disabled }) => (
-              <button key={label} onClick={() => !disabled && handlePage(target)} disabled={disabled}
-                style={{ padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "white", color: disabled ? "#9ca3af" : "#374151", fontSize: 12, cursor: disabled ? "default" : "pointer" }}>
-                {label}
-              </button>
-            ))}
-            <span style={{ fontSize: 13, color: TEXT_LIGHT, padding: "0 4px" }}>Page {pageNum} of {totalPages}</span>
-            {[
-              { label: "Next", target: pageNum + 1, disabled: pageNum === totalPages },
-              { label: "Last", target: totalPages, disabled: pageNum === totalPages },
-            ].map(({ label, target, disabled }) => (
-              <button key={label} onClick={() => !disabled && handlePage(target)} disabled={disabled}
-                style={{ padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 6, background: "white", color: disabled ? "#9ca3af" : "#374151", fontSize: 12, cursor: disabled ? "default" : "pointer" }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+              {/* Mobile Card View */}
+              <div className="sl-mobile-only" style={{ display: "none" }}>
+                {logs.length === 0 ? (
+                  <div className="sl-empty">
+                    <i className="fas fa-list-alt" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12 }} />
+                    No system logs found.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 10 }}>
+                    {logs.map(log => {
+                      const ac = ACTION_COLORS[log.action?.toUpperCase()] ?? { bg: "#f3f4f6", color: "#374151" };
+                      return (
+                        <div key={log.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{log.username}</div>
+                            <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                              {log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 4 }}>
+                            <i className="fas fa-clock" style={{ marginRight: 4 }} />{formatTimestamp(log.timestamp)}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: 4 }}>
+                            <i className="fas fa-file" style={{ marginRight: 4, color: "#9ca3af" }} />{friendlyPage(log.page)}
+                          </div>
+                          {log.description && (
+                            <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {log.description}
+                            </div>
+                          )}
+                          <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontFamily: "monospace" }}>
+                            <i className="fas fa-network-wired" style={{ marginRight: 4 }} />{log.ip_address || "-"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ---- Duplicates ---- */}
+          {!loading && !error && activeView === "dupes" && (
+            <>
+              {/* Desktop Table */}
+              <div className="sl-table-responsive sl-desktop-only">
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      {["Groups", "Client / Facility", "Inspector", "Date", "ID Range", "Action"].map(col => (
+                        <th key={col}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {duplicates.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="sl-empty">
+                          <i className="fas fa-check-circle" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12, color: "#15803d" }} />
+                          No duplicate inspection groups found.
+                        </td>
+                      </tr>
+                    ) : duplicates.map((dup, idx) => {
+                      const badgeBg = dup.count >= 10 ? "#dc2626" : dup.count >= 5 ? "#f59e0b" : "#6b7280";
+                      return (
+                        <tr key={idx}>
+                          <td>
+                            <span className="sl-count-badge" style={{ background: badgeBg }}>{dup.count}x</span>
+                          </td>
+                          <td style={{ fontWeight: 500, color: TEXT }}>{dup.client_name}</td>
+                          <td style={{ color: TEXT }}>{dup.inspector || "-"}</td>
+                          <td style={{ color: TEXT }}>{formatDate(dup.date)}</td>
+                          <td style={{ fontSize: 11, color: TEXT_LIGHT }}>#{dup.first_id} - #{dup.last_id}</td>
+                          <td>
+                            <a
+                              href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                            >
+                              <i className="fas fa-external-link-alt" /> View
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="sl-mobile-only" style={{ display: "none" }}>
+                {duplicates.length === 0 ? (
+                  <div className="sl-empty">
+                    <i className="fas fa-check-circle" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12, color: "#15803d" }} />
+                    No duplicate inspection groups found.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 10 }}>
+                    {duplicates.map((dup, idx) => {
+                      const badgeBg = dup.count >= 10 ? "#dc2626" : dup.count >= 5 ? "#f59e0b" : "#6b7280";
+                      return (
+                        <div key={idx} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{dup.client_name}</div>
+                            <span className="sl-count-badge" style={{ background: badgeBg }}>{dup.count}x</span>
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: 4 }}>
+                            <i className="fas fa-user" style={{ marginRight: 4, color: "#9ca3af" }} />{dup.inspector || "-"}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 4 }}>
+                            <i className="fas fa-calendar" style={{ marginRight: 4 }} />{formatDate(dup.date)}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: "0.65rem", color: "#9ca3af" }}>#{dup.first_id} - #{dup.last_id}</span>
+                            <a
+                              href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
+                              target="_blank" rel="noopener noreferrer"
+                              style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                            >
+                              <i className="fas fa-external-link-alt" /> View
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ---- Edit History ---- */}
+          {!loading && !error && activeView === "history" && (
+            <>
+              {/* Desktop Table */}
+              <div className="sl-table-responsive sl-desktop-only">
+                <table className="sl-table">
+                  <thead>
+                    <tr>
+                      {[
+                        { label: "When", w: 140 },
+                        { label: "Edited By", w: 120 },
+                        { label: "Type", w: 70 },
+                        { label: "Client / Facility", w: undefined },
+                        { label: "Date", w: 100 },
+                        { label: "Fields", w: 70 },
+                        { label: "Changes", w: undefined },
+                      ].map(({ label, w }) => (
+                        <th key={label} style={{ width: w }}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="sl-empty">
+                          <i className="fas fa-history" style={{ fontSize: 32, opacity: 0.3, display: "block", marginBottom: 12 }} />
+                          No edit history yet. Changes to inspections will appear here once someone edits a record.
+                        </td>
+                      </tr>
+                    ) : editHistory.map(eh => (
+                      <tr key={eh.id} style={{ verticalAlign: "top" }}>
+                        <td style={{ fontSize: 12, color: TEXT_LIGHT, whiteSpace: "nowrap" }}>{formatDatetime(eh.edited_at)}</td>
+                        <td style={{ fontSize: 13, fontWeight: 500 }}>{eh.edited_by}</td>
+                        <td>
+                          <span className="sl-type-badge" style={{
+                            background: eh.object_type === "group" ? "#e0f2fe" : "#ede9fe",
+                            color: eh.object_type === "group" ? "#0369a1" : "#6d28d9",
+                          }}>
+                            {eh.object_type === "group" ? "Group" : "Row"}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: 13, fontWeight: 500 }}>{eh.client_name || "-"}</td>
+                        <td style={{ fontSize: 12 }}>{eh.date_of_inspection ? formatDate(eh.date_of_inspection) : "-"}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ background: "#f3f4f6", color: "#374151", padding: "2px 8px", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
+                            {eh.change_count}
+                          </span>
+                        </td>
+                        <td>
+                          {Object.entries(eh.changes || {}).map(([field, diff]) => (
+                            <div key={field} className="sl-change-item">
+                              <span style={{ fontWeight: 600, color: "#374151" }}>{diff.label}</span>:{" "}
+                              <span className="sl-change-old">{diff.old || "—"}</span>
+                              <span className="sl-change-arrow">→</span>
+                              <span className="sl-change-new">{diff.new || "—"}</span>
+                            </div>
+                          ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="sl-mobile-only" style={{ display: "none" }}>
+                {editHistory.length === 0 ? (
+                  <div className="sl-empty">
+                    <i className="fas fa-history" style={{ fontSize: 32, opacity: 0.3, display: "block", marginBottom: 12 }} />
+                    No edit history yet.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 10 }}>
+                    {editHistory.map(eh => (
+                      <div key={eh.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{eh.client_name || "-"}</div>
+                          <span className="sl-type-badge" style={{
+                            background: eh.object_type === "group" ? "#e0f2fe" : "#ede9fe",
+                            color: eh.object_type === "group" ? "#0369a1" : "#6d28d9",
+                          }}>
+                            {eh.object_type === "group" ? "Group" : "Row"}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6, fontSize: "0.75rem", color: "#6b7280" }}>
+                          <span><i className="fas fa-user" style={{ marginRight: 4, color: "#9ca3af" }} />{eh.edited_by}</span>
+                          <span><i className="fas fa-clock" style={{ marginRight: 4 }} />{formatDatetime(eh.edited_at)}</span>
+                        </div>
+                        {eh.date_of_inspection && (
+                          <div style={{ fontSize: "0.7rem", color: "#9ca3af", marginBottom: 8 }}>
+                            <i className="fas fa-calendar" style={{ marginRight: 4 }} />Inspection: {formatDate(eh.date_of_inspection)}
+                          </div>
+                        )}
+                        <div style={{ fontSize: "0.7rem", color: "#374151", marginBottom: 6, fontWeight: 600 }}>
+                          {eh.change_count} field{eh.change_count !== 1 ? "s" : ""} changed:
+                        </div>
+                        {Object.entries(eh.changes || {}).map(([field, diff]) => (
+                          <div key={field} className="sl-change-item">
+                            <span style={{ fontWeight: 600, color: "#374151" }}>{diff.label}</span>:{" "}
+                            <span className="sl-change-old">{diff.old || "—"}</span>
+                            <span className="sl-change-arrow">→</span>
+                            <span className="sl-change-new">{diff.new || "—"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && activeView === "logs" && !showAll && totalPages > 1 && (
+            <div className="sl-pagination">
+              {[
+                { label: "First", target: 1, disabled: pageNum === 1 },
+                { label: "Previous", target: pageNum - 1, disabled: pageNum === 1 },
+              ].map(({ label, target, disabled }) => (
+                <button key={label} onClick={() => !disabled && handlePage(target)} disabled={disabled} className="sl-page-btn">
+                  {label}
+                </button>
+              ))}
+              <span style={{ fontSize: 13, color: TEXT_LIGHT, padding: "0 4px" }}>Page {pageNum} of {totalPages}</span>
+              {[
+                { label: "Next", target: pageNum + 1, disabled: pageNum === totalPages },
+                { label: "Last", target: totalPages, disabled: pageNum === totalPages },
+              ].map(({ label, target, disabled }) => (
+                <button key={label} onClick={() => !disabled && handlePage(target)} disabled={disabled} className="sl-page-btn">
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
