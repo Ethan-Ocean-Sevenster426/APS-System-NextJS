@@ -8,22 +8,47 @@ interface Product {
   commodity: string;
   product_name: string;
   product_class: string;
-  dna?: boolean;
-  fat?: boolean;
-  protein?: boolean;
-  calcium?: boolean;
-  is_direction_present_for_this_inspection?: boolean;
+  dna: boolean;
+  fat: boolean;
+  protein: boolean;
+  calcium: boolean;
+  is_direction_present_for_this_inspection: boolean;
   is_product_compliant: boolean;
   is_sample_taken: boolean;
   needs_retest: string;
-  coa_uploaded?: boolean;
-  compliance_uploaded?: boolean;
-  composition_uploaded?: boolean;
-  occurrence_uploaded?: boolean;
-  retest_uploaded?: boolean;
-  other_uploaded?: boolean;
-  lab_form_uploaded?: boolean;
+  coa_uploaded: boolean;
+  compliance_uploaded: boolean;
+  composition_uploaded: boolean;
+  occurrence_uploaded: boolean;
+  retest_uploaded: boolean;
+  other_uploaded: boolean;
+  lab_form_uploaded: boolean;
   lab?: string;
+}
+
+function normalizeProduct(p: Partial<Product> & { id: number }): Product {
+  return {
+    id: p.id,
+    commodity: p.commodity || '',
+    product_name: p.product_name || '',
+    product_class: p.product_class || '',
+    dna: p.dna ?? false,
+    fat: p.fat ?? false,
+    protein: p.protein ?? false,
+    calcium: p.calcium ?? false,
+    is_direction_present_for_this_inspection: p.is_direction_present_for_this_inspection ?? false,
+    is_product_compliant: p.is_product_compliant ?? true,
+    is_sample_taken: p.is_sample_taken ?? false,
+    needs_retest: p.needs_retest || '',
+    coa_uploaded: p.coa_uploaded ?? false,
+    compliance_uploaded: p.compliance_uploaded ?? false,
+    composition_uploaded: p.composition_uploaded ?? false,
+    occurrence_uploaded: p.occurrence_uploaded ?? false,
+    retest_uploaded: p.retest_uploaded ?? false,
+    other_uploaded: p.other_uploaded ?? false,
+    lab_form_uploaded: p.lab_form_uploaded ?? false,
+    lab: p.lab || '',
+  };
 }
 
 interface FileItem {
@@ -247,7 +272,10 @@ export default function InspectionsPage() {
       })
       .then(data => {
         const renderStart = Date.now();
-        const results = data.results || data || [];
+        const results = (data.results || data || []).map((r: Inspection) => ({
+          ...r,
+          products: r.products?.map(normalizeProduct) || [],
+        }));
         setInspections(results);
         setTotal(data.count || results.length);
         if (data.total_pages !== undefined) setTotalPages(data.total_pages);
@@ -275,7 +303,10 @@ export default function InspectionsPage() {
         return r.json();
       })
       .then(data => {
-        const results = data.results || data || [];
+        const results = (data.results || data || []).map((r: Inspection) => ({
+          ...r,
+          products: r.products?.map(normalizeProduct) || [],
+        }));
         setInspections(results);
         setTotal(data.count || results.length);
         if (data.total_pages !== undefined) setTotalPages(data.total_pages);
