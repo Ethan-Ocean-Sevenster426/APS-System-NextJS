@@ -231,8 +231,8 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
       } : { display: false },
     },
     scales: {
-      x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
-      y: { beginAtZero: true, ticks: { font: { size: 10 } }, title: yLabel ? { display: true, text: yLabel, font: { size: 11 } } : undefined },
+      x: { ticks: { font: { size: 9 }, maxRotation: 60, minRotation: 30 } },
+      y: { beginAtZero: true, ticks: { font: { size: 9 } }, title: yLabel ? { display: true, text: yLabel, font: { size: 10 } } : undefined },
     },
   };
 }
@@ -1303,8 +1303,11 @@ export default function AnalyticsPage() {
               .analytics-card > div:first-child h3 { font-size: 0.85rem !important; }
               .analytics-card table { font-size: 0.7rem !important; }
               .analytics-card table th, .analytics-card table td { padding: 6px 4px !important; }
-              .analytics-chart-wrap { min-height: 180px !important; height: 220px !important; }
-              .analytics-radar-wrap { height: 320px !important; min-height: 300px !important; }
+              .analytics-chart-wrap { min-height: 180px !important; height: 250px !important; }
+              .analytics-radar-wrap { height: 400px !important; min-height: 380px !important; }
+              .analytics-fin-btns { flex-wrap: wrap !important; gap: 6px !important; }
+              .analytics-fin-btns select { width: 100% !important; min-width: unset !important; }
+              .analytics-fin-btns button { font-size: 10px !important; padding: 5px 8px !important; flex: 1 1 auto; }
               .grid { gap: 10px !important; }
             }
             @media (max-width: 480px) {
@@ -1312,8 +1315,10 @@ export default function AnalyticsPage() {
               .analytics-tabs button { font-size: 0.6rem !important; padding: 5px 6px !important; }
               .analytics-kpi-grid { grid-template-columns: 1fr 1fr !important; }
               .analytics-filter-btns button { flex: 1 1 100%; }
-              .analytics-chart-wrap { height: 180px !important; }
+              .analytics-chart-wrap { height: 200px !important; }
+              .analytics-radar-wrap { height: 350px !important; min-height: 330px !important; }
               .analytics-card > div:last-child { padding: 8px !important; }
+              .analytics-fin-btns button { font-size: 9px !important; padding: 4px 6px !important; }
             }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
@@ -1756,7 +1761,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const radarOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { position: "top" as const, labels: { boxWidth: 12, font: { size: 11 }, padding: 16 } }, datalabels: { display: false } },
+    plugins: { legend: { position: "top" as const, labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } }, datalabels: { display: false } },
     layout: { padding: { top: 50 } },
     scales: { r: { beginAtZero: true, ticks: { font: { size: 10 } }, pointLabels: { font: { size: 11 } } } },
   };
@@ -2411,7 +2416,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
       {/* Revenue Table */}
       <Card title="Revenue Per Inspector" icon="fas fa-money-bill-wave" tooltip="Detailed revenue, cost, and profit breakdown per inspector including hours, KM, and samples revenue."
         headerRight={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="analytics-fin-btns" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <select value={finPeriod} onChange={e => setFinPeriod(e.target.value)} style={{ fontSize: 11, padding: "6px 10px", border: "1px solid #d1d5db", borderRadius: 6, background: "white", color: "#374151", cursor: "pointer", minWidth: 130 }}>
               <option value="all">All Time</option>
               <option value="daily">Today</option>
