@@ -1304,6 +1304,7 @@ export default function AnalyticsPage() {
               .analytics-card table { font-size: 0.7rem !important; }
               .analytics-card table th, .analytics-card table td { padding: 6px 4px !important; }
               .analytics-chart-wrap { min-height: 180px !important; height: 220px !important; }
+              .analytics-radar-wrap { height: 320px !important; min-height: 300px !important; }
               .grid { gap: 10px !important; }
             }
             @media (max-width: 480px) {
@@ -1775,9 +1776,9 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
           </select>
         }
       >
-        <ChartWrap height="380px">
+        <div className="analytics-radar-wrap" style={{ position: "relative", height: "380px", minHeight: 300 }}>
           <DLRadar data={radarChartData} options={radarOpts as never} />
-        </ChartWrap>
+        </div>
       </Card>
 
       {/* Quarterly Targets */}
