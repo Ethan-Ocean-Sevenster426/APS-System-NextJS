@@ -10,6 +10,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon") ||
+    pathname.startsWith("/media/") ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/reset-password") ||
     /\.\w+$/.test(pathname) // static files like .css, .js, .png
   ) {
     return NextResponse.next();
