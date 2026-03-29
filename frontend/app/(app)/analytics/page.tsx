@@ -1147,11 +1147,11 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div style={{ padding: "28px 20px 32px", minHeight: "100vh", position: "relative" }}>
+    <div className="analytics-page" style={{ padding: "28px 20px 32px", minHeight: "100vh", position: "relative" }}>
       {/* Background image matching Django */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", opacity: 1, zIndex: -2, pointerEvents: "none" }} />
       {/* Panel Tabs */}
-      <div className="flex flex-wrap" style={{ gap: 6, marginBottom: "1rem" }}>
+      <div className="analytics-tabs flex flex-wrap" style={{ gap: 6, marginBottom: "1rem" }}>
         {visiblePanels.map((p) => (
           <button
             key={p.key}
@@ -1180,7 +1180,7 @@ export default function AnalyticsPage() {
 
       {/* Filter Bar */}
       <div className="bg-white rounded-md border border-gray-200" style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", padding: "0.75rem 1rem", marginBottom: "1rem" }}>
-        <div className="flex flex-wrap items-end" style={{ gap: "0.75rem" }}>
+        <div className="analytics-filter-bar flex flex-wrap items-end" style={{ gap: "0.75rem" }}>
           <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Date From</label>
             <input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
@@ -1239,7 +1239,7 @@ export default function AnalyticsPage() {
               placeholder="All Commodities"
             />
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
+          <div className="analytics-filter-btns" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
             <button onClick={handleApply}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <i className="fas fa-filter" /> Apply
@@ -1286,6 +1286,19 @@ export default function AnalyticsPage() {
             @media (max-width: 768px) {
               .md\\:grid-cols-2 { grid-template-columns: 1fr !important; }
               .md\\:grid-cols-3 { grid-template-columns: 1fr !important; }
+              .analytics-page { padding: 16px 12px 24px !important; }
+              .analytics-filter-bar { flex-direction: column !important; }
+              .analytics-filter-bar > div { min-width: 100% !important; flex: unset !important; }
+              .analytics-filter-btns { flex-wrap: wrap !important; width: 100% !important; }
+              .analytics-filter-btns button { flex: 1 1 auto; min-width: 0; }
+              .analytics-tabs { gap: 4px !important; }
+              .analytics-tabs button { font-size: 0.75rem !important; padding: 6px 10px !important; min-height: 32px !important; }
+              .analytics-tabs button i { display: none; }
+              .analytics-modal { width: 95% !important; max-height: 85vh !important; }
+            }
+            @media (max-width: 480px) {
+              .analytics-page { padding: 10px 8px 20px !important; }
+              .analytics-tabs button { font-size: 0.65rem !important; padding: 5px 6px !important; }
             }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
