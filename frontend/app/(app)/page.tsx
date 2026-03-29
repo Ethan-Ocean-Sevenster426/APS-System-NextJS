@@ -110,7 +110,18 @@ export default function HomePage() {
 
   return (
     <div style={{ minHeight: "100%", padding: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @media (max-width: 768px) {
+          .home-content-grid { grid-template-columns: 1fr !important; }
+          .home-stats-grid { grid-template-columns: 1fr 1fr !important; }
+          .home-quick-links { grid-template-columns: 1fr !important; }
+          .home-section { margin-left: 12px !important; margin-right: 12px !important; }
+        }
+        @media (max-width: 480px) {
+          .home-stats-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ paddingTop: 20, paddingBottom: 12, textAlign: "center", marginBottom: 8 }}>
@@ -123,12 +134,12 @@ export default function HomePage() {
       </div>
 
       {/* Quick Access Card */}
-      <div style={{ background: "#fff", borderRadius: 6, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #e5e7eb", padding: "12px 16px", marginBottom: 10, marginLeft: 20, marginRight: 20 }}>
+      <div className="home-section" style={{ background: "#fff", borderRadius: 6, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #e5e7eb", padding: "12px 16px", marginBottom: 10, marginLeft: 20, marginRight: 20 }}>
         <h2 style={{ fontSize: "0.9rem", fontWeight: 600, color: "#1f2937", marginBottom: 6, marginTop: 0 }}>Quick Access</h2>
         <p style={{ color: "#4b5563", lineHeight: 1.4, marginBottom: 10, fontSize: "0.72rem" }}>
           Welcome to the Food Safety Agency management system. Data syncs automatically every hour in the background.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
+        <div className="home-quick-links" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
           {quickLinks.map(link => (
             <a key={link.href} href={link.href} style={{
               background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6, padding: "8px 10px",
@@ -149,7 +160,7 @@ export default function HomePage() {
       </div>
 
       {/* Statistics Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10, marginLeft: 20, marginRight: 20 }}>
+      <div className="home-section home-stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10, marginLeft: 20, marginRight: 20 }}>
         <div style={{ background: "#fff", borderRadius: 6, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #e5e7eb", padding: "10px 16px", textAlign: "center" }}>
           <div style={{ color: "#007890", fontSize: "1.5rem", fontWeight: 700, marginBottom: 2, lineHeight: 1 }}>
             {loading ? (
@@ -169,7 +180,7 @@ export default function HomePage() {
       </div>
 
       {/* Content Grid: Quick Actions + Recent Activity + System Status */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginLeft: 20, marginRight: 20, paddingBottom: 16 }}>
+      <div className="home-section home-content-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginLeft: 20, marginRight: 20, paddingBottom: 16 }}>
         {/* Quick Actions */}
         <div style={{ background: "#fff", borderRadius: 6, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #e5e7eb", padding: "8px 10px" }}>
           <h3 style={{ fontSize: "0.72rem", fontWeight: 600, color: "#1f2937", marginBottom: 6, marginTop: 0 }}>Quick Actions</h3>
