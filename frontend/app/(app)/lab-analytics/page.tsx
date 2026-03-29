@@ -331,9 +331,15 @@ export default function LabAnalyticsPage() {
           .la-stat-grid { grid-template-columns: repeat(2, 1fr); }
           .la-mid-grid  { grid-template-columns: 1fr; }
         }
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
           .la-wrap { padding: 16px 12px 32px; }
-          .la-stat-grid { grid-template-columns: 1fr 1fr; }
+          .la-filter-bar { flex-direction: column !important; gap: 8px !important; }
+          .la-filter-bar select { width: 100% !important; }
+        }
+        @media (max-width: 480px) {
+          .la-wrap { padding: 12px 8px 24px; }
+          .la-stat-grid { grid-template-columns: 1fr; gap: 10px; }
+          .la-mid-grid { gap: 12px; }
         }
       `}</style>
 
@@ -347,7 +353,7 @@ export default function LabAnalyticsPage() {
 
           {/* Filter Bar */}
           <div style={{ background: "rgba(255,255,255,0.95)", borderRadius: 10, padding: "12px 16px", marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", border: "1px solid #e5e7eb" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
+            <div className="la-filter-bar" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
                 <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); fetchData(e.target.value, undefined, undefined, undefined); }}

@@ -352,9 +352,22 @@ export default function ExportSheetPage() {
         @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
         .export-tr:hover td { background: rgba(0,120,144,0.06) !important; }
         .fee-inp:focus { outline: 2px solid #007890; outline-offset: 1px; border-color: #007890; }
+        .export-container { padding: 24px; font-family: system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; color: #1f2937; }
+        .export-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 768px) {
+          .export-container { padding: 12px !important; }
+          .export-card-body { padding: 10px !important; }
+          .export-filter-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+          .export-header-bar { flex-direction: column !important; gap: 8px !important; align-items: stretch !important; }
+          .export-header-bar button { width: 100%; justify-content: center; }
+        }
+        @media (max-width: 480px) {
+          .export-filter-grid { grid-template-columns: 1fr !important; }
+          .export-container { padding: 8px !important; }
+        }
       `}</style>
 
-      <div style={{ padding: 24, fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", color: "#1f2937" }}>
+      <div className="export-container" style={{ padding: 24, fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif", color: "#1f2937" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 20, textAlign: "center" }}>
@@ -376,7 +389,7 @@ export default function ExportSheetPage() {
 
           <div style={{ padding: 16, background: "#f9fafb" }}>
             {/* Filters */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
+            <div className="export-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
               <div style={{ position: "relative" }}>
                 <label style={{ fontSize: "0.7rem", fontWeight: 500, color: "#64748b", display: "block", marginBottom: 2 }}>Client</label>
                 <input type="text" placeholder="Search or select client..." value={clientFilter}
