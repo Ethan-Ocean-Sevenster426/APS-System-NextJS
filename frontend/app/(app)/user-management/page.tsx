@@ -571,23 +571,36 @@ export default function UserManagementPage() {
 .um-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 1.25rem 1.5rem; box-sizing: border-box; }
 
 /* Responsive breakpoints */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .um-container { padding: 0 0.75rem 1.25rem; }
   .um-header h1 { font-size: 1.35rem; }
   .um-header h2 { font-size: 0.875rem; }
   .um-header { padding: 1rem 0 0.75rem; margin-bottom: 1rem; }
   .um-form-group { grid-template-columns: 1fr; }
+  .um-card-header { padding: 0.5rem 0.75rem; flex-direction: column !important; gap: 8px; align-items: stretch !important; }
+  .um-card-title { justify-content: center; }
+  .um-btn-group { flex-wrap: wrap; width: 100%; }
+  .um-btn-group .um-btn { flex: 1 1 45%; min-width: 0; justify-content: center; }
   .um-card-body { padding: 0.75rem; }
-  .um-card-header { padding: 0.5rem 0.75rem; }
-  .um-table th, .um-table td { padding: 8px 8px; }
+  .um-table th, .um-table td { padding: 8px 6px; font-size: 0.7rem; }
   .um-col-email { display: none; }
-  .um-col-fullname { display: none; }
-  .um-btn { font-size: 0.625rem; padding: 0.3rem 0.5rem; }
+  .um-table-responsive { -webkit-overflow-scrolling: touch; }
+  .um-modal-content { width: 95% !important; max-height: 90vh !important; }
+  .um-modal-body { padding: 16px !important; }
+  .um-form-actions { justify-content: stretch; }
+  .um-form-actions .um-btn { flex: 1; justify-content: center; }
 }
 @media (max-width: 480px) {
+  .um-container { padding: 0 0.5rem 1rem; }
+  .um-header h1 { font-size: 1.1rem; }
+  .um-header h2 { font-size: 0.75rem; }
   .um-col-email { display: none; }
   .um-col-fullname { display: none; }
-  .um-btn-group { justify-content: flex-end; width: 100%; }
+  .um-btn-group { flex-direction: column; }
+  .um-btn-group .um-btn { flex: unset; width: 100%; }
+  .um-btn { font-size: 0.65rem; padding: 0.35rem 0.5rem; }
+  .um-table { min-width: 400px; }
+  .um-table th, .um-table td { padding: 6px 4px; font-size: 0.65rem; }
 }
 
 /* Alert boxes */
