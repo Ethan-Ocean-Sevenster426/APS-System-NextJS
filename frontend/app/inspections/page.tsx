@@ -141,6 +141,20 @@ function IrMultiSelect({ label, options, selected, onChange }: { label: string; 
   );
 }
 
+const perf = {
+  pageStart: Date.now(),
+  log(label: string, start: number, extra?: Record<string, unknown>) {
+    const elapsed = Date.now() - start;
+    const sincePageLoad = Date.now() - perf.pageStart;
+    console.log(
+      `%c[PERF] ${label}%c ${elapsed}ms (page +${sincePageLoad}ms)`,
+      "color: #007890; font-weight: bold",
+      "color: #6b7280",
+      extra || ""
+    );
+  },
+};
+
 export default function InspectionsPage() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [total, setTotal] = useState(0);
@@ -219,18 +233,30 @@ export default function InspectionsPage() {
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
     const qs = `?${p.toString()}`;
+    const fetchStart = Date.now();
+    console.log(`%c[PERF] fetchInspections START%c ${qs}`, "color: #007890; font-weight: bold", "color: #6b7280");
     fetch(`/api/inspections${qs}`)
       .then(r => {
+        perf.log("fetchInspections RESPONSE", fetchStart, { status: r.status, headers: Object.fromEntries(r.headers.entries()) });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
+        const parseStart = Date.now();
+        return r.json().then(data => {
+          perf.log("fetchInspections JSON PARSE", parseStart, { size: JSON.stringify(data).length });
+          return data;
+        });
       })
       .then(data => {
+        const renderStart = Date.now();
         const results = data.results || data || [];
         setInspections(results);
         setTotal(data.count || results.length);
         if (data.total_pages !== undefined) setTotalPages(data.total_pages);
         if (data.duplicate_groups_count !== undefined) setDuplicateGroupsCount(data.duplicate_groups_count);
         if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
+        perf.log("fetchInspections TOTAL", fetchStart, { count: results.length, total: data.count });
+        requestAnimationFrame(() => {
+          perf.log("fetchInspections RENDER COMPLETE", renderStart, { rowCount: results.length });
+        });
       })
       .catch(err => console.error("Fetch inspections failed:", err))
       .finally(() => setLoading(false));
@@ -241,8 +267,13 @@ export default function InspectionsPage() {
   const fetchUndeliverable = useCallback((page?: number) => {
     setLoading(true);
     const pg = page ?? 1;
+    const fetchStart = Date.now();
+    console.log(`%c[PERF] fetchUndeliverable START%c page=${pg}`, "color: #e67e22; font-weight: bold", "color: #6b7280");
     fetch(`/api/inspections?show_undeliverable=true&page=${pg}&page_size=${PAGE_SIZE}`)
-      .then(r => r.json())
+      .then(r => {
+        perf.log("fetchUndeliverable RESPONSE", fetchStart, { status: r.status });
+        return r.json();
+      })
       .then(data => {
         const results = data.results || data || [];
         setInspections(results);
@@ -250,6 +281,7 @@ export default function InspectionsPage() {
         if (data.total_pages !== undefined) setTotalPages(data.total_pages);
         if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
         if (data.bounced_emails) setBouncedEmails(new Set(data.bounced_emails.map((e: string) => e.toLowerCase())));
+        perf.log("fetchUndeliverable TOTAL", fetchStart, { count: results.length });
       })
       .catch(err => console.error("Fetch undeliverable failed:", err))
       .finally(() => setLoading(false));
@@ -263,18 +295,27 @@ export default function InspectionsPage() {
 
   // Background sync: refresh undeliverable count silently on page load
   useEffect(() => {
+    const start = Date.now();
+    console.log("%c[PERF] undeliverable count bg sync START", "color: #9b59b6; font-weight: bold");
     fetch("/api/inspections?show_undeliverable=true&page=1&page_size=1")
       .then(r => r.json())
       .then(data => {
         if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
+        perf.log("undeliverable count bg sync DONE", start, { count: data.undeliverable_count });
       })
-      .catch(() => {});
+      .catch((err) => { console.error("[PERF] undeliverable count bg sync FAILED", err); });
   }, []);
 
   useEffect(() => {
+    const start = Date.now();
+    console.log("%c[PERF] /api/me auth check START", "color: #e74c3c; font-weight: bold");
     fetch("/api/me", { credentials: "include" })
-      .then(r => r.json())
+      .then(r => {
+        perf.log("/api/me RESPONSE", start, { status: r.status });
+        return r.json();
+      })
       .then(d => {
+        perf.log("/api/me COMPLETE", start, { authenticated: d.authenticated, role: d.role });
         if (!d.authenticated) {
           window.location.href = "/login";
           return;
