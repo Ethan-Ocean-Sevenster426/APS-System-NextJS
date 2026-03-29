@@ -980,17 +980,26 @@ export default function ClientsPage() {
           .cas-header h2 { font-size: 0.85rem !important; }
           .cas-action-bar { flex-direction: column; gap: 6px !important; }
           .cas-btn { width: 100%; justify-content: center; font-size: 0.8rem !important; padding: 8px 12px !important; }
-          .cas-filter-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+          .cas-filter-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
           .cas-filter-grid > div > label { font-size: 0.75rem; margin-bottom: 2px; }
           .cas-filter-grid > div > input, .cas-filter-grid > div > select { padding: 8px; font-size: 0.8rem; }
           .cas-filter-buttons { flex-direction: column; }
           .cas-filter-buttons .cas-btn { width: 100%; }
-          .cas-filter-section { padding: 12px !important; }
+          .cas-filter-section { padding: 12px !important; margin-bottom: 12px !important; }
           .cas-form-row { grid-template-columns: 1fr; }
           .cas-table { min-width: 600px; }
+          .cas-table-container { border-radius: 4px; -webkit-overflow-scrolling: touch; }
           .cas-card { overflow-x: auto; }
-          .cas-modal-content { width: 95% !important; padding: 0 !important; }
+          .cas-modal-content { width: 95% !important; max-height: 90vh !important; padding: 0 !important; }
+          .cas-modal-body { padding: 16px !important; }
           .cas-ms-drop { max-height: 200px; }
+        }
+        @media (max-width: 480px) {
+          .cas-filter-grid { grid-template-columns: 1fr !important; }
+          .cas-header h1 { font-size: 0.95rem !important; }
+          .cas-header h2 { font-size: 0.75rem !important; }
+          .cas-table { min-width: 500px; font-size: 0.65rem; }
+          .cas-table th, .cas-table td { padding: 6px 8px; }
         }
         @keyframes spin { to { transform: rotate(360deg) } }
       `}</style>
