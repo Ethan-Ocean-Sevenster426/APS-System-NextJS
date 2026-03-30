@@ -144,6 +144,9 @@ export default function AddInspectionPage() {
   const [occurrenceDescription, setOccurrenceDescription] = useState("");
   const [occFile, setOccFile] = useState<File | null>(null);
 
+  // RFI file (for Raw/PMP)
+  const [rfiFile, setRfiFile] = useState<File | null>(null);
+
   // Step 2
   const [products, setProducts] = useState<ProductEntry[]>([]);
 
@@ -266,6 +269,18 @@ export default function AddInspectionPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // Upload RFI file if present
+        if (rfiFile && data.group_id) {
+          try {
+            const fd = new FormData();
+            fd.append("group_id", String(data.group_id));
+            fd.append("document_type", "rfi");
+            fd.append("file", rfiFile);
+            await fetch("/api/upload-document", { method: "POST", body: fd });
+          } catch {
+            // Non-blocking: inspection created, file upload failed silently
+          }
+        }
         window.location.href = "/inspections";
       } else {
         setToast({ msg: "Error: " + (data.error || "Unknown error"), ok: false });
@@ -1110,6 +1125,56 @@ export default function AddInspectionPage() {
               <label className="form-label">Comments / Notes</label>
               <textarea className="form-control" rows={4} value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional notes..." style={{ resize: "vertical" }} />
             </div>
+
+            {/* RFI Upload - shown only when RAW or PMP commodities are selected */}
+            {(commodities.RAW > 0 || commodities.PMP > 0) && (
+              <div style={{ marginTop: 20 }}>
+                <label className="form-label">
+                  <i className="fas fa-file-invoice" style={{ color: "#007890", marginRight: 6 }} />
+                  RFI Document <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 8px" }}>
+                  <i className="fas fa-info-circle" style={{ marginRight: 4 }} />Required for Raw Meat and PMP commodities
+                </p>
+                <div
+                  style={{
+                    border: `2px dashed ${rfiFile ? "#22c55e" : "#d1d5db"}`,
+                    borderRadius: 10,
+                    padding: "20px 24px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    background: rfiFile ? "#f0fdf4" : "#fafafa",
+                    transition: "border-color 0.2s, background 0.2s",
+                  }}
+                  onClick={() => document.getElementById("rfiFileInput")?.click()}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#007890"; e.currentTarget.style.background = "#e6f3f7"; }}
+                  onDragLeave={e => { e.currentTarget.style.borderColor = rfiFile ? "#22c55e" : "#d1d5db"; e.currentTarget.style.background = rfiFile ? "#f0fdf4" : "#fafafa"; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#22c55e"; e.currentTarget.style.background = "#f0fdf4"; if (e.dataTransfer.files[0]) setRfiFile(e.dataTransfer.files[0]); }}
+                >
+                  {rfiFile ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                      <i className="fas fa-file-pdf" style={{ color: "#22c55e", fontSize: "1.5rem" }} />
+                      <div style={{ textAlign: "left" }}>
+                        <div style={{ fontWeight: 600, color: "#1f2937", fontSize: 14 }}>{rfiFile.name}</div>
+                        <div style={{ fontSize: 12, color: "#6b7280" }}>{(rfiFile.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      <button type="button" onClick={e => { e.stopPropagation(); setRfiFile(null); }}
+                        style={{ background: "#fee2e2", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "#dc2626", fontSize: 12, fontWeight: 600, marginLeft: 8 }}>
+                        <i className="fas fa-times" /> Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <i className="fas fa-cloud-upload-alt" style={{ fontSize: "2rem", color: "#9ca3af", display: "block", marginBottom: 6 }} />
+                      <p style={{ margin: 0, fontWeight: 500, color: "#374151", fontSize: 14 }}>Click or drag to upload RFI document</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>PDF, DOC, DOCX, JPG, PNG</p>
+                    </>
+                  )}
+                </div>
+                <input type="file" id="rfiFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style={{ display: "none" }}
+                  onChange={e => { if (e.target.files?.[0]) setRfiFile(e.target.files[0]); }} />
+              </div>
+            )}
           </div>
 
           {/* ===== STEP 4: REVIEW ===== */}
@@ -1163,9 +1228,20 @@ export default function AddInspectionPage() {
               </div>
             )}
 
+            {/* RFI Document Status */}
+            {(commodities.RAW > 0 || commodities.PMP > 0) && (
+              <div style={{ background: "#f9fafb", borderRadius: 12, padding: 24, marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 600, color: "#374151", marginBottom: 16 }}>Documents</h4>
+                <div style={{ padding: "12px 16px", borderRadius: 8, border: "1px solid", display: "flex", alignItems: "center", gap: 10, ...(rfiFile ? { background: "#f0fdf4", borderColor: "#10b981" } : { background: "#fef2f2", borderColor: "#ef4444" }) }}>
+                  <i className={`fas ${rfiFile ? "fa-check-circle" : "fa-times-circle"}`} style={{ color: rfiFile ? "#22c55e" : "#ef4444" }} />
+                  <span style={{ fontSize: 14, color: "#1f2937" }}>RFI: {rfiFile ? rfiFile.name : "Not uploaded (Required)"}</span>
+                </div>
+              </div>
+            )}
+
             <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 18px", color: "#166534", fontSize: 14 }}>
               <i className="fas fa-check-circle" style={{ marginRight: 8 }} />
-              Ready to submit. Click "Create Inspection" to save.
+              Ready to submit. Click &quot;Create Inspection&quot; to save.
             </div>
           </div>
 
