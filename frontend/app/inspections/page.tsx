@@ -1129,13 +1129,34 @@ export default function InspectionsPage() {
             )}
           </div>
 
-          {/* Occurrence Description - below products */}
+          {/* Occurrence: Upload Buttons + Description - always visible below */}
           {isOccurrence && (
-            <div style={{ width: "100%", marginTop: 8, padding: "8px 10px", background: "#fffbeb", borderRadius: 6, border: "1px solid #fde68a", fontSize: 9, color: s.comment ? "#374151" : "#9ca3af", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 3, fontSize: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                <i className="fas fa-file-alt" style={{ marginRight: 4 }} />Description
+            <div style={{ width: "100%", marginTop: 8 }}>
+              {/* Upload Buttons */}
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
+                {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                <DisabledBtn label="COA/Lab" />
+                <DisabledBtn label="Lab Form" />
+                <DisabledBtn label="Retest" />
+                <UploadBtn
+                  label="Occurrence"
+                  uploaded={products.length > 0 ? products[0].occurrence_uploaded : false}
+                  uploadKey={`occurrence-occ-${s.id}`}
+                  onClick={() => {
+                    const pid = products.length > 0 ? products[0].id : s.id;
+                    triggerUpload(pid, s.group_id || '', 'occurrence', pid);
+                  }}
+                />
+                <DisabledBtn label="Other" />
               </div>
-              {s.comment || <em>No description provided</em>}
+              {/* Description */}
+              <div style={{ padding: "8px 10px", background: "#fffbeb", borderRadius: 6, border: "1px solid #fde68a", fontSize: 9, color: s.comment ? "#374151" : "#9ca3af", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 3, fontSize: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <i className="fas fa-file-alt" style={{ marginRight: 4 }} />Description
+                </div>
+                {s.comment || <em>No description provided</em>}
+              </div>
             </div>
           )}
 
