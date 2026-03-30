@@ -2875,6 +2875,17 @@ def api_add_inspection(request):
         if not date_obj:
             return _cors(JsonResponse({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD'}))
 
+        # Resolve inspector name: payload > authenticated user > fallback
+        inspector_name = data.get('inspector_name', '').strip()
+        if not inspector_name or inspector_name == 'API User':
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                inspector_name = f"{request.user.first_name} {request.user.last_name}".strip()
+                if not inspector_name:
+                    inspector_name = request.user.username
+            else:
+                inspector_name = 'API User'
+        data['inspector_name'] = inspector_name
+
         with transaction.atomic():
             # Get or create client
             client_name = data['client_name'].strip()
