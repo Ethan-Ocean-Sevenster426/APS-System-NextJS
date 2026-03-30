@@ -1025,34 +1025,18 @@ export default function InspectionsPage() {
                     <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {isOccurrence ? (
                         <>
-                          {roleLoaded && !isLabTech && (
-                            <UploadBtn
-                              label="Compliance"
-                              uploaded={product.compliance_uploaded ?? false}
-                              uploadKey={`compliance-${product.id}`}
-                              onClick={() => triggerUpload(product.id, s.group_id || '', 'compliance', product.id)}
-                            />
-                          )}
-                          {roleLoaded && !isLabTech && (
-                            <UploadBtn
-                              label="Composition"
-                              uploaded={product.composition_uploaded}
-                              uploadKey={`composition-${product.id}`}
-                              onClick={() => triggerUpload(product.id, s.group_id || '', 'composition', product.id)}
-                            />
-                          )}
+                          {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
+                          {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                          <DisabledBtn label="COA/Lab" />
+                          <DisabledBtn label="Lab Form" />
+                          <DisabledBtn label="Retest" />
                           <UploadBtn
                             label="Occurrence"
                             uploaded={product.occurrence_uploaded}
                             uploadKey={`occurrence-${product.id}`}
                             onClick={() => triggerUpload(product.id, s.group_id || '', 'occurrence', product.id)}
                           />
-                          <UploadBtn
-                            label="Other"
-                            uploaded={product.other_uploaded}
-                            uploadKey={`other-${product.id}`}
-                            onClick={() => triggerUpload(product.id, s.group_id || '', 'other', product.id)}
-                          />
+                          <DisabledBtn label="Other" />
                         </>
                       ) : (
                         <>
