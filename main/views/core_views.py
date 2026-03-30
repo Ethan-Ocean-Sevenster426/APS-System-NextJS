@@ -7278,7 +7278,7 @@ def generate_visit_hours_km_items(inspection_id, inspection, invoice_ref, rfi_re
     items = []
 
     # Load pricing - Use HISTORICAL rates based on inspection date
-    INSPECTION_HOUR_RATE = get_fee_rate('inspection_hour_rate', 510.00, inspection.date_of_inspection)
+    INSPECTION_HOUR_RATE = get_fee_rate('inspection_hour_rate', 540.60, inspection.date_of_inspection)
     TRAVEL_RATE_PER_KM = get_fee_rate('travel_rate_per_km', 6.50, inspection.date_of_inspection)
 
     # Handle missing client name
@@ -7377,10 +7377,10 @@ def generate_test_line_items(inspection_id, inspection, invoice_ref, rfi_ref, pr
     items = []
 
     # Load pricing - Use HISTORICAL rates based on inspection date
-    FAT_TEST_RATE = get_fee_rate('fat_test_rate', 826.00, inspection.date_of_inspection)
-    PROTEIN_TEST_RATE = get_fee_rate('protein_test_rate', 503.00, inspection.date_of_inspection)
-    CALCIUM_TEST_RATE = get_fee_rate('calcium_test_rate', 379.00, inspection.date_of_inspection)
-    DNA_TEST_RATE = get_fee_rate('dna_test_rate', 2605.00, inspection.date_of_inspection)
+    FAT_TEST_RATE = get_fee_rate('fat_test_rate', 875.56, inspection.date_of_inspection)
+    PROTEIN_TEST_RATE = get_fee_rate('protein_test_rate', 533.18, inspection.date_of_inspection)
+    CALCIUM_TEST_RATE = get_fee_rate('calcium_test_rate', 401.74, inspection.date_of_inspection)
+    DNA_TEST_RATE = get_fee_rate('dna_test_rate', 2761.30, inspection.date_of_inspection)
 
     # Handle missing client name
     client_name = inspection.client_name if inspection.client_name else 'Unknown Client'
@@ -7651,14 +7651,14 @@ def generate_invoice_line_items(inspection_id, inspection, invoice_ref, rfi_ref,
     items = []
 
     # Load pricing from database (fallback to 2025 gazette rates if not in DB)
-    INSPECTION_HOUR_RATE = get_fee_rate('inspection_hour_rate', 510.00)
+    INSPECTION_HOUR_RATE = get_fee_rate('inspection_hour_rate', 540.60)
     INSPECTION_OVERTIME_RATE = get_fee_rate('inspection_overtime_rate', 567.00)
     INSPECTION_SUNDAY_RATE = get_fee_rate('inspection_sunday_rate', 680.00)
     TRAVEL_RATE_PER_KM = get_fee_rate('travel_rate_per_km', 6.50)
-    FAT_TEST_RATE = get_fee_rate('fat_test_rate', 826.00)
-    PROTEIN_TEST_RATE = get_fee_rate('protein_test_rate', 503.00)
-    CALCIUM_TEST_RATE = get_fee_rate('calcium_test_rate', 379.00)
-    DNA_TEST_RATE = get_fee_rate('dna_test_rate', 2605.00)
+    FAT_TEST_RATE = get_fee_rate('fat_test_rate', 875.56)
+    PROTEIN_TEST_RATE = get_fee_rate('protein_test_rate', 533.18)
+    CALCIUM_TEST_RATE = get_fee_rate('calcium_test_rate', 401.74)
+    DNA_TEST_RATE = get_fee_rate('dna_test_rate', 2761.30)
     SOYA_TEST_RATE = get_fee_rate('soya_test_rate', 1665.00)
     STARCH_TEST_RATE = get_fee_rate('starch_test_rate', 1472.00)
     PHYSICAL_TEST_RATE = get_fee_rate('physical_test_rate', 200.00)
