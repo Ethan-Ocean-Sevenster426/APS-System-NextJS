@@ -199,6 +199,11 @@ export default function InspectionsPage() {
   const [undeliverableCount, setUndeliverableCount] = useState(0);
   const [undeliverableEmails, setUndeliverableEmails] = useState<string[]>([]);
 
+  // Full filter option lists from backend (all inspectors across all pages)
+  const [allInspectors, setAllInspectors] = useState<string[]>([]);
+  const [allCorpGroups, setAllCorpGroups] = useState<string[]>([]);
+  const [allGroupTypes, setAllGroupTypes] = useState<string[]>([]);
+
   // Filter values (arrays for multi-select)
   const [inspectorFilter, setInspectorFilter] = useState<string[]>([]);
   const [corpGroupFilter, setCorpGroupFilter] = useState<string[]>([]);
@@ -285,6 +290,9 @@ export default function InspectionsPage() {
         if (data.total_pages !== undefined) setTotalPages(data.total_pages);
         if (data.duplicate_groups_count !== undefined) setDuplicateGroupsCount(data.duplicate_groups_count);
         if (data.undeliverable_count !== undefined) setUndeliverableCount(data.undeliverable_count);
+        if (data.all_inspectors) setAllInspectors(data.all_inspectors);
+        if (data.all_corporate_groups) setAllCorpGroups(data.all_corporate_groups);
+        if (data.all_group_types) setAllGroupTypes(data.all_group_types);
         perf.log("fetchInspections TOTAL", fetchStart, { count: results.length, total: data.count });
         requestAnimationFrame(() => {
           perf.log("fetchInspections RENDER COMPLETE", renderStart, { rowCount: results.length });
@@ -634,10 +642,10 @@ export default function InspectionsPage() {
     });
   }, [inspections, groupFiles]);
 
-  // Derived filter options
-  const inspectorOptions = useMemo(() => [...new Set(inspections.map(i => i.inspector_name).filter(Boolean))].sort() as string[], [inspections]);
-  const corpGroupOptions = useMemo(() => [...new Set(inspections.map(i => i.corporate_group).filter(Boolean))].sort() as string[], [inspections]);
-  const groupTypeOptions = useMemo(() => [...new Set(inspections.map(i => i.group_type).filter(Boolean))].sort() as string[], [inspections]);
+  // Filter options: use full lists from backend, fallback to current page
+  const inspectorOptions = allInspectors.length > 0 ? allInspectors : [...new Set(inspections.map(i => i.inspector_name).filter(Boolean))].sort() as string[];
+  const corpGroupOptions = allCorpGroups.length > 0 ? allCorpGroups : [...new Set(inspections.map(i => i.corporate_group).filter(Boolean))].sort() as string[];
+  const groupTypeOptions = allGroupTypes.length > 0 ? allGroupTypes : [...new Set(inspections.map(i => i.group_type).filter(Boolean))].sort() as string[];
   const clientOptions = useMemo(() => [...new Set(inspections.map(i => i.client_name).filter(Boolean))].sort() as string[], [inspections]);
 
 

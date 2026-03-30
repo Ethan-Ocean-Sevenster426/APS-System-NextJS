@@ -1352,6 +1352,21 @@ def api_inspections(request):
             })
 
         import math as _math
+
+        # Get ALL unique inspectors, corporate groups, group types for filter dropdowns
+        _all_inspectors = sorted(
+            InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
+            .values_list('inspector_name', flat=True).distinct()
+        )
+        _all_corp_groups = sorted(
+            InspectionGroup.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='')
+            .values_list('corporate_group', flat=True).distinct()
+        )
+        _all_group_types = sorted(
+            InspectionGroup.objects.exclude(group_type__isnull=True).exclude(group_type='')
+            .values_list('group_type', flat=True).distinct()
+        )
+
         _resp = {
             'count': _total_count,
             'results': results,
@@ -1361,6 +1376,9 @@ def api_inspections(request):
             'duplicate_groups_count': duplicate_groups_count,
             'show_duplicates': show_duplicates,
             'undeliverable_count': undeliverable_count,
+            'all_inspectors': _all_inspectors,
+            'all_corporate_groups': _all_corp_groups,
+            'all_group_types': _all_group_types,
         }
         # Include bounced emails list so frontend can highlight them
         if show_undeliverable and _bounced_emails_list:
