@@ -1077,8 +1077,11 @@ def api_inspections(request):
 
         # Inspector role: only show their own inspections
         # Inspector Manager: sees ALL inspections (like admin)
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            user_role = getattr(request.user, 'role', '')
+        _is_auth = hasattr(request, 'user') and request.user.is_authenticated
+        _user_role = getattr(request.user, 'role', '') if _is_auth else 'anonymous'
+        print(f"[INSPECTIONS_API] authenticated={_is_auth}, user={request.user if _is_auth else 'anon'}, role={_user_role}")
+        if _is_auth:
+            user_role = _user_role
             if user_role == 'inspector':
                 from ..models import InspectorMapping
                 inspector_name = request.user.get_full_name() or request.user.username
