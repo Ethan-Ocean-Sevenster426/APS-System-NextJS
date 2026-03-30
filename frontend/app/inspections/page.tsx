@@ -1025,7 +1025,7 @@ export default function InspectionsPage() {
                     )}
 
                     {/* Upload Buttons */}
-                    <div style={{ flex: "1 1 100%", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", minWidth: 0, marginTop: 4 }}>
+                    <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {isOccurrence ? (
                         <>
                           {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
