@@ -251,13 +251,14 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string) => {
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string) => {
     setLoading(true);
     const p = new URLSearchParams();
     if (duplicates) p.set("show_duplicates", "true");
     if (from) p.set("date_from", from);
     if (to) p.set("date_to", to);
     if (search) p.set("client_search", search);
+    if (inspector) p.set("inspector", inspector);
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
     const qs = `?${p.toString()}`;
@@ -329,9 +330,10 @@ export default function InspectionsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-    fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch);
+    const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
+    fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch, singleInspector);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, debouncedSearch]);
+  }, [dateFrom, dateTo, debouncedSearch, inspectorFilter]);
 
   // Background sync: refresh undeliverable count silently on page load
   useEffect(() => {
@@ -703,7 +705,8 @@ export default function InspectionsPage() {
     if (showUndeliverable) {
       fetchUndeliverable(page);
     } else {
-      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch);
+      const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
+      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector);
     }
   };
 

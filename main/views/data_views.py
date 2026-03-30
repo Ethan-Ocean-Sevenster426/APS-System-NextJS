@@ -1097,6 +1097,11 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(inspector_q)
             # inspector_manager sees all inspections - no filtering needed
 
+        # Server-side inspector filter
+        filter_inspector = request.GET.get('inspector', '').strip()
+        if filter_inspector:
+            groups_qs = groups_qs.filter(inspector_name__iexact=filter_inspector)
+
         if date_from:
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
         if date_to:
