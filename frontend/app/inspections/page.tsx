@@ -799,6 +799,8 @@ export default function InspectionsPage() {
     const products = s.products || [];
     const isOccurrence = !!s.is_occurrence_report;
 
+    console.log(`[DEBUG] renderDetailRow: client=${s.client_name}, isOccurrence=${isOccurrence}, products.length=${products.length}, roleLoaded=${roleLoaded}, role=${role}, isLabTech=${isLabTech}, s.id=${s.id}, s.comment=${s.comment ? 'yes' : 'no'}`);
+
     return (
       <div className="ir-detail-content" style={{ background: "#f8fafc" }}>
         {/* Main Layout: Facility info on left, Products list on right */}
