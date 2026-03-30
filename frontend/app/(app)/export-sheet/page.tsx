@@ -249,75 +249,83 @@ export default function ExportSheetPage() {
     document.body.removeChild(a); URL.revokeObjectURL(url);
   };
 
-  // ── Export Excel ────────────────────────────────────────────────────────────
+  // ── Export Excel (Xero-compatible format matching Django version) ──────────
   const exportExcel = async () => {
     try {
       const ExcelJS = (await import("exceljs")).default;
       const wb = new ExcelJS.Workbook();
       wb.creator = "Food Safety Agency";
-      const ws = wb.addWorksheet("Invoice Line Items");
+      const ws = wb.addWorksheet("Invoice Data");
 
-      const teal = "007890"; const lightTeal = "E6F3F7"; const lightGray = "F8FAFC";
-      const headers = ["#","Client","Inspector","City","Date","Item Code","Description","Qty","Rate (R)","Total (R)","Account","Status"];
-      const widths = [5, 30, 22, 15, 14, 12, 55, 8, 12, 12, 14, 10];
+      // Xero-compatible headers (exact match with Django export_sheet.js)
+      const headers = [
+        "*ContactName", "EmailAddress", "POAddressLine1", "POAddressLine2",
+        "POAddressLine3", "POAddressLine4", "POCity", "PORegion",
+        "POPostalCode", "POCountry", "*InvoiceNumber", "Reference",
+        "*InvoiceDate", "*DueDate", "Total", "InventoryItemCode",
+        "*Description", "*Quantity", "*UnitAmount", "Discount",
+        "*AccountCode", "*TaxType", "Tax Amount", "TrackingName1",
+        "TrackingOption1", "TrackingName2", "TrackingOption2",
+        "Currency", "BrandingTheme",
+      ];
 
-      ws.columns = headers.map((h, i) => ({ header: h, key: h, width: widths[i] }));
+      const colWidths = [25, 20, 20, 20, 20, 20, 15, 15, 12, 15, 20, 20, 12, 12, 12, 15, 50, 10, 12, 10, 15, 25, 12, 15, 15, 15, 15, 10, 15];
+      ws.columns = headers.map((h, i) => ({ header: h, key: h, width: colWidths[i] || 15 }));
 
-      // Style header row
+      // Style header row - blue background with white text
       const headerRow = ws.getRow(1);
       headerRow.eachCell(cell => {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + teal } };
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-        cell.border = { bottom: { style: "medium", color: { argb: "FF" + teal } } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       });
-      headerRow.height = 20;
+      headerRow.commit();
 
-      // Add data rows
-      filteredItems.forEach((item, idx) => {
-        const isEven = idx % 2 === 0;
-        const row = ws.addRow([
-          idx + 1,
-          item.client_name || "", item.inspector_name || "", item.city || "",
-          item.invoice_date || "", item.item_code || "", item.description || "",
-          item.quantity || 0, item.unit_amount || 0, item.total || 0,
-          item.account_code || "", item.invoice_number ? "Done" : "Open",
+      // Add data rows in Xero format
+      filteredItems.forEach(item => {
+        ws.addRow([
+          item.client_name || "",         // *ContactName
+          "",                             // EmailAddress
+          "",                             // POAddressLine1
+          "",                             // POAddressLine2
+          "",                             // POAddressLine3
+          "",                             // POAddressLine4
+          item.city || "",                // POCity
+          "",                             // PORegion
+          "",                             // POPostalCode
+          "",                             // POCountry
+          "",                             // *InvoiceNumber (blank - Xero generates)
+          "",                             // Reference
+          item.invoice_date || "",        // *InvoiceDate
+          "",                             // *DueDate (blank - Xero calculates)
+          "",                             // Total (blank - Xero calculates)
+          item.item_code || "",           // InventoryItemCode
+          item.description || "",         // *Description
+          item.quantity || 0,             // *Quantity
+          item.unit_amount || 0,          // *UnitAmount
+          "",                             // Discount
+          item.account_code || "",        // *AccountCode
+          item.tax_rate || "Tax Exempt",  // *TaxType
+          "",                             // Tax Amount
+          "",                             // TrackingName1
+          "",                             // TrackingOption1
+          "",                             // TrackingName2
+          "",                             // TrackingOption2
+          "",                             // Currency
+          "",                             // BrandingTheme
         ]);
-        row.eachCell((cell, colNum) => {
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isEven ? "FF" + lightTeal : "FFFFFFFF" } };
-          cell.font = { size: 9 };
-          cell.border = { bottom: { style: "thin", color: { argb: "FFE2E8F0" } } };
-          if (colNum >= 9 && colNum <= 10) { // rate, total
-            cell.numFmt = '"R"#,##0.00';
-            cell.alignment = { horizontal: "right" };
-          }
-          if (colNum === 12) { // status
-            const isDone = item.invoice_number;
-            cell.font = { size: 9, bold: true, color: { argb: isDone ? "FF059669" : "FFF59E0B" } };
-          }
-        });
-        row.height = 15;
       });
-
-      // Total row
-      const totalRow = ws.addRow(["", "TOTAL", "", "", "", "", "", "", "", grandTotal, "", ""]);
-      totalRow.eachCell(cell => {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + lightGray } };
-        cell.font = { bold: true, size: 10, color: { argb: "FF" + teal } };
-        cell.border = { top: { style: "medium", color: { argb: "FF" + teal } } };
-      });
-      const totalAmtCell = totalRow.getCell(10);
-      totalAmtCell.numFmt = '"R"#,##0.00';
-      totalAmtCell.alignment = { horizontal: "right" };
 
       // Auto-filter
-      ws.autoFilter = { from: "A1", to: `L1` };
+      const lastCol = String.fromCharCode(64 + headers.length);
+      ws.autoFilter = `A1:${lastCol}${filteredItems.length + 1}`;
 
+      // Generate filename with current date
+      const today = new Date().toISOString().split("T")[0];
       const buf = await wb.xlsx.writeBuffer();
       const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url;
-      a.download = `ExportSheet_${dateFrom}_to_${dateTo}.xlsx`;
+      a.download = `Invoice_Export_${today}.xlsx`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (e) {
