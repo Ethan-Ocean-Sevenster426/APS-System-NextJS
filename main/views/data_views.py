@@ -1353,10 +1353,19 @@ def api_inspections(request):
 
         import math as _math
 
-        # Get ALL unique inspectors, corporate groups, group types for filter dropdowns
+        # Get ALL unique inspectors for filter dropdown - only actual inspectors
+        from django.contrib.auth import get_user_model as _gum
+        _User = _gum()
+        _non_inspector_names = set()
+        for _u in _User.objects.exclude(role__in=['inspector', 'inspector_manager']):
+            _full = f"{_u.first_name} {_u.last_name}".strip()
+            if _full: _non_inspector_names.add(_full)
+            _non_inspector_names.add(_u.username)
+        _non_inspector_names.update(['API User', 'Test Inspector', 'admin'])
         _all_inspectors = sorted(set(
-            InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
+            n for n in InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
             .values_list('inspector_name', flat=True)
+            if n not in _non_inspector_names
         ))
         _all_corp_groups = sorted(set(
             InspectionGroup.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='')
