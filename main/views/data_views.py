@@ -1338,6 +1338,7 @@ def api_inspections(request):
                 'physical_address': first_insp.physical_address if first_insp and first_insp.physical_address else '',
                 'telephone': first_insp.telephone if first_insp and first_insp.telephone else '',
                 'time_of_visit': first_insp.time_of_visit.strftime('%H:%M') if first_insp and first_insp.time_of_visit else '',
+                'comment': g.comment or (first_insp.comment if first_insp else '') or '',
                 'has_lab_form': has_lab_form,
                 'inspection_compliance_status': _compliance_status,
                 'products': products,

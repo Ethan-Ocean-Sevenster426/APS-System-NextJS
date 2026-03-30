@@ -89,6 +89,7 @@ interface Inspection {
   physical_address?: string;
   telephone?: string;
   time_of_visit?: string;
+  comment?: string;
   has_lab_form?: boolean;
   products?: Product[];
 }
@@ -862,6 +863,14 @@ export default function InspectionsPage() {
                     <div style={{ fontSize: 8, color: "#6b7280", marginBottom: 3 }}>
                       <i className="fas fa-clock" style={{ width: 12, color: "#f59e0b" }} />
                       <span style={{ fontWeight: 500 }}>Time:</span> {s.time_of_visit}
+                    </div>
+                  )}
+                  {s.comment && (
+                    <div style={{ fontSize: 8, color: "#374151", marginTop: 6, padding: "6px 8px", background: "#fffbeb", borderRadius: 4, border: "1px solid #fde68a", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.4 }}>
+                      <div style={{ fontWeight: 600, color: "#92400e", marginBottom: 2, fontSize: 7, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        <i className="fas fa-file-alt" style={{ marginRight: 3 }} />Description
+                      </div>
+                      {s.comment}
                     </div>
                   )}
                 </div>
