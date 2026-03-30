@@ -939,8 +939,8 @@ export default function InspectionsPage() {
             )}
           </div>
 
-          {/* RIGHT PANEL - Products List */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, overflowX: "auto" }}>
+          {/* RIGHT PANEL - Products List (hidden for occurrence reports) */}
+          <div style={{ flex: 1, display: isOccurrence ? "none" : "flex", flexDirection: "column", gap: 6, overflowX: "auto" }}>
             {products.length > 0 ? (
               products.map((product, idx) => {
                 // For occurrence reports, only show first product row
