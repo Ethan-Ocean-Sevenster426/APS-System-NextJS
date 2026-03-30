@@ -630,14 +630,6 @@ export default function AddInspectionPage() {
                 <i className="fas fa-clipboard-list" style={{ color: "#f59e0b", marginRight: 8 }} />Findings &amp; Documents
               </h3>
 
-              <div className="form-group">
-                <label className="form-label" style={{ color: "#92400e" }}>Description of Events <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontWeight: 400 }}>(optional)</span></label>
-                <textarea className="form-control occ-input" rows={8} value={occurrenceDescription} onChange={e => setOccurrenceDescription(e.target.value)}
-                  placeholder="Describe in detail what was found during the visit, including any non-conformances, observations, and corrective actions discussed..."
-                  style={{ resize: "vertical", minHeight: 180 }} />
-                <small style={{ color: "#92400e", fontSize: 11, opacity: 0.7 }}>Provide a thorough account of all events and findings during this occurrence visit.</small>
-              </div>
-
               {/* Document Upload */}
               <div className="form-group">
                 <label className="form-label" style={{ color: "#92400e" }}>Occurrence Document <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontWeight: 400 }}>(optional)</span></label>
@@ -667,6 +659,15 @@ export default function AddInspectionPage() {
                 </div>
                 <input type="file" id="occFileInput" accept=".pdf" style={{ display: "none" }}
                   onChange={e => { if (e.target.files?.[0]) setOccFile(e.target.files[0]); }} />
+              </div>
+
+              {/* Description below file upload */}
+              <div className="form-group">
+                <label className="form-label" style={{ color: "#92400e" }}>Description of Events <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontWeight: 400 }}>(optional)</span></label>
+                <textarea className="form-control occ-input" rows={8} value={occurrenceDescription} onChange={e => setOccurrenceDescription(e.target.value)}
+                  placeholder="Describe in detail what was found during the visit, including any non-conformances, observations, and corrective actions discussed..."
+                  style={{ resize: "vertical", minHeight: 180 }} />
+                <small style={{ color: "#92400e", fontSize: 11, opacity: 0.7 }}>Provide a thorough account of all events and findings during this occurrence visit.</small>
               </div>
 
               {occError.length > 0 && occStep === 2 && (
