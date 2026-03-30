@@ -953,7 +953,7 @@ export default function InspectionsPage() {
 
                 return (
                   <div key={product.id} className="ir-product-row" style={{
-                    display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "stretch",
+                    display: "flex", gap: 6, flexWrap: isOccurrence ? "wrap" : "nowrap", alignItems: "stretch",
                     background: "white", borderRadius: 6, padding: 6,
                     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                   }}>
