@@ -1076,7 +1076,7 @@ def api_inspections(request):
         )
 
         # Inspector role: only show their own inspections
-        # Inspector Manager: show own + all managed inspectors' inspections
+        # Inspector Manager: sees ALL inspections (like admin)
         if hasattr(request, 'user') and request.user.is_authenticated:
             user_role = getattr(request.user, 'role', '')
             if user_role == 'inspector':
@@ -1092,31 +1092,7 @@ def api_inspections(request):
                     ).values_list('inspection_group_id', flat=True).distinct()
                     inspector_q = inspector_q | Q(id__in=list(inspector_group_ids))
                 groups_qs = groups_qs.filter(inspector_q)
-            elif user_role == 'inspector_manager':
-                from ..models import InspectorMapping
-                # Start with own inspections
-                inspector_name = request.user.get_full_name() or request.user.username
-                inspector_q = Q(inspector_name__iexact=inspector_name)
-                # Add own mapping
-                mapping = InspectorMapping.objects.filter(inspector_name__iexact=inspector_name).first()
-                if not mapping:
-                    mapping = InspectorMapping.objects.filter(inspector_name__iexact=request.user.username).first()
-                if mapping and mapping.inspector_id:
-                    own_group_ids = FoodSafetyAgencyInspection.objects.filter(
-                        inspector_id=mapping.inspector_id
-                    ).values_list('inspection_group_id', flat=True).distinct()
-                    inspector_q = inspector_q | Q(id__in=list(own_group_ids))
-                # Add all managed inspectors' inspections
-                managed_names = request.user.get_managed_inspector_names()
-                for mname in managed_names:
-                    inspector_q = inspector_q | Q(inspector_name__iexact=mname)
-                    m = InspectorMapping.objects.filter(inspector_name__iexact=mname).first()
-                    if m and m.inspector_id:
-                        managed_group_ids = FoodSafetyAgencyInspection.objects.filter(
-                            inspector_id=m.inspector_id
-                        ).values_list('inspection_group_id', flat=True).distinct()
-                        inspector_q = inspector_q | Q(id__in=list(managed_group_ids))
-                groups_qs = groups_qs.filter(inspector_q)
+            # inspector_manager sees all inspections - no filtering needed
 
         if date_from:
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
