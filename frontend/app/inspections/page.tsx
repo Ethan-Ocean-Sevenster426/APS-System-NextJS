@@ -1093,6 +1093,29 @@ export default function InspectionsPage() {
                   </div>
                 );
               })
+            ) : isOccurrence && s.id ? (
+              <div style={{
+                flex: 1, background: "white", borderRadius: 4,
+                boxShadow: "0 1px 2px rgba(0,0,0,0.1)", padding: 8,
+              }}>
+                <div style={{ fontSize: 9, color: "#6b7280", marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, color: "#92400e" }}>Occurrence Report</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
+                  {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                  <DisabledBtn label="COA/Lab" />
+                  <DisabledBtn label="Lab Form" />
+                  <DisabledBtn label="Retest" />
+                  <UploadBtn
+                    label="Occurrence"
+                    uploaded={false}
+                    uploadKey={`occurrence-${s.id}`}
+                    onClick={() => triggerUpload(s.id, s.group_id || '', 'occurrence', s.id)}
+                  />
+                  <DisabledBtn label="Other" />
+                </div>
+              </div>
             ) : (
               <div style={{
                 flex: 1, background: "white", borderRadius: 4,
