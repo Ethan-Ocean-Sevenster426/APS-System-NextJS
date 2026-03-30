@@ -1,5 +1,5 @@
 """
-Fix inspections labeled as 'API User' by matching them to system log CREATE entries.
+Fix inspections AND inspection groups labeled as 'API User'.
 
 DRY RUN (preview only, no changes):
   cd /var/www/APS-System
@@ -17,7 +17,7 @@ try:
 except RuntimeError:
     pass
 
-from main.models import FoodSafetyAgencyInspection, SystemLog
+from main.models import FoodSafetyAgencyInspection, InspectionGroup, SystemLog
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 from collections import defaultdict
@@ -34,16 +34,21 @@ else:
     print("  MODE: LIVE RUN (changes WILL be applied)")
 print(f"{'='*60}\n")
 
-# 1. Find all "API User" inspections
+# 1. Find all "API User" in both models
 api_inspections = FoodSafetyAgencyInspection.objects.filter(
     inspector_name='API User'
 ).select_related('inspection_group').order_by('date_of_inspection')
 
-total = api_inspections.count()
-print(f"Found {total} inspections with inspector_name='API User'")
+api_groups = InspectionGroup.objects.filter(inspector_name='API User')
 
-if total == 0:
-    print("Nothing to fix!")
+insp_total = api_inspections.count()
+group_total = api_groups.count()
+
+print(f"Found {insp_total} inspections with inspector_name='API User'")
+print(f"Found {group_total} inspection GROUPS with inspector_name='API User'")
+
+if insp_total == 0 and group_total == 0:
+    print("\nNothing to fix!")
     sys.exit(0)
 
 # 2. Get all CREATE log entries for add-inspection
@@ -54,26 +59,35 @@ create_logs = SystemLog.objects.filter(
 
 print(f"Found {create_logs.count()} CREATE log entries for add-inspection\n")
 
-# Group the API User inspections by their group_id
-groups = defaultdict(list)
+# 3. Collect all affected group IDs from both sources
+affected_group_ids = set()
 for insp in api_inspections:
-    gid = insp.inspection_group_id
-    if gid:
-        groups[gid].append(insp)
+    if insp.inspection_group_id:
+        affected_group_ids.add(insp.inspection_group_id)
+for grp in api_groups:
+    affected_group_ids.add(grp.id)
 
-print(f"Grouped into {len(groups)} inspection groups\n")
+print(f"Total affected groups: {len(affected_group_ids)}\n")
 print(f"{'─'*60}")
 
-# For each group, try to find who created it
-would_fix = 0
-would_skip = 0
-fixed = 0
+# 4. For each group, find who created it
+fixed_inspections = 0
+fixed_groups = 0
+skipped = 0
 
-for group_id, inspections in groups.items():
-    first_insp = inspections[0]
-    client_name = first_insp.client_name or ""
-    insp_date = first_insp.date_of_inspection
-    num_records = len(inspections)
+for group_id in affected_group_ids:
+    group = InspectionGroup.objects.filter(id=group_id).first()
+    if not group:
+        continue
+
+    client_name = group.client_name or ""
+    insp_date = group.date_of_inspection
+
+    # Count records in this group
+    insp_count = FoodSafetyAgencyInspection.objects.filter(
+        inspection_group_id=group_id, inspector_name='API User'
+    ).count()
+    group_is_api = (group.inspector_name == 'API User')
 
     # Strategy 1: Match by client name in log description
     matching_logs = None
@@ -84,8 +98,7 @@ for group_id, inspections in groups.items():
 
     # Strategy 2: Match by timestamp window around group creation
     if not matching_logs or not matching_logs.exists():
-        group = first_insp.inspection_group
-        if group and hasattr(group, 'created_at') and group.created_at:
+        if hasattr(group, 'created_at') and group.created_at:
             window_start = group.created_at - timedelta(minutes=2)
             window_end = group.created_at + timedelta(minutes=2)
             matching_logs = create_logs.filter(
@@ -100,37 +113,48 @@ for group_id, inspections in groups.items():
 
         if DRY_RUN:
             print(f"  [WOULD FIX] Group {group_id}: '{client_name}' ({insp_date})")
-            print(f"              -> '{real_name}' ({num_records} records)")
-            would_fix += num_records
+            print(f"              -> '{real_name}' (group={'YES' if group_is_api else 'already ok'}, {insp_count} inspections)")
+            fixed_inspections += insp_count
+            if group_is_api:
+                fixed_groups += 1
         else:
+            # Fix the InspectionGroup
+            if group_is_api:
+                InspectionGroup.objects.filter(id=group_id, inspector_name='API User').update(inspector_name=real_name)
+                fixed_groups += 1
+
+            # Fix the child inspections
             count = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=group_id,
-                inspector_name='API User'
+                inspection_group_id=group_id, inspector_name='API User'
             ).update(inspector_name=real_name)
+            fixed_inspections += count
+
             print(f"  [FIXED]     Group {group_id}: '{client_name}' ({insp_date})")
-            print(f"              -> '{real_name}' ({count} records)")
-            fixed += count
+            print(f"              -> '{real_name}' (group={'FIXED' if group_is_api else 'ok'}, {count} inspections)")
     else:
-        print(f"  [SKIP]      Group {group_id}: '{client_name}' ({insp_date}) - no matching log ({num_records} records)")
-        would_skip += num_records
+        skip_count = insp_count + (1 if group_is_api else 0)
+        print(f"  [SKIP]      Group {group_id}: '{client_name}' ({insp_date}) - no matching log")
+        skipped += skip_count
 
 print(f"\n{'='*60}")
 print(f"RESULTS:")
 if DRY_RUN:
-    print(f"  Would fix:   {would_fix} inspections")
-    print(f"  Would skip:  {would_skip} inspections (no matching log)")
-    print(f"  Total:       {total}")
+    print(f"  Would fix groups:      {fixed_groups}")
+    print(f"  Would fix inspections: {fixed_inspections}")
+    print(f"  Would skip:            {skipped}")
     print(f"\n  >>> Run with APPLY=1 to apply these changes <<<")
 else:
-    print(f"  Fixed:       {fixed} inspections")
-    print(f"  Skipped:     {would_skip} inspections (no matching log)")
-    print(f"  Total:       {total}")
+    print(f"  Fixed groups:      {fixed_groups}")
+    print(f"  Fixed inspections: {fixed_inspections}")
+    print(f"  Skipped:           {skipped}")
 
-    remaining = FoodSafetyAgencyInspection.objects.filter(inspector_name='API User').count()
-    if remaining > 0:
-        print(f"\n  {remaining} inspections still have 'API User'. Manual review needed:")
-        for insp in FoodSafetyAgencyInspection.objects.filter(inspector_name='API User').values('id', 'client_name', 'date_of_inspection')[:20]:
-            print(f"    ID={insp['id']}: {insp['client_name']} ({insp['date_of_inspection']})")
+    remaining_groups = InspectionGroup.objects.filter(inspector_name='API User').count()
+    remaining_inspections = FoodSafetyAgencyInspection.objects.filter(inspector_name='API User').count()
+
+    if remaining_groups > 0 or remaining_inspections > 0:
+        print(f"\n  Remaining: {remaining_groups} groups, {remaining_inspections} inspections still 'API User'")
+        for g in InspectionGroup.objects.filter(inspector_name='API User')[:10]:
+            print(f"    Group {g.id}: {g.client_name} ({g.date_of_inspection})")
     else:
-        print(f"\n  All 'API User' inspections have been fixed!")
+        print(f"\n  All 'API User' records have been fixed!")
 print(f"{'='*60}\n")
