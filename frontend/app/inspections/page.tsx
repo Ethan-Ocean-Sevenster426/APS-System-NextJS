@@ -1093,7 +1093,7 @@ export default function InspectionsPage() {
                   </div>
                 );
               })
-            ) : isOccurrence && s.id ? (
+            ) : isOccurrence ? (
               <div style={{
                 flex: 1, background: "white", borderRadius: 4,
                 boxShadow: "0 1px 2px rgba(0,0,0,0.1)", padding: 8,
