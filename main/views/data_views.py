@@ -1354,18 +1354,18 @@ def api_inspections(request):
         import math as _math
 
         # Get ALL unique inspectors, corporate groups, group types for filter dropdowns
-        _all_inspectors = sorted(
+        _all_inspectors = sorted(set(
             InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
-            .values_list('inspector_name', flat=True).distinct()
-        )
-        _all_corp_groups = sorted(
+            .values_list('inspector_name', flat=True)
+        ))
+        _all_corp_groups = sorted(set(
             InspectionGroup.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='')
-            .values_list('corporate_group', flat=True).distinct()
-        )
-        _all_group_types = sorted(
+            .values_list('corporate_group', flat=True)
+        ))
+        _all_group_types = sorted(set(
             InspectionGroup.objects.exclude(group_type__isnull=True).exclude(group_type='')
-            .values_list('group_type', flat=True).distinct()
-        )
+            .values_list('group_type', flat=True)
+        ))
 
         _resp = {
             'count': _total_count,
