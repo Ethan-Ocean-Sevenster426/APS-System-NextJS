@@ -865,12 +865,6 @@ export default function InspectionsPage() {
                       <span style={{ fontWeight: 500 }}>Time:</span> {s.time_of_visit}
                     </div>
                   )}
-                  <div style={{ fontSize: 8, color: s.comment ? "#374151" : "#9ca3af", marginTop: 6, padding: "6px 8px", background: "#fffbeb", borderRadius: 4, border: "1px solid #fde68a", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.4 }}>
-                    <div style={{ fontWeight: 600, color: "#92400e", marginBottom: 2, fontSize: 7, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      <i className="fas fa-file-alt" style={{ marginRight: 3 }} />Description
-                    </div>
-                    {s.comment || <em>No description provided</em>}
-                  </div>
                 </div>
               </>
             )}
@@ -1106,6 +1100,16 @@ export default function InspectionsPage() {
               </div>
             )}
           </div>
+
+          {/* Occurrence Description - below products */}
+          {isOccurrence && (
+            <div style={{ width: "100%", marginTop: 8, padding: "8px 10px", background: "#fffbeb", borderRadius: 6, border: "1px solid #fde68a", fontSize: 9, color: s.comment ? "#374151" : "#9ca3af", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 3, fontSize: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <i className="fas fa-file-alt" style={{ marginRight: 4 }} />Description
+              </div>
+              {s.comment || <em>No description provided</em>}
+            </div>
+          )}
 
         </div>
       </div>
