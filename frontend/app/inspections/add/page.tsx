@@ -79,7 +79,7 @@ const LABS = ["Food Safety Lab","Merieux","AGRI Food Lab","SANBI","SMT","ARC"];
 const GROUP_TYPES = ["Corporate Store","Franchise Store","Individual / Independent Owner"];
 const FACILITY_TYPES = ["Retailer","Butchery","Re-Packer","Production Plant","Farm","Abattoir","Importer","Egg Producers"];
 
-/* ── Autocomplete ── */
+/* ── Autocomplete with "Add new" support ── */
 function Autocomplete({ label, required, options, value, onChange, placeholder }: {
   label: string; required?: boolean; options: string[]; value: string;
   onChange: (v: string) => void; placeholder?: string;
@@ -87,23 +87,46 @@ function Autocomplete({ label, required, options, value, onChange, placeholder }
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  const filtered = options.filter(o => o.toLowerCase().includes((open ? search : value).toLowerCase())).slice(0, 50);
+  const query = open ? search : value;
+  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+  const trimmed = search.trim();
+  const exactMatch = trimmed && options.some(o => o.toLowerCase() === trimmed.toLowerCase());
+  const showAddNew = open && trimmed && !exactMatch;
 
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        // When closing, keep typed value if it's custom
+        if (search.trim() && !options.some(o => o.toLowerCase() === search.trim().toLowerCase())) {
+          onChange(search.trim());
+        }
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, []);
+  }, [search, options, onChange]);
 
   return (
     <div ref={ref} className="form-group" style={{ position: "relative" }}>
       <label className="form-label">{label}{required && <span style={{ color: "#ef4444" }}> *</span>}</label>
-      <input type="text" className="form-control" value={open ? search : value} placeholder={placeholder}
+      <input type="text" className="form-control" value={open ? search : value} placeholder={placeholder || `Search or add new ${label.toLowerCase()}...`}
         onFocus={() => { setOpen(true); setSearch(value); }}
         onChange={e => { setSearch(e.target.value); setOpen(true); }}
+        onKeyDown={e => { if (e.key === "Enter" && trimmed) { e.preventDefault(); onChange(trimmed); setOpen(false); setSearch(""); } }}
         autoComplete="off" />
-      {open && filtered.length > 0 && (
+      {open && (filtered.length > 0 || showAddNew) && (
         <div className="client-dropdown" style={{ display: "block" }}>
+          {showAddNew && (
+            <div className="client-dropdown-item"
+              style={{ borderBottom: "2px solid #f59e0b", background: "#fef3c7" }}
+              onClick={() => { onChange(trimmed); setOpen(false); setSearch(""); }}>
+              <span style={{ color: "#92400e" }}>
+                <i className="fas fa-plus-circle" style={{ marginRight: 6 }} />
+                <strong>Add new: &quot;{trimmed}&quot;</strong>
+              </span>
+            </div>
+          )}
           {filtered.map(o => (
             <div key={o} className="client-dropdown-item"
               onClick={() => { onChange(o); setOpen(false); setSearch(""); }}>
@@ -467,10 +490,7 @@ export default function AddInspectionPage() {
                 </h4>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ color: "#92400e" }}>Facility Type <span style={{ color: "#ef4444" }}>*</span></label>
-                  <select className="form-control occ-input" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
-                    <option value="">Select facility type (required)</option>
-                    {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
+                  <Autocomplete label="" options={FACILITY_TYPES} value={facilityType} onChange={setFacilityType} />
                 </div>
               </div>
 
@@ -570,12 +590,7 @@ export default function AddInspectionPage() {
 
                 <div className="form-group">
                   <label className="form-label" style={{ color: "#92400e" }}>Corporate Group</label>
-                  <select className="form-control occ-input" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
-                    <option value="">Select corporate group (optional)</option>
-                    {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
-                    <option value="Not Applicable">Not Applicable (None)</option>
-                    <option value="Other">Other (Unlisted Group)</option>
-                  </select>
+                  <Autocomplete label="" options={[...(options?.corporate_groups ?? []), "Not Applicable", "Other"]} value={corporateGroup} onChange={setCorporateGroup} />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -930,31 +945,11 @@ export default function AddInspectionPage() {
               <small style={{ display: "block", color: "#6b7280", fontSize: 11, marginTop: 4 }}>Documents will also be sent to these addresses.</small>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Corporate Group <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
-                <option value="">Select corporate group (required)</option>
-                {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
-                <option value="Not Applicable">Not Applicable (None)</option>
-                <option value="Other">Other (Unlisted Group)</option>
-              </select>
-            </div>
+            <Autocomplete label="Corporate Group" required options={[...(options?.corporate_groups ?? []), "Not Applicable", "Other"]} value={corporateGroup} onChange={setCorporateGroup} />
 
-            <div className="form-group">
-              <label className="form-label">Group Type <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={groupType} onChange={e => setGroupType(e.target.value)}>
-                <option value="">Select group type (required)</option>
-                {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
+            <Autocomplete label="Group Type" required options={GROUP_TYPES} value={groupType} onChange={setGroupType} />
 
-            <div className="form-group">
-              <label className="form-label">Facility Type <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
-                <option value="">Select facility type (required)</option>
-                {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
+            <Autocomplete label="Facility Type" required options={FACILITY_TYPES} value={facilityType} onChange={setFacilityType} />
 
             <div className="form-group">
               <label className="form-label">Commodity Types <span style={{ color: "#ef4444" }}>*</span></label>
