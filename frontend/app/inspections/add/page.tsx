@@ -163,7 +163,21 @@ export default function AddInspectionPage() {
   const [step2Error, setStep2Error] = useState<string[]>([]);
   const [step3Error, setStep3Error] = useState<string[]>([]);
 
+  // Current user info for inspector_name
+  const [inspectorName, setInspectorName] = useState("API User");
+
   useEffect(() => {
+    // Fetch current user info
+    fetch("/api/me", { credentials: "include" })
+      .then(r => r.json())
+      .then(d => {
+        if (d.authenticated) {
+          const fullName = `${d.first_name || ""} ${d.last_name || ""}`.trim();
+          setInspectorName(fullName || d.username || "API User");
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/inspection-form-data/")
       .then(r => r.json())
       .then(f => {
@@ -260,6 +274,7 @@ export default function AddInspectionPage() {
           travel_end_time: travelEnd,
           follow_up: followUp,
           dispensation_application: dispensation,
+          inspector_name: inspectorName,
           products,
       };
       const res = await fetch("/api/add-inspection/", {
@@ -343,6 +358,7 @@ export default function AddInspectionPage() {
         travel_end_time: travelEnd,
         follow_up: false,
         dispensation_application: false,
+        inspector_name: inspectorName,
         products: [],
         is_occurrence_report: true,
         registration_code: registrationCode,
