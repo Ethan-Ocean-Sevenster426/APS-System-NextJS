@@ -260,6 +260,8 @@ export default function AddInspectionPage() {
       if (!hoursWorked || hoursWorked <= 0) m.push("Hours Worked");
       if (!travelStart.trim()) m.push("Travel Start Time");
       if (!travelEnd.trim()) m.push("Travel End Time");
+      // RFI is required for RAW and PMP commodities
+      if ((commodities.RAW > 0 || commodities.PMP > 0) && !rfiFile) m.push("RFI Document (required for Raw Meat & PMP)");
       return m;
     }
     return [];
