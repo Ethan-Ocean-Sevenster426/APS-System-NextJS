@@ -1012,7 +1012,7 @@ export default function AddInspectionPage() {
                     <div className="form-group">
                       <label className="form-label">Product Name <span style={{ color: "#ef4444" }}>*</span></label>
                       <input type="text" className="form-control" value={p.product_name}
-                        onChange={e => updateProduct(idx, "product_name", e.target.value)} placeholder="Enter product name" />
+                        onChange={e => updateProduct(idx, "product_name", e.target.value)} placeholder="Enter product name" maxLength={150} />
                     </div>
                     {(PRODUCT_CLASSES_BY_COMMODITY[p.commodity]?.length ?? 0) > 0 && (
                       <div className="form-group">
