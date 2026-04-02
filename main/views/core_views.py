@@ -14125,16 +14125,17 @@ def get_inspection_files_local(client_name, inspection_date, force_refresh=False
                 if client_obj:
                     print(f"[FILES DEBUG] Found client by name lookup: id={client_obj.id}, name={client_obj.name}")
 
+            # Check multiple possible parent directories for this inspection
+            possible_parents = set()
             if client_obj:
-                docs_path = os.path.join(
-                    docs_base,
-                    str(client_obj.id),
-                    str(inspection.id)
-                )
-                print(f"[FILES DEBUG] Checking path for inspection {inspection.id}: {docs_path}")
+                possible_parents.add(str(client_obj.id))
+            if inspection.inspection_group_id:
+                possible_parents.add(str(inspection.inspection_group_id))
+
+            for parent_id in possible_parents:
+                docs_path = os.path.join(docs_base, parent_id, str(inspection.id))
 
                 if os.path.exists(docs_path):
-                    print(f"[FILES DEBUG] Path EXISTS, scanning: {docs_path}")
                     for category in CATEGORIES:
                         cat_path = os.path.join(docs_path, category)
                         if os.path.exists(cat_path):
