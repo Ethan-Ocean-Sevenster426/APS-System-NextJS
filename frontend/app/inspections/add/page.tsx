@@ -313,7 +313,10 @@ export default function AddInspectionPage() {
         if (rfiFile && data.group_id) {
           try {
             const fd = new FormData();
-            fd.append("group_id", String(data.group_id));
+            // Build proper group_id format with _g{pk} suffix for Django upload handler
+            const slug = clientName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+            const dateSlug = dateOfInspection.replace(/-/g, '');
+            fd.append("group_id", `${slug}_${dateSlug}_g${data.group_id}`);
             fd.append("document_type", "rfi");
             fd.append("file", rfiFile);
             await fetch("/api/upload-document", { method: "POST", body: fd });
