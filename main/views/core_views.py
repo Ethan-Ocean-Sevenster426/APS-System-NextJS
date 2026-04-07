@@ -16815,7 +16815,7 @@ def send_group_documents(request):
             action='EMAIL',
             page='inspections',
             object_type='group_documents',
-            object_id=group_id,
+            object_id=str(group_id)[:50],
             description=f'Sent {len(attachments)} documents for {client_name} to {", ".join(to_emails)}' + (f' (CC: {", ".join(cc_emails)})' if cc_emails else ''),
             details={
                 'client_name': client_name,
