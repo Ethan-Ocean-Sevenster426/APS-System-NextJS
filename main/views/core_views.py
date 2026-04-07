@@ -16798,13 +16798,20 @@ def send_group_documents(request):
 
         email.send()
 
+        # Resolve user - fallback to first superuser if anonymous (API call without session)
+        from django.contrib.auth import get_user_model as _gum
+        _User = _gum()
+        _real_user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+        if not _real_user:
+            _real_user = _User.objects.filter(is_superuser=True).first() or _User.objects.filter(is_staff=True).first() or _User.objects.first()
+
         # Mark inspections as sent (reuse group_inspections queryset from above)
-        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=request.user)
+        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=_real_user)
 
         # Log the activity
         from ..models import SystemLog
         SystemLog.log_activity(
-            user=request.user,
+            user=_real_user,
             action='EMAIL',
             page='inspections',
             object_type='group_documents',
@@ -16820,7 +16827,7 @@ def send_group_documents(request):
         )
 
         # Get sender display name
-        sender_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        sender_name = f"{_real_user.first_name} {_real_user.last_name}".strip() or _real_user.username
         import pytz
         sast = pytz.timezone('Africa/Johannesburg')
         sent_time = timezone.now().astimezone(sast).strftime('%d %b %Y %H:%M')
