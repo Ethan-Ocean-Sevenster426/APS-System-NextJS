@@ -15788,8 +15788,15 @@ def download_all_inspection_files(request):
                 from main.models import Client
                 client_obj = Client.objects.filter(name__iexact=clean_client_name).first()
 
+            # Check both client_id and inspection_group_id paths
+            possible_parents = set()
             if client_obj:
-                docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', str(client_obj.id), str(inspection.id))
+                possible_parents.add(str(client_obj.id))
+            if inspection.inspection_group_id:
+                possible_parents.add(str(inspection.inspection_group_id))
+
+            for parent_id in possible_parents:
+                docs_path = os.path.join(settings.MEDIA_ROOT, 'docs', parent_id, str(inspection.id))
                 if os.path.exists(docs_path):
                     safe_print(f"Checking docs path for inspection {inspection.id}: {docs_path}")
                     for cat in doc_categories:
