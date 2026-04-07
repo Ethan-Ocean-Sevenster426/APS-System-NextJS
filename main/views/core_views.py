@@ -15624,7 +15624,7 @@ def get_page_clients_file_status(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@csrf_exempt
 def download_all_inspection_files(request):
     """Download all files for a grouped inspection as a ZIP."""
     if request.method != 'POST':
