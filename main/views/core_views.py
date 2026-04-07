@@ -16553,8 +16553,16 @@ def send_group_documents(request):
             if not client_obj:
                 from main.models import Client
                 client_obj = Client.objects.filter(name__iexact=client_name).first()
+
+            # Check both client_id and inspection_group_id paths
+            possible_parents = set()
             if client_obj:
-                docs_path = os.path.join(docs_base, str(client_obj.id), str(insp.id))
+                possible_parents.add(str(client_obj.id))
+            if insp.inspection_group_id:
+                possible_parents.add(str(insp.inspection_group_id))
+
+            for parent_id in possible_parents:
+                docs_path = os.path.join(docs_base, parent_id, str(insp.id))
                 print(f"[SEND DEBUG] Checking path: {docs_path} exists={os.path.exists(docs_path)}")
                 if os.path.exists(docs_path):
                     for category in CATEGORIES:
