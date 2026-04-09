@@ -16790,20 +16790,52 @@ def send_group_documents(request):
         print(f"[SEND] TO: {to_emails}")
         print(f"[SEND] CC: {cc_emails}")
 
-        email = EmailMessage(
-            subject=subject,
-            body=html_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=to_emails,
-            cc=cc_emails if cc_emails else None,
-            reply_to=[settings.DEFAULT_FROM_EMAIL]
-        )
-        email.content_subtype = 'html'
+        # Split attachments into batches under MAX_BATCH_BYTES so we don't hit
+        # Outlook's per-message size limit (~35MB). Base64 encoding inflates
+        # binary by ~33%, so use 22MB raw budget per email.
+        MAX_BATCH_BYTES = 22 * 1024 * 1024
+        batches = []
+        current_batch = []
+        current_size = 0
+        for fp in attachments:
+            try:
+                fsize = os.path.getsize(fp)
+            except OSError:
+                fsize = 0
+            # If a single file is larger than the budget, send it alone in its own batch.
+            if fsize >= MAX_BATCH_BYTES:
+                if current_batch:
+                    batches.append(current_batch)
+                    current_batch = []
+                    current_size = 0
+                batches.append([fp])
+                continue
+            if current_size + fsize > MAX_BATCH_BYTES and current_batch:
+                batches.append(current_batch)
+                current_batch = []
+                current_size = 0
+            current_batch.append(fp)
+            current_size += fsize
+        if current_batch:
+            batches.append(current_batch)
 
-        for file_path in attachments:
-            email.attach_file(file_path)
+        total_parts = len(batches)
+        print(f"[SEND] Splitting {len(attachments)} attachments into {total_parts} email(s)")
 
-        email.send()
+        for idx, batch in enumerate(batches, start=1):
+            part_subject = subject if total_parts == 1 else f"{subject} (Part {idx} of {total_parts})"
+            email = EmailMessage(
+                subject=part_subject,
+                body=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=to_emails,
+                cc=cc_emails if cc_emails else None,
+                reply_to=[settings.DEFAULT_FROM_EMAIL]
+            )
+            email.content_subtype = 'html'
+            for file_path in batch:
+                email.attach_file(file_path)
+            email.send()
 
         # Resolve user - fallback to first superuser if anonymous (API call without session)
         from django.contrib.auth import get_user_model as _gum
