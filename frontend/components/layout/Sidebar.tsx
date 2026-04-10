@@ -137,8 +137,8 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
 
   return (
     <aside style={{
-      width: collapsed ? 44 : 195,
-      minWidth: collapsed ? 44 : 195,
+      width: collapsed ? 64 : 180,
+      minWidth: collapsed ? 64 : 180,
       height: "100vh",
       backgroundColor: "#0f172a",
       color: "#cbd5e1",
@@ -168,7 +168,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
         style={{
           display: "flex", alignItems: "center",
           justifyContent: collapsed ? "center" : "flex-end",
-          padding: collapsed ? "4px 0" : "4px 8px",
+          padding: collapsed ? "10px 0" : "10px 8px",
           background: "none", border: "none",
           borderBottom: "1px solid #1e293b",
           color: "#475569", cursor: "pointer",
@@ -182,7 +182,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
       </button>
 
       {/* Nav */}
-      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "2px 0" : "2px 6px", display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: collapsed ? "8px 0" : "8px 6px", display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
         {sections.map((section) => (
           <div key={section.label} style={{ marginBottom: 0 }}>
             {!collapsed && (
@@ -203,10 +203,10 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                         display: "flex",
                         alignItems: "center",
                         gap: collapsed ? 0 : 8,
-                        padding: collapsed ? "6px 0" : "5px 8px",
+                        padding: collapsed ? "9px 0" : "7px 10px",
                         justifyContent: collapsed ? "center" : "flex-start",
                         borderRadius: collapsed ? 0 : 4,
-                        fontSize: "0.78rem",
+                        fontSize: "0.62rem",
                         fontWeight: isActive ? 600 : 400,
                         color: isActive ? "#ffffff" : "#94a3b8",
                         textDecoration: "none",
@@ -228,7 +228,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                         }
                       }}
                     >
-                      <i className={item.icon} style={{ width: collapsed ? "100%" : 14, textAlign: "center", fontSize: collapsed ? "0.75rem" : "0.7rem", flexShrink: 0 }} />
+                      <i className={item.icon} style={{ width: collapsed ? "100%" : 16, textAlign: "center", fontSize: collapsed ? "1rem" : "0.75rem", flexShrink: 0 }} />
                       {!collapsed && <span>{item.label}</span>}
                     </Link>
                   </li>

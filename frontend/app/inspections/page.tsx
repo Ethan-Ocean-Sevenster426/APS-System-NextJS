@@ -213,6 +213,7 @@ export default function InspectionsPage() {
   const [approvedFilter, setApprovedFilter] = useState<string[]>([]);
   const [fileStatusFilter, setFileStatusFilter] = useState<string[]>([]);
   const [emailFilter, setEmailFilter] = useState("");
+  const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
 
   // Lab-tech specific filters
@@ -256,7 +257,7 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string) => {
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string, corpGroup?: string) => {
     setLoading(true);
     const p = new URLSearchParams();
     if (duplicates) p.set("show_duplicates", "true");
@@ -264,6 +265,7 @@ export default function InspectionsPage() {
     if (to) p.set("date_to", to);
     if (search) p.set("client_search", search);
     if (inspector) p.set("inspector", inspector);
+    if (corpGroup) p.set("corporate_group", corpGroup);
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
     const qs = `?${p.toString()}`;
@@ -330,18 +332,17 @@ export default function InspectionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Debounce client search — wait 400ms after typing stops
+  // Sync debouncedSearch with clientSearch (used when Apply Filters is clicked)
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(clientSearch), 400);
     return () => clearTimeout(timer);
   }, [clientSearch]);
 
+  // Initial load on mount
   useEffect(() => {
-    setCurrentPage(1);
-    const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
-    fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch, singleInspector);
+    fetchInspections(false, "", "", 1, "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, debouncedSearch, inspectorFilter]);
+  }, []);
 
   // Background sync: refresh undeliverable count silently on page load
   useEffect(() => {
@@ -655,9 +656,14 @@ export default function InspectionsPage() {
       // Lab tech: only show inspections with at least one sampled product
       if (isLabTech && !(s.products || []).some(p => p.is_sample_taken)) return false;
       // Client search is now server-side (via debouncedSearch → API param)
-      if (inspectorFilter.length > 0 && !inspectorFilter.includes(s.inspector_name || "")) return false;
-      if (corpGroupFilter.length > 0 && !corpGroupFilter.includes(s.corporate_group || "")) return false;
+      // Inspector, corporate group, and client search are now server-side (applied via Apply Filters button)
       if (groupTypeFilter.length > 0 && !groupTypeFilter.includes(s.group_type || "")) return false;
+      if (occurrenceFilter.length > 0) {
+        const isOcc = !!s.is_occurrence_report;
+        if (occurrenceFilter.includes("OCCURRENCE") && occurrenceFilter.includes("INSPECTION")) { /* both = no filter */ }
+        else if (occurrenceFilter.includes("OCCURRENCE") && !isOcc) return false;
+        else if (occurrenceFilter.includes("INSPECTION") && isOcc) return false;
+      }
       if (sentStatusFilter.length > 0) {
         const sent = !!s.sent_date;
         if (sentStatusFilter.includes("SENT") && sentStatusFilter.includes("NOT_SENT")) { /* both = no filter */ }
@@ -701,7 +707,7 @@ export default function InspectionsPage() {
       }
       return true;
     });
-  }, [inspections, isLabTech, inspectorFilter, corpGroupFilter, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter]);
+  }, [inspections, isLabTech, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter, occurrenceFilter]);
 
   // Server-side pagination — inspections are already the current page
   const paginatedInspections = filteredInspections;
@@ -714,7 +720,8 @@ export default function InspectionsPage() {
       fetchUndeliverable(page);
     } else {
       const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
-      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector);
+      const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
+      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector, singleCorpGroup);
     }
   };
 
@@ -1345,7 +1352,9 @@ export default function InspectionsPage() {
         .ir-btn-purple:hover { background: #6d28d9; }
         .ir-filter-form { display: flex; flex-direction: column; gap: 15px; }
         .ir-filter-row { display: flex; gap: 15px; flex-wrap: wrap; }
-        .ir-filter-field { flex: 1; min-width: 200px; }
+        .ir-filter-field { flex: 1; min-width: 150px; position: relative; }
+        .ir-filter-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12; margin-bottom: 14px; }
+        .ir-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
         .ir-filter-actions { display: flex; gap: 10px; align-items: center; padding-top: 10px; border-top: 1px solid #e5e7eb; flex-wrap: wrap; }
         .ir-form-label { font-size: 0.875rem; font-weight: 500; color: #6b7280; display: block; margin-bottom: 4px; }
         .ir-form-control { padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem; color: #1f2937; background: #fff; width: 100%; box-sizing: border-box; }
@@ -1368,6 +1377,8 @@ export default function InspectionsPage() {
           .ir-header { padding: 8px 5px 12px; }
           .ir-filter-row { flex-direction: column; gap: 10px; }
           .ir-filter-field { min-width: 100%; }
+          .ir-filter-top { grid-template-columns: 1fr !important; }
+          .ir-filter-grid { grid-template-columns: 1fr 1fr !important; }
           .ir-filter-actions { flex-direction: column; align-items: stretch; }
           .ir-action-bar { gap: 6px; flex-wrap: wrap; }
           .ir-action-bar .ir-btn { padding: 6px 10px; font-size: 0.75rem; }
@@ -1390,6 +1401,7 @@ export default function InspectionsPage() {
           .ir-action-bar .ir-btn { padding: 5px 8px; font-size: 0.7rem; gap: 4px; }
           .ir-table { min-width: 600px; }
           .ir-table th, .ir-table td { padding: 3px 4px; font-size: 0.6rem; }
+          .ir-filter-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -1409,7 +1421,7 @@ export default function InspectionsPage() {
             <button type="button" className="ir-btn ir-btn-secondary" onClick={expandAll}><i className="fas fa-expand-alt" /> Expand All</button>
             <button type="button" className="ir-btn ir-btn-secondary" onClick={collapseAll}><i className="fas fa-compress-alt" /> Collapse All</button>
             {roleLoaded && !isLabTech && <a href="/inspections/add" className="ir-btn ir-btn-green"><i className="fas fa-plus" /> Add Inspection</a>}
-            {roleLoaded && !isLabTech && <a href="/clients" className="ir-btn ir-btn-purple"><i className="fas fa-th-list" /> Client Allocation Sheet</a>}
+            {roleLoaded && !isLabTech && <a href="/clients" className="ir-btn" style={{ background: "#007890", color: "white" }}><i className="fas fa-users-cog" /> Client Allocation Sheet</a>}
             {roleLoaded && !isLabTech && <a href="/system-logs" className="ir-btn ir-btn-secondary"><i className="fas fa-list-alt" /> System Logs</a>}
           </div>
 
@@ -1427,19 +1439,16 @@ export default function InspectionsPage() {
               ) : (
               <form className="ir-filter-form" onSubmit={e => e.preventDefault()}>
 
-                {/* Row 1 */}
-                <div className="ir-filter-row">
+                {/* Top row: Search fields + Dates */}
+                <div className="ir-filter-top" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
                   <div className="ir-filter-field">
                     <label className="ir-form-label">Client Search</label>
                     <ClientSearchInput value={clientSearch} onChange={setClientSearch} options={clientOptions} />
                   </div>
-                  <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} />
-                  <IrMultiSelect label="Corporate Group" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
-                  <IrMultiSelect label="Group Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
-                </div>
-
-                {/* Row 2 */}
-                <div className="ir-filter-row">
+                  <div className="ir-filter-field">
+                    <label className="ir-form-label">Email</label>
+                    <input type="text" className="ir-form-control" value={emailFilter} onChange={e => setEmailFilter(e.target.value)} placeholder="Filter by email..." />
+                  </div>
                   <div className="ir-filter-field">
                     <label className="ir-form-label">Date From</label>
                     <input type="date" className="ir-form-control" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
@@ -1448,34 +1457,46 @@ export default function InspectionsPage() {
                     <label className="ir-form-label">Date To</label>
                     <input type="date" className="ir-form-control" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                   </div>
-                  <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
-                  <IrMultiSelect label="Compliance Status" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
-                  <IrMultiSelect label="Approved Status" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
-                  <IrMultiSelect label="File Status" options={["HAS_FILES", "NO_FILES"]} selected={fileStatusFilter} onChange={setFileStatusFilter} />
-                  <div className="ir-filter-field">
-                    <label className="ir-form-label">Email</label>
-                    <input type="text" className="ir-form-control" value={emailFilter} onChange={e => setEmailFilter(e.target.value)} placeholder="Filter by email..." />
-                  </div>
                 </div>
 
-                {/* Row 3 — lab filters (lab tech, super_admin, developer) */}
+                {/* Dropdowns grid */}
+                <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} />
+                  <IrMultiSelect label="Corporate Group" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
+                  <IrMultiSelect label="Group Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
+                  <IrMultiSelect label="Report Type" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
+                  <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
+                  <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
+                  <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
+                  <IrMultiSelect label="Files" options={["HAS_FILES", "NO_FILES"]} selected={fileStatusFilter} onChange={setFileStatusFilter} />
+                </div>
+
+                {/* Lab Filters (lab tech, super_admin, developer) */}
                 {roleLoaded && (isLabTech || role === "super_admin" || role === "developer") && (
-                  <div className="ir-filter-row">
-                    <IrMultiSelect label="Lab" options={["Food Safety Laboratory", "Merieux NutriSciences", "AGRI Food Laboratory (SGS)", "SANBI", "SMT", "ARC"]} selected={labFilter} onChange={setLabFilter} />
-                    <IrMultiSelect label="Test Type" options={["DNA", "FAT", "PROTEIN", "CALCIUM"]} selected={testTypeFilter} onChange={setTestTypeFilter} />
-                    <IrMultiSelect label="Needs Retest" options={["NEEDS_RETEST", "NO_RETEST"]} selected={retestFilter} onChange={setRetestFilter} />
-                    <IrMultiSelect label="COA Uploaded" options={["COA_UPLOADED", "NO_COA"]} selected={coaStatusFilter} onChange={setCoaStatusFilter} />
+                  <div>
+                    <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+                      <IrMultiSelect label="Lab" options={["Food Safety Laboratory", "Merieux NutriSciences", "AGRI Food Laboratory (SGS)", "SANBI", "SMT", "ARC"]} selected={labFilter} onChange={setLabFilter} />
+                      <IrMultiSelect label="Test Type" options={["DNA", "FAT", "PROTEIN", "CALCIUM"]} selected={testTypeFilter} onChange={setTestTypeFilter} />
+                      <IrMultiSelect label="Needs Retest" options={["NEEDS_RETEST", "NO_RETEST"]} selected={retestFilter} onChange={setRetestFilter} />
+                      <IrMultiSelect label="COA Uploaded" options={["COA_UPLOADED", "NO_COA"]} selected={coaStatusFilter} onChange={setCoaStatusFilter} />
+                    </div>
                   </div>
                 )}
 
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
-                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); }}>
+                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); }}>
                     <i className="fas fa-times" /> Clear All
                   </button>
-                  <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}>
-                    <i className="fas fa-list" /> Show All ({total})
+                  <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
+                    onClick={() => {
+                      setCurrentPage(1);
+                      const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
+                      const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
+                      fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, singleInspector, singleCorpGroup);
+                    }}>
+                    <i className="fas fa-filter" /> Apply Filters
                   </button>
                   {roleLoaded && !isLabTech && (showDuplicates ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}

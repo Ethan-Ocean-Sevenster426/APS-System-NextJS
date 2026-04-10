@@ -90,6 +90,28 @@ export default function ExportSheetPage() {
   const [showFeesModal, setShowFeesModal] = useState(false);
   const [fees, setFees] = useState<Fee[]>([]);
   const [editingFees, setEditingFees] = useState<Record<number, number>>({});
+  const [feesEffectiveDate, setFeesEffectiveDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [feesNotes, setFeesNotes] = useState<string>("");
+  // "View as of" — historical month filter (YYYY-MM, "" = current/today)
+  const [feesViewAsOf, setFeesViewAsOf] = useState<string>("");
+  const [feesLoading, setFeesLoading] = useState<boolean>(false);
+
+  // When date changes to future, blank all rates so user enters new ones
+  // When date changes back to today/past, restore current rates
+  useEffect(() => {
+    if (fees.length === 0) return;
+    const today = new Date().toISOString().split("T")[0];
+    const isFuture = feesEffectiveDate > today;
+    if (isFuture) {
+      const blank: Record<number, number> = {};
+      fees.forEach(f => { blank[f.id] = 0; });
+      setEditingFees(blank);
+    } else {
+      const map: Record<number, number> = {};
+      fees.forEach(f => { map[f.id] = f.rate; });
+      setEditingFees(map);
+    }
+  }, [feesEffectiveDate, fees]);
   const [feesSaving, setFeesSaving] = useState(false);
   const [feesMsg, setFeesMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -149,9 +171,14 @@ export default function ExportSheetPage() {
   }, []);
 
   // ── Fetch fees ──────────────────────────────────────────────────────────────
-  const fetchFees = async () => {
+  // viewAsOf: optional YYYY-MM-DD to fetch historical rates active on that date
+  const fetchFees = async (viewAsOf?: string) => {
+    setFeesLoading(true);
     try {
-      const res = await fetch("/api/fees/get");
+      const url = viewAsOf
+        ? `/api/fees/get?as_of_date=${encodeURIComponent(viewAsOf)}`
+        : "/api/fees/get";
+      const res = await fetch(url);
       const data = await res.json();
       if (data.fees) {
         setFees(data.fees);
@@ -160,18 +187,41 @@ export default function ExportSheetPage() {
         setEditingFees(map);
       }
     } catch { /* ignore */ }
+    finally {
+      setFeesLoading(false);
+    }
   };
 
-  const openFeesModal = () => { fetchFees(); setShowFeesModal(true); setFeesMsg(null); };
+  // Refetch when "view as of" month changes (or when modal opens)
+  useEffect(() => {
+    if (!showFeesModal) return;
+    const dateParam = feesViewAsOf ? `${feesViewAsOf}-01` : undefined;
+    fetchFees(dateParam);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feesViewAsOf, showFeesModal]);
+
+  const openFeesModal = () => {
+    setFeesViewAsOf("");
+    setShowFeesModal(true);
+    setFeesMsg(null);
+    // The useEffect on [feesViewAsOf, showFeesModal] will trigger fetchFees()
+  };
 
   const saveFees = async () => {
     setFeesSaving(true); setFeesMsg(null);
     try {
-      const payload = { fees: fees.map(f => ({ id: f.id, rate: editingFees[f.id] ?? f.rate })) };
+      const payload = {
+        fees: fees.map(f => ({ id: f.id, rate: editingFees[f.id] ?? f.rate })),
+        effective_date: feesEffectiveDate,
+        notes: feesNotes,
+      };
       const res = await fetch("/api/fees/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
-      if (data.success) { setFeesMsg({ type: "success", text: `Updated ${data.updated_count} fee(s).` }); fetchFees(); }
-      else setFeesMsg({ type: "error", text: data.error || "Failed to save fees." });
+      if (data.success) {
+        const isFuture = feesEffectiveDate > new Date().toISOString().split("T")[0];
+        setFeesMsg({ type: "success", text: `Updated ${data.updated_count} fee(s)${isFuture ? ` — scheduled for ${feesEffectiveDate}` : ""}.` });
+        fetchFees();
+      } else setFeesMsg({ type: "error", text: data.error || "Failed to save fees." });
     } catch { setFeesMsg({ type: "error", text: "Network error." }); }
     setFeesSaving(false);
   };
@@ -585,10 +635,77 @@ export default function ExportSheetPage() {
               </div>
             )}
 
+            {/* View as of month filter (historical lookup) */}
+            <div style={{ marginBottom: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 6, border: "1px solid #bfdbfe", display: "flex", alignItems: "center", gap: 10 }}>
+              {feesLoading
+                ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid #bfdbfe", borderTopColor: "#2563eb", animation: "spin 0.8s linear infinite" }} />
+                : <i className="fas fa-eye" style={{ color: "#2563eb" }} />
+              }
+              <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1e40af", whiteSpace: "nowrap" }}>View rates for:</label>
+              <input
+                type="month"
+                value={feesViewAsOf}
+                onChange={e => setFeesViewAsOf(e.target.value)}
+                disabled={feesLoading}
+                style={{ flex: 1, padding: "5px 8px", border: "1px solid #93c5fd", borderRadius: 4, fontSize: "0.78rem", background: feesLoading ? "#f3f4f6" : "white", cursor: feesLoading ? "wait" : "text" }}
+              />
+              {feesViewAsOf && (
+                <button
+                  onClick={() => setFeesViewAsOf("")}
+                  disabled={feesLoading}
+                  style={{ padding: "4px 10px", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 4, fontSize: "0.7rem", cursor: feesLoading ? "wait" : "pointer", color: "#1e40af", fontWeight: 600, opacity: feesLoading ? 0.6 : 1 }}
+                  title="Show current rates"
+                >
+                  <i className="fas fa-times" style={{ marginRight: 3 }} />Clear
+                </button>
+              )}
+              <span style={{ fontSize: "0.65rem", color: "#1e40af", fontStyle: "italic" }}>
+                {feesLoading
+                  ? "Loading rates..."
+                  : feesViewAsOf
+                    ? `Showing rates active during ${feesViewAsOf}`
+                    : "Showing current/latest rates"}
+              </span>
+            </div>
+
+            {/* Effective date and notes */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Effective Date</label>
+                <input
+                  type="date"
+                  value={feesEffectiveDate}
+                  onChange={e => setFeesEffectiveDate(e.target.value)}
+                  style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }}
+                />
+                <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 2 }}>
+                  {feesEffectiveDate > new Date().toISOString().split("T")[0]
+                    ? <><i className="fas fa-clock" style={{ marginRight: 3 }} />Future scheduled — applies on this date</>
+                    : feesEffectiveDate === new Date().toISOString().split("T")[0]
+                      ? <>Effective immediately</>
+                      : <><i className="fas fa-history" style={{ marginRight: 3 }} />Backdated rate change</>
+                  }
+                </div>
+              </div>
+              <div style={{ flex: 2 }}>
+                <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Notes (optional)</label>
+                <input
+                  type="text"
+                  value={feesNotes}
+                  onChange={e => setFeesNotes(e.target.value)}
+                  placeholder="e.g. 2026 DALRRD approved rates"
+                  style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }}
+                />
+              </div>
+            </div>
+
             {fees.length === 0 ? (
-              <p style={{ color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>Loading fees...</p>
+              <p style={{ color: "#9ca3af", textAlign: "center", padding: "20px 0" }}>
+                <div style={{ display: "inline-block", width: 16, height: 16, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#2563eb", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />
+                Loading fees...
+              </p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem", opacity: feesLoading ? 0.5 : 1, transition: "opacity 0.2s" }}>
                 <thead>
                   <tr>
                     <th style={{ textAlign: "left", padding: "4px 6px", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", fontSize: "0.72rem" }}>Fee</th>
@@ -597,18 +714,34 @@ export default function ExportSheetPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {fees.map(f => (
-                    <tr key={f.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "3px 6px", fontWeight: 500 }}>{f.fee_name}</td>
-                      <td style={{ padding: "3px 6px", color: "#6b7280" }}>{fmtCode(f.fee_code)}</td>
-                      <td style={{ padding: "3px 6px" }}>
-                        <input type="number" step="0.01" min="0"
-                          value={editingFees[f.id] ?? f.rate}
-                          onChange={e => setEditingFees(p => ({ ...p, [f.id]: parseFloat(e.target.value) || 0 }))}
-                          style={{ width: "100%", textAlign: "right", padding: "2px 6px", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: "0.78rem" }} />
-                      </td>
-                    </tr>
-                  ))}
+                  {fees.map(f => {
+                    const isViewMode = !!feesViewAsOf;
+                    const displayValue = isViewMode ? f.rate : (editingFees[f.id] ?? f.rate);
+                    return (
+                      <tr key={f.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "3px 6px", fontWeight: 500 }}>{f.fee_name}</td>
+                        <td style={{ padding: "3px 6px", color: "#6b7280" }}>{fmtCode(f.fee_code)}</td>
+                        <td style={{ padding: "3px 6px" }}>
+                          <input type="number" step="0.01" min="0"
+                            value={displayValue}
+                            readOnly={isViewMode}
+                            disabled={isViewMode}
+                            onChange={e => setEditingFees(p => ({ ...p, [f.id]: parseFloat(e.target.value) || 0 }))}
+                            style={{
+                              width: "100%",
+                              textAlign: "right",
+                              padding: "2px 6px",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 4,
+                              fontSize: "0.78rem",
+                              background: isViewMode ? "#f3f4f6" : "white",
+                              color: isViewMode && f.rate === 0 ? "#9ca3af" : "#1f2937",
+                              cursor: isViewMode ? "not-allowed" : "text",
+                            }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -617,7 +750,12 @@ export default function ExportSheetPage() {
               <button onClick={openHistory} style={{ ...btnW, fontSize: "0.8rem" }}><i className="fas fa-history" /> View Changes</button>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setShowFeesModal(false)} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.85rem" }}>Close</button>
-                <button onClick={saveFees} disabled={feesSaving} style={{ ...btnP, opacity: feesSaving ? 0.7 : 1, fontSize: "0.85rem" }}>
+                <button
+                  onClick={saveFees}
+                  disabled={feesSaving || !!feesViewAsOf}
+                  title={feesViewAsOf ? "Clear the historical view filter to edit rates" : ""}
+                  style={{ ...btnP, opacity: (feesSaving || !!feesViewAsOf) ? 0.5 : 1, cursor: feesViewAsOf ? "not-allowed" : "pointer", fontSize: "0.85rem" }}
+                >
                   {feesSaving
                     ? <div style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "white", animation: "spin 0.8s linear infinite", verticalAlign: "middle" }} />
                     : <i className="fas fa-save" />

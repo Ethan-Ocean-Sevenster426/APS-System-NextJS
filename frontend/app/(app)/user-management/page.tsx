@@ -171,12 +171,12 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — default to "active" only so deleted (inactive) users are hidden
   const [filterRoles, setFilterRoles] = useState<string[]>([]);
-  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>(["active"]);
   const [searchText, setSearchText] = useState("");
   const [appliedRoles, setAppliedRoles] = useState<string[]>([]);
-  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>(["active"]);
   const [appliedSearch, setAppliedSearch] = useState("");
 
   // Modals
@@ -300,10 +300,10 @@ export default function UserManagementPage() {
 
   const handleClearFilters = () => {
     setFilterRoles([]);
-    setFilterStatuses([]);
+    setFilterStatuses(["active"]);
     setSearchText("");
     setAppliedRoles([]);
-    setAppliedStatuses([]);
+    setAppliedStatuses(["active"]);
     setAppliedSearch("");
   };
 
@@ -394,7 +394,7 @@ export default function UserManagementPage() {
   };
 
   const handleDeleteUser = async (user: UserRecord) => {
-    if (!confirm(`Are you sure you want to delete user "${user.username}"? This cannot be undone.`))
+    if (!confirm(`Delete user "${user.username}"?\n\nThe user will be removed from all active lists and can no longer log in. All of their historical data — inspections, uploads, sent records, approvals, and system logs — will be permanently preserved for audit and reporting purposes.\n\nIf needed, the user can be restored later by an administrator.`))
       return;
     const data = await postAction({ action: "delete_user", user_id: user.id });
     if (data.success) {

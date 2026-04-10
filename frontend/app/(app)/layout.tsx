@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("sidebarCollapsed") === "true";
-    return false;
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sync collapsed state from localStorage after hydration to avoid SSR mismatch
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebarCollapsed");
+    if (stored === "true") setSidebarCollapsed(true);
+  }, []);
 
   const toggleCollapse = () => {
     setSidebarCollapsed(prev => {

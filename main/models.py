@@ -439,7 +439,7 @@ class InspectionGroup(models.Model):
     additional_email = models.EmailField(blank=True, null=True, help_text="Additional email for this group")
     comment = models.TextField(blank=True, null=True, help_text="Comment for this group")
     km_traveled = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Kilometers traveled")
-    hours = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Hours worked")
+    hours = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Hours worked")
     travel_start_time = models.TimeField(blank=True, null=True, help_text="Travel start time")
     travel_end_time = models.TimeField(blank=True, null=True, help_text="Travel end time")
 
@@ -504,7 +504,7 @@ class FoodSafetyAgencyInspection(models.Model):
     
     # New fields for manual entry
     km_traveled = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Manual entry of kilometers traveled")
-    hours = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Manual entry of hours worked")
+    hours = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text="Manual entry of hours worked")
     additional_email = models.CharField(max_length=500, blank=True, null=True, help_text="Additional email(s) for this specific inspection group - can be comma-separated")
     approved_status = models.CharField(max_length=10, blank=True, null=True, help_text="Approval status for this inspection group",
                                      choices=[
@@ -1110,13 +1110,17 @@ class InspectionFee(models.Model):
             target_date: A date or datetime object representing the date to query
 
         Returns:
-            Decimal: The fee rate that was active on the target date
+            Decimal: The fee rate that was active on the target date.
+                     Returns Decimal('0') if no history entry existed on or
+                     before the requested date (i.e. fee was not yet defined).
 
         Example:
             # Get rate for a specific inspection date
             fee = InspectionFee.objects.get(fee_code='inspection_hour_rate')
             rate = fee.get_rate_for_date(inspection.date_of_inspection)
         """
+        from decimal import Decimal as _Decimal
+
         # Convert datetime to date if necessary
         if hasattr(target_date, 'date'):
             target_date = target_date.date()
@@ -1127,8 +1131,12 @@ class InspectionFee(models.Model):
         if history:
             return history.rate
 
-        # Fallback to current rate if no history found
-        # This handles cases where we're querying dates before any history was recorded
+        # No history existed on or before the target date — fee was not defined yet
+        # If history exists at all (just not before this date), return 0.
+        # If NO history exists at all, fall back to current rate (fees that have
+        # never been versioned).
+        if self.history.exists():
+            return _Decimal('0')
         return self.rate
 
 

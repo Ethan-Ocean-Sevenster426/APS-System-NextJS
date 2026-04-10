@@ -71,6 +71,7 @@ from .views.data_views import (
     api_inspector_mappings,
     api_onedrive_view,
     api_convert_docx_to_pdf,
+    api_send_occurrence_email,
 )
 from .views.xero_views import (
     xero_connect, xero_callback, xero_disconnect, xero_status,
@@ -132,6 +133,7 @@ urlpatterns = [
     path('export-to-google-sheets/', export_to_google_sheets, name='export_to_google_sheets'),
     path('update-invoice-number/', update_invoice_number, name='update_invoice_number'),
     path('api/inspections/', api_inspections, name='api_inspections'),
+    path('api/send-occurrence-email/', api_send_occurrence_email, name='api_send_occurrence_email'),
     path('api/clients/', api_clients, name='api_clients'),
     path('api/clients/add/', api_client_add, name='api_client_add'),
     path('api/clients/edit/', api_client_edit, name='api_client_edit'),

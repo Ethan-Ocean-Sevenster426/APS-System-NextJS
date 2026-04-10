@@ -3,7 +3,10 @@ import { DJANGO_API_URL } from "@/lib/config";
 export async function GET(request: NextRequest) {
   try {
     const cookie = request.headers.get("cookie") || "";
-    const res = await fetch(`${DJANGO_API_URL}/api/react/fees/get/`, { headers: { Cookie: cookie }, cache: "no-store" });
+    const { searchParams } = new URL(request.url);
+    const qs = searchParams.toString();
+    const url = `${DJANGO_API_URL}/api/react/fees/get/${qs ? `?${qs}` : ""}`;
+    const res = await fetch(url, { headers: { Cookie: cookie }, cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) { return NextResponse.json({ success: false, error: String(e) }, { status: 502 }); }

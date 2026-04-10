@@ -117,14 +117,14 @@ interface UserInfo {
 
 const COMMODITY_COLORS: Record<string, string> = {
   EGG: "#f59e0b",
-  PMP: "#3b82f6",
+  PMP: "#007890",
   POULTRY: "#10b981",
   RAW: "#ef4444",
 };
 
 const CHART_PALETTE = [
-  "#0078d4", "#107c10", "#f59e0b", "#d13438", "#8764b8",
-  "#e3008c", "#00b7c3", "#7fba00", "#ff6f00", "#6a1b9a",
+  "#007890", "#10b981", "#f59e0b", "#ef4444", "#005a6b",
+  "#22c55e", "#0891b2", "#7c3aed", "#f97316", "#059669",
 ];
 
 const MONTHS = [
@@ -208,7 +208,7 @@ function isSampleCommodity(commodity: string): boolean {
 
 // ── Shared Chart Defaults ──────────────────────────────────────────────────────
 
-const lineDefaults = { tension: 0.3, fill: false, pointRadius: 3, borderWidth: 2 };
+const lineDefaults = { tension: 0.35, fill: false, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.5 };
 
 function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?: boolean; datalabelColor?: string; datalabelSuffix?: string; datalabelFormatter?: (v: number) => string }): Record<string, unknown> {
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
@@ -251,7 +251,7 @@ function InfoTooltip({ text }: { text: string }) {
 
 function Card({ title, icon, children, className = "", headerRight, subtitle, tooltip }: { title: string; icon?: string; children: React.ReactNode; className?: string; headerRight?: React.ReactNode; subtitle?: string; tooltip?: string }) {
   return (
-    <div className={`analytics-card bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5, overflow: "hidden", maxWidth: "100%" }}>
+    <div className={`analytics-card bg-white rounded-md border border-gray-200 ${className}`} style={{ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", marginBottom: 5, maxWidth: "100%" }}>
       <div className="border-b border-gray-200 flex items-center justify-between flex-wrap gap-2" style={{ padding: "12px 16px" }}>
         <div className="flex items-center gap-2">
           {icon && <i className={`${icon} text-[#007890]`} style={{ fontSize: "1rem" }} />}
@@ -279,7 +279,7 @@ function KpiCard({ label, value, color = "#007890", icon }: { label: string; val
 }
 
 function ChartWrap({ children, height = "300px" }: { children: React.ReactNode; height?: string }) {
-  return <div className="analytics-chart-wrap" style={{ position: "relative", height, minHeight: 200 }}>{children}</div>;
+  return <div className="analytics-chart-wrap" style={{ position: "relative", height, minHeight: 200, overflow: "visible" }}>{children}</div>;
 }
 
 // Wrapper components that inject ChartDataLabels plugin per-chart (not globally)
@@ -296,14 +296,16 @@ export default function AnalyticsPage() {
   const [activePanel, setActivePanel] = useState<PanelKey>("overview");
   const [rawData, setRawData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<Filters>({ date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] });
+  const emptyFilters: Filters = { date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] };
+  const [pendingFilters, setPendingFilters] = useState<Filters>(emptyFilters);
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [inspectorMetric, setInspectorMetric] = useState<"count" | "total_km" | "total_hours" | "samples">("count");
   const [salaries, setSalaries] = useState<Record<string, { salary: number; employee_number: string }>>({});
   const [quarterlyTargets, setQuarterlyTargets] = useState<Record<string, QuarterlyTarget>>({});
   const [targetYear, setTargetYear] = useState(new Date().getFullYear());
   const [targetQuarter, setTargetQuarter] = useState(Math.ceil((new Date().getMonth() + 1) / 3));
   const [showTargetsModal, setShowTargetsModal] = useState(false);
-  const [editingTarget, setEditingTarget] = useState<QuarterlyTarget>({ inspector_name: "", year: new Date().getFullYear(), quarter: Math.ceil((new Date().getMonth() + 1) / 3), eggs: 51, poultry: 59, raw: 63, pmp: 54, raw_samples: 58, pmp_samples: 12 });
+  const [editingTarget, setEditingTarget] = useState<QuarterlyTarget>({ inspector_name: "", year: new Date().getFullYear(), quarter: Math.ceil((new Date().getMonth() + 1) / 3), eggs: 0, poultry: 0, raw: 0, pmp: 0, raw_samples: 0, pmp_samples: 0 });
   const [xeroStatus, setXeroStatus] = useState<{ connected: boolean; org_name?: string }>({ connected: false });
   const [xeroInvoices, setXeroInvoices] = useState<{ invoices: Array<Record<string, unknown>>; aging: Record<string, number>; total_count?: number }>({ invoices: [], aging: {} });
   const [xeroPage, setXeroPage] = useState(1);
@@ -436,11 +438,13 @@ export default function AnalyticsPage() {
     const filteredOcc = fi(rawData.occurrenceReports ?? []);
     const filteredFin = fi(rawData.inspectorFinancials ?? []);
 
-    const facilityTypeDist = (() => {
-      const counts: Record<string, number> = {};
-      filteredList.forEach(s => { if (s.facility_type) counts[s.facility_type] = (counts[s.facility_type] || 0) + 1; });
-      return Object.entries(counts).map(([facility_type, count]) => ({ facility_type, count }));
-    })();
+    const facilityTypeDist = (hasI || hasC)
+      ? (() => {
+          const counts: Record<string, number> = {};
+          filteredList.forEach(s => { if (s.facility_type) counts[s.facility_type] = (counts[s.facility_type] || 0) + 1; });
+          return Object.entries(counts).map(([facility_type, count]) => ({ facility_type, count }));
+        })()
+      : (rawData.facilityTypeDistribution ?? []);
 
     return {
       ...rawData,
@@ -451,7 +455,7 @@ export default function AnalyticsPage() {
       activeInspectors: (hasI || hasC) ? new Set(filteredList.map(s => s.inspector_name)).size : rawData.activeInspectors,
       totalHours: filteredTime.reduce((s, r) => s + r.total_hours, 0),
       avgHours: filteredTime.length > 0 ? filteredTime.reduce((s, r) => s + r.total_hours, 0) / filteredTime.length : 0,
-      totalOccurrenceReports: filteredOcc.reduce((s, r) => s + r.count, 0),
+      totalOccurrenceReports: (hasI || hasC) ? filteredOcc.reduce((s, r) => s + r.count, 0) : rawData.totalOccurrenceReports,
       complianceByCommodity: filteredCompliance,
       commodityAnalysis: fc(rawData.commodityAnalysis ?? []),
       samplesByCommodity: fc(rawData.samplesByCommodity ?? []),
@@ -612,11 +616,11 @@ export default function AnalyticsPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [newExpense, setNewExpense] = useState({ inspector: "", amount: "", description: "", date: "" });
 
-  const handleApply = () => fetchData(filters);
+  const handleApply = () => { setFilters(pendingFilters); fetchData(pendingFilters); };
   const handleReset = () => {
-    const empty: Filters = { date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] };
-    setFilters(empty);
-    fetchData(empty);
+    setPendingFilters(emptyFilters);
+    setFilters(emptyFilters);
+    fetchData(emptyFilters);
   };
 
   // ── Export: Excel ───────────────────────────────────────────────────────────
@@ -1112,7 +1116,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  const dateRangeSet = filters.date_from !== "" || filters.date_to !== "";
+  const dateRangeSet = pendingFilters.date_from !== "" || pendingFilters.date_to !== "";
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -1184,17 +1188,17 @@ export default function AnalyticsPage() {
         <div className="analytics-filter-bar flex flex-wrap items-end" style={{ gap: "0.75rem" }}>
           <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Date From</label>
-            <input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+            <input type="date" value={pendingFilters.date_from} onChange={(e) => setPendingFilters({ ...pendingFilters, date_from: e.target.value })}
               style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%" }} />
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Date To</label>
-            <input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+            <input type="date" value={pendingFilters.date_to} onChange={(e) => setPendingFilters({ ...pendingFilters, date_to: e.target.value })}
               style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%" }} />
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[100px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Year</label>
-            <select value={filters.year} onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+            <select value={pendingFilters.year} onChange={(e) => setPendingFilters({ ...pendingFilters, year: e.target.value })}
               style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%" }}>
               <option value="">All Years</option>
               {rawData?.filterOptions?.years?.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -1202,8 +1206,8 @@ export default function AnalyticsPage() {
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Month</label>
-            <select value={filters.month} disabled={dateRangeSet}
-              onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+            <select value={pendingFilters.month} disabled={dateRangeSet}
+              onChange={(e) => setPendingFilters({ ...pendingFilters, month: e.target.value })}
               style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%", ...(dateRangeSet ? { background: "#f3f4f6", color: "#9ca3af" } : {}) }}>
               <option value="">All Months</option>
               {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -1216,8 +1220,8 @@ export default function AnalyticsPage() {
               <MultiSelectDropdown
                 label="Inspector"
                 options={rawData?.filterOptions?.inspectors ?? []}
-                selected={filters.inspector}
-                onChange={(v) => setFilters({ ...filters, inspector: v })}
+                selected={pendingFilters.inspector}
+                onChange={(v) => setPendingFilters({ ...pendingFilters, inspector: v })}
                 placeholder="All Inspectors"
               />
             </div>
@@ -1235,8 +1239,8 @@ export default function AnalyticsPage() {
             <MultiSelectDropdown
               label="Commodity"
               options={rawData?.filterOptions?.commodities ?? []}
-              selected={filters.commodity}
-              onChange={(v) => setFilters({ ...filters, commodity: v })}
+              selected={pendingFilters.commodity}
+              onChange={(v) => setPendingFilters({ ...pendingFilters, commodity: v })}
               placeholder="All Commodities"
             />
           </div>
@@ -1258,7 +1262,7 @@ export default function AnalyticsPage() {
               <i className={pdfLoading ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} /> {pdfLoading ? "Generating..." : "Export PDF"}
             </button>
             <button onClick={() => { /* TODO: toggle info panel */ }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6366f1", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
               <i className="fas fa-info-circle" /> Info
             </button>
           </div>
@@ -1322,7 +1326,7 @@ export default function AnalyticsPage() {
               .analytics-fin-btns button { font-size: 9px !important; padding: 4px 6px !important; }
             }
           `}</style>
-          {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} />}
+          {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} filters={filters} />}
           {activePanel === "inspectors" && <InspectorsPanel data={data} inspectorMetric={inspectorMetric} setInspectorMetric={setInspectorMetric} quarterlyTargets={quarterlyTargets} targetYear={targetYear} targetQuarter={targetQuarter} setTargetYear={setTargetYear} setTargetQuarter={setTargetQuarter} onSetTargets={() => setShowTargetsModal(true)} filterInspector={filters.inspector.length === 1 ? filters.inspector[0] : ""} />}
           {activePanel === "compliance" && <CompliancePanel data={data} />}
           {activePanel === "operations" && <OperationsPanel data={data} />}
@@ -1332,19 +1336,35 @@ export default function AnalyticsPage() {
           {/* Salary Modal */}
           {showSalaryModal && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowSalaryModal(false)}>
-              <div style={{ background: "white", borderRadius: 12, padding: 24, maxWidth: 600, width: "90%", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                <h3 style={{ margin: "0 0 16px", fontSize: "1.1rem", fontWeight: 600 }}><i className="fas fa-edit" style={{ marginRight: 8, color: "#007890" }} />Edit Salaries (CTC)</h3>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr><th style={{ textAlign: "left", padding: "6px 8px", fontSize: "0.8rem", borderBottom: "2px solid #e5e7eb" }}>Inspector</th><th style={{ textAlign: "right", padding: "6px 8px", fontSize: "0.8rem", borderBottom: "2px solid #e5e7eb" }}>Monthly Salary (R)</th></tr></thead>
-                  <tbody>
-                    {Object.entries(editingSalaries).map(([name, val]) => (
-                      <tr key={name}><td style={{ padding: "4px 8px", fontSize: "0.85rem" }}>{name}</td><td style={{ padding: "4px 8px" }}><input type="number" value={val} onChange={e => setEditingSalaries({ ...editingSalaries, [name]: Number(e.target.value) })} style={{ width: "100%", textAlign: "right", padding: "4px 8px", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: "0.85rem" }} /></td></tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-                  <button onClick={() => setShowSalaryModal(false)} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.85rem" }}>Cancel</button>
-                  <button onClick={saveSalaries} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#007890", color: "white", cursor: "pointer", fontSize: "0.85rem", fontWeight: 500 }}>Save</button>
+              <div style={{ background: "white", borderRadius: 12, padding: "16px 20px", maxWidth: 1100, width: "95%", maxHeight: "95vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}><i className="fas fa-money-check-alt" style={{ marginRight: 8, color: "#007890" }} />Edit Salaries (CTC)</h3>
+                  <button onClick={() => setShowSalaryModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>&times;</button>
+                </div>
+
+                <div style={{ marginBottom: 12, padding: "10px 12px", background: "#e6f3f7", borderRadius: 6, border: "1px solid #b2d8e2", display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-info-circle" style={{ color: "#007890" }} />
+                  <span style={{ fontSize: "0.78rem", color: "#005a6b" }}>Update monthly salary (Cost to Company) for each inspector.</span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                  {Object.entries(editingSalaries).map(([name, val]) => (
+                    <div key={name} style={{ display: "flex", gap: 10, padding: "8px 12px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb", alignItems: "center" }}>
+                      <span style={{ flex: 1, fontSize: "0.78rem", fontWeight: 500, color: "#374151" }}>{name}</span>
+                      <div style={{ position: "relative", width: 120 }}>
+                        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "0.75rem", fontWeight: 500 }}>R</span>
+                        <input type="number" step="0.01" min="0" value={val} onChange={e => setEditingSalaries({ ...editingSalaries, [name]: Number(e.target.value) })}
+                          style={{ width: "100%", padding: "5px 8px 5px 22px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.75rem", textAlign: "right" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button onClick={() => setShowSalaryModal(false)} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500 }}>Cancel</button>
+                  <button onClick={saveSalaries} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#007890", color: "white", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600 }}>
+                    <i className="fas fa-save" style={{ marginRight: 6 }} />Save Salaries
+                  </button>
                 </div>
               </div>
             </div>
@@ -1352,57 +1372,51 @@ export default function AnalyticsPage() {
 
           {/* Expense Modal */}
           {showExpenseModal && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowExpenseModal(false)}>
-              <div style={{ background: "white", borderRadius: 14, maxWidth: 620, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <i className="fas fa-receipt" style={{ color: "white", fontSize: 16 }} />
-                    </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#1f2937" }}>Log Expense</h3>
-                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#9ca3af" }}>{expenseLog.length} expense{expenseLog.length !== 1 ? "s" : ""} logged</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowExpenseModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, padding: 4, lineHeight: 1 }}><i className="fas fa-times" /></button>
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowExpenseModal(false)}>
+              <div style={{ background: "white", borderRadius: 12, padding: "16px 20px", maxWidth: 550, width: "92%", maxHeight: "95vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}><i className="fas fa-receipt" style={{ marginRight: 8, color: "#007890" }} />Log Expense</h3>
+                  <button onClick={() => setShowExpenseModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>&times;</button>
                 </div>
 
-                {/* Form */}
-                <div style={{ padding: "20px 24px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Inspector</label>
-                      <select value={newExpense.inspector} onChange={e => setNewExpense({ ...newExpense, inspector: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", color: newExpense.inspector ? "#1f2937" : "#9ca3af", background: "white", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"}>
-                        <option value="">Select inspector...</option>
-                        {data?.filterOptions?.inspectors?.map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Amount</label>
-                      <div style={{ position: "relative" }}>
-                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: "0.85rem", fontWeight: 500 }}>R</span>
-                        <input type="number" placeholder="0.00" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} style={{ width: "100%", padding: "9px 12px 9px 28px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Date</label>
-                      <input type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>Description</label>
-                      <input type="text" placeholder="e.g. Fuel, equipment, travel..." value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s" }} onFocus={e => e.target.style.borderColor = "#f59e0b"} onBlur={e => e.target.style.borderColor = "#e5e7eb"} />
-                    </div>
-                  </div>
-                  <button onClick={() => {
-                    if (!newExpense.inspector || !newExpense.amount) return;
-                    const entry = { id: Date.now().toString(), inspector: newExpense.inspector, amount: Number(newExpense.amount), description: newExpense.description, date: newExpense.date || new Date().toISOString().slice(0, 10) };
-                    saveExpenses([...expenseLog, entry]);
-                    setNewExpense({ inspector: "", amount: "", description: "", date: "" });
-                  }} disabled={!newExpense.inspector || !newExpense.amount} style={{ width: "100%", padding: "10px 16px", borderRadius: 8, border: "none", background: !newExpense.inspector || !newExpense.amount ? "#e5e7eb" : "linear-gradient(135deg, #f59e0b, #d97706)", color: !newExpense.inspector || !newExpense.amount ? "#9ca3af" : "white", cursor: !newExpense.inspector || !newExpense.amount ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all 0.15s" }}>
-                    <i className="fas fa-plus" /> Add Expense
-                  </button>
+                <div style={{ marginBottom: 12, padding: "10px 12px", background: "#e6f3f7", borderRadius: 6, border: "1px solid #b2d8e2", display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="fas fa-info-circle" style={{ color: "#007890" }} />
+                  <span style={{ fontSize: "0.78rem", color: "#005a6b" }}>{expenseLog.length} expense{expenseLog.length !== 1 ? "s" : ""} logged</span>
                 </div>
+
+                <div style={{ display: "flex", gap: 10, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Inspector</label>
+                    <select value={newExpense.inspector} onChange={e => setNewExpense({ ...newExpense, inspector: e.target.value })} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }}>
+                      <option value="">Select inspector...</option>
+                      {data?.filterOptions?.inspectors?.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Date</label>
+                    <input type="date" value={newExpense.date} onChange={e => setNewExpense({ ...newExpense, date: e.target.value })} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }} />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Amount (R)</label>
+                    <input type="number" step="0.01" min="0" placeholder="0.00" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }} />
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 3 }}>Description</label>
+                    <input type="text" placeholder="e.g. Fuel, equipment, travel..." value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 4, fontSize: "0.78rem" }} />
+                  </div>
+                </div>
+
+                <button onClick={() => {
+                  if (!newExpense.inspector || !newExpense.amount) return;
+                  const entry = { id: Date.now().toString(), inspector: newExpense.inspector, amount: Number(newExpense.amount), description: newExpense.description, date: newExpense.date || new Date().toISOString().slice(0, 10) };
+                  saveExpenses([...expenseLog, entry]);
+                  setNewExpense({ inspector: "", amount: "", description: "", date: "" });
+                }} disabled={!newExpense.inspector || !newExpense.amount} style={{ width: "100%", padding: "8px 16px", borderRadius: 6, border: "none", background: !newExpense.inspector || !newExpense.amount ? "#e5e7eb" : "#007890", color: !newExpense.inspector || !newExpense.amount ? "#9ca3af" : "white", cursor: !newExpense.inspector || !newExpense.amount ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "0.82rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                  <i className="fas fa-plus" /> Add Expense
+                </button>
 
                 {/* Expense List */}
                 {expenseLog.length > 0 && (
@@ -1461,7 +1475,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: 8 }}>Inspection Targets</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  {([["eggs", "Egg Inspections", 51], ["poultry", "Poultry Inspections", 59], ["raw", "RAW Inspections", 63], ["pmp", "PMP Inspections", 54], ["raw_samples", "RAW Samples", 58], ["pmp_samples", "PMP Samples", 12]] as [string, string, number][]).map(([key, label, def]) => (
+                  {([["eggs", "Egg Inspections", 0], ["poultry", "Poultry Inspections", 0], ["raw", "RAW Inspections", 0], ["pmp", "PMP Inspections", 0], ["raw_samples", "RAW Samples", 0], ["pmp_samples", "PMP Samples", 0]] as [string, string, number][]).map(([key, label, def]) => (
                     <div key={key}>
                       <label style={{ fontSize: "0.7rem", color: "#6b7280", display: "block", marginBottom: 2 }}>{label}</label>
                       <input type="number" min={0} value={(editingTarget as unknown as Record<string, number>)[key] ?? def}
@@ -1493,7 +1507,18 @@ export default function AnalyticsPage() {
 // PANEL 1: Overview
 // ════════════════════════════════════════════════════════════════════════════════
 
-function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }: { data: AnalyticsData; totalKm: number; avgDocSend: number; avgApproval: number; totalSamples: number }) {
+function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, filters }: { data: AnalyticsData; totalKm: number; avgDocSend: number; avgApproval: number; totalSamples: number; filters: Filters }) {
+  const periodLabel = (() => {
+    const parts: string[] = [];
+    if (filters.date_from && filters.date_to) parts.push(`${filters.date_from} to ${filters.date_to}`);
+    else if (filters.date_from) parts.push(`From ${filters.date_from}`);
+    else if (filters.date_to) parts.push(`Until ${filters.date_to}`);
+    if (filters.year && !filters.date_from && !filters.date_to) parts.push(filters.year);
+    if (filters.month) parts.push(MONTHS[Number(filters.month) - 1]);
+    if (filters.inspector.length > 0) parts.push(filters.inspector.join(", "));
+    if (filters.commodity.length > 0) parts.push(filters.commodity.join(", "));
+    return parts.length > 0 ? parts.join(" | ") : "All Time";
+  })();
   // Daily compliance trend
   console.log("[OverviewPanel] dailyComplianceTrend received:", data.dailyComplianceTrend?.length, "items, first 3:", (data.dailyComplianceTrend || []).slice(0, 3));
   const dailyDays = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
@@ -1555,6 +1580,12 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
 
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
+      {/* Period Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <i className="fas fa-calendar-check" style={{ color: "#007890", fontSize: 14 }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Period: {periodLabel}</span>
+      </div>
+
       {/* Primary KPIs */}
       <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Total Inspections" value={data.totalInspections} />
@@ -1566,7 +1597,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
       {/* Secondary KPIs */}
       <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Occurrence Reports" value={data.totalOccurrenceReports} color="#ef4444" icon="fas fa-exclamation-circle" />
-        <KpiCard label="Total KM Traveled" value={totalKm.toLocaleString("en-ZA")} color="#3b82f6" icon="fas fa-road" />
+        <KpiCard label="Total KM Traveled" value={totalKm.toLocaleString("en-ZA")} color="#007890" icon="fas fa-road" />
         <KpiCard label="Avg Days: Doc Send" value={avgDocSend.toFixed(1)} color="#f59e0b" icon="fas fa-paper-plane" />
         <KpiCard label="Avg Days: Approval" value={avgApproval.toFixed(1)} color="#8764b8" icon="fas fa-hourglass-half" />
         <KpiCard label="Total Samples Taken" value={totalSamples} color="#10b981" icon="fas fa-vial" />
@@ -1579,12 +1610,12 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
             <div key={c.commodity} className="flex items-center gap-3">
               <span className="font-semibold text-sm text-gray-800 w-20 flex-shrink-0">{c.commodity}</span>
               <div className="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden relative">
-                <div className="h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                <div className="h-full rounded-full transition-all duration-500 flex items-center justify-center"
                   style={{ width: `${Math.max(c.compliance_rate, 3)}%`, backgroundColor: colorForCommodity(c.commodity) }}>
-                  {c.compliance_rate > 15 && <span className="text-white text-[11px] font-bold" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>{c.compliance_rate.toFixed(1)}%</span>}
+                  {c.compliance_rate > 10 && <span className="text-[11px] font-bold" style={{ color: "#000" }}>{c.compliance_rate.toFixed(1)}%</span>}
                 </div>
               </div>
-              <span className="text-xs text-gray-500 w-[80px] text-right flex-shrink-0">{c.compliance_rate.toFixed(1)}% ({c.compliant}/{c.total})</span>
+              <span className="text-xs text-gray-500 flex-shrink-0" style={{ minWidth: 70, textAlign: "right" }}>{c.compliance_rate.toFixed(1)}% ({c.compliant}/{c.total})</span>
             </div>
           ))}
         </div>
@@ -1592,8 +1623,24 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
 
       {/* Daily compliance trend */}
       <Card title="Daily Compliance Trend by Commodity" icon="fas fa-chart-line" tooltip="Daily compliance percentage trends across all commodity types over time.">
-        <ChartWrap height="260px">
-          <DLLine data={dailyChartData} options={baseChartOptions(undefined, "Compliance %", { datalabels: false }) as never} />
+        <ChartWrap height="400px">
+          <DLLine data={dailyChartData} options={(() => {
+            const base = baseChartOptions(undefined, "Compliance %", { datalabels: false });
+            return {
+              ...base,
+              layout: { padding: { top: 30, right: 50, bottom: 10, left: 10 } },
+              interaction: { mode: "index" as const, intersect: false },
+              plugins: {
+                ...(base.plugins as Record<string, unknown>),
+                tooltip: { enabled: true, mode: "index" as const, intersect: false, callbacks: { label: (ctx: { dataset: { label: string }; parsed: { y: number } }) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
+                datalabels: { display: false },
+              },
+              scales: {
+                x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 30 }, grid: { color: "rgba(0,0,0,0.04)" } },
+                y: { min: 0, max: 105, ticks: { font: { size: 10 }, stepSize: 5, autoSkip: false, callback: (v: number) => v <= 100 ? v + "%" : "" }, title: { display: true, text: "Compliance %", font: { size: 11 } }, grid: { color: "rgba(0,0,0,0.06)" } },
+              },
+            };
+          })() as never} />
         </ChartWrap>
       </Card>
 
@@ -1617,7 +1664,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples }:
 
       {/* Facility Types — unique to Overview */}
       <Card title="Facility Types" icon="fas fa-building" tooltip="Distribution of inspections across different facility types (e.g. abattoir, farm, processor).">
-        <ChartWrap height="220px"><DLBar data={ftData} options={{
+        <ChartWrap height={`${Math.max(300, ftSorted.length * 40)}px`}><DLBar data={ftData} options={{
           ...baseChartOptions(undefined, undefined, { datalabels: true, datalabelColor: "#1f2937" }),
           indexAxis: "y" as const,
           scales: { x: { beginAtZero: true, ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } },
@@ -1704,12 +1751,25 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const allInspectors = data.filterOptions?.inspectors ?? [];
   const commodityList = ["EGG", "POULTRY", "RAW", "PMP"];
 
+  // Compute quarter date range for filtering actuals
+  const qStartMonth = (targetQuarter - 1) * 3; // 0-based: Q1=0, Q2=3, Q3=6, Q4=9
+  const qStart = new Date(targetYear, qStartMonth, 1);
+  const qEnd = new Date(targetYear, qStartMonth + 3, 0); // last day of quarter
+  const qStartStr = qStart.toISOString().slice(0, 10);
+  const qEndStr = qEnd.toISOString().slice(0, 10);
+
+  // Filter inspections list to the selected quarter
+  const quarterInspections = (data.inspectionsList || []).filter(i => {
+    const d = i.date_of_inspection || "";
+    return d >= qStartStr && d <= qEndStr;
+  });
+
   function getActual(inspector: string, commodity: string): number {
     const c = commodity === "EGG" ? "EGGS" : commodity;
-    const row = (data.inspectorCommodityMatrix || []).find(
-      (r) => r.inspector_name === inspector && r.commodity.toUpperCase() === c
-    );
-    return row?.count ?? 0;
+    return quarterInspections.filter(i =>
+      i.inspector_name === inspector &&
+      (i.commodity || "").toUpperCase() === c
+    ).length;
   }
 
   function getQTarget(inspector: string, commodity: string): number {
@@ -1745,12 +1805,14 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
     borderWidth: 2,
   }));
 
-  // Add target ring if a single inspector is selected and has targets
-  if (radarInspector !== "all" && quarterlyTargets[radarInspector]) {
-    const qt = quarterlyTargets[radarInspector];
+  // Add target ring — use selected inspector's targets, or first available for "all"
+  const targetSource = radarInspector !== "all"
+    ? quarterlyTargets[radarInspector]
+    : Object.values(quarterlyTargets)[0];
+  if (targetSource) {
     radarDatasets.push({
       label: "Target",
-      data: [qt.eggs, qt.poultry, qt.raw, qt.pmp, qt.raw_samples, qt.pmp_samples],
+      data: [targetSource.eggs, targetSource.poultry, targetSource.raw, targetSource.pmp, targetSource.raw_samples, targetSource.pmp_samples],
       borderColor: "#ef4444",
       backgroundColor: "rgba(239,68,68,0.08)",
       pointBackgroundColor: "#ef4444",
@@ -1866,7 +1928,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
 // ════════════════════════════════════════════════════════════════════════════════
 
 function CompliancePanel({ data }: { data: AnalyticsData }) {
-  const [trendView, setTrendView] = useState<"daily" | "weekly" | "monthly">("monthly");
+  const [trendView, setTrendView] = useState<"daily" | "weekly" | "monthly">("daily");
   const [trendOffset, setTrendOffset] = useState(0); // 0 = latest, negative = back in time
 
   // Build trend data based on selected view
@@ -1894,14 +1956,17 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         canForward: trendOffset < 0,
       };
     } else if (trendView === "daily") {
-      const days = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort();
-      const windowSize = 14;
-      const end = days.length + trendOffset;
-      const start = Math.max(0, end - windowSize);
-      const visibleDays = days.slice(start, end > 0 ? end : days.length);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const days = [...new Set((data.dailyComplianceTrend || []).map((d) => d.day))].sort().filter(d => d <= todayStr);
+      // Default: show current month only; scroll back/forward by month
+      const now = new Date();
+      const monthOffset = trendOffset; // 0 = current month, -1 = last month, etc.
+      const viewMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+      const viewMonthStr = `${viewMonth.getFullYear()}-${String(viewMonth.getMonth() + 1).padStart(2, "0")}`;
+      const visibleDays = days.filter(d => d.startsWith(viewMonthStr));
       const commodities = [...new Set((data.dailyComplianceTrend || []).map((d) => d.commodity))];
       return {
-        labels: visibleDays.map(d => { const dt = new Date(d + "T12:00:00"); return `${dt.getDate()}/${dt.getMonth()+1}`; }),
+        labels: visibleDays.map(d => { const dt = new Date(d + "T12:00:00"); return `${dt.getDate()} ${dt.toLocaleString("en", { month: "short" })}`; }),
         datasets: commodities.map((c, i) => ({
           label: c,
           data: visibleDays.map((day) => {
@@ -1912,8 +1977,8 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
           backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
           ...lineDefaults,
         })),
-        canBack: start > 0,
-        canForward: trendOffset < 0,
+        canBack: days.some(d => d < viewMonthStr),
+        canForward: monthOffset < 0,
       };
     } else {
       // Weekly: group daily data by week
@@ -2053,7 +2118,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
         <Card title="Time Allocation (Billable Hours)" icon="fas fa-clock" tooltip="Distribution of billable hours worked across all inspectors.">
-          <ChartWrap height="280px">
+          <ChartWrap height={`${Math.max(280, (data.timeAllocation || []).length * 32)}px`}>
             <DLBar data={taData} options={hBarOpts as never} />
           </ChartWrap>
         </Card>
@@ -2070,22 +2135,63 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 function OperationsPanel({ data }: { data: AnalyticsData }) {
-  // Monthly travel distance (area)
-  const mtdData = {
-    labels: (data.monthlyTravelTrend || []).map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "KM", data: (data.monthlyTravelTrend || []).map((d) => d.total_km), borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.15)", ...lineDefaults, fill: true }],
+  const [opsView, setOpsView] = useState<"daily" | "weekly" | "monthly">("monthly");
+  const opsLabel = opsView === "daily" ? "Daily" : opsView === "weekly" ? "Weekly" : "Monthly";
+
+  // Build travel trend data based on selected view
+  // Build travel trend data from weekly inspector trend data
+  const _aggTravel = (raw: Array<Record<string, unknown>>) => {
+    const km: Record<string, number> = {};
+    const hrs: Record<string, number> = {};
+    (raw || []).forEach(r => {
+      const d = String(r.day || "");
+      km[d] = (km[d] || 0) + (Number(r.total_km) || 0);
+      hrs[d] = (hrs[d] || 0) + (Number(r.total_hours) || 0);
+    });
+    return { km, hrs, days: Object.keys(km).sort() };
+  };
+  const _weeklyTravel = _aggTravel(data.monthlyInspectorTrend || []);
+
+  // For daily: use inspectionsList to get per-day totals
+  const _dailyTravel = (() => {
+    const km: Record<string, number> = {};
+    const hrs: Record<string, number> = {};
+    (data.inspectionsList || []).forEach(i => {
+      const d = i.date_of_inspection;
+      if (!d) return;
+      km[d] = (km[d] || 0) + (Number((i as Record<string, unknown>).km_traveled) || 0);
+      hrs[d] = (hrs[d] || 0) + (Number((i as Record<string, unknown>).hours) || 0);
+    });
+    return { km, hrs, days: Object.keys(km).sort() };
+  })();
+
+  const _src = opsView === "daily" ? _dailyTravel : _weeklyTravel;
+  const _fmtLabel = (d: string) => {
+    const dt = new Date(d + "T12:00:00");
+    if (opsView === "daily") return `${dt.getDate()} ${dt.toLocaleString("en", { month: "short" })}`;
+    return `W${Math.ceil(dt.getDate() / 7)} ${dt.toLocaleString("en", { month: "short" })}`;
   };
 
-  // Travel hours trend
-  const thtData = {
+  const mtdData = opsView === "monthly" ? {
+    labels: (data.monthlyTravelTrend || []).map((d) => fmtMonth(d.month)),
+    datasets: [{ label: "KM", data: (data.monthlyTravelTrend || []).map((d) => d.total_km), borderColor: "#007890", backgroundColor: "rgba(0,120,144,0.15)", ...lineDefaults, fill: true }],
+  } : {
+    labels: _src.days.map(_fmtLabel),
+    datasets: [{ label: "KM", data: _src.days.map(d => _src.km[d] || 0), borderColor: "#007890", backgroundColor: "rgba(0,120,144,0.15)", ...lineDefaults, fill: true }],
+  };
+
+  const thtData = opsView === "monthly" ? {
     labels: (data.monthlyTravelHoursTrend || []).map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Hours", data: (data.monthlyTravelHoursTrend || []).map((d) => d.total_hours), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+    datasets: [{ label: "Hours", data: (data.monthlyTravelHoursTrend || []).map((d) => d.total_hours), borderColor: "#005a6b", backgroundColor: "rgba(0,90,107,0.1)", ...lineDefaults, fill: true }],
+  } : {
+    labels: _src.days.map(_fmtLabel),
+    datasets: [{ label: "Hours", data: _src.days.map(d => _src.hrs[d] || 0), borderColor: "#005a6b", backgroundColor: "rgba(0,90,107,0.1)", ...lineDefaults, fill: true }],
   };
 
   // Travel distance per inspector (horizontal bar)
   const tdpData = {
     labels: (data.travelPerInspector || []).map((d) => d.inspector_name),
-    datasets: [{ label: "KM", data: (data.travelPerInspector || []).map((d) => d.total_km), backgroundColor: "#0078d4" }],
+    datasets: [{ label: "KM", data: (data.travelPerInspector || []).map((d) => d.total_km), backgroundColor: "#007890" }],
   };
   const hBarOpts = {
     ...baseChartOptions(),
@@ -2103,26 +2209,41 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
   // Travel time per inspector (horizontal bar)
   const ttpData = {
     labels: (data.travelTimePerInspector || []).map((d) => d.inspector_name),
-    datasets: [{ label: "Hours", data: (data.travelTimePerInspector || []).map((d) => d.total_hours), backgroundColor: "#8764b8" }],
+    datasets: [{ label: "Hours", data: (data.travelTimePerInspector || []).map((d) => d.total_hours), backgroundColor: "#005a6b" }],
   };
+
+  // Toggle component
+  const viewToggle = (
+    <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>
+      {(["daily", "weekly", "monthly"] as const).map((v, i) => (
+        <button key={v} onClick={() => setOpsView(v)}
+          style={{ padding: "5px 14px", fontSize: 12, fontWeight: opsView === v ? 700 : 400, background: opsView === v ? "#007890" : "#fff", color: opsView === v ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: i > 0 ? "1px solid #d1d5db" : "none" }}>
+          <i className={`fas ${v === "daily" ? "fa-calendar-day" : v === "weekly" ? "fa-calendar-week" : "fa-calendar-alt"}`} style={{ marginRight: 4 }} />{v.charAt(0).toUpperCase() + v.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
+      {/* Toggle */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>{viewToggle}</div>
+
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Monthly Travel Distance (km)" icon="fas fa-chart-area" tooltip="Total kilometres driven by all inspectors each month.">
+        <Card title={`${opsLabel} Travel Distance (km)`} icon="fas fa-chart-area" tooltip="Total kilometres driven by all inspectors.">
           <ChartWrap height="180px"><DLLine data={mtdData} options={baseChartOptions(undefined, "KM", { datalabels: false }) as never} /></ChartWrap>
         </Card>
-        <Card title="Travel Hours Trend (Monthly)" icon="fas fa-chart-line" tooltip="Monthly trend of hours spent travelling by all inspectors.">
+        <Card title={`Travel Hours Trend (${opsLabel})`} icon="fas fa-chart-line" tooltip="Trend of hours spent travelling by all inspectors.">
           <ChartWrap height="180px"><DLLine data={thtData} options={baseChartOptions(undefined, "Hours", { datalabels: false }) as never} /></ChartWrap>
         </Card>
       </div>
       <Card title="Travel Distance Per Inspector" icon="fas fa-route" tooltip="Total kilometres driven by each inspector for the selected period.">
-        <ChartWrap height="300px">
+        <ChartWrap height={`${Math.max(350, (data.travelPerInspector || []).length * 32)}px`}>
           <DLBar data={tdpData} options={hBarOpts as never} />
         </ChartWrap>
       </Card>
       <Card title="Travel Time Per Inspector (Hours)" icon="fas fa-car" tooltip="Total travel hours logged by each inspector.">
-        <ChartWrap height="300px">
+        <ChartWrap height={`${Math.max(350, (data.travelTimePerInspector || []).length * 32)}px`}>
           <DLBar data={ttpData} options={hBarOpts as never} />
         </ChartWrap>
       </Card>
@@ -2135,38 +2256,52 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 function TimelinesPanel({ data }: { data: AnalyticsData }) {
-  const [timelineView, setTimelineView] = useState<"weekly" | "monthly">("weekly");
+  const [timelineView, setTimelineView] = useState<"daily" | "weekly" | "monthly">("weekly");
   const lineOpts = baseChartOptions(undefined, "Avg Days");
 
   const isWeekly = timelineView === "weekly";
+  const isDaily = timelineView === "daily";
+  const viewLabel = isDaily ? "Daily" : isWeekly ? "Weekly" : "Monthly";
 
-  const docSendTrend = isWeekly ? {
+  const docSendTrend = isDaily ? {
+    labels: (data.dailyDocSendTrend || data.weeklyDocSendTrend || []).map((d: Record<string, unknown>) => String(d.day || d.week)),
+    datasets: [{ label: "Avg Days", data: (data.dailyDocSendTrend || data.weeklyDocSendTrend || []).map((d: Record<string, unknown>) => Number(d.avg_days)), borderColor: "#007890", backgroundColor: "rgba(0,120,144,0.1)", ...lineDefaults, fill: true }],
+  } : isWeekly ? {
     labels: (data.weeklyDocSendTrend || []).map((d) => d.week),
-    datasets: [{ label: "Avg Days", data: (data.weeklyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
+    datasets: [{ label: "Avg Days", data: (data.weeklyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#007890", backgroundColor: "rgba(0,120,144,0.1)", ...lineDefaults, fill: true }],
   } : {
     labels: (data.monthlyDocSendTrend || []).map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: (data.monthlyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#0078d4", backgroundColor: "rgba(0,120,212,0.1)", ...lineDefaults, fill: true }],
+    datasets: [{ label: "Avg Days", data: (data.monthlyDocSendTrend || []).map((d) => d.avg_days), borderColor: "#007890", backgroundColor: "rgba(0,120,144,0.1)", ...lineDefaults, fill: true }],
   };
-  const invoiceTrend = isWeekly ? {
+  const invoiceTrend = isDaily ? {
+    labels: (data.dailyInvoiceTrend || data.weeklyInvoiceTrend || []).map((d: Record<string, unknown>) => String(d.day || d.week)),
+    datasets: [{ label: "Avg Days", data: (data.dailyInvoiceTrend || data.weeklyInvoiceTrend || []).map((d: Record<string, unknown>) => Number(d.avg_days)), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
+  } : isWeekly ? {
     labels: (data.weeklyInvoiceTrend || []).map((d) => d.week),
     datasets: [{ label: "Avg Days", data: (data.weeklyInvoiceTrend || []).map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
   } : {
     labels: (data.monthlyInvoiceTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyInvoiceTrend || []).map((d) => d.avg_days), borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.1)", ...lineDefaults, fill: true }],
   };
-  const coaTrend = isWeekly ? {
+  const coaTrend = isDaily ? {
+    labels: (data.dailyCoaTrend || data.weeklyCoaTrend || []).map((d: Record<string, unknown>) => String(d.day || d.week)),
+    datasets: [{ label: "Avg Days", data: (data.dailyCoaTrend || data.weeklyCoaTrend || []).map((d: Record<string, unknown>) => Number(d.avg_days)), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
+  } : isWeekly ? {
     labels: (data.weeklyCoaTrend || []).map((d) => d.week),
     datasets: [{ label: "Avg Days", data: (data.weeklyCoaTrend || []).map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
   } : {
     labels: (data.monthlyCoaTrend || []).map((d) => fmtMonth(d.month)),
     datasets: [{ label: "Avg Days", data: (data.monthlyCoaTrend || []).map((d) => d.avg_days), borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)", ...lineDefaults, fill: true }],
   };
-  const approvalTrend = isWeekly ? {
+  const approvalTrend = isDaily ? {
+    labels: (data.dailyApprovalTrend || data.weeklyApprovalTrend || []).map((d: Record<string, unknown>) => String(d.day || d.week)),
+    datasets: [{ label: "Avg Days", data: (data.dailyApprovalTrend || data.weeklyApprovalTrend || []).map((d: Record<string, unknown>) => Number(d.avg_days)), borderColor: "#005a6b", backgroundColor: "rgba(0,90,107,0.1)", ...lineDefaults, fill: true }],
+  } : isWeekly ? {
     labels: (data.weeklyApprovalTrend || []).map((d) => d.week),
-    datasets: [{ label: "Avg Days", data: (data.weeklyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+    datasets: [{ label: "Avg Days", data: (data.weeklyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#005a6b", backgroundColor: "rgba(0,90,107,0.1)", ...lineDefaults, fill: true }],
   } : {
     labels: (data.monthlyApprovalTrend || []).map((d) => fmtMonth(d.month)),
-    datasets: [{ label: "Avg Days", data: (data.monthlyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#8764b8", backgroundColor: "rgba(135,100,184,0.1)", ...lineDefaults, fill: true }],
+    datasets: [{ label: "Avg Days", data: (data.monthlyApprovalTrend || []).map((d) => d.avg_days), borderColor: "#005a6b", backgroundColor: "rgba(0,90,107,0.1)", ...lineDefaults, fill: true }],
   };
 
   const hBarOpts = {
@@ -2204,29 +2339,27 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
       {/* Weekly / Monthly toggle */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>
-          <button onClick={() => setTimelineView("weekly")}
-            style={{ padding: "5px 14px", fontSize: 12, fontWeight: timelineView === "weekly" ? 700 : 400, background: timelineView === "weekly" ? "#007890" : "#fff", color: timelineView === "weekly" ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
-            <i className="fas fa-calendar-week" style={{ marginRight: 4 }} />Weekly
-          </button>
-          <button onClick={() => setTimelineView("monthly")}
-            style={{ padding: "5px 14px", fontSize: 12, fontWeight: timelineView === "monthly" ? 700 : 400, background: timelineView === "monthly" ? "#007890" : "#fff", color: timelineView === "monthly" ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: "1px solid #d1d5db" }}>
-            <i className="fas fa-calendar-alt" style={{ marginRight: 4 }} />Monthly
-          </button>
+          {(["daily", "weekly", "monthly"] as const).map((v, i) => (
+            <button key={v} onClick={() => setTimelineView(v)}
+              style={{ padding: "5px 14px", fontSize: 12, fontWeight: timelineView === v ? 700 : 400, background: timelineView === v ? "#007890" : "#fff", color: timelineView === v ? "#fff" : "#374151", border: "none", cursor: "pointer", borderLeft: i > 0 ? "1px solid #d1d5db" : "none" }}>
+              <i className={`fas ${v === "daily" ? "fa-calendar-day" : v === "weekly" ? "fa-calendar-week" : "fa-calendar-alt"}`} style={{ marginRight: 4 }} />{v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title={`Doc Send Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and document dispatch.`}>
+        <Card title={`Doc Send Time Trend (${viewLabel})`} icon="fas fa-chart-line" tooltip={`${viewLabel} average days between inspection and document dispatch.`}>
           <ChartWrap height="180px"><DLLine data={docSendTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
-        <Card title={`Invoice Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days between inspection and invoice upload.`}>
+        <Card title={`Invoice Upload Time Trend (${viewLabel})`} icon="fas fa-chart-line" tooltip={`${viewLabel} average days between inspection and invoice upload.`}>
           <ChartWrap height="180px"><DLLine data={invoiceTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title={`COA Upload Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from sample collection to Certificate of Analysis upload.`}>
+        <Card title={`COA Upload Time Trend (${viewLabel})`} icon="fas fa-chart-line" tooltip={`${viewLabel} average days from sample collection to Certificate of Analysis upload.`}>
           <ChartWrap height="180px"><DLLine data={coaTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
-        <Card title={`Approval Time Trend (${isWeekly ? "Weekly" : "Monthly"})`} icon="fas fa-chart-line" tooltip={`${isWeekly ? "Weekly" : "Monthly"} average days from document submission to final approval.`}>
+        <Card title={`Approval Time Trend (${viewLabel})`} icon="fas fa-chart-line" tooltip={`${viewLabel} average days from document submission to final approval.`}>
           <ChartWrap height="180px"><DLLine data={approvalTrend} options={lineOpts as never} /></ChartWrap>
         </Card>
       </div>
@@ -2286,13 +2419,54 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const [finPeriod, setFinPeriod] = useState("all");
   const [perfMetric, setPerfMetric] = useState("total_profit");
 
+  // Filter financial data by period
+  const filteredFin = useMemo(() => {
+    if (finPeriod === "all") return fin;
+    const now = new Date();
+    const inspList = data.inspectionsList || [];
+    let cutoff: Date;
+    if (finPeriod === "daily") { cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
+    else if (finPeriod === "weekly") { cutoff = new Date(now); cutoff.setDate(now.getDate() - 7); }
+    else if (finPeriod === "120+") { cutoff = new Date(now); cutoff.setDate(now.getDate() - 120); }
+    else { cutoff = new Date(now); cutoff.setDate(now.getDate() - Number(finPeriod)); }
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const is120Plus = finPeriod === "120+";
+    // Get inspectors with inspections in the period
+    const inspectorCounts: Record<string, { inspections: number; hours: number; km: number; samples: number }> = {};
+    inspList.forEach(i => {
+      const d = i.date_of_inspection || "";
+      const inRange = is120Plus ? d < cutoffStr : d >= cutoffStr;
+      if (!inRange) return;
+      if (!inspectorCounts[i.inspector_name]) inspectorCounts[i.inspector_name] = { inspections: 0, hours: 0, km: 0, samples: 0 };
+      inspectorCounts[i.inspector_name].inspections++;
+    });
+    // Scale fin proportionally based on filtered inspection count
+    return fin.map(r => {
+      const filtered = inspectorCounts[r.inspector_name];
+      if (!filtered) return { ...r, total_inspections: 0, total_hours: 0, total_km: 0, total_samples: 0, inspection_time: 0, revenue_hours: 0, revenue_km: 0, revenue_samples: 0, total_revenue: 0 };
+      const ratio = r.total_inspections > 0 ? filtered.inspections / r.total_inspections : 0;
+      return {
+        ...r,
+        total_inspections: filtered.inspections,
+        total_hours: Math.round(r.total_hours * ratio * 10) / 10,
+        total_km: Math.round(r.total_km * ratio),
+        total_samples: Math.round(r.total_samples * ratio),
+        inspection_time: Math.round(r.inspection_time * ratio * 10) / 10,
+        revenue_hours: Math.round(r.revenue_hours * ratio),
+        revenue_km: Math.round(r.revenue_km * ratio),
+        revenue_samples: Math.round(r.revenue_samples * ratio),
+        total_revenue: Math.round(r.total_revenue * ratio),
+      };
+    }).filter(r => r.total_inspections > 0);
+  }, [fin, finPeriod, data.inspectionsList]);
+
   // Get expense total for an inspector
   const getExpenses = (name: string) => expenseLog.filter(e => e.inspector === name).reduce((s, e) => s + e.amount, 0);
   // Get salary for an inspector
   const getSalary = (name: string) => lookupSalary(salaries, name);
 
   // Build enriched rows
-  const rows = fin.map(r => {
+  const rows = filteredFin.map(r => {
     const salary = getSalary(r.inspector_name);
     const expenses = getExpenses(r.inspector_name);
     const mgmtFees = (salary + expenses) * 0.20; // 20% of (salary + expenses)
@@ -2326,34 +2500,35 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   const totalCostPerHr = totals.hours > 0 ? Math.round(totals.totalCost / totals.hours) : 0;
 
   // Revenue sources stacked bar — sorted by total revenue descending
-  const sortedFin = [...fin].sort((a, b) => b.total_revenue - a.total_revenue);
+  const sortedFin = [...filteredFin].sort((a, b) => b.total_revenue - a.total_revenue);
   const revSourceData = {
     labels: sortedFin.map((d) => d.inspector_name),
     datasets: [
-      { label: "Rev (Hours)", data: sortedFin.map((d) => d.revenue_hours), backgroundColor: "#0078d4" },
+      { label: "Rev (Hours)", data: sortedFin.map((d) => d.revenue_hours), backgroundColor: "#007890" },
       { label: "Rev (KM)", data: sortedFin.map((d) => d.revenue_km), backgroundColor: "#f59e0b" },
       { label: "Rev (Samples)", data: sortedFin.map((d) => d.revenue_samples), backgroundColor: "#10b981" },
     ],
   };
   const stackedOpts = {
     ...baseChartOptions(),
+    layout: { padding: { top: 30 } },
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
       datalabels: {
         display: (ctx: { datasetIndex: number; chart: { data: { datasets: unknown[] } } }) => ctx.datasetIndex === ctx.chart.data.datasets.length - 1,
         anchor: "end" as const,
         align: "top" as const,
-        font: { size: 8, weight: "bold" as const },
+        font: { size: 11, weight: "bold" as const },
         color: "#1f2937",
         formatter: (_v: number, ctx: { dataIndex: number; chart: { data: { datasets: Array<{ data: number[] }> } } }) => {
           const total = ctx.chart.data.datasets.reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
-          return "R" + Math.round(total).toLocaleString();
+          return "R " + Math.round(total).toLocaleString();
         },
       },
     },
     scales: {
-      x: { stacked: true, ticks: { font: { size: 9 }, maxRotation: 45 } },
-      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 9 }, callback: (v: unknown) => "R" + Number(v).toLocaleString() } },
+      x: { stacked: true, ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: false } },
+      y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => "R " + Number(v).toLocaleString() } },
     },
   };
 
@@ -2364,12 +2539,17 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
     total_hours: "Billable Hours", total_km: "KM Traveled",
     inspection_time: "On-Site Hours", total_inspections: "Inspections",
   };
-  const perfValues = rows.map(r => {
+  const sortedRows = [...rows].sort((a, b) => {
+    const av = perfMetric === "total_profit" ? a.profit : ((a as Record<string, unknown>)[perfMetric] as number ?? 0);
+    const bv = perfMetric === "total_profit" ? b.profit : ((b as Record<string, unknown>)[perfMetric] as number ?? 0);
+    return bv - av;
+  });
+  const perfValues = sortedRows.map(r => {
     if (perfMetric === "total_profit") return r.profit;
     return (r as Record<string, unknown>)[perfMetric] as number ?? 0;
   });
   const perfData = {
-    labels: rows.map(r => r.inspector_name),
+    labels: sortedRows.map(r => r.inspector_name),
     datasets: [{
       label: perfMetricLabel[perfMetric] ?? perfMetric,
       data: perfValues,
@@ -2378,13 +2558,23 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
   };
   const perfOpts = {
     ...baseChartOptions(),
+    layout: { padding: { top: 30 } },
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { display: false },
+      datalabels: {
+        anchor: "end" as const,
+        align: "top" as const,
+        font: { size: 11, weight: "bold" as const },
+        color: "#1f2937",
+        formatter: (v: number) => {
+          if (perfMetric.includes("revenue") || perfMetric.includes("profit") || perfMetric.includes("cost")) return "R " + Math.round(v).toLocaleString();
+          return v.toLocaleString();
+        },
+      },
     },
     scales: {
-      x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
-      y: { beginAtZero: true, ticks: { font: { size: 9 }, callback: (v: unknown) => perfMetric.includes("revenue") || perfMetric.includes("profit") || perfMetric.includes("cost") ? "R" + Number(v).toLocaleString() : String(v) } },
+      x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: false } },
+      y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => perfMetric.includes("revenue") || perfMetric.includes("profit") || perfMetric.includes("cost") ? "R " + Number(v).toLocaleString() : String(v) } },
     },
   };
 
@@ -2462,6 +2652,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <th style={profitThStyle} title="Revenue per hour">R/Hr</th>
                 <th style={profitThStyle} title="Cost per hour">C/Hr</th>
                 <th style={profitThStyle} title="Profit = Revenue − Cost">Profit</th>
+                <th style={thStyle} title="Outstanding debtors amount">Debtors</th>
               </tr>
             </thead>
             <tbody>
@@ -2484,6 +2675,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                   <td style={{ ...tdStyle, color: "#059669" }}>{r.revPerHr > 0 ? fmtRInt(r.revPerHr) : "—"}</td>
                   <td style={{ ...tdStyle, color: "#dc2626" }}>{r.costPerHr > 0 ? fmtRInt(r.costPerHr) : "—"}</td>
                   <td style={{ ...tdStyle, fontWeight: 700, color: r.profit >= 0 ? "#059669" : "#dc2626" }}>{r.total_revenue > 0 || r.totalCost > 0 ? fmtRInt(Math.round(r.profit)) : "—"}</td>
+                  <td style={{ ...tdStyle, color: "#6b7280" }}>—</td>
                 </tr>
               ))}
             </tbody>
@@ -2506,6 +2698,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <td style={{ ...totalStyle, color: "#059669" }}>{fmtRInt(totalRevPerHr)}</td>
                 <td style={{ ...totalStyle, color: "#dc2626" }}>{fmtRInt(totalCostPerHr)}</td>
                 <td style={{ ...totalStyle, fontWeight: 700, color: totals.profit >= 0 ? "#059669" : "#dc2626" }}>{fmtRInt(Math.round(totals.profit))}</td>
+                <td style={{ ...totalStyle, color: "#6b7280" }}>—</td>
               </tr>
             </tfoot>
           </table>
@@ -2594,48 +2787,26 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
         )}
       </Card>}
 
-      {/* 2-col: Revenue Sources, Performance Comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-        <Card title="Revenue Sources" icon="fas fa-chart-bar" tooltip="Shows where each inspector's revenue comes from: hours billed, kilometres driven, and samples collected.">
-          <ChartWrap height="350px">
-            <DLBar data={revSourceData} options={stackedOpts as never} />
-          </ChartWrap>
-        </Card>
-        <Card title="Inspector Performance" icon="fas fa-chart-line" tooltip="Compare inspectors side by side on any metric: profit, revenue, hours, kilometres, or inspections."
-          headerRight={
-            <select value={perfMetric} onChange={e => setPerfMetric(e.target.value)} style={{ minWidth: 160, fontSize: 11, padding: "4px 8px", border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}>
-              {Object.entries(perfMetricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          }
-        >
-          <ChartWrap height="350px">
-            <DLBar data={perfData} options={perfOpts as never} />
-          </ChartWrap>
-        </Card>
-      </div>
-
-      {/* Profit Overview */}
-      <Card title="Profit" icon="fas fa-coins" tooltip="Profit breakdown per inspector: Revenue minus Total Cost.">
-        <ChartWrap height="300px">
-          <Bar
-            data={{
-              labels: rows.map(r => r.inspector_name),
-              datasets: [{
-                label: "Profit",
-                data: rows.map(r => r.profit),
-                backgroundColor: rows.map(r => r.profit >= 0 ? "#10b981" : "#ef4444"),
-              }],
-            }}
-            options={{
-              ...baseChartOptions(),
-              scales: {
-                x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
-                y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (v: unknown) => "R" + Number(v).toLocaleString() } },
-              },
-            } as never}
-          />
+      {/* Revenue Sources — full width */}
+      <Card title="Revenue Sources" icon="fas fa-chart-bar" tooltip="Shows where each inspector's revenue comes from: hours billed, kilometres driven, and samples collected.">
+        <ChartWrap height="450px">
+          <DLBar data={revSourceData} options={stackedOpts as never} />
         </ChartWrap>
       </Card>
+
+      {/* Inspector Performance — full width */}
+      <Card title="Inspector Performance" icon="fas fa-chart-line" tooltip="Compare inspectors side by side on any metric: profit, revenue, hours, kilometres, or inspections."
+        headerRight={
+          <select value={perfMetric} onChange={e => setPerfMetric(e.target.value)} style={{ minWidth: 160, fontSize: 11, padding: "4px 8px", border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}>
+            {Object.entries(perfMetricLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        }
+      >
+        <ChartWrap height="450px">
+          <DLBar data={perfData} options={perfOpts as never} />
+        </ChartWrap>
+      </Card>
+
     </div>
   );
 }

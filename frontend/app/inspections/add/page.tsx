@@ -401,6 +401,21 @@ export default function AddInspectionPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // Send occurrence notification email (non-blocking)
+        try {
+          const fd = new FormData();
+          fd.append("client_name", clientName);
+          fd.append("town", town);
+          fd.append("date_of_inspection", dateOfInspection);
+          fd.append("inspector_name", inspectorName);
+          fd.append("description", occurrenceDescription);
+          fd.append("corporate_group", corporateGroup);
+          if (occFile) fd.append("file", occFile);
+          await fetch("/api/send-occurrence-email", {
+            method: "POST",
+            body: fd,
+          });
+        } catch { /* non-blocking */ }
         window.location.href = "/inspections";
       } else {
         setToast({ msg: "Error: " + (data.error || "Unknown error"), ok: false });
@@ -1176,7 +1191,7 @@ export default function AddInspectionPage() {
                         <div style={{ fontSize: 12, color: "#6b7280" }}>{(rfiFile.size / 1024).toFixed(1)} KB</div>
                       </div>
                       <button type="button" onClick={e => { e.stopPropagation(); setRfiFile(null); }}
-                        style={{ background: "#fee2e2", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "#dc2626", fontSize: 12, fontWeight: 600, marginLeft: 8 }}>
+                        style={{ background: "#fee2e2", border: "none", borderRadius: 6, padding: "8px 14px", cursor: "pointer", color: "#dc2626", fontSize: 13, fontWeight: 600, marginLeft: 8, minHeight: 44, minWidth: 44 }}>
                         <i className="fas fa-times" /> Remove
                       </button>
                     </div>
@@ -1188,7 +1203,7 @@ export default function AddInspectionPage() {
                     </>
                   )}
                 </div>
-                <input type="file" id="rfiFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style={{ display: "none" }}
+                <input type="file" id="rfiFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" style={{ display: "none" }}
                   onChange={e => { if (e.target.files?.[0]) setRfiFile(e.target.files[0]); }} />
               </div>
             )}
