@@ -124,8 +124,9 @@ export default function LabAnalyticsPage() {
 
   const [filtering, setFiltering] = useState(false);
   const fetchData = (df?: string, dt?: string, lf?: string, cf?: string) => {
-    if (!initialLoaded) setLoading(true);
-    else setFiltering(true);
+    setLoading(true);
+    setRawData(null);
+    setError("");
     const p = new URLSearchParams();
     const _df = df ?? dateFrom, _dt = dt ?? dateTo, _lf = lf ?? labFilter, _cf = cf ?? commodityFilter;
     if (_df) p.set("date_from", _df);
@@ -254,13 +255,16 @@ export default function LabAnalyticsPage() {
   const allCommodities = allCommoditiesList;
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f8fafc" }}>
+    <>
+    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", opacity: 1, zIndex: -2, pointerEvents: "none" }} />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ fontSize: 14, color: "#fff" }}>Loading...</div>
       </div>
     </div>
+    </>
   );
 
   return (
@@ -270,21 +274,20 @@ export default function LabAnalyticsPage() {
         @keyframes barGrow { from { width: 0; } }
         @keyframes barHeight { from { height: 0; } }
         .la-page-bg { min-height: 100vh; }
-        .la-wrap { padding: 32px 32px 48px; max-width: 1340px; margin: 0 auto; }
+        .la-wrap { padding: 20px 20px 48px; max-width: 1340px; margin: 0 auto; }
         .la-section-title {
-          font-size: 0.72rem; font-weight: 700; color: #6b7280;
-          text-transform: uppercase; letter-spacing: 0.08em;
-          margin: 0 0 16px; padding-bottom: 10px;
-          border-bottom: 2px solid #f0f1f3;
+          font-size: 1rem; font-weight: 600; color: #1f2937;
+          margin: 0 0 12px; padding: 0 0 10px;
+          border-bottom: 1px solid #e5e7eb;
           display: flex; align-items: center; gap: 8px;
         }
         .la-card {
-          background: #fff; border-radius: 14px; padding: 24px 28px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.04);
-          border: 1px solid #e8eaed;
+          background: #fff; border-radius: 8px; padding: 16px 20px;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+          border: 1px solid #e5e7eb; margin-bottom: 5px;
         }
-        .la-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-        .la-mid-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+        .la-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .la-mid-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
         .la-test-row  {
           display: flex; align-items: center; gap: 14px; padding: 12px 0;
           border-bottom: 1px solid #f3f4f6;
@@ -343,16 +346,19 @@ export default function LabAnalyticsPage() {
         }
       `}</style>
 
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", opacity: 1, zIndex: -2, pointerEvents: "none" }} />
       <div className="la-page-bg">
         <div className="la-wrap">
           {/* Header */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", marginBottom: 32 }}>
-            <h1 style={{ margin: 0, fontSize: "1.7rem", fontWeight: 800, color: "#fff" }}>Lab Analytics</h1>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 6 }}>Sample testing overview and results</p>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <h1 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#fff" }}>
+              <i className="fas fa-flask" style={{ marginRight: 10 }} />Lab Analytics
+            </h1>
+            <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>Sample testing overview and results</p>
           </div>
 
           {/* Filter Bar */}
-          <div style={{ background: "rgba(255,255,255,0.95)", borderRadius: 10, padding: "12px 16px", marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.08)", border: "1px solid #e5e7eb" }}>
+          <div style={{ background: "white", borderRadius: 8, padding: "12px 16px", marginBottom: 16, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", border: "1px solid #e5e7eb" }}>
             <div className="la-filter-bar" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
@@ -380,7 +386,6 @@ export default function LabAnalyticsPage() {
                   {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
                 </select>
               </div>
-              {filtering && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "#007890" }}><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite" }} /> Filtering...</div>}
               <button onClick={() => fetchData(dateFrom, dateTo, labFilter, commodityFilter)}
                 style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
                 <i className="fas fa-filter" style={{ marginRight: 6 }} />Apply
@@ -421,7 +426,7 @@ export default function LabAnalyticsPage() {
             {/* Test type breakdown */}
             <div className="la-card">
               <p className="la-section-title">
-                <i className="fas fa-chart-pie" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
+                <i className="fas fa-chart-pie" style={{ fontSize: "1rem", color: "#007890" }} />
                 Lab Test Results by Type
               </p>
               {loading ? (
@@ -474,7 +479,7 @@ export default function LabAnalyticsPage() {
             {/* Monthly trend */}
             <div className="la-card">
               <p className="la-section-title">
-                <i className="fas fa-chart-bar" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
+                <i className="fas fa-chart-bar" style={{ fontSize: "1rem", color: "#007890" }} />
                 Monthly Sample Collection (Last 6 Months)
               </p>
               {loading ? (
@@ -516,15 +521,15 @@ export default function LabAnalyticsPage() {
             {/* Labs */}
             <div className="la-card">
               <p className="la-section-title">
-                <i className="fas fa-building" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
+                <i className="fas fa-building" style={{ fontSize: "1rem", color: "#007890" }} />
                 Samples Processed per Laboratory
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
-              ) : data && (data.allLabsStats || data.labs).length > 0 ? (
+              ) : data && (data.labs).length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {(data.allLabsStats || data.labs).map((l, i) => {
-                    const allMax = data.allLabsStats?.length ? Math.max(...data.allLabsStats.map(x => x.n), 1) : maxLab;
+                  {(data.labs).map((l, i) => {
+                    const allMax = Math.max(...data.labs.map(x => x.n), 1);
                     const pct = Math.round((l.n / allMax) * 100);
                     const colors = ["#007890","#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#14b8a6","#64748b","#6366f1"];
                     const col = colors[i % colors.length];
@@ -552,16 +557,16 @@ export default function LabAnalyticsPage() {
             {/* Commodity */}
             <div className="la-card">
               <p className="la-section-title">
-                <i className="fas fa-boxes" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
+                <i className="fas fa-boxes" style={{ fontSize: "1rem", color: "#007890" }} />
                 Samples by Commodity Type
               </p>
               {loading ? (
                 <div style={{ padding: "24px 0", textAlign: "center" }}><Spinner /></div>
-              ) : data && (data.allCommoditiesStats || data.commodities).length > 0 ? (
+              ) : data && (data.commodities).length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {(data.allCommoditiesStats || data.commodities).map(c => {
-                    const allComMax = data.allCommoditiesStats?.length ? Math.max(...data.allCommoditiesStats.map(x => x.n), 1) : maxCommodity;
-                    const allTotal = data.allCommoditiesStats?.reduce((s, x) => s + x.n, 0) || data.total_samples;
+                  {(data.commodities).map(c => {
+                    const allComMax = Math.max(...data.commodities.map(x => x.n), 1);
+                    const allTotal = data.total_samples;
                     const pct = allComMax ? Math.round((c.n / allComMax) * 100) : 0;
                     const displayPct = allTotal ? Math.round((c.n / allTotal) * 100) : 0;
                     const col = COMMODITY_COLOR[c.commodity] ?? "#64748b";
@@ -594,7 +599,7 @@ export default function LabAnalyticsPage() {
           {/* Recent Samples Table */}
           <div className="la-card" style={{ padding: "24px 0" }}>
             <p className="la-section-title" style={{ padding: "0 28px 10px", margin: "0 0 0" }}>
-              <i className="fas fa-list-alt" style={{ fontSize: "0.8rem", color: "#9ca3af" }} />
+              <i className="fas fa-list-alt" style={{ fontSize: "1rem", color: "#007890" }} />
               Recent Samples (Last 50)
             </p>
             {loading ? (

@@ -2410,7 +2410,12 @@ def api_lab_analytics(request):
 
         # Summary stats
         total_samples   = base.count()
-        total_inspections = _I.objects.count()
+        _insp_qs = _I.objects.all()
+        if _date_from:
+            _insp_qs = _insp_qs.filter(date_of_inspection__gte=_date_from)
+        if _date_to:
+            _insp_qs = _insp_qs.filter(date_of_inspection__lte=_date_to)
+        total_inspections = _insp_qs.count()
         needs_coa       = base.filter(coa_uploaded_date__isnull=True).count()
         needs_retest    = base.filter(needs_retest__in=['Yes', 'YES', 'yes']).count()
         fat_count       = base.filter(fat=True).count()
