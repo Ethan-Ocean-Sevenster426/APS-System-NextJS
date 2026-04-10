@@ -9105,6 +9105,10 @@ def analytics_dashboard(request):
             non_inspector_names.add(u.username)
     non_inspector_names.discard('')
     non_inspector_names.add('admin')
+    non_inspector_names.add('Ethan')
+    non_inspector_names.add('Estel')
+    non_inspector_names.add('admin1')
+    non_inspector_names.add('admin3')
     non_inspector_names.add('API User')
     non_inspector_names.add('API Test')
     non_inspector_names.add('api_user')
@@ -10191,23 +10195,20 @@ def analytics_dashboard_api(request):
     # Build list of non-inspector users to exclude
     from django.contrib.auth import get_user_model
     _User = get_user_model()
-    _non_inspector_users = _User.objects.exclude(role='inspector')
-    non_inspector_names = set(
-        _non_inspector_users.values_list('first_name', flat=True)
-    )
+    _non_inspector_users = _User.objects.exclude(role__in=['inspector', 'inspector_manager'])
+    non_inspector_names = set()
     for u in _non_inspector_users:
+        if u.first_name:
+            non_inspector_names.add(u.first_name)
+        if u.last_name:
+            non_inspector_names.add(u.last_name)
         full = f"{u.first_name} {u.last_name}".strip()
         if full:
             non_inspector_names.add(full)
-        if u.last_name:
-            non_inspector_names.add(u.last_name)
         if u.username:
             non_inspector_names.add(u.username)
     non_inspector_names.discard('')
-    non_inspector_names.add('admin')
-    non_inspector_names.add('API User')
-    non_inspector_names.add('API Test')
-    non_inspector_names.add('api_user')
+    non_inspector_names.update({'API User', 'API Test', 'api_user'})
 
     # Get filter params
     year = request.GET.get('year')

@@ -356,17 +356,17 @@ export default function LabAnalyticsPage() {
             <div className="la-filter-bar" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
-                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); fetchData(e.target.value, undefined, undefined, undefined); }}
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date To</label>
-                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); fetchData(undefined, e.target.value, undefined, undefined); }}
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 140px", minWidth: 140 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Lab</label>
-                <select value={labFilter} onChange={e => { setLabFilter(e.target.value); fetchData(undefined, undefined, e.target.value, undefined); }}
+                <select value={labFilter} onChange={e => setLabFilter(e.target.value)}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
                   <option value="">All Labs</option>
                   {allLabs.map(l => <option key={l} value={l}>{l}</option>)}
@@ -374,13 +374,17 @@ export default function LabAnalyticsPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Commodity</label>
-                <select value={commodityFilter} onChange={e => { setCommodityFilter(e.target.value); fetchData(undefined, undefined, undefined, e.target.value); }}
+                <select value={commodityFilter} onChange={e => setCommodityFilter(e.target.value)}
                   style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none" }}>
                   <option value="">All Commodities</option>
                   {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
                 </select>
               </div>
               {filtering && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "#007890" }}><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite" }} /> Filtering...</div>}
+              <button onClick={() => fetchData(dateFrom, dateTo, labFilter, commodityFilter)}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
+                <i className="fas fa-filter" style={{ marginRight: 6 }} />Apply
+              </button>
               <button onClick={handleReset}
                 style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white" }}>
                 <i className="fas fa-undo" style={{ marginRight: 6 }} />Reset
