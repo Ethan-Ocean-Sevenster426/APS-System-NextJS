@@ -1102,6 +1102,11 @@ def api_inspections(request):
         if filter_inspector:
             groups_qs = groups_qs.filter(inspector_name__iexact=filter_inspector)
 
+        # Server-side corporate group filter
+        filter_corp_group = request.GET.get('corporate_group', '').strip()
+        if filter_corp_group:
+            groups_qs = groups_qs.filter(corporate_group__iexact=filter_corp_group)
+
         if date_from:
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
         if date_to:
@@ -2208,7 +2213,7 @@ def api_users(request):
 
                 return _cors(JsonResponse({'success': True, 'message': f'Password for "{user.username}" has been reset.'}))
 
-            # ── delete_user ──
+            # ── delete_user (soft delete: deactivates account, preserves all data) ──
             elif action == 'delete_user':
                 user_id = data.get('user_id')
                 if not user_id:
@@ -2219,14 +2224,20 @@ def api_users(request):
                 except User.DoesNotExist:
                     return _cors(JsonResponse({'success': False, 'error': f'User with id {user_id} not found.'}))
 
-                # Don't allow deleting developer accounts
+                # Don't allow deactivating developer accounts
                 if getattr(user, 'role', '') == 'developer':
-                    return _cors(JsonResponse({'success': False, 'error': 'Cannot delete developer accounts.'}))
+                    return _cors(JsonResponse({'success': False, 'error': 'Cannot deactivate developer accounts.'}))
 
                 username = user.username
-                user.delete()
+                # Soft delete: deactivate account so they can't log in but all data
+                # (system logs, sent_by, uploaded_by, approved_by, etc.) is preserved
+                user.is_active = False
+                user.save(update_fields=['is_active'])
 
-                return _cors(JsonResponse({'success': True, 'message': f'User "{username}" deleted successfully.'}))
+                return _cors(JsonResponse({
+                    'success': True,
+                    'message': f'User "{username}" deactivated. All historical data preserved.'
+                }))
 
             # ── send_reset_email ──
             elif action == 'send_reset_email':
@@ -3342,8 +3353,13 @@ def api_export_sheet(request):
 # ---------------------------------------------------------------------------
 @_csrf_exempt
 def api_react_fees_get(request):
-    """Return all inspection fees — no auth required for Next.js."""
+    """Return all inspection fees — no auth required for Next.js.
+
+    Optional query param ?as_of_date=YYYY-MM-DD returns the historical
+    rate that was active on that specific date instead of the current rate.
+    """
     from ..models import InspectionFee
+    from datetime import date as _date_cls
 
     def _cors(r):
         r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -3355,22 +3371,50 @@ def api_react_fees_get(request):
         return _cors(JsonResponse({'ok': True}))
 
     try:
+        as_of_str = request.GET.get('as_of_date', '').strip()
+        as_of_date = None
+        if as_of_str:
+            try:
+                as_of_date = _date_cls.fromisoformat(as_of_str)
+            except (ValueError, TypeError):
+                as_of_date = None
+
         fees = InspectionFee.objects.all()
         fees_data = []
         for fee in fees:
             latest = fee.history.order_by('-effective_date').first()
+
+            # If as_of_date provided, return the rate active on that date
+            if as_of_date:
+                # Find the latest history entry that was active on or before the requested date
+                active_entry = fee.history.filter(effective_date__lte=as_of_date).order_by('-effective_date').first()
+                if active_entry:
+                    active_rate = float(active_entry.rate)
+                    effective_date_for_display = active_entry.effective_date.isoformat()
+                else:
+                    # No historical entry exists before this date — fee was not yet defined
+                    active_rate = 0.0
+                    effective_date_for_display = None
+            else:
+                active_rate = float(fee.rate)
+                effective_date_for_display = latest.effective_date.isoformat() if latest else None
+
             fees_data.append({
                 'id': fee.id,
                 'fee_code': fee.fee_code,
                 'fee_name': fee.fee_name,
-                'rate': float(fee.rate),
+                'rate': active_rate,
+                'current_rate': float(fee.rate),
                 'description': fee.description,
                 'last_updated': fee.last_updated.isoformat() if fee.last_updated else None,
-                'effective_date': latest.effective_date.isoformat() if latest else None,
+                'effective_date': effective_date_for_display,
                 'has_history': fee.history.exists(),
                 'history_count': fee.history.count(),
             })
-        return _cors(JsonResponse({'fees': fees_data}))
+        return _cors(JsonResponse({
+            'fees': fees_data,
+            'as_of_date': as_of_date.isoformat() if as_of_date else None,
+        }))
     except Exception as e:
         return _cors(JsonResponse({'error': str(e)}, status=500))
 
@@ -3398,7 +3442,18 @@ def api_react_fees_update(request):
     try:
         data = json.loads(request.body)
         fees_data = data.get('fees', [])
-        effective_date = date.today()
+
+        # Parse effective_date from payload (default to today)
+        eff_date_str = data.get('effective_date', '')
+        try:
+            effective_date = date.fromisoformat(eff_date_str) if eff_date_str else date.today()
+        except (ValueError, TypeError):
+            effective_date = date.today()
+
+        notes = data.get('notes', '')
+        is_future = effective_date > date.today()
+        is_past = effective_date < date.today()
+
         updated_count = 0
         for fd in fees_data:
             fee_id = fd.get('id')
@@ -3407,17 +3462,52 @@ def api_react_fees_update(request):
                 try:
                     fee = InspectionFee.objects.get(id=fee_id)
                     new_rate_decimal = Decimal(str(new_rate))
-                    if fee.rate != new_rate_decimal:
+
+                    # For historical/future dates, check if a history entry already exists
+                    # with the same rate to avoid spurious updates
+                    existing_history = fee.history.filter(effective_date=effective_date).first()
+
+                    needs_update = False
+                    if existing_history:
+                        if existing_history.rate != new_rate_decimal:
+                            needs_update = True
+                    else:
+                        # No entry on this date - only create if rate differs from
+                        # what would be active on that date
+                        active_rate = fee.get_rate_for_date(effective_date)
+                        if active_rate != new_rate_decimal:
+                            needs_update = True
+
+                    if needs_update:
                         FeeHistory.objects.update_or_create(
                             fee=fee, effective_date=effective_date,
-                            defaults={'rate': new_rate_decimal, 'notes': fd.get('notes', '')}
+                            defaults={'rate': new_rate_decimal, 'notes': notes or fd.get('notes', '')}
                         )
-                        fee.rate = new_rate_decimal
-                        fee.save()
+                        # Only update fee.rate (the "current") when effective_date is today or past
+                        # AND it's the most recent history entry. Future-dated changes don't
+                        # update the current rate yet.
+                        if not is_future:
+                            latest = fee.history.order_by('-effective_date').first()
+                            if latest and latest.effective_date <= date.today():
+                                fee.rate = latest.rate
+                                fee.save()
                         updated_count += 1
                 except InspectionFee.DoesNotExist:
                     pass
-        return _cors(JsonResponse({'success': True, 'updated_count': updated_count}))
+        # Clear the get_fee_rate LRU cache so updated rates take effect immediately
+        try:
+            from .core_views import get_fee_rate as _gfr
+            _gfr.cache_clear()
+        except Exception:
+            pass
+
+        return _cors(JsonResponse({
+            'success': True,
+            'updated_count': updated_count,
+            'effective_date': effective_date.isoformat(),
+            'is_future': is_future,
+            'is_past': is_past,
+        }))
     except Exception as e:
         return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
 
@@ -4076,12 +4166,12 @@ def api_quarterly_targets(request):
                 year=int(data['year']),
                 quarter=int(data['quarter']),
                 defaults={
-                    'eggs': int(data.get('eggs', 51)),
-                    'poultry': int(data.get('poultry', 59)),
-                    'raw': int(data.get('raw', 63)),
-                    'pmp': int(data.get('pmp', 54)),
-                    'raw_samples': int(data.get('raw_samples', 58)),
-                    'pmp_samples': int(data.get('pmp_samples', 12)),
+                    'eggs': int(data.get('eggs', 0)),
+                    'poultry': int(data.get('poultry', 0)),
+                    'raw': int(data.get('raw', 0)),
+                    'pmp': int(data.get('pmp', 0)),
+                    'raw_samples': int(data.get('raw_samples', 0)),
+                    'pmp_samples': int(data.get('pmp_samples', 0)),
                 }
             )
             return _cors(JsonResponse({'success': True, 'created': created}))
@@ -4369,15 +4459,17 @@ def api_edit_inspection_group(request):
                         else:
                             prod['_commodity'] = commodity
                             to_create.append(prod)
-                    # Mark extra existing for deletion
-                    if len(existing) > len(prods):
-                        for idx in range(len(prods), len(existing)):
-                            to_delete.append(existing[idx])
+                    # Do NOT delete extra existing products within same commodity
+                    # They may be legitimate products not sent by the edit form
 
-                # Delete existing for commodities that were removed
-                for commodity, existing in existing_by_commodity.items():
-                    if commodity not in products_by_commodity:
-                        to_delete.extend(existing)
+                # Only delete products if explicitly flagged for removal
+                # Do NOT delete commodities just because they weren't sent in the payload
+                # This prevents accidental deletion when the edit form doesn't send all products
+                explicitly_removed = data.get('removed_commodities', [])
+                if explicitly_removed:
+                    for commodity, existing in existing_by_commodity.items():
+                        if commodity in explicitly_removed:
+                            to_delete.extend(existing)
 
                 for rel in to_delete:
                     rel.delete()
@@ -4792,3 +4884,101 @@ def api_convert_docx_to_pdf(request):
     finally:
         import shutil
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@_csrf_exempt
+def api_send_occurrence_email(request):
+    """Send a notification email when an occurrence report is submitted."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    from datetime import datetime as dt_parser
+    from django.core.mail import EmailMessage
+
+    try:
+        # Handle both JSON and FormData
+        if request.content_type and 'multipart' in request.content_type:
+            client_name = request.POST.get('client_name', '').strip()
+            town = request.POST.get('town', '').strip()
+            inspection_date = request.POST.get('date_of_inspection', '').strip()
+            inspector_name = request.POST.get('inspector_name', '').strip()
+            description = request.POST.get('description', '').strip()
+            corporate_group = request.POST.get('corporate_group', '').strip()
+            uploaded_file = request.FILES.get('file')
+        else:
+            import json
+            data = json.loads(request.body)
+            client_name = data.get('client_name', '').strip()
+            town = data.get('town', '').strip()
+            inspection_date = data.get('date_of_inspection', '').strip()
+            inspector_name = data.get('inspector_name', '').strip()
+            description = data.get('description', '').strip()
+            corporate_group = data.get('corporate_group', '').strip()
+            uploaded_file = None
+
+        try:
+            formatted_date = dt_parser.strptime(inspection_date, '%Y-%m-%d').strftime('%d %B %Y')
+        except (ValueError, TypeError):
+            formatted_date = inspection_date
+
+        subject = f'Occurrence Report – {client_name} – {formatted_date}'
+        html_message = f"""
+<div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
+    <p>Good day,</p>
+
+    <p>An occurrence report has been submitted and requires your attention for potential legal claims processing.</p>
+
+    <table style="border-collapse: collapse; width: 100%; max-width: 600px; margin: 16px 0;">
+        <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 14px; font-weight: 600; border: 1px solid #e5e7eb; width: 160px;">Client</td>
+            <td style="padding: 10px 14px; border: 1px solid #e5e7eb;">{client_name}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Town</td>
+            <td style="padding: 10px 14px; border: 1px solid #e5e7eb;">{town}</td>
+        </tr>
+        <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Corporate Group</td>
+            <td style="padding: 10px 14px; border: 1px solid #e5e7eb;">{corporate_group or 'N/A'}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Date of Visit</td>
+            <td style="padding: 10px 14px; border: 1px solid #e5e7eb;">{formatted_date}</td>
+        </tr>
+        <tr style="background: #f8f9fa;">
+            <td style="padding: 10px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Inspector</td>
+            <td style="padding: 10px 14px; border: 1px solid #e5e7eb;">{inspector_name}</td>
+        </tr>
+    </table>
+
+    <p><strong>Occurrence Description:</strong></p>
+    <div style="background: #fff8f0; border-left: 4px solid #f59e0b; padding: 14px 18px; margin: 12px 0 20px; border-radius: 0 8px 8px 0; white-space: pre-wrap;">
+        {description if description else '<em style="color: #9ca3af;">No description provided.</em>'}
+    </div>
+
+    <p>Please review this occurrence report at your earliest convenience. This record has been logged in the APS system and may be required for legal claims or compliance follow-up.</p>
+
+    <p>Kind Regards / Vriendelike Groete<br>
+    <strong>APS Inspection System</strong></p>
+</div>"""
+
+        email = EmailMessage(
+            subject=subject,
+            body=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=['ethansevenster5@gmail.com'],
+            reply_to=[settings.DEFAULT_FROM_EMAIL],
+        )
+        email.content_subtype = 'html'
+
+        if uploaded_file:
+            email.attach(uploaded_file.name, uploaded_file.read(), uploaded_file.content_type or 'application/pdf')
+
+        email.send()
+
+        return JsonResponse({'success': True, 'message': 'Occurrence notification sent'})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

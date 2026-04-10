@@ -1320,18 +1320,17 @@ def edit_fsa_inspection(request, pk):
                         products_to_create.append(product)
                         print(f"[EDIT FORM DEBUG] Product #{idx+1} ({commodity}) needs new inspection")
 
-                # Mark extra existing inspections for deletion
+                # Do NOT delete extra existing inspections — they may be legitimate
+                # products not included in the edit form submission
                 if len(existing_inspections) > len(products):
                     for idx in range(len(products), len(existing_inspections)):
-                        inspections_to_delete.append(existing_inspections[idx])
-                        print(f"[EDIT FORM DEBUG] Inspection {existing_inspections[idx].id} ({commodity}) will be deleted")
+                        print(f"[EDIT FORM DEBUG] Inspection {existing_inspections[idx].id} ({commodity}) preserved (not in form but keeping)")
 
-            # Delete existing inspections that were in the group but not in products_data
+            # Do NOT delete commodities that weren't sent in products_data
+            # This prevents accidental deletion when the form doesn't include all products
             for commodity, existing_inspections in existing_by_commodity.items():
                 if commodity not in products_by_commodity:
-                    for rel_insp in existing_inspections:
-                        inspections_to_delete.append(rel_insp)
-                        print(f"[EDIT FORM DEBUG] Inspection {rel_insp.id} ({commodity}) will be deleted (commodity removed)")
+                    print(f"[EDIT FORM DEBUG] Commodity {commodity} not in form data — preserving {len(existing_inspections)} inspection(s)")
 
             # Now update the main inspection with common fields from form
             # Save internal_account_code BEFORE form binding (form.is_valid() clears it)
@@ -9151,8 +9150,8 @@ def analytics_dashboard(request):
     # === COMPLIANCE ANALYTICS ===
     compliance_stats = FoodSafetyAgencyInspection.objects.aggregate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     )
     
     compliance_rate = 0
@@ -9175,8 +9174,8 @@ def analytics_dashboard(request):
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING')),
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False)),
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled'),
         last_inspection=Max('date_of_inspection')
@@ -9204,7 +9203,7 @@ def analytics_dashboard(request):
     # === CLIENT ANALYTICS ===
     client_analytics = FoodSafetyAgencyInspection.objects.values('client_name').annotate(
         total_inspections=Count('id'),
-        compliant_inspections=Count('id', filter=Q(approved_status='APPROVED')),
+        compliant_inspections=Count('id', filter=Q(is_product_compliant=True)),
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled'),
         last_inspection=Max('date_of_inspection'),
@@ -9227,7 +9226,7 @@ def analytics_dashboard(request):
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).values('commodity').annotate(
         total_inspections=Count('id'),
-        compliant_inspections=Count('id', filter=Q(approved_status='APPROVED')),
+        compliant_inspections=Count('id', filter=Q(is_product_compliant=True)),
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled')
     ).order_by('-total_inspections')
@@ -9257,8 +9256,8 @@ def analytics_dashboard(request):
         day=TruncDay('date_of_inspection')
     ).values('day').annotate(
         count=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('day')
 
     # Weekly inspections for last 12 weeks
@@ -9268,8 +9267,8 @@ def analytics_dashboard(request):
         week=TruncWeek('date_of_inspection')
     ).values('week').annotate(
         count=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('week')
 
     # Monthly inspections for last 12 months
@@ -9279,8 +9278,8 @@ def analytics_dashboard(request):
         month=TruncMonth('date_of_inspection')
     ).values('month').annotate(
         count=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('month')
     
     # === HOURS AND EFFICIENCY ANALYSIS ===
@@ -9356,8 +9355,8 @@ def analytics_dashboard(request):
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).values('commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('commodity'))
     for item in compliance_by_commodity:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
@@ -9415,7 +9414,7 @@ def analytics_dashboard(request):
         month=TruncWeek('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+        compliant=Count('id', filter=Q(is_product_compliant=True))
     ).order_by('month', 'commodity'))
 
     for item in monthly_compliance_trend:
@@ -9432,7 +9431,7 @@ def analytics_dashboard(request):
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+        compliant=Count('id', filter=Q(is_product_compliant=True))
     ).order_by('day', 'commodity'))
 
     for item in daily_compliance_trend:
@@ -10141,15 +10140,19 @@ def _api_travel_per_inspector(group_qs, qs, non_inspector_names):
     _map = {}
     for r in group_qs.exclude(_excl).values('inspector_name').annotate(
         total_km=Sum('km_traveled'), total_hours=Sum('hours'),
-        inspection_count=Count('inspections'), avg_km=Avg('km_traveled'),
+        avg_km=Avg('km_traveled'),
     ):
         _map[r['inspector_name']] = {
             'inspector_name': r['inspector_name'],
             'total_km': float(r['total_km'] or 0),
             'total_hours': float(r['total_hours'] or 0),
-            'inspection_count': r['inspection_count'] or 0,
+            'inspection_count': 0,
             'avg_km': float(r['avg_km'] or 0),
         }
+    # Get inspection counts separately to avoid JOIN inflation
+    for r in qs.exclude(_excl).values('inspector_name').annotate(inspection_count=Count('id')):
+        if r['inspector_name'] in _map:
+            _map[r['inspector_name']]['inspection_count'] = r['inspection_count']
     for r in qs.filter(inspection_group__isnull=True).exclude(_excl).values('inspector_name').annotate(
         total_km=Sum('km_traveled'), total_hours=Sum('hours'),
         inspection_count=Count('id'), avg_km=Avg('km_traveled'),
@@ -10304,10 +10307,11 @@ def analytics_dashboard_api(request):
     # Total inspections
     total_inspections = qs.count()
 
-    # Compliance
+    # Compliance — use all inspections, is_product_compliant reflects compliance file upload status
     compliance_stats = qs.aggregate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False)),
     )
     compliance_rate = round((compliance_stats['compliant'] / compliance_stats['total']) * 100, 1) if compliance_stats['total'] > 0 else 0
 
@@ -10330,8 +10334,8 @@ def analytics_dashboard_api(request):
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     ).values('commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING'))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('commodity'))
     for item in compliance_by_commodity:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
@@ -10373,7 +10377,7 @@ def analytics_dashboard_api(request):
         month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+        compliant=Count('id', filter=Q(is_product_compliant=True))
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
@@ -10386,7 +10390,7 @@ def analytics_dashboard_api(request):
         week=TruncWeek('date_of_inspection')
     ).values('week').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+        compliant=Count('id', filter=Q(is_product_compliant=True))
     ).order_by('week'))
     for item in weekly_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
@@ -10399,11 +10403,11 @@ def analytics_dashboard_api(request):
     )
     if not _has_date_filter:
         _daily_base_qs = _daily_base_qs.filter(date_of_inspection__gte=thirty_days_ago)
-    daily_compliance_trend = list(_daily_base_qs.exclude(date_of_inspection__isnull=True).annotate(
+    daily_compliance_trend = list(_daily_base_qs.exclude(date_of_inspection__isnull=True).filter(date_of_inspection__lte=date.today()).annotate(
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED'))
+        compliant=Count('id', filter=Q(is_product_compliant=True))
     ).order_by('day', 'commodity'))
     for item in daily_compliance_trend:
         item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
@@ -10426,8 +10430,8 @@ def analytics_dashboard_api(request):
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).values('inspector_name').annotate(
         total_inspections=Count('id'),
-        compliant=Count('id', filter=Q(approved_status='APPROVED')),
-        non_compliant=Count('id', filter=Q(approved_status='PENDING')),
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False)),
     ).order_by('-total_inspections'))
 
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
@@ -10724,86 +10728,67 @@ def analytics_dashboard_api(request):
         iso = dt.isocalendar()
         return f'{iso[0]}-W{iso[1]:02d}'
 
-    _doc_by_month = {}
-    _doc_by_week = {}
-    for _insp in qs.filter(is_sent=True, sent_date__isnull=False, date_of_inspection__isnull=False).exclude(sent_by__isnull=True):
-        _delta = (_insp.sent_date.date() - _insp.date_of_inspection).days
-        if _delta < 0:
-            continue
-        _mk = _insp.date_of_inspection.strftime('%Y-%m')
-        _wk = _week_key(_insp.date_of_inspection)
-        if _mk not in _doc_by_month:
-            _doc_by_month[_mk] = {'total': 0, 'count': 0}
-        _doc_by_month[_mk]['total'] += _delta
-        _doc_by_month[_mk]['count'] += 1
-        if _wk not in _doc_by_week:
-            _doc_by_week[_wk] = {'total': 0, 'count': 0}
-        _doc_by_week[_wk]['total'] += _delta
-        _doc_by_week[_wk]['count'] += 1
-    data['monthlyDocSendTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_doc_by_month.items())]
-    data['weeklyDocSendTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_doc_by_week.items())]
+    # Single query for all timeline trends — avoids 4 separate DB queries
+    _tl = {'doc': {}, 'inv': {}, 'coa': {}, 'appr': {}}
+    def _tl_add(cat, doi, delta):
+        _mk = doi.strftime('%Y-%m')
+        _wk = _week_key(doi)
+        _dk = doi.strftime('%Y-%m-%d')
+        buckets = _tl[cat]
+        for _key in (_mk, _wk, _dk):
+            if _key not in buckets:
+                buckets[_key] = {'total': 0, 'count': 0}
+            buckets[_key]['total'] += delta
+            buckets[_key]['count'] += 1
 
-    _inv_by_month = {}
-    _inv_by_week = {}
-    for _insp in qs.filter(invoice_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(invoice_uploaded_by__isnull=True):
-        _delta = (_insp.invoice_uploaded_date.date() - _insp.date_of_inspection).days
-        if _delta < 0:
-            continue
-        _mk = _insp.date_of_inspection.strftime('%Y-%m')
-        _wk = _week_key(_insp.date_of_inspection)
-        if _mk not in _inv_by_month:
-            _inv_by_month[_mk] = {'total': 0, 'count': 0}
-        _inv_by_month[_mk]['total'] += _delta
-        _inv_by_month[_mk]['count'] += 1
-        if _wk not in _inv_by_week:
-            _inv_by_week[_wk] = {'total': 0, 'count': 0}
-        _inv_by_week[_wk]['total'] += _delta
-        _inv_by_week[_wk]['count'] += 1
-    data['monthlyInvoiceTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_inv_by_month.items())]
-    data['weeklyInvoiceTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_inv_by_week.items())]
+    for _insp in qs.filter(date_of_inspection__isnull=False).only(
+        'date_of_inspection', 'is_sent', 'sent_date', 'sent_by_id',
+        'invoice_uploaded_date', 'invoice_uploaded_by_id',
+        'is_sample_taken', 'coa_uploaded_date', 'commodity',
+        'approved_status', 'approved_date', 'updated_at', 'inspector_name'
+    ):
+        _doi = _insp.date_of_inspection
+        # Doc send
+        if _insp.is_sent and _insp.sent_date and _insp.sent_by_id:
+            _d = (_insp.sent_date.date() - _doi).days
+            if _d >= 0:
+                _tl_add('doc', _doi, _d)
+        # Invoice
+        if _insp.invoice_uploaded_date and _insp.invoice_uploaded_by_id:
+            _d = (_insp.invoice_uploaded_date.date() - _doi).days
+            if _d >= 0:
+                _tl_add('inv', _doi, _d)
+        # COA
+        if _insp.is_sample_taken and _insp.coa_uploaded_date and _insp.commodity:
+            _d = (_insp.coa_uploaded_date.date() - _doi).days
+            if _d >= 0:
+                _tl_add('coa', _doi, _d)
+        # Approval
+        if _insp.approved_status == 'APPROVED' and _insp.inspector_name and _insp.inspector_name not in non_inspector_names:
+            _ref = _insp.approved_date or _insp.updated_at
+            if _ref:
+                _d = (_ref.date() - _doi).days
+                if _d >= 0:
+                    _tl_add('appr', _doi, _d)
 
-    # Monthly/weekly avg days from sample to COA upload (filtered)
-    _coa_by_month = {}
-    _coa_by_week = {}
-    for _insp in qs.filter(is_sample_taken=True, coa_uploaded_date__isnull=False, date_of_inspection__isnull=False).exclude(Q(commodity__isnull=True) | Q(commodity='')):
-        _delta = (_insp.coa_uploaded_date.date() - _insp.date_of_inspection).days
-        if _delta < 0:
-            continue
-        _mk = _insp.date_of_inspection.strftime('%Y-%m')
-        _wk = _week_key(_insp.date_of_inspection)
-        if _mk not in _coa_by_month:
-            _coa_by_month[_mk] = {'total': 0, 'count': 0}
-        _coa_by_month[_mk]['total'] += _delta
-        _coa_by_month[_mk]['count'] += 1
-        if _wk not in _coa_by_week:
-            _coa_by_week[_wk] = {'total': 0, 'count': 0}
-        _coa_by_week[_wk]['total'] += _delta
-        _coa_by_week[_wk]['count'] += 1
-    data['monthlyCoaTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_coa_by_month.items())]
-    data['weeklyCoaTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_coa_by_week.items())]
+    def _tl_out(buckets):
+        m, w, d = [], [], []
+        for k, v in sorted(buckets.items()):
+            avg = round(v['total'] / v['count'], 1)
+            cnt = v['count']
+            if len(k) == 7:  # YYYY-MM
+                m.append({'month': k, 'avg_days': avg, 'count': cnt})
+            elif '-W' in k:
+                w.append({'week': k, 'avg_days': avg, 'count': cnt})
+            else:
+                d.append({'day': k, 'avg_days': avg, 'count': cnt})
+        return m, w, d
 
-    # Monthly/weekly avg days to approval (filtered)
-    _appr_by_month = {}
-    _appr_by_week = {}
-    for _insp in qs.filter(approved_status='APPROVED', date_of_inspection__isnull=False).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)):
-        _ref = _insp.approved_date or _insp.updated_at
-        if _ref is None:
-            continue
-        _delta = (_ref.date() - _insp.date_of_inspection).days
-        if _delta < 0:
-            continue
-        _mk = _insp.date_of_inspection.strftime('%Y-%m')
-        _wk = _week_key(_insp.date_of_inspection)
-        if _mk not in _appr_by_month:
-            _appr_by_month[_mk] = {'total': 0, 'count': 0}
-        _appr_by_month[_mk]['total'] += _delta
-        _appr_by_month[_mk]['count'] += 1
-        if _wk not in _appr_by_week:
-            _appr_by_week[_wk] = {'total': 0, 'count': 0}
-        _appr_by_week[_wk]['total'] += _delta
-        _appr_by_week[_wk]['count'] += 1
-    data['monthlyApprovalTrend'] = [{'month': _mk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _mk, _v in sorted(_appr_by_month.items())]
-    data['weeklyApprovalTrend'] = [{'week': _wk, 'avg_days': round(_v['total'] / _v['count'], 1), 'count': _v['count']} for _wk, _v in sorted(_appr_by_week.items())]
+    for cat, prefix in [('doc', 'DocSend'), ('inv', 'Invoice'), ('coa', 'Coa'), ('appr', 'Approval')]:
+        m, w, d = _tl_out(_tl[cat])
+        data[f'monthly{prefix}Trend'] = m
+        data[f'weekly{prefix}Trend'] = w
+        data[f'daily{prefix}Trend'] = d
 
     # Monthly total travel hours (filtered)
     # Monthly travel hours (from InspectionGroup to avoid double-counting)
@@ -16790,52 +16775,20 @@ def send_group_documents(request):
         print(f"[SEND] TO: {to_emails}")
         print(f"[SEND] CC: {cc_emails}")
 
-        # Split attachments into batches under MAX_BATCH_BYTES so we don't hit
-        # Outlook's per-message size limit (~35MB). Base64 encoding inflates
-        # binary by ~33%, so use 22MB raw budget per email.
-        MAX_BATCH_BYTES = 22 * 1024 * 1024
-        batches = []
-        current_batch = []
-        current_size = 0
-        for fp in attachments:
-            try:
-                fsize = os.path.getsize(fp)
-            except OSError:
-                fsize = 0
-            # If a single file is larger than the budget, send it alone in its own batch.
-            if fsize >= MAX_BATCH_BYTES:
-                if current_batch:
-                    batches.append(current_batch)
-                    current_batch = []
-                    current_size = 0
-                batches.append([fp])
-                continue
-            if current_size + fsize > MAX_BATCH_BYTES and current_batch:
-                batches.append(current_batch)
-                current_batch = []
-                current_size = 0
-            current_batch.append(fp)
-            current_size += fsize
-        if current_batch:
-            batches.append(current_batch)
+        email = EmailMessage(
+            subject=subject,
+            body=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=to_emails,
+            cc=cc_emails if cc_emails else None,
+            reply_to=[settings.DEFAULT_FROM_EMAIL]
+        )
+        email.content_subtype = 'html'
 
-        total_parts = len(batches)
-        print(f"[SEND] Splitting {len(attachments)} attachments into {total_parts} email(s)")
+        for file_path in attachments:
+            email.attach_file(file_path)
 
-        for idx, batch in enumerate(batches, start=1):
-            part_subject = subject if total_parts == 1 else f"{subject} (Part {idx} of {total_parts})"
-            email = EmailMessage(
-                subject=part_subject,
-                body=html_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=to_emails,
-                cc=cc_emails if cc_emails else None,
-                reply_to=[settings.DEFAULT_FROM_EMAIL]
-            )
-            email.content_subtype = 'html'
-            for file_path in batch:
-                email.attach_file(file_path)
-            email.send()
+        email.send()
 
         # Resolve user - fallback to first superuser if anonymous (API call without session)
         from django.contrib.auth import get_user_model as _gum
