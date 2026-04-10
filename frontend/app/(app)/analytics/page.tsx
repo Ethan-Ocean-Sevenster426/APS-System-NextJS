@@ -68,13 +68,17 @@ interface AnalyticsData {
   monthlyTravelTrend: { month: string; total_km: number }[];
   monthlyDocSendTrend: { month: string; avg_days: number; count: number }[];
   weeklyDocSendTrend: { week: string; avg_days: number; count: number }[];
+  dailyDocSendTrend: { day: string; avg_days: number; count: number }[];
   monthlyInvoiceTrend: { month: string; avg_days: number; count: number }[];
   weeklyInvoiceTrend: { week: string; avg_days: number; count: number }[];
+  dailyInvoiceTrend: { day: string; avg_days: number; count: number }[];
   monthlyInspectionsTrend: { month: string; count: number }[];
   monthlyCoaTrend: { month: string; avg_days: number; count: number }[];
   weeklyCoaTrend: { week: string; avg_days: number; count: number }[];
+  dailyCoaTrend: { day: string; avg_days: number; count: number }[];
   monthlyApprovalTrend: { month: string; avg_days: number; count: number }[];
   weeklyApprovalTrend: { week: string; avg_days: number; count: number }[];
+  dailyApprovalTrend: { day: string; avg_days: number; count: number }[];
   monthlyTravelHoursTrend: { month: string; total_hours: number }[];
   docSendTime: { name: string; avg_days: number; count: number }[];
   invoiceUploadTime: { name: string; avg_days: number; count: number }[];
