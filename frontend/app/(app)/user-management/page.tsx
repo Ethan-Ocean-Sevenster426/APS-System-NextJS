@@ -183,6 +183,9 @@ export default function UserManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignUser, setReassignUser] = useState<UserRecord | null>(null);
+  const [reassignTo, setReassignTo] = useState("");
   const [editUser, setEditUser] = useState<UserRecord | null>(null);
   const [resetUser, setResetUser] = useState<{ id: number; username: string } | null>(null);
 
@@ -394,7 +397,15 @@ export default function UserManagementPage() {
   };
 
   const handleDeleteUser = async (user: UserRecord) => {
-    if (!confirm(`Delete user "${user.username}"?\n\nThe user will be removed from all active lists and can no longer log in. All of their historical data — inspections, uploads, sent records, approvals, and system logs — will be permanently preserved for audit and reporting purposes.\n\nIf needed, the user can be restored later by an administrator.`))
+    // For inspectors/inspector_managers, show reassignment modal
+    if (user.role === "inspector" || user.role === "inspector_manager") {
+      setReassignUser(user);
+      setReassignTo("");
+      setShowReassignModal(true);
+      return;
+    }
+    // For non-inspectors, simple confirm
+    if (!confirm(`Delete user "${user.username}"?\n\nThe user will be deactivated and can no longer log in. All historical data will be preserved.`))
       return;
     const data = await postAction({ action: "delete_user", user_id: user.id });
     if (data.success) {
@@ -402,6 +413,27 @@ export default function UserManagementPage() {
       fetchUsers();
     } else {
       addMessage(data.error || "Failed to delete user", "error");
+    }
+  };
+
+  const handleReassignAndDelete = async () => {
+    if (!reassignUser) return;
+    if (!reassignTo) {
+      addMessage("Please select an inspector to reassign facilities to", "error");
+      return;
+    }
+    const data = await postAction({
+      action: "reassign_and_delete",
+      user_id: reassignUser.id,
+      reassign_to: reassignTo,
+    });
+    if (data.success) {
+      addMessage(data.message || "Facilities reassigned and user deactivated", "success");
+      setShowReassignModal(false);
+      setReassignUser(null);
+      fetchUsers();
+    } else {
+      addMessage(data.error || "Failed to reassign", "error");
     }
   };
 
@@ -467,17 +499,21 @@ export default function UserManagementPage() {
   /*  RENDER                                                           */
   /* ================================================================ */
   if (loading) return (
+    <>
+    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", zIndex: -2, pointerEvents: "none" }} />
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ fontSize: 14, color: "#fff" }}>Loading...</div>
       </div>
     </div>
+    </>
   );
 
   return (
     <>
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", zIndex: -2, pointerEvents: "none" }} />
       <style>{`
 /* Card styles */
 .um-card { background: #ffffff; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 10px; border: 1px solid #e5e7eb; width: 100%; }
@@ -551,9 +587,9 @@ export default function UserManagementPage() {
 .um-password-toggle { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b7280; padding: 0.25rem; }
 
 /* Header */
-.um-header { text-align: center; margin-bottom: 1.25rem; padding: 1.5rem 0 1rem; }
-.um-header h1 { color: white; font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-.um-header h2 { color: white; font-size: 1rem; font-weight: 400; opacity: 0.9; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.um-header { text-align: center; margin-bottom: 16px; }
+.um-header h1 { color: #fff; font-size: 1.3rem; font-weight: 700; margin: 0 0 4px; }
+.um-header h2 { color: rgba(255,255,255,0.8); font-size: 0.8rem; font-weight: 400; margin: 0; }
 
 /* Form actions */
 .um-form-actions { display: flex; gap: 0.5rem; align-items: center; padding-top: 0.625rem; border-top: 1px solid #e5e7eb; margin-top: 0.75rem; flex-wrap: wrap; }
@@ -632,7 +668,7 @@ export default function UserManagementPage() {
       <div className="um-container">
         {/* Header */}
         <div className="um-header">
-          <h1>User Management</h1>
+          <h1><i className="fas fa-users-cog" style={{ marginRight: 10 }} />User Management</h1>
           <h2>Manage user accounts, roles, and permissions</h2>
         </div>
 
@@ -1385,6 +1421,59 @@ export default function UserManagementPage() {
               </button>
               <button className="um-btn um-btn-primary" onClick={handleResetPassword}>
                 Reset Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reassign & Delete Modal */}
+      {showReassignModal && reassignUser && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowReassignModal(false)}>
+          <div style={{ background: "white", borderRadius: 12, padding: "16px 20px", maxWidth: 550, width: "92%", maxHeight: "95vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
+                <i className="fas fa-user-minus" style={{ marginRight: 8, color: "#dc2626" }} />Remove Inspector
+              </h3>
+              <button onClick={() => setShowReassignModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>&times;</button>
+            </div>
+
+            <div style={{ marginBottom: 14, padding: "12px 14px", background: "#fef2f2", borderRadius: 6, border: "1px solid #fecaca" }}>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "#991b1b" }}>
+                <i className="fas fa-exclamation-triangle" style={{ marginRight: 6 }} />
+                You are about to deactivate <strong>{reassignUser.first_name} {reassignUser.last_name}</strong> ({reassignUser.username}).
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: "0.78rem", color: "#7f1d1d" }}>
+                All historical inspections, uploads, and records will remain under their name. They will no longer be able to log in.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 14, padding: "12px 14px", background: "#e6f3f7", borderRadius: 6, border: "1px solid #b2d8e2" }}>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "#005a6b" }}>
+                <i className="fas fa-exchange-alt" style={{ marginRight: 6 }} />
+                Please select an inspector to <strong>take over their facility allocations</strong>. New inspections at those facilities will be assigned to the selected inspector.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 16, padding: "10px 14px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+              <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: 4 }}>Reassign Facilities To</label>
+              <select value={reassignTo} onChange={e => setReassignTo(e.target.value)}
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: "0.85rem" }}>
+                <option value="">Select inspector...</option>
+                {users.filter(u => u.is_active && u.id !== reassignUser.id && (u.role === "inspector" || u.role === "inspector_manager")).map(u => (
+                  <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.username})</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowReassignModal(false)}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500 }}>
+                Cancel
+              </button>
+              <button onClick={handleReassignAndDelete} disabled={!reassignTo}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: !reassignTo ? "#e5e7eb" : "#dc2626", color: !reassignTo ? "#9ca3af" : "white", cursor: !reassignTo ? "not-allowed" : "pointer", fontSize: "0.82rem", fontWeight: 600 }}>
+                <i className="fas fa-user-slash" style={{ marginRight: 6 }} />Reassign & Remove
               </button>
             </div>
           </div>

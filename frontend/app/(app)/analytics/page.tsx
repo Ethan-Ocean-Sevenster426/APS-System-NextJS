@@ -1762,18 +1762,37 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   const qStartStr = qStart.toISOString().slice(0, 10);
   const qEndStr = qEnd.toISOString().slice(0, 10);
 
-  // Filter inspections list to the selected quarter
+  // Use inspectorCommodityMatrix (accurate counts from backend) but filter inspectionsList by quarter for actuals
+  // inspectorCommodityMatrix is for the full filtered period, so we use inspectionsList dates to narrow to quarter
   const quarterInspections = (data.inspectionsList || []).filter(i => {
     const d = i.date_of_inspection || "";
     return d >= qStartStr && d <= qEndStr;
   });
 
+  // Build per-inspector per-commodity counts from quarterly inspections
+  const _qCounts: Record<string, Record<string, number>> = {};
+  quarterInspections.forEach(i => {
+    const name = i.inspector_name || "";
+    const c = (i.commodity || "").toUpperCase();
+    if (!_qCounts[name]) _qCounts[name] = {};
+    _qCounts[name][c] = (_qCounts[name][c] || 0) + 1;
+  });
+
+  // If quarter matches the current data period (no top-level date filter), use the full matrix instead
+  const _hasDateFilter = !!(filters.date_from || filters.date_to);
+  const _useMatrix = !_hasDateFilter && targetQuarter === Math.ceil((new Date().getMonth() + 1) / 3) && targetYear === new Date().getFullYear();
+
   function getActual(inspector: string, commodity: string): number {
     const c = commodity === "EGG" ? "EGGS" : commodity;
-    return quarterInspections.filter(i =>
-      i.inspector_name === inspector &&
-      (i.commodity || "").toUpperCase() === c
-    ).length;
+    if (_useMatrix) {
+      // Use the full commodity matrix from the API (accurate, not truncated)
+      const row = (data.inspectorCommodityMatrix || []).find(
+        (r) => r.inspector_name === inspector && r.commodity.toUpperCase() === c
+      );
+      return row?.count ?? 0;
+    }
+    // For other quarters, use the filtered inspectionsList
+    return _qCounts[inspector]?.[c] || 0;
   }
 
   function getQTarget(inspector: string, commodity: string): number {

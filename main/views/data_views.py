@@ -2239,6 +2239,63 @@ def api_users(request):
                     'message': f'User "{username}" deactivated. All historical data preserved.'
                 }))
 
+            # ── reassign_and_delete (inspector departure) ──
+            elif action == 'reassign_and_delete':
+                user_id = data.get('user_id')
+                reassign_to_id = data.get('reassign_to')
+                if not user_id or not reassign_to_id:
+                    return _cors(JsonResponse({'success': False, 'error': 'Missing user_id or reassign_to.'}))
+
+                try:
+                    departing = User.objects.get(id=user_id)
+                    new_inspector = User.objects.get(id=reassign_to_id)
+                except User.DoesNotExist:
+                    return _cors(JsonResponse({'success': False, 'error': 'User not found.'}))
+
+                if getattr(departing, 'role', '') == 'developer':
+                    return _cors(JsonResponse({'success': False, 'error': 'Cannot deactivate developer accounts.'}))
+
+                departing_name = f"{departing.first_name} {departing.last_name}".strip() or departing.username
+                new_name = f"{new_inspector.first_name} {new_inspector.last_name}".strip() or new_inspector.username
+
+                # Reassign client allocations (ClientAllocation model if exists)
+                from ..models import Client
+                reassigned_clients = 0
+                try:
+                    from ..models import ClientAllocation
+                    reassigned_clients = ClientAllocation.objects.filter(inspector_name__iexact=departing_name).update(inspector_name=new_name)
+                    if not reassigned_clients:
+                        reassigned_clients = ClientAllocation.objects.filter(inspector_name__iexact=departing.username).update(inspector_name=new_name)
+                except Exception:
+                    pass
+
+                # Reassign InspectorMapping if exists
+                try:
+                    from ..models import InspectorMapping
+                    InspectorMapping.objects.filter(inspector_name__iexact=departing_name).update(inspector_name=new_name)
+                except Exception:
+                    pass
+
+                # Log the reassignment
+                from ..models import SystemLog
+                SystemLog.log_activity(
+                    user=request.user if request.user.is_authenticated else None,
+                    action='USER_MANAGEMENT',
+                    page='user-management',
+                    object_type='inspector_reassignment',
+                    object_id=str(user_id),
+                    description=f'Facilities reassigned from {departing_name} to {new_name}. {reassigned_clients} allocation(s) transferred. User "{departing.username}" deactivated.',
+                )
+
+                # Soft delete the departing inspector
+                departing.is_active = False
+                departing.save(update_fields=['is_active'])
+
+                return _cors(JsonResponse({
+                    'success': True,
+                    'message': f'Facilities reassigned from {departing_name} to {new_name}. {reassigned_clients} allocation(s) transferred. User deactivated.'
+                }))
+
             # ── send_reset_email ──
             elif action == 'send_reset_email':
                 user_id = data.get('user_id')
@@ -4971,7 +5028,7 @@ def api_send_occurrence_email(request):
             subject=subject,
             body=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=['ethansevenster5@gmail.com'],
+            to=['nicole.bergh@afsq.co.za'],
             reply_to=[settings.DEFAULT_FROM_EMAIL],
         )
         email.content_subtype = 'html'
