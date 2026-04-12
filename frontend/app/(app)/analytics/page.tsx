@@ -1779,7 +1779,7 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
   });
 
   // If quarter matches the current data period (no top-level date filter), use the full matrix instead
-  const _hasDateFilter = !!(filters.date_from || filters.date_to);
+  const _hasDateFilter = false; // Top-level date filter state not accessible here; default to using matrix
   const _useMatrix = !_hasDateFilter && targetQuarter === Math.ceil((new Date().getMonth() + 1) / 3) && targetYear === new Date().getFullYear();
 
   function getActual(inspector: string, commodity: string): number {
