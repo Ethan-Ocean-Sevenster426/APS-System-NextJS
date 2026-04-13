@@ -214,6 +214,7 @@ export default function InspectionsPage() {
   const [fileStatusFilter, setFileStatusFilter] = useState<string[]>([]);
   const [emailFilter, setEmailFilter] = useState("");
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
+  const [sampledFilter, setSampledFilter] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
 
   // Lab-tech specific filters
@@ -372,6 +373,8 @@ export default function InspectionsPage() {
           return;
         }
         setRole(d.role || "inspector");
+        // Default lab techs to sampled view
+        if (d.role === "lab_technician") setSampledFilter(["SAMPLED"]);
       })
       .catch(() => { window.location.href = "/login"; });
   }, []);
@@ -653,8 +656,8 @@ export default function InspectionsPage() {
   // Client-side filtered list
   const filteredInspections = useMemo(() => {
     return inspections.filter(s => {
-      // Lab tech: only show inspections with at least one sampled product
-      if (isLabTech && !(s.products || []).some(p => p.is_sample_taken)) return false;
+      // Lab tech: default to sampled only, but allow seeing all via filter
+      // (sampledFilter handles this now instead of hard-coding)
       // Client search is now server-side (via debouncedSearch → API param)
       // Inspector, corporate group, and client search are now server-side (applied via Apply Filters button)
       if (groupTypeFilter.length > 0 && !groupTypeFilter.includes(s.group_type || "")) return false;
@@ -663,6 +666,12 @@ export default function InspectionsPage() {
         if (occurrenceFilter.includes("OCCURRENCE") && occurrenceFilter.includes("INSPECTION")) { /* both = no filter */ }
         else if (occurrenceFilter.includes("OCCURRENCE") && !isOcc) return false;
         else if (occurrenceFilter.includes("INSPECTION") && isOcc) return false;
+      }
+      if (sampledFilter.length > 0) {
+        const hasSample = (s.products || []).some(p => p.is_sample_taken);
+        if (sampledFilter.includes("SAMPLED") && sampledFilter.includes("NOT_SAMPLED")) { /* both = no filter */ }
+        else if (sampledFilter.includes("SAMPLED") && !hasSample) return false;
+        else if (sampledFilter.includes("NOT_SAMPLED") && hasSample) return false;
       }
       if (sentStatusFilter.length > 0) {
         const sent = !!s.sent_date;
@@ -707,7 +716,7 @@ export default function InspectionsPage() {
       }
       return true;
     });
-  }, [inspections, isLabTech, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter, occurrenceFilter]);
+  }, [inspections, isLabTech, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter, occurrenceFilter, sampledFilter]);
 
   // Server-side pagination — inspections are already the current page
   const paginatedInspections = filteredInspections;
@@ -1465,6 +1474,7 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Corporate Group" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
                   <IrMultiSelect label="Group Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
                   <IrMultiSelect label="Report Type" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
+                  <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
                   <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
@@ -1486,7 +1496,7 @@ export default function InspectionsPage() {
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
-                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); }}>
+                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); }}>
                     <i className="fas fa-times" /> Clear All
                   </button>
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
