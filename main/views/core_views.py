@@ -1075,14 +1075,15 @@ def add_fsa_inspection(request):
         towns_list = cached_form_data['towns']
         all_groups = cached_form_data['groups']
     else:
-        # Build town lookup: one query using DISTINCT ON (PostgreSQL)
-        town_lookup = dict(
-            FoodSafetyAgencyInspection.objects.exclude(
-                town__isnull=True
-            ).exclude(town='').order_by(
-                'client_name', '-date_of_inspection'
-            ).distinct('client_name').values_list('client_name', 'town')
-        )
+        # Build town lookup: most recent town per client_name (cross-DB compatible)
+        town_lookup = {}
+        for _name, _town in FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').order_by(
+            'client_name', '-date_of_inspection'
+        ).values_list('client_name', 'town'):
+            if _name not in town_lookup:
+                town_lookup[_name] = _town
 
         # Get all clients in one query
         clients_with_towns = [
@@ -1654,13 +1655,14 @@ def edit_fsa_inspection(request, pk):
         clients_with_towns = _cached['clients']
         towns_list = _cached['towns']
     else:
-        town_lookup = dict(
-            FoodSafetyAgencyInspection.objects.exclude(
-                town__isnull=True
-            ).exclude(town='').order_by(
-                'client_name', '-date_of_inspection'
-            ).distinct('client_name').values_list('client_name', 'town')
-        )
+        town_lookup = {}
+        for _name, _town in FoodSafetyAgencyInspection.objects.exclude(
+            town__isnull=True
+        ).exclude(town='').order_by(
+            'client_name', '-date_of_inspection'
+        ).values_list('client_name', 'town'):
+            if _name not in town_lookup:
+                town_lookup[_name] = _town
         clients_with_towns = [
             {
                 'name': c.name,
@@ -3826,14 +3828,16 @@ def upload_document(request):
             # RESTRICT TO PDF FILES ONLY
             file_extension = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else ''
             if file_extension != 'pdf':
+                print(f"[UPLOAD REJECTED] non-PDF extension '.{file_extension}' from user={getattr(request.user, 'username', '?')} file={uploaded_file.name} group={group_id} doc_type={document_type}")
                 return JsonResponse({
                     'success': False,
                     'error': f'Only PDF files are allowed. You uploaded a {file_extension.upper() if file_extension else "file without extension"}. Please convert your document to PDF and try again.'
                 })
-            
+
             # Validate file content type as additional security
             content_type = uploaded_file.content_type
             if content_type and not content_type.startswith('application/pdf'):
+                print(f"[UPLOAD REJECTED] non-PDF content-type '{content_type}' from user={getattr(request.user, 'username', '?')} file={uploaded_file.name} group={group_id} doc_type={document_type}")
                 return JsonResponse({
                     'success': False,
                     'error': 'Invalid file type. Only PDF documents are accepted.'
@@ -8406,15 +8410,16 @@ def inspector_dashboard(request):
             client['percentage'] = 0
     
     # Get monthly trends (Oct 2025 to Apr 2026) for this inspector
-    monthly_trends = inspector_inspections.filter(
+    from django.db.models.functions import ExtractMonth
+    monthly_trends = list(inspector_inspections.filter(
         date_of_inspection__gte=start_date,
         date_of_inspection__lt=end_date
-    ).extra(
-        select={'month': "EXTRACT(month FROM date_of_inspection)"}
+    ).annotate(
+        month=ExtractMonth('date_of_inspection')
     ).values('month').annotate(
         count=Count('id')
-    ).order_by('month')
-    
+    ).order_by('month'))
+
     # Convert month numbers to month names
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     for trend in monthly_trends:
@@ -8779,11 +8784,12 @@ def inspector_dashboard_api(request):
         else:
             client['percentage'] = 0
 
+    from django.db.models.functions import ExtractMonth
     monthly_trends = list(inspector_inspections.filter(
         date_of_inspection__gte=start_date,
         date_of_inspection__lt=end_date
-    ).extra(
-        select={'month': "EXTRACT(month FROM date_of_inspection)"}
+    ).annotate(
+        month=ExtractMonth('date_of_inspection')
     ).values('month').annotate(
         count=Count('id')
     ).order_by('month'))

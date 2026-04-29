@@ -2872,11 +2872,14 @@ def api_inspection_form_data(request):
             towns_list = cached['towns']
             all_groups = cached['groups']
         else:
-            town_lookup = dict(
+            town_lookup = {}
+            for _name, _town in (
                 _Insp.objects.exclude(town__isnull=True).exclude(town='')
                 .order_by('client_name', '-date_of_inspection')
-                .distinct('client_name').values_list('client_name', 'town')
-            )
+                .values_list('client_name', 'town')
+            ):
+                if _name not in town_lookup:
+                    town_lookup[_name] = _town
             clients_with_towns = [
                 {
                     'name': c.name,

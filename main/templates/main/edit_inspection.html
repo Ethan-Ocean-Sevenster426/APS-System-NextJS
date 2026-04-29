@@ -6,6 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Inspection - Food Safety Agency</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        // Global PDF-only enforcement for accept=".pdf" file inputs. Catches phone
+        // photos before they hit /upload-document/ and silently get rejected.
+        (function () {
+            document.addEventListener('change', function (e) {
+                var el = e.target;
+                if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return;
+                var accept = (el.getAttribute('accept') || '').toLowerCase();
+                if (accept.indexOf('pdf') === -1) return;
+                var files = el.files;
+                if (!files || !files.length) return;
+                for (var i = 0; i < files.length; i++) {
+                    var name = files[i].name || '';
+                    var ext = name.split('.').pop().toLowerCase();
+                    if (ext !== 'pdf') {
+                        alert(
+                            'Only PDF files are allowed.\n\n' +
+                            'You selected: ' + name + '\n\n' +
+                            'Please convert your document to a PDF and upload again.\n' +
+                            'Photos taken on your phone (.jpg / .heic / .png) are not accepted.'
+                        );
+                        el.value = '';
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }, true);
+        })();
+    </script>
     <style>
         :root {
             --primary: #007890;

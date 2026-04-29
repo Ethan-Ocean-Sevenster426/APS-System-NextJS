@@ -1,6 +1,40 @@
                 // CACHE BUST: 2025-10-28 - Email functions fix - MUST SEE THIS
                 console.log('🚀 SCRIPT LOADED - Cache busted at:', new Date().toISOString());
 
+                // Global PDF-only enforcement for file inputs declared as accept=".pdf".
+                // Runs in the capture phase so it fires before any per-input onchange
+                // handler builds FormData and POSTs to /upload-document/. Catches phone
+                // photos (.jpg/.heic/.png) that mobile browsers allow despite accept=".pdf".
+                (function () {
+                    function isPdfOnlyInput(el) {
+                        if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return false;
+                        var accept = (el.getAttribute('accept') || '').toLowerCase();
+                        return accept.indexOf('pdf') !== -1;
+                    }
+                    document.addEventListener('change', function (e) {
+                        var el = e.target;
+                        if (!isPdfOnlyInput(el)) return;
+                        var files = el.files;
+                        if (!files || !files.length) return;
+                        for (var i = 0; i < files.length; i++) {
+                            var name = files[i].name || '';
+                            var ext = name.split('.').pop().toLowerCase();
+                            if (ext !== 'pdf') {
+                                alert(
+                                    'Only PDF files are allowed.\n\n' +
+                                    'You selected: ' + name + '\n\n' +
+                                    'Please convert your document to a PDF and upload again.\n' +
+                                    'Photos taken on your phone (.jpg / .heic / .png) are not accepted.'
+                                );
+                                el.value = ''; // clear selection so the upload does not proceed
+                                e.stopImmediatePropagation();
+                                e.preventDefault();
+                                return;
+                            }
+                        }
+                    }, true);
+                })();
+
                 // Toast notification helpers
                 function showUploadToast(message) {
                     _showToast(message, '#22c55e', 3000);

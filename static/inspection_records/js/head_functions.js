@@ -1,6 +1,40 @@
         // These functions MUST be defined before body content loads
         // Otherwise onclick handlers will fail with "function not defined"
 
+        // Global PDF-only enforcement for file inputs declared as accept=".pdf".
+        // Capture-phase listener so it fires before any per-input onchange handler
+        // can build FormData and POST to /upload-document/. Catches phone photos
+        // (.jpg / .heic / .png) that mobile browsers offer despite accept=".pdf".
+        (function () {
+            function isPdfOnlyInput(el) {
+                if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return false;
+                var accept = (el.getAttribute('accept') || '').toLowerCase();
+                return accept.indexOf('pdf') !== -1;
+            }
+            document.addEventListener('change', function (e) {
+                var el = e.target;
+                if (!isPdfOnlyInput(el)) return;
+                var files = el.files;
+                if (!files || !files.length) return;
+                for (var i = 0; i < files.length; i++) {
+                    var name = files[i].name || '';
+                    var ext = name.split('.').pop().toLowerCase();
+                    if (ext !== 'pdf') {
+                        alert(
+                            'Only PDF files are allowed.\n\n' +
+                            'You selected: ' + name + '\n\n' +
+                            'Please convert your document to a PDF and upload again.\n' +
+                            'Photos taken on your phone (.jpg / .heic / .png) are not accepted.'
+                        );
+                        el.value = '';
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }, true);
+        })();
+
         window.openFilesPopup = function (groupId, clientName, inspectionDate) {
             console.log('openFilesPopup called:', groupId, clientName, inspectionDate);
             const modal = document.getElementById('filesModal');
