@@ -2954,24 +2954,25 @@ def api_add_inspection(request):
     try:
         data = _json.loads(request.body)
 
-        # Validate required fields
+        # Validate required fields (occurrence reports skip corporate-metadata fields)
+        is_occurrence = bool(data.get('is_occurrence_report', False))
         missing = []
         if not data.get('client_name', '').strip():
             missing.append('Client Name')
         if not data.get('town', '').strip():
             missing.append('Town')
-        if not data.get('corporate_group', '').strip():
-            missing.append('Corporate Group')
-        if not data.get('group_type', '').strip():
-            missing.append('Group Type')
-        if not data.get('facility_type', '').strip():
-            missing.append('Facility Type')
         if not data.get('date_of_inspection', '').strip():
             missing.append('Date of Inspection')
+        if not is_occurrence:
+            if not data.get('corporate_group', '').strip():
+                missing.append('Corporate Group')
+            if not data.get('group_type', '').strip():
+                missing.append('Group Type')
+            if not data.get('facility_type', '').strip():
+                missing.append('Facility Type')
         if missing:
             return _cors(JsonResponse({'success': False, 'error': f"Required fields missing: {', '.join(missing)}"}))
 
-        is_occurrence = bool(data.get('is_occurrence_report', False))
         products_data = data.get('products', [])
         if not is_occurrence:
             if not products_data:
