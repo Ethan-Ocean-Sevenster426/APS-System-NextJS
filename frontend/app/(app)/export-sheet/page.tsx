@@ -324,7 +324,7 @@ export default function ExportSheetPage() {
 
       // Style header row - blue background with white text
       const headerRow = ws.getRow(1);
-      headerRow.eachCell(cell => {
+      headerRow.eachCell((cell: import("exceljs").Cell) => {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       });
