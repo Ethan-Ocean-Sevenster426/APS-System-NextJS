@@ -194,7 +194,7 @@ export default function LabAnalyticsPage() {
 
   const handleExportPdf = () => {
     if (!data) return;
-    import("jspdf").then(mod => {
+    import("jspdf").then((mod: any) => {
       const jsPDF = mod.default || mod.jsPDF;
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
