@@ -54,7 +54,7 @@
         function togglePasswordVisibility(fieldId, button) {
             const field = document.getElementById(fieldId);
             const icon = button.querySelector('i');
-            
+
             if (field.type === 'password') {
                 field.type = 'text';
                 icon.className = 'fas fa-eye-slash';
@@ -62,6 +62,38 @@
                 field.type = 'password';
                 icon.className = 'fas fa-eye';
             }
+        }
+
+        // Add User modal: live password-match check + submit guard
+        function checkAddUserPasswordMatch() {
+            const p1 = document.getElementById('add_new_password1');
+            const p2 = document.getElementById('add_new_password2');
+            const msg = document.getElementById('add_user_password_match_msg');
+            if (!p1 || !p2 || !msg) return true;
+            if (!p2.value) {
+                msg.textContent = '';
+                msg.style.color = '';
+                return false;
+            }
+            if (p1.value === p2.value) {
+                msg.textContent = '✓ Passwords match';
+                msg.style.color = '#16a34a';
+                return true;
+            }
+            msg.textContent = '✗ Passwords do not match';
+            msg.style.color = '#dc2626';
+            return false;
+        }
+
+        function validateAddUserForm(form) {
+            const p1 = form.querySelector('[name="new_password1"]');
+            const p2 = form.querySelector('[name="new_password2"]');
+            if (p1 && p2 && p1.value !== p2.value) {
+                alert('Passwords do not match. Use the eye icon to verify what you typed.');
+                p2.focus();
+                return false;
+            }
+            return true;
         }
 
         // Open reset password modal
@@ -317,12 +349,23 @@
         }
 
         function showAddUserModal() {
+            // Clear any stale "Passwords do not match" / similar messages from prior attempts
+            document.querySelectorAll('.alert, .messages li, .message, [class*="alert-"]').forEach(function (el) {
+                var t = (el.textContent || '').toLowerCase();
+                if (t.indexOf('password') !== -1 || t.indexOf('match') !== -1) {
+                    el.remove();
+                }
+            });
+            var liveMsg = document.getElementById('add_user_password_match_msg');
+            if (liveMsg) { liveMsg.textContent = ''; liveMsg.style.color = ''; }
             document.getElementById('addUserModal').classList.add('show');
         }
 
         function closeAddUserModal() {
             document.getElementById('addUserModal').classList.remove('show');
             document.getElementById('addUserForm').reset();
+            var liveMsg = document.getElementById('add_user_password_match_msg');
+            if (liveMsg) { liveMsg.textContent = ''; liveMsg.style.color = ''; }
         }
 
         function buildInspectorCheckboxes(userId, selectedRole) {
