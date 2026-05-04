@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { Cell as ExcelCell } from "exceljs";
 import MultiSelectDropdown from "@/components/ui/MultiSelectDropdown";
 
 interface ExportItem {
@@ -324,7 +325,7 @@ export default function ExportSheetPage() {
 
       // Style header row - blue background with white text
       const headerRow = ws.getRow(1);
-      headerRow.eachCell((cell: import("exceljs").Cell) => {
+      headerRow.eachCell((cell: ExcelCell) => {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       });
