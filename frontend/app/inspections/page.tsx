@@ -373,8 +373,7 @@ export default function InspectionsPage() {
           return;
         }
         setRole(d.role || "inspector");
-        // Default lab techs to sampled view
-        if (d.role === "lab_technician") setSampledFilter(["SAMPLED"]);
+        // Lab techs see all inspections (no default sampled filter)
       })
       .catch(() => { window.location.href = "/login"; });
   }, []);
