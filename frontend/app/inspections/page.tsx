@@ -212,6 +212,11 @@ export default function InspectionsPage() {
   const [complianceFilter, setComplianceFilter] = useState<string[]>([]);
   const [approvedFilter, setApprovedFilter] = useState<string[]>([]);
   const [fileStatusFilter, setFileStatusFilter] = useState<string[]>([]);
+  const [rfiFilter, setRfiFilter] = useState<string[]>([]);
+  const [invoiceFilter, setInvoiceFilter] = useState<string[]>([]);
+  const [coaFileFilter, setCoaFileFilter] = useState<string[]>([]);
+  const [complianceFileFilter, setComplianceFileFilter] = useState<string[]>([]);
+  const [otherFileFilter, setOtherFileFilter] = useState<string[]>([]);
   const [emailFilter, setEmailFilter] = useState("");
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
@@ -222,6 +227,27 @@ export default function InspectionsPage() {
   const [coaStatusFilter, setCoaStatusFilter] = useState<string[]>([]);
   const [labFilter, setLabFilter] = useState<string[]>([]);
   const [testTypeFilter, setTestTypeFilter] = useState<string[]>([]);
+
+  // Applied filter state — only updated when "Apply Filters" is clicked
+  const [appliedFilters, setAppliedFilters] = useState({
+    groupType: [] as string[],
+    occurrence: [] as string[],
+    sampled: [] as string[],
+    sentStatus: [] as string[],
+    compliance: [] as string[],
+    approved: [] as string[],
+    fileStatus: [] as string[],
+    rfi: [] as string[],
+    invoice: [] as string[],
+    coaFile: [] as string[],
+    complianceFile: [] as string[],
+    otherFile: [] as string[],
+    email: "",
+    retest: [] as string[],
+    coaStatus: [] as string[],
+    lab: [] as string[],
+    testType: [] as string[],
+  });
 
   // Upload state
   const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
@@ -654,68 +680,95 @@ export default function InspectionsPage() {
 
   // Client-side filtered list
   const filteredInspections = useMemo(() => {
+    const af = appliedFilters;
     return inspections.filter(s => {
-      // Lab tech: default to sampled only, but allow seeing all via filter
-      // (sampledFilter handles this now instead of hard-coding)
-      // Client search is now server-side (via debouncedSearch → API param)
-      // Inspector, corporate group, and client search are now server-side (applied via Apply Filters button)
-      if (groupTypeFilter.length > 0 && !groupTypeFilter.includes(s.group_type || "")) return false;
-      if (occurrenceFilter.length > 0) {
+      if (af.groupType.length > 0 && !af.groupType.includes(s.group_type || "")) return false;
+      if (af.occurrence.length > 0) {
         const isOcc = !!s.is_occurrence_report;
-        if (occurrenceFilter.includes("OCCURRENCE") && occurrenceFilter.includes("INSPECTION")) { /* both = no filter */ }
-        else if (occurrenceFilter.includes("OCCURRENCE") && !isOcc) return false;
-        else if (occurrenceFilter.includes("INSPECTION") && isOcc) return false;
+        if (af.occurrence.includes("OCCURRENCE") && af.occurrence.includes("INSPECTION")) { /* both = no filter */ }
+        else if (af.occurrence.includes("OCCURRENCE") && !isOcc) return false;
+        else if (af.occurrence.includes("INSPECTION") && isOcc) return false;
       }
-      if (sampledFilter.length > 0) {
+      if (af.sampled.length > 0) {
         const hasSample = (s.products || []).some(p => p.is_sample_taken);
-        if (sampledFilter.includes("SAMPLED") && sampledFilter.includes("NOT_SAMPLED")) { /* both = no filter */ }
-        else if (sampledFilter.includes("SAMPLED") && !hasSample) return false;
-        else if (sampledFilter.includes("NOT_SAMPLED") && hasSample) return false;
+        if (af.sampled.includes("SAMPLED") && af.sampled.includes("NOT_SAMPLED")) { /* both = no filter */ }
+        else if (af.sampled.includes("SAMPLED") && !hasSample) return false;
+        else if (af.sampled.includes("NOT_SAMPLED") && hasSample) return false;
       }
-      if (sentStatusFilter.length > 0) {
+      if (af.sentStatus.length > 0) {
         const sent = !!s.sent_date;
-        if (sentStatusFilter.includes("SENT") && sentStatusFilter.includes("NOT_SENT")) { /* both = no filter */ }
-        else if (sentStatusFilter.includes("SENT") && !sent) return false;
-        else if (sentStatusFilter.includes("NOT_SENT") && sent) return false;
+        if (af.sentStatus.includes("SENT") && af.sentStatus.includes("NOT_SENT")) { /* both = no filter */ }
+        else if (af.sentStatus.includes("SENT") && !sent) return false;
+        else if (af.sentStatus.includes("NOT_SENT") && sent) return false;
       }
-      if (complianceFilter.length > 0 && !complianceFilter.includes(s.inspection_compliance_status || "")) return false;
-      if (approvedFilter.length > 0 && !approvedFilter.includes(s.approved_status || "")) return false;
-      if (emailFilter.trim()) {
-        const emailSearch = emailFilter.trim().toLowerCase();
+      if (af.compliance.length > 0 && !af.compliance.includes(s.inspection_compliance_status || "")) return false;
+      if (af.approved.length > 0 && !af.approved.includes(s.approved_status || "")) return false;
+      if (af.email.trim()) {
+        const emailSearch = af.email.trim().toLowerCase();
         const allEmails = (s.email || "").toLowerCase();
         if (!allEmails.includes(emailSearch)) return false;
       }
-      if (fileStatusFilter.length > 0) {
+      if (af.fileStatus.length > 0) {
         const hasFiles = s.has_rfi || s.has_invoice || s.has_lab || s.has_compliance;
-        if (fileStatusFilter.includes("HAS_FILES") && fileStatusFilter.includes("NO_FILES")) { /* both = no filter */ }
-        else if (fileStatusFilter.includes("HAS_FILES") && !hasFiles) return false;
-        else if (fileStatusFilter.includes("NO_FILES") && hasFiles) return false;
+        if (af.fileStatus.includes("HAS_FILES") && af.fileStatus.includes("NO_FILES")) { /* both = no filter */ }
+        else if (af.fileStatus.includes("HAS_FILES") && !hasFiles) return false;
+        else if (af.fileStatus.includes("NO_FILES") && hasFiles) return false;
       }
-      if (retestFilter.length > 0) {
+      if (af.rfi.length > 0) {
+        const has = !!s.has_rfi;
+        if (af.rfi.includes("HAS_RFI") && af.rfi.includes("NO_RFI")) { /* both = no filter */ }
+        else if (af.rfi.includes("HAS_RFI") && !has) return false;
+        else if (af.rfi.includes("NO_RFI") && has) return false;
+      }
+      if (af.invoice.length > 0) {
+        const has = !!s.has_invoice;
+        if (af.invoice.includes("HAS_INVOICE") && af.invoice.includes("NO_INVOICE")) { /* both = no filter */ }
+        else if (af.invoice.includes("HAS_INVOICE") && !has) return false;
+        else if (af.invoice.includes("NO_INVOICE") && has) return false;
+      }
+      if (af.coaFile.length > 0) {
+        const has = !!s.has_lab;
+        if (af.coaFile.includes("HAS_COA") && af.coaFile.includes("NO_COA")) { /* both = no filter */ }
+        else if (af.coaFile.includes("HAS_COA") && !has) return false;
+        else if (af.coaFile.includes("NO_COA") && has) return false;
+      }
+      if (af.complianceFile.length > 0) {
+        const has = !!s.has_compliance;
+        if (af.complianceFile.includes("HAS_COMP") && af.complianceFile.includes("NO_COMP")) { /* both = no filter */ }
+        else if (af.complianceFile.includes("HAS_COMP") && !has) return false;
+        else if (af.complianceFile.includes("NO_COMP") && has) return false;
+      }
+      if (af.otherFile.length > 0) {
+        const hasOther = (s.products || []).some(p => p.other_uploaded);
+        if (af.otherFile.includes("HAS_OTHER") && af.otherFile.includes("NO_OTHER")) { /* both = no filter */ }
+        else if (af.otherFile.includes("HAS_OTHER") && !hasOther) return false;
+        else if (af.otherFile.includes("NO_OTHER") && hasOther) return false;
+      }
+      if (af.retest.length > 0) {
         const prods = s.products || [];
         const needsRetest = prods.some(p => p.needs_retest && p.needs_retest !== "NO" && p.needs_retest !== "");
-        if (retestFilter.includes("NEEDS_RETEST") && retestFilter.includes("NO_RETEST")) { /* both = no filter */ }
-        else if (retestFilter.includes("NEEDS_RETEST") && !needsRetest) return false;
-        else if (retestFilter.includes("NO_RETEST") && needsRetest) return false;
+        if (af.retest.includes("NEEDS_RETEST") && af.retest.includes("NO_RETEST")) { /* both = no filter */ }
+        else if (af.retest.includes("NEEDS_RETEST") && !needsRetest) return false;
+        else if (af.retest.includes("NO_RETEST") && needsRetest) return false;
       }
-      if (coaStatusFilter.length > 0) {
+      if (af.coaStatus.length > 0) {
         const hasCoa = !!s.has_lab;
-        if (coaStatusFilter.includes("COA_UPLOADED") && coaStatusFilter.includes("NO_COA")) { /* both = no filter */ }
-        else if (coaStatusFilter.includes("COA_UPLOADED") && !hasCoa) return false;
-        else if (coaStatusFilter.includes("NO_COA") && hasCoa) return false;
+        if (af.coaStatus.includes("COA_UPLOADED") && af.coaStatus.includes("NO_COA")) { /* both = no filter */ }
+        else if (af.coaStatus.includes("COA_UPLOADED") && !hasCoa) return false;
+        else if (af.coaStatus.includes("NO_COA") && hasCoa) return false;
       }
-      if (labFilter.length > 0) {
+      if (af.lab.length > 0) {
         const prods = s.products || [];
-        if (!prods.some(p => p.lab && labFilter.includes(p.lab))) return false;
+        if (!prods.some(p => p.lab && af.lab.includes(p.lab))) return false;
       }
-      if (testTypeFilter.length > 0) {
+      if (af.testType.length > 0) {
         const prods = s.products || [];
         const testMap: Record<string, keyof Product> = { DNA: "dna", FAT: "fat", PROTEIN: "protein", CALCIUM: "calcium" };
-        if (!testTypeFilter.some(t => prods.some(p => p[testMap[t]] as boolean))) return false;
+        if (!af.testType.some(t => prods.some(p => p[testMap[t]] as boolean))) return false;
       }
       return true;
     });
-  }, [inspections, isLabTech, groupTypeFilter, sentStatusFilter, complianceFilter, approvedFilter, fileStatusFilter, retestFilter, coaStatusFilter, labFilter, testTypeFilter, occurrenceFilter, sampledFilter]);
+  }, [inspections, appliedFilters]);
 
   // Server-side pagination — inspections are already the current page
   const paginatedInspections = filteredInspections;
@@ -742,6 +795,15 @@ export default function InspectionsPage() {
   const isPoultryOrEggs = (commodity: string) => {
     const upper = (commodity || "").toUpperCase();
     return upper === "POULTRY" || upper === "EGGS";
+  };
+
+  const isPmpOrRaw = (commodity: string) => {
+    const upper = (commodity || "").toUpperCase();
+    return upper === "PMP" || upper === "RAW";
+  };
+
+  const inspectionHasPmpOrRaw = (s: Inspection) => {
+    return (s.products || []).some(p => isPmpOrRaw(p.commodity));
   };
 
   const getSampleBadge = (product: Product, isOccurrence: boolean, _hasCompliance: boolean) => {
@@ -914,9 +976,22 @@ export default function InspectionsPage() {
                   <input
                     type="number"
                     style={{ width: 65, fontSize: 9, padding: 3, border: "1px solid #e5e7eb", borderRadius: 3 }}
-                    defaultValue={s.km_traveled || ""}
+                    value={s.km_traveled != null ? s.km_traveled : ""}
                     placeholder="0"
                     onClick={e => e.stopPropagation()}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      setInspections(prev => prev.map(i => i.id === s.id ? { ...i, km_traveled: raw === "" ? 0 : parseFloat(raw) || 0 } : i));
+                    }}
+                    onBlur={async e => {
+                      const val = parseFloat(e.target.value) || 0;
+                      try {
+                        await fetch("/api/edit-inspection-group/", {
+                          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                          body: JSON.stringify({ inspection_id: s.id, km_traveled: val }),
+                        });
+                      } catch (err) { console.error("Failed to save km:", err); }
+                    }}
                   />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -924,9 +999,22 @@ export default function InspectionsPage() {
                   <input
                     type="number"
                     style={{ width: 65, fontSize: 9, padding: 3, border: "1px solid #e5e7eb", borderRadius: 3 }}
-                    defaultValue={s.hours || ""}
+                    value={s.hours != null ? s.hours : ""}
                     placeholder="0"
                     onClick={e => e.stopPropagation()}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      setInspections(prev => prev.map(i => i.id === s.id ? { ...i, hours: raw === "" ? 0 : parseFloat(raw) || 0 } : i));
+                    }}
+                    onBlur={async e => {
+                      const val = parseFloat(e.target.value) || 0;
+                      try {
+                        await fetch("/api/edit-inspection-group/", {
+                          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                          body: JSON.stringify({ inspection_id: s.id, hours: val }),
+                        });
+                      } catch (err) { console.error("Failed to save hours:", err); }
+                    }}
                   />
                 </div>
               </div>
@@ -1221,13 +1309,15 @@ export default function InspectionsPage() {
       {/* Toast notification */}
       {toastMessage && (
         <div style={{
-          position: "fixed", bottom: 20, right: 20,
-          background: "#22c55e", color: "white",
-          padding: "12px 20px", borderRadius: 6,
-          zIndex: 9999, fontSize: 14,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          background: "#1f2937", color: "white",
+          padding: "10px 24px", borderRadius: 8,
+          zIndex: 9999, fontSize: 13, fontWeight: 500,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+          display: "flex", alignItems: "center", gap: 8,
           animation: "fadeIn 0.3s ease",
         }}>
+          <i className="fas fa-check-circle" style={{ color: "#22c55e", fontSize: 16 }} />
           {toastMessage}
         </div>
       )}
@@ -1430,7 +1520,6 @@ export default function InspectionsPage() {
             <button type="button" className="ir-btn ir-btn-secondary" onClick={collapseAll}><i className="fas fa-compress-alt" /> Collapse All</button>
             {roleLoaded && !isLabTech && <a href="/inspections/add" className="ir-btn ir-btn-green"><i className="fas fa-plus" /> Add Inspection</a>}
             {roleLoaded && !isLabTech && <a href="/clients" className="ir-btn" style={{ background: "#007890", color: "white" }}><i className="fas fa-users-cog" /> Client Allocation Sheet</a>}
-            {roleLoaded && !isLabTech && <a href="/system-logs" className="ir-btn ir-btn-secondary"><i className="fas fa-list-alt" /> System Logs</a>}
           </div>
 
           {/* Filter Card */}
@@ -1472,12 +1561,16 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} />
                   <IrMultiSelect label="Corporate Group" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
                   <IrMultiSelect label="Group Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
-                  <IrMultiSelect label="Report Type" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
+                  <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
                   <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
-                  <IrMultiSelect label="Files" options={["HAS_FILES", "NO_FILES"]} selected={fileStatusFilter} onChange={setFileStatusFilter} />
+                  <IrMultiSelect label="Has RFI" options={["HAS_RFI", "NO_RFI"]} selected={rfiFilter} onChange={setRfiFilter} />
+                  <IrMultiSelect label="Has Invoice" options={["HAS_INVOICE", "NO_INVOICE"]} selected={invoiceFilter} onChange={setInvoiceFilter} />
+                  <IrMultiSelect label="Has COA" options={["HAS_COA", "NO_COA"]} selected={coaFileFilter} onChange={setCoaFileFilter} />
+                  <IrMultiSelect label="Has Compliance" options={["HAS_COMP", "NO_COMP"]} selected={complianceFileFilter} onChange={setComplianceFileFilter} />
+                  <IrMultiSelect label="Has Other" options={["HAS_OTHER", "NO_OTHER"]} selected={otherFileFilter} onChange={setOtherFileFilter} />
                 </div>
 
                 {/* Lab Filters (lab tech, super_admin, developer) */}
@@ -1495,11 +1588,24 @@ export default function InspectionsPage() {
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
-                    onClick={() => { setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); }}>
+                    onClick={() => {
+                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]);
+                      setAppliedFilters({ groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [] });
+                      setCurrentPage(1);
+                      fetchInspections(showDuplicates, "", "", 1, "");
+                    }}>
                     <i className="fas fa-times" /> Clear All
                   </button>
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
+                      setAppliedFilters({
+                        groupType: groupTypeFilter, occurrence: occurrenceFilter, sampled: sampledFilter,
+                        sentStatus: sentStatusFilter, compliance: complianceFilter, approved: approvedFilter,
+                        fileStatus: fileStatusFilter, rfi: rfiFilter, invoice: invoiceFilter,
+                        coaFile: coaFileFilter, complianceFile: complianceFileFilter, otherFile: otherFileFilter,
+                        email: emailFilter, retest: retestFilter,
+                        coaStatus: coaStatusFilter, lab: labFilter, testType: testTypeFilter,
+                      });
                       setCurrentPage(1);
                       const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
                       const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
@@ -1546,7 +1652,9 @@ export default function InspectionsPage() {
             </div>
             <div className="ir-card-body">
               <div className="ir-table-info">
-                {loading ? "Loading..." : `Showing ${(safeCurrentPage - 1) * PAGE_SIZE + 1}–${Math.min(safeCurrentPage * PAGE_SIZE, total)} of ${total} inspections`}
+                {loading ? "Loading..." : filteredInspections.length < inspections.length
+                  ? `Showing ${filteredInspections.length} of ${total} inspections (filtered)`
+                  : `Showing ${(safeCurrentPage - 1) * PAGE_SIZE + 1}–${Math.min(safeCurrentPage * PAGE_SIZE, total)} of ${total} inspections`}
               </div>
 
               {/* Mobile Card Layout */}
@@ -1620,6 +1728,31 @@ export default function InspectionsPage() {
                           onClick={e => e.stopPropagation()}>
                           <i className="fas fa-edit" /> Edit
                         </a>
+                        {(!isInspector || showDuplicates) && (
+                          <button style={{ flex: 1, padding: "8px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                            onClick={async e => {
+                              e.stopPropagation();
+                              if (!confirm(`Delete inspection for "${s.client_name}" on ${s.date_of_inspection ? new Date(s.date_of_inspection).toLocaleDateString("en-GB") : "unknown date"}?\n\nThis cannot be undone.`)) return;
+                              try {
+                                const res = await fetch("/api/delete-inspection-group/", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ group_id: s.group_id }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setInspections(prev => prev.filter(i => i.id !== s.id));
+                                  setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch), 500);
+                                } else {
+                                  alert("Delete failed: " + (data.error || "Unknown error"));
+                                }
+                              } catch (err) {
+                                alert("Delete error: " + (err instanceof Error ? err.message : String(err)));
+                              }
+                            }}>
+                            <i className="fas fa-trash" /> Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                     {/* Expanded Detail */}
@@ -1924,28 +2057,38 @@ export default function InspectionsPage() {
       {filesModal.visible && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex",
+          background: "rgba(0,0,0,0.6)", display: "flex",
           alignItems: "center", justifyContent: "center", zIndex: 9999,
+          backdropFilter: "blur(2px)",
         }} onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}>
           <div style={{
-            background: "white", borderRadius: 12, padding: 24,
-            maxWidth: 700, width: "90%", maxHeight: "80vh", overflow: "auto",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            background: "#fff", borderRadius: 16,
+            maxWidth: 900, width: "95%", maxHeight: "85vh", overflow: "hidden",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
+            display: "flex", flexDirection: "column",
           }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, color: "#1f2937" }}>
-                <i className="fas fa-folder-open" style={{ marginRight: 8, color: "#007890" }} />
-                Inspection Files - {filesModal.clientName}
-              </h3>
-              <button onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}
-                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280", padding: "4px 8px" }}>
-                &times;
-              </button>
+            {/* Modal Header */}
+            <div style={{ background: "linear-gradient(135deg, #007890 0%, #005a6b 100%)", padding: "18px 20px", color: "white" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.2 }}>
+                    <i className="fas fa-folder-open" style={{ marginRight: 8, opacity: 0.9 }} />
+                    {filesModal.clientName}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+                    <i className="fas fa-calendar-alt" style={{ marginRight: 5, fontSize: 10 }} />
+                    {filesModal.inspectionDate ? new Date(filesModal.inspectionDate + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}
+                  </div>
+                </div>
+                <button onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}
+                  style={{ background: "rgba(255,255,255,0.15)", border: "none", fontSize: 18, cursor: "pointer", color: "white", padding: "4px 10px", borderRadius: 8, lineHeight: 1 }}>
+                  &times;
+                </button>
+              </div>
             </div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-              Date: {filesModal.inspectionDate ? new Date(filesModal.inspectionDate + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}
-            </p>
 
+            {/* Modal Body */}
+            <div style={{ padding: "16px 20px", overflow: "auto", flex: 1 }}>
             {filesModal.loading ? (
               <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
                 <div style={{ width: 36, height: 36, borderRadius: "50%", border: "4px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
@@ -1953,43 +2096,50 @@ export default function InspectionsPage() {
               </div>
             ) : (
               (() => {
-                const categories: { key: string; label: string; color: string }[] = [
-                  { key: "rfi", label: "RFI", color: "#3b82f6" },
-                  { key: "invoice", label: "Invoice", color: "#8b5cf6" },
-                  { key: "lab", label: "Lab", color: "#06b6d4" },
-                  { key: "lab_form", label: "Lab Form", color: "#14b8a6" },
-                  { key: "retest", label: "Retest", color: "#f59e0b" },
-                  { key: "compliance", label: "Compliance", color: "#22c55e" },
-                  { key: "occurrence", label: "Occurrence", color: "#ef4444" },
-                  { key: "composition", label: "Composition", color: "#ec4899" },
-                  { key: "other", label: "Other", color: "#6b7280" },
+                const categories: { key: string; label: string; color: string; icon: string }[] = [
+                  { key: "rfi", label: "RFI", color: "#3b82f6", icon: "fa-file-alt" },
+                  { key: "invoice", label: "Invoice", color: "#8b5cf6", icon: "fa-file-invoice-dollar" },
+                  { key: "lab", label: "Lab / COA", color: "#06b6d4", icon: "fa-flask" },
+                  { key: "lab_form", label: "Lab Form", color: "#14b8a6", icon: "fa-clipboard-list" },
+                  { key: "retest", label: "Retest", color: "#f59e0b", icon: "fa-redo" },
+                  { key: "compliance", label: "Compliance", color: "#22c55e", icon: "fa-check-double" },
+                  { key: "occurrence", label: "Occurrence", color: "#ef4444", icon: "fa-exclamation-triangle" },
+                  { key: "composition", label: "Composition", color: "#ec4899", icon: "fa-vial" },
+                  { key: "other", label: "Other", color: "#6b7280", icon: "fa-paperclip" },
                 ];
                 const totalFiles = Object.values(filesModal.files).reduce((sum, arr) => sum + (arr?.length || 0), 0);
                 return (
                   <>
-                    {totalFiles === 0 && (
-                      <div style={{ textAlign: "center", padding: 32, color: "#9ca3af" }}>
-                        <i className="fas fa-folder-open" style={{ fontSize: 32, marginBottom: 8 }} /><br />
-                        No files found for this inspection.
+                    {totalFiles === 0 ? (
+                      <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>
+                        <i className="fas fa-folder-open" style={{ fontSize: 40, marginBottom: 12, color: "#d1d5db" }} /><br />
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>No files found</span><br />
+                        <span style={{ fontSize: 12 }}>Upload files to see them here.</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
+                        {totalFiles} file{totalFiles !== 1 ? "s" : ""} across {categories.filter(c => (filesModal.files[c.key] || []).length > 0).length} categor{categories.filter(c => (filesModal.files[c.key] || []).length > 0).length !== 1 ? "ies" : "y"}
                       </div>
                     )}
                     {categories.map(cat => {
                       const files = filesModal.files[cat.key] || [];
                       if (files.length === 0) return null;
                       return (
-                        <div key={cat.key} style={{ marginBottom: 12 }}>
+                        <div key={cat.key} style={{ marginBottom: 16, border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+                          {/* Category Header */}
                           <div style={{
                             display: "flex", alignItems: "center", gap: 8,
-                            padding: "6px 10px", background: "#f9fafb", borderRadius: 6, marginBottom: 4,
+                            padding: "10px 14px", background: `${cat.color}10`, borderBottom: "1px solid #e5e7eb",
                           }}>
-                            <span style={{
-                              background: cat.color, color: "white", fontSize: 11, fontWeight: 700,
-                              padding: "2px 8px", borderRadius: 4,
-                            }}>{cat.label}</span>
-                            <span style={{ fontSize: 12, color: "#6b7280" }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 6, background: cat.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <i className={`fas ${cat.icon}`} style={{ color: "white", fontSize: 12 }} />
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#1f2937" }}>{cat.label}</span>
+                            <span style={{ fontSize: 11, color: "#6b7280", marginLeft: "auto" }}>
                               {files.length} file{files.length !== 1 ? "s" : ""}
                             </span>
                           </div>
+                          {/* File List */}
                           {files.map((f, i) => {
                             const filePath = f.relative_path || f.path || "";
                             const viewUrl = `/api/serve-file?file=${encodeURIComponent(filePath)}&action=view`;
@@ -1997,22 +2147,27 @@ export default function InspectionsPage() {
                             const sizeLabel = f.size < 1024 ? `${f.size} B` : f.size < 1048576 ? `${(f.size / 1024).toFixed(1)} KB` : `${(f.size / 1048576).toFixed(1)} MB`;
                             return (
                               <div key={i} style={{
-                                display: "flex", alignItems: "center", justifyContent: "space-between",
-                                padding: "8px 12px", borderBottom: "1px solid #f3f4f6", fontSize: 13,
+                                padding: "10px 14px",
+                                borderBottom: i < files.length - 1 ? "1px solid #f3f4f6" : "none",
+                                background: "#fff",
                               }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-                                  <i className="fas fa-file-pdf" style={{ color: "#ef4444", flexShrink: 0 }} />
-                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                                  <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>{sizeLabel}</span>
+                                {/* File name + size */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                  <i className="fas fa-file-pdf" style={{ color: "#ef4444", fontSize: 16, flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{sizeLabel}</div>
+                                  </div>
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                                {/* Action buttons */}
+                                <div style={{ display: "flex", gap: 6 }}>
                                   <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-                                    style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#007890", color: "white", borderRadius: 4, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
-                                    <i className="fas fa-eye" />View
+                                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", background: "#007890", color: "white", borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
+                                    <i className="fas fa-eye" style={{ fontSize: 10 }} />View
                                   </a>
                                   <a href={downloadUrl} download={f.name}
-                                    style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#3b82f6", color: "white", borderRadius: 4, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
-                                    <i className="fas fa-download" />Download
+                                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", background: "#3b82f6", color: "white", borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
+                                    <i className="fas fa-download" style={{ fontSize: 10 }} />Download
                                   </a>
                                   {(!isInspector || ["rfi", "compliance", "composition", "other"].includes(cat.key)) && (
                                     <button
@@ -2037,8 +2192,8 @@ export default function InspectionsPage() {
                                           alert("Delete failed: " + (data.error || "Unknown error"));
                                         }
                                       }}
-                                      style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", background: "#ef4444", color: "white", border: "none", borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                                      <i className="fas fa-trash" />Delete
+                                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                                      <i className="fas fa-trash" style={{ fontSize: 10 }} />Delete
                                     </button>
                                   )}
                                 </div>
@@ -2052,13 +2207,15 @@ export default function InspectionsPage() {
                 );
               })()
             )}
+            </div>
 
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            {/* Modal Footer */}
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #e5e7eb", background: "#f9fafb", display: "flex", gap: 8 }}>
               {Object.values(filesModal.files).some(arr => arr?.length > 0) && (
                 <button
                   style={{
                     flex: 1, padding: "10px", background: "#007890",
-                    color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
+                    color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
                   }}
                   onClick={async () => {
                     try {
@@ -2095,8 +2252,8 @@ export default function InspectionsPage() {
               )}
               <button
                 style={{
-                  flex: 1, padding: "10px", background: "#e5e7eb",
-                  color: "#374151", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 500,
+                  flex: Object.values(filesModal.files).some(arr => arr?.length > 0) ? "none" : 1, minWidth: 90, padding: "10px 20px", background: "#e5e7eb",
+                  color: "#374151", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
                 }}
                 onClick={() => setFilesModal(prev => ({ ...prev, visible: false }))}
               >

@@ -1207,7 +1207,9 @@ def api_inspections(request):
         _offset = (_page - 1) * _page_size
         groups = groups_qs[_offset:_offset + _page_size]
 
-        # ── Batch filesystem scan (only for current page's inspection IDs) ──
+        # ── Batch filesystem scan ──
+        # Also include inspection IDs from other groups sharing same client+date
+        # so that file badges are consistent with the expand/files-modal view.
         _file_map = {}  # (insp_id_str, category) -> bool
         _FILE_CATEGORIES = {'lab', 'coa', 'composition', 'compliance',
                             'occurrence', 'retest', 'other', 'lab_form',
@@ -1217,6 +1219,24 @@ def api_inspections(request):
         for g in groups:
             for p in g.inspections.all():
                 _page_insp_ids.add(str(p.id))
+
+        # Build (client_name, date) → all inspection IDs (across ALL groups)
+        # so file flags match the client+date lookup used by Files modal / expand
+        _client_date_pairs = set()
+        for g in groups:
+            if g.client_name and g.date_of_inspection:
+                _client_date_pairs.add((g.client_name.lower(), g.date_of_inspection))
+        _client_date_insp_ids = {}  # (client_name_lower, date) → set of insp_id strings
+        if _client_date_pairs:
+            from main.models import FoodSafetyAgencyInspection as _FSI_lookup
+            for _cn, _dt in _client_date_pairs:
+                _all_ids = set(str(i) for i in _FSI_lookup.objects.filter(
+                    client_name__iexact=_cn,
+                    date_of_inspection=_dt
+                ).values_list('id', flat=True))
+                _client_date_insp_ids[(_cn, _dt)] = _all_ids
+                _page_insp_ids |= _all_ids  # include in filesystem scan
+
         _docs_root = os.path.join(settings.MEDIA_ROOT, 'docs')
         if os.path.isdir(_docs_root) and _page_insp_ids:
             try:
@@ -1256,12 +1276,16 @@ def api_inspections(request):
             first_insp = inspections[0] if inspections else None
             insp_ids = [p.id for p in inspections]
 
-            # Group-level file flags (no per-product detail needed for list)
-            has_rfi = any(_has_file(pid, 'rfi') for pid in insp_ids)
-            has_invoice = any(_has_file(pid, 'invoice') for pid in insp_ids)
-            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in insp_ids)
-            has_compliance = any(_has_file(pid, 'compliance') for pid in insp_ids)
-            has_lab_form = any(_has_file(pid, 'lab_form') for pid in insp_ids)
+            # Group-level file flags — use ALL inspection IDs for the same client+date
+            # so badges match the Files modal / expand view (which also searches by client+date)
+            _all_ids_for_group = _client_date_insp_ids.get(
+                ((g.client_name or '').lower(), g.date_of_inspection), set()
+            ) or {str(pid) for pid in insp_ids}
+            has_rfi = any(_has_file(pid, 'rfi') for pid in _all_ids_for_group)
+            has_invoice = any(_has_file(pid, 'invoice') for pid in _all_ids_for_group)
+            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group)
+            has_compliance = any(_has_file(pid, 'compliance') for pid in _all_ids_for_group)
+            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group)
             # Compliance: matches frontend badge logic
             # Product is "assessed" if it has compliance or composition file uploaded
             # NON_COMPLIANT if any product is non-compliant (with file proof)
@@ -1269,9 +1293,12 @@ def api_inspections(request):
             # PENDING if no products are assessed
             _any_non_compliant = False
             _any_compliant = False
+            # Check compliance using expanded set (any file for client+date counts)
+            _group_has_compliance_doc = any(_has_file(pid, 'compliance') for pid in _all_ids_for_group)
+            _group_has_composition_doc = any(_has_file(pid, 'composition') for pid in _all_ids_for_group)
             for p in inspections:
-                has_compliance_doc = _has_file(p.id, 'compliance')
-                has_composition_doc = _has_file(p.id, 'composition')
+                has_compliance_doc = _group_has_compliance_doc or _has_file(p.id, 'compliance')
+                has_composition_doc = _group_has_composition_doc or _has_file(p.id, 'composition')
                 is_assessed = has_compliance_doc or has_composition_doc
                 if is_assessed:
                     if getattr(p, 'is_product_compliant', True):
@@ -1306,13 +1333,14 @@ def api_inspections(request):
                 if p.protein: prod['protein'] = True
                 if p.calcium: prod['calcium'] = True
                 if p.is_direction_present_for_this_inspection: prod['is_direction_present_for_this_inspection'] = True
-                if _has_file(p.id, 'lab') or _has_file(p.id, 'coa'): prod['coa_uploaded'] = True
-                if _has_file(p.id, 'composition'): prod['composition_uploaded'] = True
-                if _has_file(p.id, 'compliance'): prod['compliance_uploaded'] = True
-                if _has_file(p.id, 'occurrence'): prod['occurrence_uploaded'] = True
-                if _has_file(p.id, 'retest'): prod['retest_uploaded'] = True
-                if _has_file(p.id, 'other'): prod['other_uploaded'] = True
-                if _has_file(p.id, 'lab_form'): prod['lab_form_uploaded'] = True
+                # Use expanded client+date IDs so per-product flags match expand view
+                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group): prod['coa_uploaded'] = True
+                if any(_has_file(pid, 'composition') for pid in _all_ids_for_group): prod['composition_uploaded'] = True
+                if any(_has_file(pid, 'compliance') for pid in _all_ids_for_group): prod['compliance_uploaded'] = True
+                if any(_has_file(pid, 'occurrence') for pid in _all_ids_for_group): prod['occurrence_uploaded'] = True
+                if any(_has_file(pid, 'retest') for pid in _all_ids_for_group): prod['retest_uploaded'] = True
+                if any(_has_file(pid, 'other') for pid in _all_ids_for_group): prod['other_uploaded'] = True
+                if any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group): prod['lab_form_uploaded'] = True
                 products.append(prod)
 
             # Build fallback_group_id string

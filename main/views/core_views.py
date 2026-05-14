@@ -16532,18 +16532,13 @@ def send_group_documents(request):
         documents_found = []
         docs_base = os.path.join(settings.MEDIA_ROOT, 'docs')
 
-        # Find inspections by group_id or by client+date
-        if inspection_group_id:
-            group_inspections_for_files = FoodSafetyAgencyInspection.objects.filter(
-                inspection_group_id=inspection_group_id
-            ).select_related('client')
-        else:
-            from datetime import datetime as _dt
-            date_obj = _dt.strptime(inspection_date, '%Y-%m-%d').date()
-            group_inspections_for_files = FoodSafetyAgencyInspection.objects.filter(
-                client_name__iexact=client_name,
-                date_of_inspection=date_obj
-            ).select_related('client')
+        # Find inspections by client+date (searches ALL groups for that client/date)
+        from datetime import datetime as _dt
+        date_obj = _dt.strptime(inspection_date, '%Y-%m-%d').date()
+        group_inspections_for_files = FoodSafetyAgencyInspection.objects.filter(
+            client_name__iexact=client_name,
+            date_of_inspection=date_obj
+        ).select_related('client')
 
         print(f"[SEND DEBUG] Found {group_inspections_for_files.count()} inspection(s) for file lookup")
 
@@ -16759,13 +16754,13 @@ def send_group_documents(request):
                 if mgr_email and mgr_email not in cc_emails:
                     cc_emails.append(mgr_email)
 
-        # CC fixed management addresses
-        management_cc = [
-            'simphiwe.mathenjwa@afsq.co.za',
-        ]
-        for mgmt_email in management_cc:
-            if mgmt_email not in cc_emails:
-                cc_emails.append(mgmt_email)
+        # CC fixed management addresses (temporarily disabled for testing)
+        # management_cc = [
+        #     'simphiwe.mathenjwa@afsq.co.za',
+        # ]
+        # for mgmt_email in management_cc:
+        #     if mgmt_email not in cc_emails:
+        #         cc_emails.append(mgmt_email)
 
         # Strip syntactically broken addresses so Graph doesn't reject the whole request.
         # Valid-looking addresses are sent as-is; Exchange handles NDRs naturally.
