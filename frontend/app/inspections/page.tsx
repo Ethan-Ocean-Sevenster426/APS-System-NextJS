@@ -1571,19 +1571,15 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Has COA" options={["HAS_COA", "NO_COA"]} selected={coaFileFilter} onChange={setCoaFileFilter} />
                   <IrMultiSelect label="Has Compliance" options={["HAS_COMP", "NO_COMP"]} selected={complianceFileFilter} onChange={setComplianceFileFilter} />
                   <IrMultiSelect label="Has Other" options={["HAS_OTHER", "NO_OTHER"]} selected={otherFileFilter} onChange={setOtherFileFilter} />
-                </div>
-
-                {/* Lab Filters (lab tech, super_admin, developer) */}
-                {roleLoaded && (isLabTech || role === "super_admin" || role === "developer") && (
-                  <div>
-                    <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+                  {roleLoaded && (isLabTech || role === "super_admin" || role === "developer") && (
+                    <>
                       <IrMultiSelect label="Lab" options={["Food Safety Laboratory", "Merieux NutriSciences", "AGRI Food Laboratory (SGS)", "SANBI", "SMT", "ARC"]} selected={labFilter} onChange={setLabFilter} />
                       <IrMultiSelect label="Test Type" options={["DNA", "FAT", "PROTEIN", "CALCIUM"]} selected={testTypeFilter} onChange={setTestTypeFilter} />
                       <IrMultiSelect label="Needs Retest" options={["NEEDS_RETEST", "NO_RETEST"]} selected={retestFilter} onChange={setRetestFilter} />
                       <IrMultiSelect label="COA Uploaded" options={["COA_UPLOADED", "NO_COA"]} selected={coaStatusFilter} onChange={setCoaStatusFilter} />
-                    </div>
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
 
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
