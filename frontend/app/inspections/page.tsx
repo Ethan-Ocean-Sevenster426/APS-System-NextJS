@@ -681,7 +681,6 @@ export default function InspectionsPage() {
   // Client-side filtered list
   const filteredInspections = useMemo(() => {
     const af = appliedFilters;
-    console.log('[FILTER] appliedFilters.occurrence:', af.occurrence, 'inspections:', inspections.length, 'occ values:', inspections.map(s => ({ c: s.client_name, occ: s.is_occurrence_report })));
     return inspections.filter(s => {
       if (af.groupType.length > 0 && !af.groupType.includes(s.group_type || "")) return false;
       if (af.occurrence.length > 0) {
