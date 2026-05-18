@@ -485,7 +485,7 @@ class FoodSafetyAgencyInspection(models.Model):
     # Location and inspection details
     inspection_location_type_id = models.IntegerField(blank=True, null=True, help_text="Inspection location type ID")
     is_direction_present_for_this_inspection = models.BooleanField(default=False, help_text="Direction present for this inspection")
-    is_product_compliant = models.BooleanField(default=True, help_text="Product compliance status (based on composition/RFI document)")
+    is_product_compliant = models.BooleanField(null=True, default=None, help_text="Product compliance status — NULL = not yet assessed, True = compliant, False = non-compliant")
     inspector_id = models.IntegerField(blank=True, null=True, help_text="Inspector ID from remote system")
     inspector_name = models.CharField(max_length=100, blank=True, null=True, help_text="Human-readable inspector name")
     

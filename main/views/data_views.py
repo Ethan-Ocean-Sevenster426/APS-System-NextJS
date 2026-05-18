@@ -1322,7 +1322,7 @@ def api_inspections(request):
                     'commodity': p.commodity or '',
                     'product_name': p.product_name or '',
                     'product_class': p.product_class or '',
-                    'is_product_compliant': bool(p.is_product_compliant),
+                    'is_product_compliant': p.is_product_compliant,
                     'is_sample_taken': bool(p.is_sample_taken) if p.is_sample_taken is not None else False,
                     'needs_retest': p.needs_retest or '',
                     'lab': p.get_lab_display() if p.lab else '',

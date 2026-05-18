@@ -9165,8 +9165,9 @@ def analytics_dashboard(request):
     )
     
     compliance_rate = 0
-    if compliance_stats['total'] > 0:
-        compliance_rate = (compliance_stats['compliant'] / compliance_stats['total']) * 100
+    _assessed = compliance_stats['compliant'] + compliance_stats['non_compliant']
+    if _assessed > 0:
+        compliance_rate = (compliance_stats['compliant'] / _assessed) * 100
     
     # === RFI (REQUEST FOR INFORMATION) ANALYTICS ===
     rfi_stats = FoodSafetyAgencyInspection.objects.aggregate(
@@ -9191,12 +9192,10 @@ def analytics_dashboard(request):
         last_inspection=Max('date_of_inspection')
     ).order_by('-total_inspections')
 
-    # Calculate compliance rate for each inspector
+    # Calculate compliance rate for each inspector (only assessed inspections)
     for inspector in inspector_performance:
-        if inspector['total_inspections'] > 0:
-            inspector['compliance_rate'] = (inspector['compliant'] / inspector['total_inspections']) * 100
-        else:
-            inspector['compliance_rate'] = 0
+        _assessed = inspector['compliant'] + inspector['non_compliant']
+        inspector['compliance_rate'] = (inspector['compliant'] / _assessed) * 100 if _assessed > 0 else 0
         # For backwards compatibility
         inspector['compliant_inspections'] = inspector['compliant']
         inspector['count'] = inspector['total_inspections']
@@ -9214,17 +9213,18 @@ def analytics_dashboard(request):
     client_analytics = FoodSafetyAgencyInspection.objects.values('client_name').annotate(
         total_inspections=Count('id'),
         compliant_inspections=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant_inspections=Count('id', filter=Q(is_product_compliant=False)),
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled'),
         last_inspection=Max('date_of_inspection'),
         first_inspection=Min('date_of_inspection')
     ).order_by('-total_inspections')[:20]
-    
-    # Calculate compliance rate and risk score for each client
+
+    # Calculate compliance rate and risk score for each client (only assessed inspections)
     for client in client_analytics:
-        if client['total_inspections'] > 0:
-            client['compliance_rate'] = (client['compliant_inspections'] / client['total_inspections']) * 100
-            # Risk score: lower compliance rate = higher risk
+        _assessed = client['compliant_inspections'] + client['non_compliant_inspections']
+        if _assessed > 0:
+            client['compliance_rate'] = (client['compliant_inspections'] / _assessed) * 100
             client['risk_score'] = max(0, 100 - client['compliance_rate'])
         else:
             client['compliance_rate'] = 0
@@ -9237,15 +9237,14 @@ def analytics_dashboard(request):
     ).values('commodity').annotate(
         total_inspections=Count('id'),
         compliant_inspections=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant_inspections=Count('id', filter=Q(is_product_compliant=False)),
         avg_hours=Avg('hours'),
         avg_distance=Avg('km_traveled')
     ).order_by('-total_inspections')
-    
+
     for commodity in commodity_analysis:
-        if commodity['total_inspections'] > 0:
-            commodity['compliance_rate'] = (commodity['compliant_inspections'] / commodity['total_inspections']) * 100
-        else:
-            commodity['compliance_rate'] = 0
+        _assessed = commodity['compliant_inspections'] + commodity['non_compliant_inspections']
+        commodity['compliance_rate'] = (commodity['compliant_inspections'] / _assessed) * 100 if _assessed > 0 else 0
     
     # === GEOGRAPHIC ANALYSIS ===
     # Use InspectionGroup to avoid double-counting km across multi-commodity inspections
@@ -9369,7 +9368,8 @@ def analytics_dashboard(request):
         non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('commodity'))
     for item in compliance_by_commodity:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
 
     # === SAMPLES BY COMMODITY ===
     # Show all commodities with their sample count (including 0)
@@ -9424,11 +9424,13 @@ def analytics_dashboard(request):
         month=TruncWeek('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(is_product_compliant=True))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('month', 'commodity'))
 
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
 
     # === DAILY COMPLIANCE TREND PER COMMODITY ===
     daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -9441,11 +9443,13 @@ def analytics_dashboard(request):
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(is_product_compliant=True))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('day', 'commodity'))
 
     for item in daily_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
 
     # === TIME ALLOCATION (hours per inspector) ===
     time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -10320,7 +10324,8 @@ def analytics_dashboard_api(request):
         compliant=Count('id', filter=Q(is_product_compliant=True)),
         non_compliant=Count('id', filter=Q(is_product_compliant=False)),
     )
-    compliance_rate = round((compliance_stats['compliant'] / compliance_stats['total']) * 100, 1) if compliance_stats['total'] > 0 else 0
+    _assessed = compliance_stats['compliant'] + compliance_stats['non_compliant']
+    compliance_rate = round((compliance_stats['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
 
     # Active inspectors
     active_inspectors = qs.exclude(
@@ -10345,7 +10350,8 @@ def analytics_dashboard_api(request):
         non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('commodity'))
     for item in compliance_by_commodity:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
 
     # Commodity analysis (exclude occurrence reports)
     commodity_analysis = list(qs.exclude(
@@ -10384,10 +10390,12 @@ def analytics_dashboard_api(request):
         month=TruncMonth('date_of_inspection')
     ).values('month', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(is_product_compliant=True))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
 
     # Weekly compliance trend (aggregated across commodities)
     _wc_qs = qs.exclude(Q(commodity__isnull=True) | Q(commodity='')).exclude(date_of_inspection__isnull=True)
@@ -10397,10 +10405,12 @@ def analytics_dashboard_api(request):
         week=TruncWeek('date_of_inspection')
     ).values('week').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(is_product_compliant=True))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('week'))
     for item in weekly_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 1) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
 
     # Daily compliance trend per commodity (last 30 days, or user's filtered range)
     from django.db.models.functions import TruncDay
@@ -10414,10 +10424,12 @@ def analytics_dashboard_api(request):
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
         total=Count('id'),
-        compliant=Count('id', filter=Q(is_product_compliant=True))
+        compliant=Count('id', filter=Q(is_product_compliant=True)),
+        non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('day', 'commodity'))
     for item in daily_compliance_trend:
-        item['compliance_rate'] = round((item['compliant'] / item['total']) * 100, 2) if item['total'] > 0 else 0
+        _assessed = item['compliant'] + item['non_compliant']
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
 
     # Time allocation
     time_allocation = list(qs.exclude(
