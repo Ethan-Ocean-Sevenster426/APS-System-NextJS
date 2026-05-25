@@ -321,7 +321,12 @@ export default function EditInspectionPage() {
       return missing;
     }
     if (s === 3) {
-      return [];
+      const missing: string[] = [];
+      if (!kmTraveled || kmTraveled <= 0) missing.push("Kilometers Traveled");
+      if (!hoursWorked || hoursWorked <= 0) missing.push("Hours Worked");
+      if (!travelStart.trim()) missing.push("Travel Start Time");
+      if (!travelEnd.trim()) missing.push("Travel End Time");
+      return missing;
     }
     return [];
   };
