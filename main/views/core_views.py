@@ -9555,7 +9555,7 @@ def analytics_dashboard(request):
 
     for item in monthly_compliance_trend:
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else None
 
     # === DAILY COMPLIANCE TREND PER COMMODITY ===
     daily_compliance_trend = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -9574,7 +9574,7 @@ def analytics_dashboard(request):
 
     for item in daily_compliance_trend:
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else None
 
     # === TIME ALLOCATION (hours per inspector) ===
     time_allocation = list(FoodSafetyAgencyInspection.objects.exclude(
@@ -10520,7 +10520,7 @@ def analytics_dashboard_api(request):
     ).order_by('month', 'commodity'))
     for item in monthly_compliance_trend:
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else None
 
     # Weekly compliance trend (aggregated across commodities)
     _wc_qs = qs.exclude(Q(commodity__isnull=True) | Q(commodity='')).exclude(date_of_inspection__isnull=True)
@@ -10535,7 +10535,7 @@ def analytics_dashboard_api(request):
     ).order_by('week'))
     for item in weekly_compliance_trend:
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else None
 
     # Daily compliance trend per commodity (last 30 days, or user's filtered range)
     from django.db.models.functions import TruncDay
@@ -10554,7 +10554,7 @@ def analytics_dashboard_api(request):
     ).order_by('day', 'commodity'))
     for item in daily_compliance_trend:
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else 0
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else None
 
     # Time allocation
     time_allocation = list(qs.exclude(
