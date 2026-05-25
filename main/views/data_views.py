@@ -2379,11 +2379,23 @@ def api_users(request):
                 if not username or not email or not first_name or not last_name:
                     return _cors(JsonResponse({'success': False, 'error': 'All fields are required (username, email, first_name, last_name).'}))
 
-                if User.objects.filter(username=username).exists():
+                if User.objects.filter(username=username, is_active=True).exists():
                     return _cors(JsonResponse({'success': False, 'error': f'Username "{username}" is already taken.'}))
 
-                if User.objects.filter(email=email).exists():
+                if User.objects.filter(email=email, is_active=True).exists():
                     return _cors(JsonResponse({'success': False, 'error': f'Email "{email}" is already in use.'}))
+
+                # Clear email/username on any deactivated users so DB unique constraints don't block
+                _stale = User.objects.filter(email=email, is_active=False)
+                if _stale.exists():
+                    for _su in _stale:
+                        _su.email = f'deleted_{_su.id}@deactivated'
+                        _su.save(update_fields=['email'])
+                _stale_u = User.objects.filter(username=username, is_active=False)
+                if _stale_u.exists():
+                    for _su in _stale_u:
+                        _su.username = f'deleted_{_su.id}'
+                        _su.save(update_fields=['username'])
 
                 user = User.objects.create(
                     username=username,
