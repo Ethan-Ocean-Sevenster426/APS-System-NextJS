@@ -10353,6 +10353,10 @@ def analytics_dashboard_api(request):
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
 
+    # Parse multi-value year/month (comma-separated)
+    year_list = [int(y.strip()) for y in year.split(',') if y.strip().isdigit()] if year and year != 'all' else []
+    month_list = [int(m.strip()) for m in month.split(',') if m.strip().isdigit()] if month and month != 'all' else []
+
     # Base queryset
     qs = FoodSafetyAgencyInspection.objects.all()
 
@@ -10361,10 +10365,10 @@ def analytics_dashboard_api(request):
         qs = qs.filter(date_of_inspection__gte=date_from)
     if date_to:
         qs = qs.filter(date_of_inspection__lte=date_to)
-    if year and year != 'all':
-        qs = qs.filter(date_of_inspection__year=int(year))
-    if month and month != 'all':
-        qs = qs.filter(date_of_inspection__month=int(month))
+    if year_list:
+        qs = qs.filter(date_of_inspection__year__in=year_list)
+    if month_list:
+        qs = qs.filter(date_of_inspection__month__in=month_list)
     # Support multi-select: comma-separated inspector/commodity values
     if inspector and inspector != 'all':
         inspector_list = [i.strip() for i in inspector.split(',') if i.strip()]
@@ -10380,7 +10384,7 @@ def analytics_dashboard_api(request):
             qs = qs.filter(commodity__in=commodity_list)
 
     # Flag whether any date-related filter was applied
-    _has_date_filter = bool(date_from or date_to or (year and year != 'all') or (month and month != 'all'))
+    _has_date_filter = bool(date_from or date_to or year_list or month_list)
 
     # all_qs: same date/commodity filters but WITHOUT inspector filter
     # Used for per-inspector charts so they always show ALL inspectors
@@ -10389,10 +10393,10 @@ def analytics_dashboard_api(request):
         all_qs = all_qs.filter(date_of_inspection__gte=date_from)
     if date_to:
         all_qs = all_qs.filter(date_of_inspection__lte=date_to)
-    if year and year != 'all':
-        all_qs = all_qs.filter(date_of_inspection__year=int(year))
-    if month and month != 'all':
-        all_qs = all_qs.filter(date_of_inspection__month=int(month))
+    if year_list:
+        all_qs = all_qs.filter(date_of_inspection__year__in=year_list)
+    if month_list:
+        all_qs = all_qs.filter(date_of_inspection__month__in=month_list)
     if commodity and commodity != 'all':
         commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
         if len(commodity_list) == 1:
@@ -10406,10 +10410,10 @@ def analytics_dashboard_api(request):
         group_qs = group_qs.filter(date_of_inspection__gte=date_from)
     if date_to:
         group_qs = group_qs.filter(date_of_inspection__lte=date_to)
-    if year and year != 'all':
-        group_qs = group_qs.filter(date_of_inspection__year=int(year))
-    if month and month != 'all':
-        group_qs = group_qs.filter(date_of_inspection__month=int(month))
+    if year_list:
+        group_qs = group_qs.filter(date_of_inspection__year__in=year_list)
+    if month_list:
+        group_qs = group_qs.filter(date_of_inspection__month__in=month_list)
     if inspector and inspector != 'all':
         inspector_list = [i.strip() for i in inspector.split(',') if i.strip()]
         if len(inspector_list) == 1:
@@ -10429,10 +10433,10 @@ def analytics_dashboard_api(request):
         all_group_qs = all_group_qs.filter(date_of_inspection__gte=date_from)
     if date_to:
         all_group_qs = all_group_qs.filter(date_of_inspection__lte=date_to)
-    if year and year != 'all':
-        all_group_qs = all_group_qs.filter(date_of_inspection__year=int(year))
-    if month and month != 'all':
-        all_group_qs = all_group_qs.filter(date_of_inspection__month=int(month))
+    if year_list:
+        all_group_qs = all_group_qs.filter(date_of_inspection__year__in=year_list)
+    if month_list:
+        all_group_qs = all_group_qs.filter(date_of_inspection__month__in=month_list)
     if commodity and commodity != 'all':
         commodity_list = [c.strip() for c in commodity.split(',') if c.strip()]
         if len(commodity_list) == 1:

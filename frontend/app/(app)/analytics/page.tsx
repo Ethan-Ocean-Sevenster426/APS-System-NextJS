@@ -102,8 +102,8 @@ interface QuarterlyTarget {
 interface Filters {
   date_from: string;
   date_to: string;
-  year: string;
-  month: string;
+  year: string[];
+  month: string[];
   inspector: string[];
   commodity: string[];
 }
@@ -301,7 +301,7 @@ export default function AnalyticsPage() {
   const [activePanel, setActivePanel] = useState<PanelKey>("overview");
   const [rawData, setRawData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const emptyFilters: Filters = { date_from: "", date_to: "", year: "", month: "", inspector: [], commodity: [] };
+  const emptyFilters: Filters = { date_from: "", date_to: "", year: [], month: [], inspector: [], commodity: [] };
   const [pendingFilters, setPendingFilters] = useState<Filters>(emptyFilters);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [inspectorMetric, setInspectorMetric] = useState<"count" | "total_km" | "total_hours" | "samples">("count");
@@ -348,11 +348,10 @@ export default function AnalyticsPage() {
       const p = new URLSearchParams();
       if (active.date_from) p.set("date_from", active.date_from);
       if (active.date_to) p.set("date_to", active.date_to);
-      if (active.year) p.set("year", active.year);
-      if (active.month) p.set("month", active.month);
-      // Send single inspector/commodity to API if only one selected
-      if (active.inspector.length === 1) p.set("inspector", active.inspector[0]);
-      if (active.commodity.length === 1) p.set("commodity", active.commodity[0]);
+      if (active.year.length > 0) p.set("year", active.year.join(","));
+      if (active.month.length > 0) p.set("month", active.month.map(m => String(MONTHS.indexOf(m) + 1)).join(","));
+      if (active.inspector.length > 0) p.set("inspector", active.inspector.join(","));
+      if (active.commodity.length > 0) p.set("commodity", active.commodity.join(","));
       const qs = p.toString();
       const res = await fetch(`/api/analytics${qs ? "?" + qs : ""}`);
       if (!res.ok) throw new Error("Failed to fetch");
@@ -401,14 +400,13 @@ export default function AnalyticsPage() {
     const hasI = selInspectors.size > 0;
     const hasC = selCommodities.size > 0;
 
+    const monthNums = filters.month.map(m => String(MONTHS.indexOf(m) + 1).padStart(2, "0"));
+
     const matchMonth = (m: string) => {
       if (!m) return true;
       const ym = m.substring(0, 7); // "2026-02-01" → "2026-02"
-      if (filters.year && !ym.startsWith(filters.year)) return false;
-      if (filters.month) {
-        const mm = filters.month.padStart(2, "0");
-        if (!ym.endsWith(`-${mm}`)) return false;
-      }
+      if (filters.year.length > 0 && !filters.year.some(y => ym.startsWith(y))) return false;
+      if (monthNums.length > 0 && !monthNums.some(mm => ym.endsWith(`-${mm}`))) return false;
       if (filters.date_from && ym < filters.date_from.substring(0, 7)) return false;
       if (filters.date_to && ym > filters.date_to.substring(0, 7)) return false;
       return true;
@@ -419,11 +417,8 @@ export default function AnalyticsPage() {
       const ds = d.substring(0, 10); // normalize "2026-02-01T00:00:00" → "2026-02-01"
       if (filters.date_from && ds < filters.date_from) return false;
       if (filters.date_to && ds > filters.date_to) return false;
-      if (filters.year && !ds.startsWith(filters.year)) return false;
-      if (filters.month) {
-        const part = `-${filters.month.padStart(2, "0")}-`;
-        if (!ds.includes(part)) return false;
-      }
+      if (filters.year.length > 0 && !filters.year.some(y => ds.startsWith(y))) return false;
+      if (monthNums.length > 0 && !monthNums.some(mm => ds.includes(`-${mm}-`))) return false;
       return true;
     };
 
@@ -734,8 +729,8 @@ export default function AnalyticsPage() {
 
       // ── Filter description ──
       const filterDesc = [
-        filters.year && `Year: ${filters.year}`,
-        filters.month && `Month: ${MONTHS[Number(filters.month) - 1]}`,
+        filters.year.length > 0 && `Year: ${filters.year.join(", ")}`,
+        filters.month.length > 0 && `Month: ${filters.month.join(", ")}`,
         filters.inspector.length > 0 && `Inspector: ${filters.inspector.join(", ")}`,
         filters.commodity.length > 0 && `Commodity: ${filters.commodity.join(", ")}`,
         filters.date_from && `From: ${filters.date_from}`,
@@ -1272,7 +1267,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  const dateRangeSet = pendingFilters.date_from !== "" || pendingFilters.date_to !== "";
+  const dateRangeSet = pendingFilters.date_from !== "" || pendingFilters.date_to !== "" || pendingFilters.year.length > 0;
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -1354,20 +1349,23 @@ export default function AnalyticsPage() {
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[100px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Year</label>
-            <select value={pendingFilters.year} onChange={(e) => setPendingFilters({ ...pendingFilters, year: e.target.value })}
-              style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%" }}>
-              <option value="">All Years</option>
-              {rawData?.filterOptions?.years?.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <MultiSelectDropdown
+              label="Year"
+              options={(rawData?.filterOptions?.years ?? []).map(String)}
+              selected={pendingFilters.year}
+              onChange={(v) => setPendingFilters({ ...pendingFilters, year: v })}
+              placeholder="All Years"
+            />
           </div>
           <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Month</label>
-            <select value={pendingFilters.month} disabled={dateRangeSet}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, month: e.target.value })}
-              style={{ padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, outline: "none", width: "100%", ...(dateRangeSet ? { background: "#f3f4f6", color: "#9ca3af" } : {}) }}>
-              <option value="">All Months</option>
-              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-            </select>
+            <MultiSelectDropdown
+              label="Month"
+              options={MONTHS}
+              selected={pendingFilters.month}
+              onChange={(v) => setPendingFilters({ ...pendingFilters, month: v })}
+              placeholder="All Months"
+            />
           </div>
           {/* Inspector filter — hidden for inspector/admin roles (they see only own data) */}
           {!isInspector && !isAdmin && (
@@ -1695,8 +1693,8 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
     if (filters.date_from && filters.date_to) parts.push(`${filters.date_from} to ${filters.date_to}`);
     else if (filters.date_from) parts.push(`From ${filters.date_from}`);
     else if (filters.date_to) parts.push(`Until ${filters.date_to}`);
-    if (filters.year && !filters.date_from && !filters.date_to) parts.push(filters.year);
-    if (filters.month) parts.push(MONTHS[Number(filters.month) - 1]);
+    if (filters.year.length > 0 && !filters.date_from && !filters.date_to) parts.push(filters.year.join(", "));
+    if (filters.month.length > 0) parts.push(filters.month.join(", "));
     if (filters.inspector.length > 0) parts.push(filters.inspector.join(", "));
     if (filters.commodity.length > 0) parts.push(filters.commodity.join(", "));
     return parts.length > 0 ? parts.join(" | ") : "All Time";
