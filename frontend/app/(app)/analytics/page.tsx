@@ -1807,15 +1807,35 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
       <Card title="Daily Compliance Trend by Commodity" icon="fas fa-chart-line" tooltip="Daily compliance percentage trends across all commodity types over time.">
         <ChartWrap height="400px">
           <DLLine data={dailyChartData} options={(() => {
-            const base = baseChartOptions(undefined, "Compliance %", { datalabels: false });
+            const base = baseChartOptions(undefined, "Compliance %");
+            const _aligns: ("top" | "bottom")[] = ["top", "bottom", "top", "bottom"];
+            const _offsets = [12, 12, 32, 32];
             return {
               ...base,
-              layout: { padding: { top: 30, right: 50, bottom: 10, left: 10 } },
+              layout: { padding: { top: 40, right: 50, bottom: 40, left: 10 } },
               interaction: { mode: "index" as const, intersect: false },
               plugins: {
                 ...(base.plugins as Record<string, unknown>),
                 tooltip: { enabled: true, mode: "index" as const, intersect: false, callbacks: { label: (ctx: { dataset: { label: string }; parsed: { y: number } }) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
-                datalabels: { display: false },
+                datalabels: {
+                  display: "auto" as const,
+                  anchor: "center" as const,
+                  align: (ctx: any) => _aligns[ctx.datasetIndex % _aligns.length],
+                  offset: (ctx: any) => _offsets[ctx.datasetIndex % _offsets.length],
+                  color: (ctx: any) => ctx.dataset.borderColor,
+                  backgroundColor: "rgba(255,255,255,0.92)",
+                  borderColor: (ctx: any) => ctx.dataset.borderColor,
+                  borderWidth: 1.5,
+                  borderRadius: 4,
+                  padding: { top: 2, bottom: 2, left: 4, right: 4 },
+                  font: { size: 9, weight: "bold" as const },
+                  formatter: (v: unknown) => {
+                    const n = Number(v);
+                    return v == null || isNaN(n) ? "" : n.toFixed(1) + "%";
+                  },
+                  clamp: true,
+                  clip: false,
+                },
               },
               scales: {
                 x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 30 }, grid: { color: "rgba(0,0,0,0.04)" } },
