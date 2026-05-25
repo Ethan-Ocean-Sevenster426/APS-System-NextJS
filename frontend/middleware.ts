@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/media/") ||
     pathname === "/forgot-password" ||
+    pathname === "/setup-account" ||
     pathname.startsWith("/reset-password") ||
     /\.\w+$/.test(pathname) // static files like .css, .js, .png
   ) {
