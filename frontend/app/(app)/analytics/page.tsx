@@ -2294,8 +2294,46 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         }
       >
         <div style={{ overflowX: "auto", overflowY: "hidden" }}>
-          <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 320, position: "relative" }}>
-            <DLLine data={compTrend} options={(() => { const base = baseChartOptions(undefined, "Compliance %", { datalabels: false }); return { ...base, maintainAspectRatio: false, plugins: { ...(base.plugins as Record<string, unknown>), tooltip: { callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + "%" : "N/A"}` } }, datalabels: { display: false } } } as never; })()} />
+          <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 400, position: "relative" }}>
+            <DLLine data={compTrend} options={(() => {
+              const base = baseChartOptions(undefined, "Compliance %");
+              /* Stagger label positions per commodity so they don't overlap:
+                 dataset 0 → top-near, 1 → bottom-near, 2 → top-far, 3 → bottom-far */
+              const _aligns: ("top" | "bottom")[] = ["top", "bottom", "top", "bottom"];
+              const _offsets = [12, 12, 32, 32];
+              return {
+                ...base,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 40, bottom: 40 } },
+                plugins: {
+                  ...(base.plugins as Record<string, unknown>),
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + "%" : "N/A"}`,
+                    },
+                  },
+                  datalabels: {
+                    display: "auto" as const,
+                    anchor: "center" as const,
+                    align: (ctx: any) => _aligns[ctx.datasetIndex % _aligns.length],
+                    offset: (ctx: any) => _offsets[ctx.datasetIndex % _offsets.length],
+                    color: (ctx: any) => ctx.dataset.borderColor,
+                    backgroundColor: "rgba(255,255,255,0.92)",
+                    borderColor: (ctx: any) => ctx.dataset.borderColor,
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    padding: { top: 2, bottom: 2, left: 4, right: 4 },
+                    font: { size: 9, weight: "bold" as const },
+                    formatter: (v: unknown) => {
+                      const n = Number(v);
+                      return v == null || isNaN(n) ? "" : n.toFixed(1) + "%";
+                    },
+                    clamp: true,
+                    clip: false,
+                  },
+                },
+              } as never;
+            })()} />
           </div>
         </div>
       </Card>
