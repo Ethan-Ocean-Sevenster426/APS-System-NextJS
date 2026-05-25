@@ -40,6 +40,10 @@ function SetupForm() {
       setError("OTP must be exactly 6 digits.");
       return;
     }
+    if (!username.trim()) {
+      setError("Username is required.");
+      return;
+    }
     if (!firstName.trim() || !lastName.trim()) {
       setError("First name and last name are required.");
       return;
@@ -63,7 +67,7 @@ function SetupForm() {
           otp_code: otpCode,
           new_password: newPassword,
           confirm_password: confirmPassword,
-          username: username.trim() || undefined,
+          username: username.trim(),
           first_name: firstName.trim(),
           last_name: lastName.trim(),
         }),
@@ -198,21 +202,22 @@ function SetupForm() {
               </div>
             </div>
 
-            {/* Username (optional) */}
+            {/* Username */}
             <div style={{ marginBottom: "0.85rem" }}>
-              <label htmlFor="username" style={labelStyle}>Username <span style={{ fontWeight: 400, color: "#9ca3af" }}>(optional)</span></label>
+              <label htmlFor="username" style={labelStyle}>Username</label>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <i className="fas fa-at" style={iconStyle} />
                 <input
                   type="text"
                   id="username"
                   placeholder="Choose a username"
+                  required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   style={inputStyle}
                 />
               </div>
-              <small style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "2px", display: "block" }}>Leave blank to keep the one assigned by your admin</small>
+              <small style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "2px", display: "block" }}>This is what you will use to log in</small>
             </div>
 
             {/* Divider — Password */}
