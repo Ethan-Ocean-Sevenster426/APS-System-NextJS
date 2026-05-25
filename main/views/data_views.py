@@ -2773,12 +2773,13 @@ def api_lab_analytics(request):
             'lab_e': 'SMT',
             'lab_f': 'ARC',
             # Plain-text variants stored by older inspections
-            'FSL':     'Food Safety Laboratory',
-            'Merieux': 'Merieux NutriSciences',
-            'SGS':     'AGRI Food Laboratory (SGS)',
-            'SANBI':   'SANBI',
-            'SMT':     'SMT',
-            'ARC':     'ARC',
+            'FSL':              'Food Safety Laboratory',
+            'Food Safety Lab':  'Food Safety Laboratory',
+            'Merieux':          'Merieux NutriSciences',
+            'SGS':              'AGRI Food Laboratory (SGS)',
+            'SANBI':            'SANBI',
+            'SMT':              'SMT',
+            'ARC':              'ARC',
         }
         # Reverse: display name → all raw keys that map to it
         _LAB_REVERSE_KEYS: dict[str, list[str]] = {}
