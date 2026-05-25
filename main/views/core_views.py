@@ -2499,8 +2499,8 @@ def shipment_list(request):
         else:
             inspections = inspections.none()
     elif request.user.role == 'lab_technician':
-        # Lab technicians can only see inspections where samples were taken
-        inspections = inspections.filter(is_sample_taken=True)
+        # Lab technicians can see all inspections (no filtering)
+        pass
     # For admin, super_admin, financial roles, show all inspections
     # (no filtering needed)
     

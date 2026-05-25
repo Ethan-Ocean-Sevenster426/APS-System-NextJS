@@ -431,6 +431,7 @@ export default function InspectionsPage() {
 
   const roleLoaded = role !== null;
   const isLabTech = role === "lab_technician";
+  const isLabTechRestricted = false; // Lab techs now see everything
   const isAdmin = role === "admin";
   const isInspector = role === "inspector" || role === "inspector_manager";
 
@@ -905,7 +906,7 @@ export default function InspectionsPage() {
             </div>
 
             {/* Km + Hours (not for occurrence, not for lab tech) */}
-            {!isOccurrence && roleLoaded && !isLabTech && (
+            {!isOccurrence && roleLoaded && !isLabTechRestricted && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4, borderTop: "1px solid #e5e7eb", paddingTop: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ fontSize: 9, color: "#374151", fontWeight: 500, minWidth: 40 }}>Km:</span>
@@ -957,7 +958,7 @@ export default function InspectionsPage() {
             )}
 
             {/* RFI + Invoice buttons (not for lab tech) */}
-            {products.length > 0 && roleLoaded && !isLabTech && (
+            {products.length > 0 && roleLoaded && !isLabTechRestricted && (
               <div style={{ display: "flex", gap: 4, marginTop: 8, borderTop: "1px solid #e5e7eb", paddingTop: 6 }}>
                 {isOccurrence ? (
                   <>
@@ -1077,8 +1078,8 @@ export default function InspectionsPage() {
                     <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {isOccurrence ? (
                         <>
-                          {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
-                          {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                          {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Compliance" />}
+                          {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Composition" />}
                           <DisabledBtn label="COA/Lab" />
                           <DisabledBtn label="Lab Form" />
                           <DisabledBtn label="Retest" />
@@ -1092,7 +1093,7 @@ export default function InspectionsPage() {
                         </>
                       ) : (
                         <>
-                          {roleLoaded && !isLabTech && (
+                          {roleLoaded && !isLabTechRestricted && (
                             <UploadBtn
                               label="Compliance"
                               uploaded={product.compliance_uploaded ?? false}
@@ -1100,7 +1101,7 @@ export default function InspectionsPage() {
                               onClick={() => triggerUpload(product.id, s.group_id || '', 'compliance', product.id)}
                             />
                           )}
-                          {roleLoaded && !isLabTech && (
+                          {roleLoaded && !isLabTechRestricted && (
                             <UploadBtn
                               label="Composition"
                               uploaded={product.composition_uploaded}
@@ -1151,8 +1152,8 @@ export default function InspectionsPage() {
                   <span style={{ fontWeight: 600, color: "#92400e" }}>Occurrence Report</span>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
-                  {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                  {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Compliance" />}
+                  {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Composition" />}
                   <DisabledBtn label="COA/Lab" />
                   <DisabledBtn label="Lab Form" />
                   <DisabledBtn label="Retest" />
@@ -1181,8 +1182,8 @@ export default function InspectionsPage() {
             <div style={{ width: "100%", marginTop: 8 }}>
               {/* Upload Buttons */}
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-                {roleLoaded && !isLabTech && <DisabledBtn label="Compliance" />}
-                {roleLoaded && !isLabTech && <DisabledBtn label="Composition" />}
+                {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Compliance" />}
+                {roleLoaded && !isLabTechRestricted && <DisabledBtn label="Composition" />}
                 <DisabledBtn label="COA/Lab" />
                 <DisabledBtn label="Lab Form" />
                 <DisabledBtn label="Retest" />
@@ -1451,11 +1452,11 @@ export default function InspectionsPage() {
           {/* Action Bar */}
           <div className="ir-action-bar">
             <a href="/" className="ir-btn ir-btn-primary"><i className="fas fa-home" /> Home</a>
-            {roleLoaded && !isLabTech && <a href="/export-sheet" className="ir-btn ir-btn-secondary"><i className="fas fa-file-export" /> Export Sheet</a>}
+            {roleLoaded && !isLabTechRestricted && <a href="/export-sheet" className="ir-btn ir-btn-secondary"><i className="fas fa-file-export" /> Export Sheet</a>}
             <button type="button" className="ir-btn ir-btn-secondary" onClick={expandAll}><i className="fas fa-expand-alt" /> Expand All</button>
             <button type="button" className="ir-btn ir-btn-secondary" onClick={collapseAll}><i className="fas fa-compress-alt" /> Collapse All</button>
-            {roleLoaded && !isLabTech && <a href="/inspections/add" className="ir-btn ir-btn-green"><i className="fas fa-plus" /> Add Inspection</a>}
-            {roleLoaded && !isLabTech && <a href="/clients" className="ir-btn" style={{ background: "#007890", color: "white" }}><i className="fas fa-users-cog" /> Client Allocation Sheet</a>}
+            {roleLoaded && !isLabTechRestricted && <a href="/inspections/add" className="ir-btn ir-btn-green"><i className="fas fa-plus" /> Add Inspection</a>}
+            {roleLoaded && !isLabTechRestricted && <a href="/clients" className="ir-btn" style={{ background: "#007890", color: "white" }}><i className="fas fa-users-cog" /> Client Allocation Sheet</a>}
           </div>
 
           {/* Filter Card */}
@@ -1553,7 +1554,7 @@ export default function InspectionsPage() {
                     }}>
                     <i className="fas fa-filter" /> Apply Filters
                   </button>
-                  {roleLoaded && !isLabTech && (showDuplicates ? (
+                  {roleLoaded && !isLabTechRestricted && (showDuplicates ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
                       onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
                       <i className="fas fa-times" /> Clear Duplicates
@@ -1567,7 +1568,7 @@ export default function InspectionsPage() {
                       )}
                     </button>
                   ))}
-                  {roleLoaded && !isLabTech && (showUndeliverable ? (
+                  {roleLoaded && !isLabTechRestricted && (showUndeliverable ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
                       onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
                       <i className="fas fa-times" /> Clear Undeliverable
@@ -1707,32 +1708,32 @@ export default function InspectionsPage() {
 
               {/* Desktop Table Layout */}
               <div className="ir-desktop-table" style={{ overflowX: "auto", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", borderRadius: 8 }}>
-                <table className="ir-table" id="shipmentsTable" style={isLabTech ? { tableLayout: "fixed", width: "100%" } : undefined}>
+                <table className="ir-table" id="shipmentsTable">
                   <thead>
                     <tr>
-                      <th style={isLabTech ? { width: "46%" } : undefined}>Facility</th>
-                      <th className="center" style={isLabTech ? { width: "7%" } : { width: 50 }}>Files</th>
-                      {roleLoaded && !isLabTech && <th className="center" style={{ width: 60 }}>RFI</th>}
-                      {roleLoaded && !isLabTech && <th className="center" style={{ width: 60 }}>Invoice</th>}
-                      <th className="center" style={isLabTech ? { width: "12%" } : { width: 60 }}>COA</th>
-                      {roleLoaded && !isLabTech && <th className="center" style={{ width: 60 }}>Compliance</th>}
-                      <th className="center" style={isLabTech ? { width: "20%", whiteSpace: "nowrap" } : { width: 180, whiteSpace: "nowrap" }}>Date</th>
-                      <th className="center" style={isLabTech ? { width: "12%" } : { width: 80 }}>Approved</th>
-                      {roleLoaded && !isLabTech && <th style={{ width: 160 }}>Email</th>}
-                      <th className="center" style={isLabTech ? { width: "10%" } : { width: 80 }}>Sent</th>
-                      {roleLoaded && !isLabTech && <th className="center" style={{ width: 90 }}>Actions</th>}
+                      <th>Facility</th>
+                      <th className="center" style={{ width: 50 }}>Files</th>
+                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>RFI</th>}
+                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Invoice</th>}
+                      <th className="center" style={{ width: 60 }}>COA</th>
+                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Compliance</th>}
+                      <th className="center" style={{ width: 180, whiteSpace: "nowrap" }}>Date</th>
+                      <th className="center" style={{ width: 80 }}>Approved</th>
+                      {roleLoaded && !isLabTechRestricted && <th style={{ width: 160 }}>Email</th>}
+                      <th className="center" style={{ width: 80 }}>Sent</th>
+                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 90 }}>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={isLabTech ? 6 : 11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={isLabTech ? 6 : 11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -1756,14 +1757,14 @@ export default function InspectionsPage() {
                                 <i className="fas fa-folder-open" />
                               </button>
                             </td>
-                            {roleLoaded && !isLabTech && (
+                            {roleLoaded && !isLabTechRestricted && (
                               <td className="center">
                                 <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.has_rfi ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_rfi ? "File" : "No-File"}
                                 </span>
                               </td>
                             )}
-                            {roleLoaded && !isLabTech && (
+                            {roleLoaded && !isLabTechRestricted && (
                               <td className="center">
                                 <span className={`ir-badge ${s.has_invoice ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.has_invoice ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_invoice ? "File" : "No-File"}
@@ -1775,7 +1776,7 @@ export default function InspectionsPage() {
                                 <i className={`fas fa-${s.has_lab ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_lab ? "File" : "No-File"}
                               </span>
                             </td>
-                            {roleLoaded && !isLabTech && (
+                            {roleLoaded && !isLabTechRestricted && (
                               <td className="center">
                                 <span className={`ir-badge ${s.has_compliance ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.has_compliance ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_compliance ? "File" : "No-File"}
@@ -1786,7 +1787,7 @@ export default function InspectionsPage() {
                               {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}
                             </td>
                             <td className="center">
-                              {(isLabTech || isAdmin) ? (
+                              {isAdmin ? (
                                 <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.approved_status === "APPROVED" ? "check" : "clock"}`} style={{ fontSize: 8 }} /> {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
                                 </span>
@@ -1811,7 +1812,7 @@ export default function InspectionsPage() {
                                 </select>
                               )}
                             </td>
-                            {roleLoaded && !isLabTech && (
+                            {roleLoaded && !isLabTechRestricted && (
                               <td style={{ fontSize: "0.75rem", color: "#6b7280" }}>
                                 {s.email ? s.email.split(/[;,]/).map((e, ei) => {
                                   const trimmed = e.trim();
@@ -1829,7 +1830,7 @@ export default function InspectionsPage() {
                               </td>
                             )}
                             <td className="center">
-                              {(isLabTech || isInspector) ? (
+                              {isInspector ? (
                                 <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
                                   <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} />
                                   {s.sent_date
@@ -1871,7 +1872,7 @@ export default function InspectionsPage() {
                                 </button>
                               )}
                             </td>
-                            {roleLoaded && !isLabTech && (
+                            {roleLoaded && !isLabTechRestricted && (
                               <td className="center">
                                 <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
                                   <a
@@ -1917,7 +1918,7 @@ export default function InspectionsPage() {
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={isLabTech ? 6 : 11} style={{ padding: 0 }}>
+                              <td colSpan={11} style={{ padding: 0 }}>
                                 {renderDetailRow(s)}
                               </td>
                             </tr>
