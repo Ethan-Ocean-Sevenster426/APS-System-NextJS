@@ -2124,54 +2124,8 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
   const [trendView, setTrendView] = useState<"daily" | "weekly" | "monthly">("daily");
   const [trendOffset, setTrendOffset] = useState(0); // 0 = latest, negative = back in time
 
-  // ── DUMMY DATA for testing chart fluctuation (remove for production) ──
-  const dummyDaily = useMemo(() => {
-    const commodities = ["EGGS", "PMP", "POULTRY MEAT", "RAW MEAT"];
-    const baseRates: Record<string, number> = { EGGS: 88, PMP: 75, "POULTRY MEAT": 92, "RAW MEAT": 68 };
-    const rows: Array<{ day: string; commodity: string; compliance_rate: number; total: number; compliant: number }> = [];
-    const today = new Date();
-    for (let d = 90; d >= 0; d--) {
-      const dt = new Date(today);
-      dt.setDate(today.getDate() - d);
-      const dayStr = dt.toISOString().slice(0, 10);
-      for (const c of commodities) {
-        // Skip some days randomly per commodity (30% chance of no inspection)
-        if (Math.sin(d * 3.7 + commodities.indexOf(c) * 11) > 0.4) continue;
-        const base = baseRates[c];
-        // Deterministic "random" fluctuation using sin
-        const fluctuation = Math.sin(d * 1.3 + commodities.indexOf(c) * 5) * 15 + Math.sin(d * 0.7) * 10;
-        const rate = Math.max(0, Math.min(100, Math.round((base + fluctuation) * 10) / 10));
-        const total = Math.floor(3 + Math.abs(Math.sin(d * 2.1 + commodities.indexOf(c))) * 8);
-        const compliant = Math.round(total * rate / 100);
-        rows.push({ day: dayStr, commodity: c, compliance_rate: rate, total, compliant });
-      }
-    }
-    return rows;
-  }, []);
-
-  const dummyMonthly = useMemo(() => {
-    const commodities = ["EGGS", "PMP", "POULTRY MEAT", "RAW MEAT"];
-    const baseRates: Record<string, number> = { EGGS: 88, PMP: 75, "POULTRY MEAT": 92, "RAW MEAT": 68 };
-    const rows: Array<{ month: string; commodity: string; compliance_rate: number; total: number; compliant: number }> = [];
-    const today = new Date();
-    for (let m = 11; m >= 0; m--) {
-      const dt = new Date(today.getFullYear(), today.getMonth() - m, 1);
-      const monthStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-      for (const c of commodities) {
-        const base = baseRates[c];
-        const fluctuation = Math.sin(m * 1.8 + commodities.indexOf(c) * 4) * 12 + Math.sin(m * 0.5) * 8;
-        const rate = Math.max(0, Math.min(100, Math.round((base + fluctuation) * 10) / 10));
-        const total = Math.floor(10 + Math.abs(Math.sin(m * 2.3 + commodities.indexOf(c))) * 20);
-        const compliant = Math.round(total * rate / 100);
-        rows.push({ month: monthStr, commodity: c, compliance_rate: rate, total, compliant });
-      }
-    }
-    return rows;
-  }, []);
-
-  // Merge dummy data with real data (dummy fills in where real is sparse)
-  const mergedDaily = [...(data.dailyComplianceTrend || []), ...dummyDaily];
-  const mergedMonthly = [...(data.monthlyComplianceTrend || []), ...dummyMonthly];
+  const mergedDaily = data.dailyComplianceTrend || [];
+  const mergedMonthly = data.monthlyComplianceTrend || [];
 
   // Build trend data based on selected view
   const buildTrendData = () => {
