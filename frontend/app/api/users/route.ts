@@ -16,9 +16,16 @@ export async function POST(request: NextRequest) {
   try {
     const cookie = request.headers.get("cookie") || "";
     const body = await request.json();
+    const host = request.headers.get("host") || "";
+    const proto = request.headers.get("x-forwarded-proto") || (request.url.startsWith("https") ? "https" : "http");
     const res = await fetch(`${DJANGO_API_URL}/api/users/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+        "X-Forwarded-Host": host,
+        "X-Forwarded-Proto": proto,
+      },
       body: JSON.stringify(body),
     });
     const data = await res.json();

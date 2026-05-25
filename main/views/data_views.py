@@ -2251,9 +2251,14 @@ def api_users(request):
             expires_at=_tz.now() + _td(hours=48),
         )
 
-        # Derive site URL from request to work in both dev and production
-        _scheme = 'https' if request.is_secure() or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https' else 'http'
-        site_url = f"{_scheme}://{request.get_host()}"
+        # Derive site URL from the forwarded headers (Next.js proxy sets these)
+        _fwd_host = request.META.get('HTTP_X_FORWARDED_HOST', '').strip()
+        _fwd_proto = request.META.get('HTTP_X_FORWARDED_PROTO', '').strip()
+        if _fwd_host:
+            _scheme = _fwd_proto if _fwd_proto in ('http', 'https') else 'https'
+            site_url = f"{_scheme}://{_fwd_host}"
+        else:
+            site_url = 'https://v4-project.moc-pty.com'
         setup_url = f"{site_url}/setup-account"
 
         html_msg = (
