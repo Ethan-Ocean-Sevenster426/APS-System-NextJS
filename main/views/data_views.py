@@ -2810,7 +2810,7 @@ def api_lab_analytics(request):
         if _date_to:
             _insp_qs = _insp_qs.filter(date_of_inspection__lte=_date_to)
         total_inspections = _insp_qs.count()
-        needs_coa       = base.filter(coa_uploaded_date__isnull=True).count()
+        needs_coa       = base.filter(coa_uploaded_date__isnull=True, sent_date__isnull=False).count()
         needs_retest    = base.filter(needs_retest__in=['Yes', 'YES', 'yes']).count()
         fat_count       = base.filter(fat=True).count()
         protein_count   = base.filter(protein=True).count()
