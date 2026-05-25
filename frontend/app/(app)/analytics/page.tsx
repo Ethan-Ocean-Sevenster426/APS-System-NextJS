@@ -2295,7 +2295,7 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
       >
         <div style={{ overflowX: "auto", overflowY: "hidden" }}>
           <div style={{ minWidth: Math.max(600, compTrend.labels.length * 80), height: 320, position: "relative" }}>
-            <DLLine data={compTrend} options={{ ...baseChartOptions(undefined, "Compliance %", { datalabelFormatter: (v: number) => !v || isNaN(v) ? "" : v.toFixed(1) + "%", datalabelColor: "#374151" }), maintainAspectRatio: false } as never} />
+            <DLLine data={compTrend} options={(() => { const base = baseChartOptions(undefined, "Compliance %", { datalabels: false }); return { ...base, maintainAspectRatio: false, plugins: { ...(base.plugins as Record<string, unknown>), tooltip: { callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + "%" : "N/A"}` } }, datalabels: { display: false } } } as never; })()} />
           </div>
         </div>
       </Card>
