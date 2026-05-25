@@ -2259,7 +2259,8 @@ def api_users(request):
             site_url = f"{_scheme}://{_fwd_host}"
         else:
             site_url = 'https://v4-project.moc-pty.com'
-        setup_url = f"{site_url}/setup-account"
+        from urllib.parse import quote as _url_quote
+        setup_url = f"{site_url}/setup-account?email={_url_quote(user.email)}"
 
         html_msg = (
             f'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#333">'
@@ -3267,15 +3268,29 @@ def api_verify_otp(request):
         remaining = otp_record.MAX_ATTEMPTS - otp_record.attempts
         return JsonResponse({'success': False, 'error': f'Invalid OTP code. {remaining} attempt(s) remaining.'})
 
-    # OTP valid — set the user's password
+    # OTP valid — set the user's password and update profile fields if provided
     user.set_password(new_password)
+
+    _username = data.get('username', '').strip()
+    _first_name = data.get('first_name', '').strip()
+    _last_name = data.get('last_name', '').strip()
+
+    if _username and _username != user.username:
+        # Check uniqueness
+        if not User.objects.filter(username=_username).exclude(id=user.id).exists():
+            user.username = _username
+    if _first_name:
+        user.first_name = _first_name
+    if _last_name:
+        user.last_name = _last_name
+
     user.save()
 
     # Mark OTP as used
     otp_record.is_used = True
     otp_record.save(update_fields=['is_used'])
 
-    return JsonResponse({'success': True, 'message': 'Your password has been set successfully. You can now log in.'})
+    return JsonResponse({'success': True, 'message': 'Your account has been set up successfully. You can now log in.'})
 
 
 @_csrf_exempt

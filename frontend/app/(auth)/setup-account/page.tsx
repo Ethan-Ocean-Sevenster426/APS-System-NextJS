@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
-export default function SetupAccountPage() {
+function SetupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [email, setEmail] = useState("");
+  const emailFromUrl = searchParams.get("email") || "";
+
+  const [email] = useState(emailFromUrl);
+  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -30,6 +37,10 @@ export default function SetupAccountPage() {
       setError("OTP must be exactly 6 digits.");
       return;
     }
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("First name and last name are required.");
+      return;
+    }
     if (newPassword.length < 8) {
       setError("Password must be at least 8 characters long.");
       return;
@@ -49,6 +60,9 @@ export default function SetupAccountPage() {
           otp_code: otpCode,
           new_password: newPassword,
           confirm_password: confirmPassword,
+          username: username.trim() || undefined,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
         }),
       });
       const data = await res.json();
@@ -66,17 +80,215 @@ export default function SetupAccountPage() {
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: "44px", border: "1px solid #e5e7eb", borderRadius: "6px",
+    paddingLeft: "44px", fontSize: "0.95rem", color: "#1f2937", boxSizing: "border-box",
+  };
+  const iconStyle: React.CSSProperties = {
+    position: "absolute", left: "14px", color: "#007890", fontSize: "1rem", zIndex: 2,
+  };
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontWeight: 600, marginBottom: "0.3rem", color: "#1f2937", fontSize: "0.85rem",
+  };
+
+  return (
+    <>
+      {/* Success */}
+      {success && (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #86efac", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <i className="fas fa-check" style={{ fontSize: 28, color: "#16a34a" }} />
+          </div>
+          <h3 style={{ margin: "0 0 8px", color: "#1f2937", fontSize: "1.1rem" }}>Account Set Up Successfully</h3>
+          <p style={{ margin: 0, color: "#6b7280", fontSize: "0.9rem" }}>Redirecting you to the login page...</p>
+        </div>
+      )}
+
+      {/* Form */}
+      {!success && (
+        <>
+          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", padding: "10px 14px", borderRadius: "6px", marginBottom: "14px", fontSize: "0.82rem", lineHeight: 1.5 }}>
+            <i className="fas fa-info-circle" style={{ marginRight: "6px" }} />
+            Enter the 6-digit code from your email, fill in your details, and create a password.
+          </div>
+
+          {error && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "10px 14px", borderRadius: "6px", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem" }}>
+              <i className="fas fa-exclamation-circle" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} autoComplete="off">
+            {/* Email — disabled, auto-filled */}
+            <div style={{ marginBottom: "0.85rem" }}>
+              <label style={labelStyle}>Email Address</label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <i className="fas fa-envelope" style={iconStyle} />
+                <input
+                  type="email"
+                  value={email}
+                  disabled
+                  style={{ ...inputStyle, background: "#f3f4f6", color: "#6b7280", cursor: "not-allowed" }}
+                />
+              </div>
+            </div>
+
+            {/* OTP Code */}
+            <div style={{ marginBottom: "0.85rem" }}>
+              <label htmlFor="otp_code" style={labelStyle}>OTP Code</label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <i className="fas fa-key" style={iconStyle} />
+                <input
+                  type="text"
+                  id="otp_code"
+                  placeholder="Enter 6-digit OTP"
+                  required
+                  maxLength={6}
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  style={{ ...inputStyle, fontSize: "1.15rem", letterSpacing: "6px", fontWeight: 600 }}
+                />
+              </div>
+            </div>
+
+            {/* Divider — Your Details */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "1rem 0 0.85rem" }}>
+              <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
+              <span style={{ fontSize: "0.78rem", color: "#6b7280", fontWeight: 500 }}>Your Details</span>
+              <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
+            </div>
+
+            {/* First Name / Last Name — side by side on desktop, stacked on mobile */}
+            <div className="setup-name-row">
+              <div style={{ flex: 1, marginBottom: "0.85rem" }}>
+                <label htmlFor="first_name" style={labelStyle}>First Name</label>
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <i className="fas fa-user" style={iconStyle} />
+                  <input
+                    type="text"
+                    id="first_name"
+                    placeholder="First name"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1, marginBottom: "0.85rem" }}>
+                <label htmlFor="last_name" style={labelStyle}>Last Name</label>
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <i className="fas fa-user" style={iconStyle} />
+                  <input
+                    type="text"
+                    id="last_name"
+                    placeholder="Last name"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Username (optional) */}
+            <div style={{ marginBottom: "0.85rem" }}>
+              <label htmlFor="username" style={labelStyle}>Username <span style={{ fontWeight: 400, color: "#9ca3af" }}>(optional)</span></label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <i className="fas fa-at" style={iconStyle} />
+                <input
+                  type="text"
+                  id="username"
+                  placeholder="Choose a username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <small style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "2px", display: "block" }}>Leave blank to keep the one assigned by your admin</small>
+            </div>
+
+            {/* Divider — Password */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "1rem 0 0.85rem" }}>
+              <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
+              <span style={{ fontSize: "0.78rem", color: "#6b7280", fontWeight: 500 }}>Create Your Password</span>
+              <div style={{ flex: 1, height: "1px", background: "#e5e7eb" }} />
+            </div>
+
+            {/* New Password */}
+            <div style={{ marginBottom: "0.85rem" }}>
+              <label htmlFor="new_password" style={labelStyle}>New Password</label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <i className="fas fa-lock" style={iconStyle} />
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  id="new_password"
+                  placeholder="Enter new password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: "44px" }}
+                />
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} aria-label="Toggle password visibility"
+                  style={{ position: "absolute", right: "14px", background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "1rem" }}>
+                  <i className={`fas ${showNewPassword ? "fa-eye-slash" : "fa-eye"}`} />
+                </button>
+              </div>
+              <small style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "2px", display: "block" }}>Minimum 8 characters</small>
+            </div>
+
+            {/* Confirm Password */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label htmlFor="confirm_password" style={labelStyle}>Confirm Password</label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <i className="fas fa-lock" style={iconStyle} />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirm_password"
+                  placeholder="Confirm new password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: "44px" }}
+                />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label="Toggle password visibility"
+                  style={{ position: "absolute", right: "14px", background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "1rem" }}>
+                  <i className={`fas ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button type="submit" disabled={loading}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "46px", backgroundColor: loading ? "#cbd5e0" : "#007890", color: "white", border: "none", borderRadius: "6px", fontWeight: 600, fontSize: "0.95rem", cursor: loading ? "not-allowed" : "pointer" }}>
+              <i className="fas fa-check-circle" />
+              {loading ? "Setting up..." : "Set Up Account"}
+            </button>
+          </form>
+        </>
+      )}
+
+      {/* Back to login */}
+      <div style={{ textAlign: "center", marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px solid #e5e7eb" }}>
+        <Link href="/login" style={{ color: "#007890", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <i className="fas fa-arrow-left" /> Back to Sign In
+        </Link>
+      </div>
+    </>
+  );
+}
+
+export default function SetupAccountPage() {
   return (
     <>
       <style>{`
-        :root {
-          --primary: #007890;
-          --border: #e5e7eb;
-          --text: #1f2937;
-          --text-light: #6b7280;
-          --radius: 6px;
-          --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-        }
+        :root { --primary: #007890; }
         body {
           background-image: url('/background.jpg');
           background-size: cover;
@@ -85,7 +297,7 @@ export default function SetupAccountPage() {
           background-attachment: fixed;
           margin: 0;
           min-height: 100vh;
-          overflow: hidden;
+          overflow-y: auto;
         }
         body::before {
           content: "";
@@ -94,173 +306,42 @@ export default function SetupAccountPage() {
           background: rgba(0,0,0,0.3);
           z-index: 0;
         }
+        .setup-name-row {
+          display: flex;
+          gap: 10px;
+        }
+        @media (max-width: 500px) {
+          .setup-name-row {
+            flex-direction: column;
+            gap: 0;
+          }
+        }
       `}</style>
 
-      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "5px" }}>
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 10px" }}>
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "12px" }}>
-          <Image src="/logo.png" alt="Food Safety Agency Logo" width={80} height={70} style={{ maxHeight: "70px", width: "auto" }} />
+        <div style={{ textAlign: "center", marginBottom: "10px" }}>
+          <Image src="/logo.png" alt="Food Safety Agency Logo" width={70} height={60} style={{ maxHeight: "60px", width: "auto" }} />
         </div>
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "10px" }}>
-          <h1 style={{ color: "white", fontSize: "1.5rem", fontWeight: 600, marginBottom: "4px" }}>Food Safety Agency (Pty) Ltd</h1>
-          <h2 style={{ color: "white", fontSize: "1rem", fontWeight: 400 }}>Set Up Your Account</h2>
+          <h1 style={{ color: "white", fontSize: "1.3rem", fontWeight: 600, marginBottom: "2px" }}>Food Safety Agency (Pty) Ltd</h1>
+          <h2 style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.95rem", fontWeight: 400, margin: 0 }}>Set Up Your Account</h2>
         </div>
 
         {/* Card */}
-        <div style={{ background: "white", borderRadius: "12px", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)", width: "80%", maxWidth: "420px", padding: "2rem" }}>
+        <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", border: "1px solid #e5e7eb", width: "92%", maxWidth: "460px", padding: "1.5rem" }}>
           {/* Card header */}
-          <div style={{ borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "15px", paddingBottom: "10px" }}>
-            <span style={{ fontSize: "1.25rem", fontWeight: 600, color: "var(--primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px", paddingBottom: "10px" }}>
+            <span style={{ fontSize: "1.1rem", fontWeight: 600, color: "#007890", display: "flex", alignItems: "center", gap: "8px" }}>
               <i className="fas fa-user-plus" /> Account Setup
             </span>
           </div>
 
-          {/* Success */}
-          {success && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "14px", borderRadius: "var(--radius)", marginBottom: "16px", fontSize: "0.9rem" }}>
-                <i className="fas fa-check-circle" style={{ marginRight: "8px" }} />
-                Your password has been set successfully! Redirecting to login...
-              </div>
-            </div>
-          )}
-
-          {/* Form */}
-          {!success && (
-            <>
-              {/* Info */}
-              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", padding: "10px 14px", borderRadius: "var(--radius)", marginBottom: "12px", fontSize: "0.85rem" }}>
-                <i className="fas fa-info-circle" style={{ marginRight: "6px" }} />
-                Enter the 6-digit OTP code from your email and create a password.
-              </div>
-
-              {/* Error */}
-              {error && (
-                <div style={{ background: "#fee", border: "1px solid #fcc", color: "#c33", padding: "10px 14px", borderRadius: "var(--radius)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem" }}>
-                  <i className="fas fa-exclamation-circle" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} autoComplete="off">
-                {/* Email */}
-                <div style={{ marginBottom: "1rem" }}>
-                  <label htmlFor="email" style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", color: "var(--text)", fontSize: "0.9rem" }}>Email Address</label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <i className="fas fa-envelope" style={{ position: "absolute", left: "16px", color: "var(--primary)", fontSize: "1.1rem", zIndex: 2 }} />
-                    <input
-                      type="email"
-                      id="email"
-                      placeholder="Enter your email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      style={{ width: "100%", height: "48px", border: "1px solid var(--border)", borderRadius: "var(--radius)", paddingLeft: "48px", fontSize: "1rem", color: "var(--text)", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-
-                {/* OTP Code */}
-                <div style={{ marginBottom: "1rem" }}>
-                  <label htmlFor="otp_code" style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", color: "var(--text)", fontSize: "0.9rem" }}>OTP Code</label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <i className="fas fa-key" style={{ position: "absolute", left: "16px", color: "var(--primary)", fontSize: "1.1rem", zIndex: 2 }} />
-                    <input
-                      type="text"
-                      id="otp_code"
-                      placeholder="Enter 6-digit OTP"
-                      required
-                      maxLength={6}
-                      inputMode="numeric"
-                      pattern="\d{6}"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      style={{ width: "100%", height: "48px", border: "1px solid var(--border)", borderRadius: "var(--radius)", paddingLeft: "48px", fontSize: "1.25rem", letterSpacing: "6px", color: "var(--text)", boxSizing: "border-box", fontWeight: 600 }}
-                    />
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "1.25rem 0" }}>
-                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-light)", fontWeight: 500 }}>Create Your Password</span>
-                  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-                </div>
-
-                {/* New Password */}
-                <div style={{ marginBottom: "1rem" }}>
-                  <label htmlFor="new_password" style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", color: "var(--text)", fontSize: "0.9rem" }}>New Password</label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <i className="fas fa-lock" style={{ position: "absolute", left: "16px", color: "var(--primary)", fontSize: "1.1rem", zIndex: 2 }} />
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      id="new_password"
-                      placeholder="Enter new password"
-                      required
-                      minLength={8}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      style={{ width: "100%", height: "48px", border: "1px solid var(--border)", borderRadius: "var(--radius)", paddingLeft: "48px", paddingRight: "48px", fontSize: "1rem", color: "var(--text)", boxSizing: "border-box" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      aria-label="Toggle password visibility"
-                      style={{ position: "absolute", right: "16px", background: "none", border: "none", color: "var(--text-light)", cursor: "pointer", fontSize: "1.1rem" }}
-                    >
-                      <i className={`fas ${showNewPassword ? "fa-eye-slash" : "fa-eye"}`} />
-                    </button>
-                  </div>
-                  <small style={{ color: "var(--text-light)", fontSize: "0.8rem", marginTop: "4px", display: "block" }}>Minimum 8 characters</small>
-                </div>
-
-                {/* Confirm Password */}
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <label htmlFor="confirm_password" style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", color: "var(--text)", fontSize: "0.9rem" }}>Confirm Password</label>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <i className="fas fa-lock" style={{ position: "absolute", left: "16px", color: "var(--primary)", fontSize: "1.1rem", zIndex: 2 }} />
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      id="confirm_password"
-                      placeholder="Confirm new password"
-                      required
-                      minLength={8}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      style={{ width: "100%", height: "48px", border: "1px solid var(--border)", borderRadius: "var(--radius)", paddingLeft: "48px", paddingRight: "48px", fontSize: "1rem", color: "var(--text)", boxSizing: "border-box" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      aria-label="Toggle password visibility"
-                      style={{ position: "absolute", right: "16px", background: "none", border: "none", color: "var(--text-light)", cursor: "pointer", fontSize: "1.1rem" }}
-                    >
-                      <i className={`fas ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "48px", backgroundColor: loading ? "#cbd5e0" : "var(--primary)", color: "white", border: "none", borderRadius: "var(--radius)", fontWeight: 600, fontSize: "1rem", cursor: loading ? "not-allowed" : "pointer" }}
-                >
-                  <i className="fas fa-check-circle" />
-                  {loading ? "Setting up..." : "Set Up Account"}
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* Back to login */}
-          <div style={{ textAlign: "center", marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
-            <Link href="/login" style={{ color: "var(--primary)", textDecoration: "none", fontSize: "0.9rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <i className="fas fa-arrow-left" /> Back to Sign In
-            </Link>
-          </div>
+          <Suspense fallback={<div style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>Loading...</div>}>
+            <SetupForm />
+          </Suspense>
         </div>
       </div>
     </>
