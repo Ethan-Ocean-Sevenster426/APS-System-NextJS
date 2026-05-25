@@ -10,9 +10,7 @@ function SetupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const emailFromUrl = searchParams.get("email") || "";
-
-  const [email] = useState(emailFromUrl);
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -24,6 +22,11 @@ function SetupForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const e = searchParams.get("email");
+    if (e) setEmail(e);
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
