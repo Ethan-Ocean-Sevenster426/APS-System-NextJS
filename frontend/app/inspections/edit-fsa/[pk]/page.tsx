@@ -314,6 +314,9 @@ export default function EditInspectionPage() {
       const missing: string[] = [];
       products.forEach((p, i) => {
         if (!p.product_name.trim()) missing.push(`Product #${i + 1} name`);
+        if (p.is_sample_taken && !p.fat && !p.protein && !p.calcium && !p.dna) {
+          missing.push(`Product #${i + 1}: select at least one test (Fat/Protein/Calcium/DNA)`);
+        }
       });
       return missing;
     }

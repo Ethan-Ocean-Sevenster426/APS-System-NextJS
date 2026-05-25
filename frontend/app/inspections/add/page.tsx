@@ -251,7 +251,12 @@ export default function AddInspectionPage() {
     }
     if (s === 2) {
       const m: string[] = [];
-      products.forEach((p, i) => { if (!p.product_name.trim()) m.push(`Product #${i + 1} name`); });
+      products.forEach((p, i) => {
+        if (!p.product_name.trim()) m.push(`Product #${i + 1} name`);
+        if (p.is_sample_taken && !p.fat && !p.protein && !p.calcium && !p.dna) {
+          m.push(`Product #${i + 1}: select at least one test (Fat/Protein/Calcium/DNA)`);
+        }
+      });
       return m;
     }
     if (s === 3) {
