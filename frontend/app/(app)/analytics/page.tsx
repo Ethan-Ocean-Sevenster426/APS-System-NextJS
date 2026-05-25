@@ -767,7 +767,7 @@ export default function AnalyticsPage() {
             // Save originals
             const origDPR = chartInstance.options.devicePixelRatio;
             const origDL = JSON.parse(JSON.stringify(chartInstance.options.plugins?.datalabels ?? {}));
-            const origPointRadius = chartInstance.config.data.datasets.map((ds: Record<string, unknown>) => ds.pointRadius);
+            const origPointRadius = chartInstance.config.data.datasets.map((ds: any) => ds.pointRadius);
 
             // Enable data labels + bigger points for PDF readability
             chartInstance.options.devicePixelRatio = HI_DPR;
@@ -780,7 +780,7 @@ export default function AnalyticsPage() {
               color: "#1f2937",
               formatter: (v: unknown) => { if (v === null || v === undefined) return ""; const n = Number(v); return isNaN(n) ? "" : n.toFixed(1) + "%"; },
             };
-            chartInstance.config.data.datasets.forEach((ds: Record<string, unknown>) => {
+            chartInstance.config.data.datasets.forEach((ds: any) => {
               if (ds.pointRadius !== undefined) ds.pointRadius = 6;
             });
 
@@ -791,7 +791,7 @@ export default function AnalyticsPage() {
             // Restore originals
             chartInstance.options.devicePixelRatio = origDPR;
             (chartInstance.options.plugins as Record<string, unknown>).datalabels = origDL;
-            chartInstance.config.data.datasets.forEach((ds: Record<string, unknown>, idx: number) => {
+            chartInstance.config.data.datasets.forEach((ds: any, idx: number) => {
               if (origPointRadius[idx] !== undefined) ds.pointRadius = origPointRadius[idx];
             });
             chartInstance.update("none");
