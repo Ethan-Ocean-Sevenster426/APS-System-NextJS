@@ -1495,15 +1495,32 @@ export default function UserManagementPage() {
               </select>
             </div>
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setShowReassignModal(false)}
-                style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500 }}>
-                Cancel
+            <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+              <button onClick={async () => {
+                if (!reassignUser) return;
+                const data = await postAction({ action: "delete_user", user_id: reassignUser.id });
+                if (data.success) {
+                  addMessage(data.message || "User deleted successfully", "success");
+                  setShowReassignModal(false);
+                  setReassignUser(null);
+                  fetchUsers();
+                } else {
+                  addMessage(data.error || "Failed to delete user", "error");
+                }
+              }}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #dc2626", background: "white", color: "#dc2626", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600 }}>
+                <i className="fas fa-trash" style={{ marginRight: 6 }} />Just Delete
               </button>
-              <button onClick={handleReassignAndDelete} disabled={!reassignTo}
-                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: !reassignTo ? "#e5e7eb" : "#dc2626", color: !reassignTo ? "#9ca3af" : "white", cursor: !reassignTo ? "not-allowed" : "pointer", fontSize: "0.82rem", fontWeight: 600 }}>
-                <i className="fas fa-user-slash" style={{ marginRight: 6 }} />Reassign & Remove
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setShowReassignModal(false)}
+                  style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500 }}>
+                  Cancel
+                </button>
+                <button onClick={handleReassignAndDelete} disabled={!reassignTo}
+                  style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: !reassignTo ? "#e5e7eb" : "#dc2626", color: !reassignTo ? "#9ca3af" : "white", cursor: !reassignTo ? "not-allowed" : "pointer", fontSize: "0.82rem", fontWeight: 600 }}>
+                  <i className="fas fa-user-slash" style={{ marginRight: 6 }} />Reassign & Remove
+                </button>
+              </div>
             </div>
           </div>
         </div>
