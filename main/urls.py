@@ -43,6 +43,7 @@ from .views.data_views import (
     api_inspection_form_data,
     api_add_inspection,
     api_system_logs,
+    api_log_activity,
     api_export_sheet,
     api_server_view,
     api_settings,
@@ -72,6 +73,7 @@ from .views.data_views import (
     api_onedrive_view,
     api_convert_docx_to_pdf,
     api_send_occurrence_email,
+    api_verify_otp,
 )
 from .views.xero_views import (
     xero_connect, xero_callback, xero_disconnect, xero_status,
@@ -141,6 +143,7 @@ urlpatterns = [
     path('api/clients/dropdown-options/', api_dropdown_options, name='api_dropdown_options'),
     path('api/clients/dropdown-options/delete/', api_dropdown_option_delete, name='api_dropdown_option_delete'),
     path('api/users/', api_users, name='api_users'),
+    path('api/verify-otp/', api_verify_otp, name='api_verify_otp'),
     path('api/fees/get/', get_inspection_fees, name='get_inspection_fees'),
     path('api/fees/update/', update_inspection_fees, name='update_inspection_fees'),
     path('api/fees/history/', get_inspection_fee_history, name='get_inspection_fee_history'),
@@ -167,6 +170,7 @@ urlpatterns = [
     path('api/inspection-group/<int:pk>/', api_get_inspection_group, name='api_get_inspection_group'),
     path('api/edit-inspection-group/', api_edit_inspection_group, name='api_edit_inspection_group'),
     path('api/system-logs/', api_system_logs, name='api_system_logs'),
+    path('api/log-activity/', api_log_activity, name='api_log_activity'),
     path('api/export-sheet/', api_export_sheet, name='api_export_sheet'),
     path('api/server-view/', api_server_view, name='api_server_view'),
     path('api/home-stats/', api_home_stats, name='api_home_stats'),

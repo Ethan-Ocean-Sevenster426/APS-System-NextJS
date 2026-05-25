@@ -107,6 +107,47 @@ User.add_to_class('get_managed_inspector_ids', get_managed_inspector_ids)
 User.add_to_class('get_managed_inspector_names', get_managed_inspector_names)
 User.add_to_class('has_role_permission', has_role_permission)
 
+
+class UserOTP(models.Model):
+    """Stores hashed OTP codes for user account setup and admin-triggered resets."""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='otp_codes',
+    )
+    otp_hash = models.CharField(max_length=128, help_text="Hashed 6-digit OTP code")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="OTP expiration timestamp")
+    is_used = models.BooleanField(default=False)
+    attempts = models.IntegerField(default=0, help_text="Failed verification attempts")
+
+    MAX_ATTEMPTS = 5
+
+    class Meta:
+        db_table = 'user_otp'
+        ordering = ['-created_at']
+        verbose_name = 'User OTP'
+        verbose_name_plural = 'User OTPs'
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"OTP for {self.user.username} (expires {self.expires_at})"
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_locked(self):
+        return self.attempts >= self.MAX_ATTEMPTS
+
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired and not self.is_locked
+
+
 class ClientManager(models.Manager):
     def get_next_client_id(self):
         """Generate next sequential client ID (CL00001, CL00002, etc.)"""
@@ -1452,3 +1493,50 @@ class ClientDropdownOption(models.Model):
 
     def __str__(self):
         return f"{self.field_type}: {self.value}"
+
+
+class InspectionDocument(models.Model):
+    """Tracks each document type uploaded for an inspection as a separate record."""
+    DOCUMENT_TYPES = [
+        ('rfi', 'RFI'),
+        ('invoice', 'Invoice'),
+        ('coa', 'COA'),
+        ('lab_form', 'Lab Form'),
+        ('retest', 'Retest'),
+        ('occurrence', 'Occurrence'),
+        ('composition', 'Composition'),
+        ('compliance', 'Compliance'),
+        ('other', 'Other'),
+    ]
+    inspection = models.ForeignKey(
+        FoodSafetyAgencyInspection,
+        on_delete=models.CASCADE,
+        related_name='documents',
+        help_text="The inspection this document belongs to"
+    )
+    document_type = models.CharField(
+        max_length=20,
+        choices=DOCUMENT_TYPES,
+        db_index=True,
+        help_text="Type of document uploaded"
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="User who uploaded this document"
+    )
+    uploaded_date = models.DateTimeField(help_text="When this document was uploaded")
+
+    class Meta:
+        db_table = 'inspection_documents'
+        unique_together = [['inspection', 'document_type']]
+        indexes = [
+            models.Index(fields=['document_type']),
+            models.Index(fields=['inspection', 'document_type']),
+        ]
+        ordering = ['-uploaded_date']
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} - {self.inspection}"

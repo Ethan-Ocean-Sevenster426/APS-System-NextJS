@@ -94,7 +94,7 @@ interface Inspection {
   products?: Product[];
 }
 
-function ClientSearchInput({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+function ClientSearchInput({ value, onChange, options, onEnter }: { value: string; onChange: (v: string) => void; options: string[]; onEnter?: () => void }) {
   const [open, setOpen] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
@@ -123,6 +123,7 @@ function ClientSearchInput({ value, onChange, options }: { value: string; onChan
           onChange={e => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => { setFocused(true); setOpen(true); }}
           onBlur={() => setFocused(false)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); setOpen(false); onEnter?.(); } }}
           style={{ paddingLeft: 35, paddingRight: 32 }}
           autoComplete="off"
         />
@@ -284,7 +285,12 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string, corpGroup?: string) => {
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string, corpGroup?: string, filters?: {
+    groupType?: string[]; occurrence?: string[]; sampled?: string[]; sentStatus?: string[];
+    compliance?: string[]; approved?: string[]; email?: string;
+    rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
+    retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[];
+  }) => {
     setLoading(true);
     const p = new URLSearchParams();
     if (duplicates) p.set("show_duplicates", "true");
@@ -293,6 +299,25 @@ export default function InspectionsPage() {
     if (search) p.set("client_search", search);
     if (inspector) p.set("inspector", inspector);
     if (corpGroup) p.set("corporate_group", corpGroup);
+    // Send all filters to backend
+    if (filters) {
+      if (filters.groupType?.length) filters.groupType.forEach(v => p.append("group_type", v));
+      if (filters.occurrence?.length) filters.occurrence.forEach(v => p.append("occurrence", v));
+      if (filters.sampled?.length) filters.sampled.forEach(v => p.append("sampled", v));
+      if (filters.sentStatus?.length) filters.sentStatus.forEach(v => p.append("sent_status", v));
+      if (filters.compliance?.length) filters.compliance.forEach(v => p.append("compliance", v));
+      if (filters.approved?.length) filters.approved.forEach(v => p.append("approved", v));
+      if (filters.email?.trim()) p.set("email", filters.email.trim());
+      if (filters.rfi?.length) filters.rfi.forEach(v => p.append("has_rfi", v));
+      if (filters.invoice?.length) filters.invoice.forEach(v => p.append("has_invoice", v));
+      if (filters.coaFile?.length) filters.coaFile.forEach(v => p.append("has_coa", v));
+      if (filters.complianceFile?.length) filters.complianceFile.forEach(v => p.append("has_compliance", v));
+      if (filters.otherFile?.length) filters.otherFile.forEach(v => p.append("has_other", v));
+      if (filters.retest?.length) filters.retest.forEach(v => p.append("needs_retest", v));
+      if (filters.coaStatus?.length) filters.coaStatus.forEach(v => p.append("coa_uploaded", v));
+      if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", v));
+      if (filters.testType?.length) filters.testType.forEach(v => p.append("test_type", v));
+    }
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
     const qs = `?${p.toString()}`;
@@ -678,97 +703,8 @@ export default function InspectionsPage() {
   const clientOptions = useMemo(() => [...new Set(inspections.map(i => i.client_name).filter(Boolean))].sort() as string[], [inspections]);
 
 
-  // Client-side filtered list
-  const filteredInspections = useMemo(() => {
-    const af = appliedFilters;
-    return inspections.filter(s => {
-      if (af.groupType.length > 0 && !af.groupType.includes(s.group_type || "")) return false;
-      if (af.occurrence.length > 0) {
-        const isOcc = !!s.is_occurrence_report;
-        if (af.occurrence.includes("OCCURRENCE") && af.occurrence.includes("INSPECTION")) { /* both = no filter */ }
-        else if (af.occurrence.includes("OCCURRENCE") && !isOcc) return false;
-        else if (af.occurrence.includes("INSPECTION") && isOcc) return false;
-      }
-      if (af.sampled.length > 0) {
-        const hasSample = (s.products || []).some(p => p.is_sample_taken);
-        if (af.sampled.includes("SAMPLED") && af.sampled.includes("NOT_SAMPLED")) { /* both = no filter */ }
-        else if (af.sampled.includes("SAMPLED") && !hasSample) return false;
-        else if (af.sampled.includes("NOT_SAMPLED") && hasSample) return false;
-      }
-      if (af.sentStatus.length > 0) {
-        const sent = !!s.sent_date;
-        if (af.sentStatus.includes("SENT") && af.sentStatus.includes("NOT_SENT")) { /* both = no filter */ }
-        else if (af.sentStatus.includes("SENT") && !sent) return false;
-        else if (af.sentStatus.includes("NOT_SENT") && sent) return false;
-      }
-      if (af.compliance.length > 0 && !af.compliance.includes(s.inspection_compliance_status || "")) return false;
-      if (af.approved.length > 0 && !af.approved.includes(s.approved_status || "")) return false;
-      if (af.email.trim()) {
-        const emailSearch = af.email.trim().toLowerCase();
-        const allEmails = (s.email || "").toLowerCase();
-        if (!allEmails.includes(emailSearch)) return false;
-      }
-      if (af.fileStatus.length > 0) {
-        const hasFiles = s.has_rfi || s.has_invoice || s.has_lab || s.has_compliance;
-        if (af.fileStatus.includes("HAS_FILES") && af.fileStatus.includes("NO_FILES")) { /* both = no filter */ }
-        else if (af.fileStatus.includes("HAS_FILES") && !hasFiles) return false;
-        else if (af.fileStatus.includes("NO_FILES") && hasFiles) return false;
-      }
-      if (af.rfi.length > 0) {
-        const has = !!s.has_rfi;
-        if (af.rfi.includes("HAS_RFI") && af.rfi.includes("NO_RFI")) { /* both = no filter */ }
-        else if (af.rfi.includes("HAS_RFI") && !has) return false;
-        else if (af.rfi.includes("NO_RFI") && has) return false;
-      }
-      if (af.invoice.length > 0) {
-        const has = !!s.has_invoice;
-        if (af.invoice.includes("HAS_INVOICE") && af.invoice.includes("NO_INVOICE")) { /* both = no filter */ }
-        else if (af.invoice.includes("HAS_INVOICE") && !has) return false;
-        else if (af.invoice.includes("NO_INVOICE") && has) return false;
-      }
-      if (af.coaFile.length > 0) {
-        const has = !!s.has_lab;
-        if (af.coaFile.includes("HAS_COA") && af.coaFile.includes("NO_COA")) { /* both = no filter */ }
-        else if (af.coaFile.includes("HAS_COA") && !has) return false;
-        else if (af.coaFile.includes("NO_COA") && has) return false;
-      }
-      if (af.complianceFile.length > 0) {
-        const has = !!s.has_compliance;
-        if (af.complianceFile.includes("HAS_COMP") && af.complianceFile.includes("NO_COMP")) { /* both = no filter */ }
-        else if (af.complianceFile.includes("HAS_COMP") && !has) return false;
-        else if (af.complianceFile.includes("NO_COMP") && has) return false;
-      }
-      if (af.otherFile.length > 0) {
-        const hasOther = (s.products || []).some(p => p.other_uploaded);
-        if (af.otherFile.includes("HAS_OTHER") && af.otherFile.includes("NO_OTHER")) { /* both = no filter */ }
-        else if (af.otherFile.includes("HAS_OTHER") && !hasOther) return false;
-        else if (af.otherFile.includes("NO_OTHER") && hasOther) return false;
-      }
-      if (af.retest.length > 0) {
-        const prods = s.products || [];
-        const needsRetest = prods.some(p => p.needs_retest && p.needs_retest !== "NO" && p.needs_retest !== "");
-        if (af.retest.includes("NEEDS_RETEST") && af.retest.includes("NO_RETEST")) { /* both = no filter */ }
-        else if (af.retest.includes("NEEDS_RETEST") && !needsRetest) return false;
-        else if (af.retest.includes("NO_RETEST") && needsRetest) return false;
-      }
-      if (af.coaStatus.length > 0) {
-        const hasCoa = !!s.has_lab;
-        if (af.coaStatus.includes("COA_UPLOADED") && af.coaStatus.includes("NO_COA")) { /* both = no filter */ }
-        else if (af.coaStatus.includes("COA_UPLOADED") && !hasCoa) return false;
-        else if (af.coaStatus.includes("NO_COA") && hasCoa) return false;
-      }
-      if (af.lab.length > 0) {
-        const prods = s.products || [];
-        if (!prods.some(p => p.lab && af.lab.includes(p.lab))) return false;
-      }
-      if (af.testType.length > 0) {
-        const prods = s.products || [];
-        const testMap: Record<string, keyof Product> = { DNA: "dna", FAT: "fat", PROTEIN: "protein", CALCIUM: "calcium" };
-        if (!af.testType.some(t => prods.some(p => p[testMap[t]] as boolean))) return false;
-      }
-      return true;
-    });
-  }, [inspections, appliedFilters]);
+  // Server-side filtering — backend handles all filters, no client-side filtering needed
+  const filteredInspections = inspections;
 
   // Server-side pagination — inspections are already the current page
   const paginatedInspections = filteredInspections;
@@ -782,7 +718,7 @@ export default function InspectionsPage() {
     } else {
       const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
       const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
-      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector, singleCorpGroup);
+      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector, singleCorpGroup, appliedFilters);
     }
   };
 
@@ -1540,7 +1476,14 @@ export default function InspectionsPage() {
                 <div className="ir-filter-top" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
                   <div className="ir-filter-field">
                     <label className="ir-form-label">Client Search</label>
-                    <ClientSearchInput value={clientSearch} onChange={setClientSearch} options={clientOptions} />
+                    <ClientSearchInput value={clientSearch} onChange={setClientSearch} options={clientOptions}
+                      onEnter={() => {
+                        setCurrentPage(1);
+                        const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
+                        const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
+                        fetchInspections(showDuplicates, dateFrom, dateTo, 1, clientSearch, singleInspector, singleCorpGroup);
+                      }}
+                    />
                   </div>
                   <div className="ir-filter-field">
                     <label className="ir-form-label">Email</label>
@@ -1594,18 +1537,19 @@ export default function InspectionsPage() {
                   </button>
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
-                      setAppliedFilters({
+                      const af = {
                         groupType: groupTypeFilter, occurrence: occurrenceFilter, sampled: sampledFilter,
                         sentStatus: sentStatusFilter, compliance: complianceFilter, approved: approvedFilter,
                         fileStatus: fileStatusFilter, rfi: rfiFilter, invoice: invoiceFilter,
                         coaFile: coaFileFilter, complianceFile: complianceFileFilter, otherFile: otherFileFilter,
                         email: emailFilter, retest: retestFilter,
                         coaStatus: coaStatusFilter, lab: labFilter, testType: testTypeFilter,
-                      });
+                      };
+                      setAppliedFilters(af);
                       setCurrentPage(1);
                       const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
                       const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
-                      fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, singleInspector, singleCorpGroup);
+                      fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, singleInspector, singleCorpGroup, af);
                     }}>
                     <i className="fas fa-filter" /> Apply Filters
                   </button>

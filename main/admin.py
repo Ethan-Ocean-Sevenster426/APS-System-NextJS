@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Client, Inspection, FoodSafetyAgencyInspection, Shipment, Settings, SystemLog, InspectorMapping
+from .models import Client, Inspection, FoodSafetyAgencyInspection, Shipment, Settings, SystemLog, InspectorMapping, InspectionDocument, UserOTP
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
@@ -57,6 +57,21 @@ class FoodSafetyAgencyInspectionAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(InspectionDocument)
+class InspectionDocumentAdmin(admin.ModelAdmin):
+    list_display = ['inspection', 'document_type', 'uploaded_by', 'uploaded_date']
+    list_filter = ['document_type', 'uploaded_date']
+    search_fields = ['inspection__client_name']
+    ordering = ['-uploaded_date']
+
+@admin.register(UserOTP)
+class UserOTPAdmin(admin.ModelAdmin):
+    list_display = ['user', 'created_at', 'expires_at', 'is_used', 'attempts']
+    list_filter = ['is_used', 'created_at']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['otp_hash', 'created_at']
+    ordering = ['-created_at']
 
 @admin.register(Inspection)
 class InspectionAdmin(admin.ModelAdmin):

@@ -1114,6 +1114,201 @@ def api_inspections(request):
         if client_search:
             groups_qs = groups_qs.filter(client_name__icontains=client_search)
 
+        # ── Additional server-side filters ──
+        from ..models import InspectionDocument
+
+        # Group type filter
+        filter_group_types = request.GET.getlist('group_type')
+        if filter_group_types:
+            groups_qs = groups_qs.filter(group_type__in=filter_group_types)
+
+        # Occurrence filter (OCCURRENCE / INSPECTION)
+        filter_occurrence = request.GET.getlist('occurrence')
+        if filter_occurrence:
+            if 'OCCURRENCE' in filter_occurrence and 'INSPECTION' not in filter_occurrence:
+                groups_qs = groups_qs.filter(is_occurrence_report=True)
+            elif 'INSPECTION' in filter_occurrence and 'OCCURRENCE' not in filter_occurrence:
+                groups_qs = groups_qs.filter(is_occurrence_report=False)
+
+        # Sampled filter (SAMPLED / NOT_SAMPLED)
+        filter_sampled = request.GET.getlist('sampled')
+        if filter_sampled:
+            _sampled_exists = Exists(insp.filter(is_sample_taken=True))
+            if 'SAMPLED' in filter_sampled and 'NOT_SAMPLED' not in filter_sampled:
+                groups_qs = groups_qs.filter(_sampled_exists)
+            elif 'NOT_SAMPLED' in filter_sampled and 'SAMPLED' not in filter_sampled:
+                groups_qs = groups_qs.exclude(_sampled_exists)
+
+        # Sent status filter (SENT / NOT_SENT)
+        filter_sent = request.GET.getlist('sent_status')
+        if filter_sent:
+            if 'SENT' in filter_sent and 'NOT_SENT' not in filter_sent:
+                groups_qs = groups_qs.filter(first_sent__isnull=False)
+            elif 'NOT_SENT' in filter_sent and 'SENT' not in filter_sent:
+                groups_qs = groups_qs.filter(first_sent__isnull=True)
+
+        # Compliance filter (COMPLIANT / NON_COMPLIANT / PENDING)
+        filter_compliance = request.GET.getlist('compliance')
+        if filter_compliance:
+            _comp_doc_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type__in=['compliance', 'composition']
+                )
+            )
+            _non_compliant_exists = Exists(
+                FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group_id=OuterRef('pk'),
+                    is_product_compliant=False,
+                    documents__document_type__in=['compliance', 'composition']
+                )
+            )
+            _compliant_exists = Exists(
+                FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group_id=OuterRef('pk'),
+                    is_product_compliant=True,
+                    documents__document_type__in=['compliance', 'composition']
+                )
+            )
+            _comp_q = Q()
+            if 'NON_COMPLIANT' in filter_compliance:
+                _comp_q |= Q(_has_comp_doc=True, _has_non_compliant=True)
+            if 'COMPLIANT' in filter_compliance:
+                _comp_q |= Q(_has_comp_doc=True, _has_compliant=True, _has_non_compliant=False)
+            if 'PENDING' in filter_compliance:
+                _comp_q |= Q(_has_comp_doc=False)
+            groups_qs = groups_qs.annotate(
+                _has_comp_doc=_comp_doc_exists,
+                _has_non_compliant=_non_compliant_exists,
+                _has_compliant=_compliant_exists,
+            ).filter(_comp_q)
+
+        # Approved filter (PENDING / APPROVED / REJECTED etc.)
+        filter_approved = request.GET.getlist('approved')
+        if filter_approved:
+            groups_qs = groups_qs.filter(first_approved__in=filter_approved)
+
+        # Email search
+        filter_email = request.GET.get('email', '').strip()
+        if filter_email:
+            groups_qs = groups_qs.filter(
+                Q(client__email__icontains=filter_email) |
+                Q(additional_email__icontains=filter_email)
+            )
+
+        # RFI file filter (HAS_RFI / NO_RFI)
+        filter_has_rfi = request.GET.getlist('has_rfi')
+        if filter_has_rfi:
+            _rfi_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type='rfi'
+                )
+            )
+            if 'HAS_RFI' in filter_has_rfi and 'NO_RFI' not in filter_has_rfi:
+                groups_qs = groups_qs.filter(_rfi_exists)
+            elif 'NO_RFI' in filter_has_rfi and 'HAS_RFI' not in filter_has_rfi:
+                groups_qs = groups_qs.exclude(_rfi_exists)
+
+        # Invoice file filter (HAS_INVOICE / NO_INVOICE)
+        filter_has_invoice = request.GET.getlist('has_invoice')
+        if filter_has_invoice:
+            _invoice_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type='invoice'
+                )
+            )
+            if 'HAS_INVOICE' in filter_has_invoice and 'NO_INVOICE' not in filter_has_invoice:
+                groups_qs = groups_qs.filter(_invoice_exists)
+            elif 'NO_INVOICE' in filter_has_invoice and 'HAS_INVOICE' not in filter_has_invoice:
+                groups_qs = groups_qs.exclude(_invoice_exists)
+
+        # COA file filter (HAS_COA / NO_COA)
+        filter_has_coa = request.GET.getlist('has_coa')
+        if filter_has_coa:
+            _coa_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type__in=['coa', 'lab_form']
+                )
+            )
+            if 'HAS_COA' in filter_has_coa and 'NO_COA' not in filter_has_coa:
+                groups_qs = groups_qs.filter(_coa_exists)
+            elif 'NO_COA' in filter_has_coa and 'HAS_COA' not in filter_has_coa:
+                groups_qs = groups_qs.exclude(_coa_exists)
+
+        # Compliance file filter (HAS_COMP / NO_COMP)
+        filter_has_compliance = request.GET.getlist('has_compliance')
+        if filter_has_compliance:
+            _compliance_file_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type__in=['compliance', 'composition']
+                )
+            )
+            if 'HAS_COMP' in filter_has_compliance and 'NO_COMP' not in filter_has_compliance:
+                groups_qs = groups_qs.filter(_compliance_file_exists)
+            elif 'NO_COMP' in filter_has_compliance and 'HAS_COMP' not in filter_has_compliance:
+                groups_qs = groups_qs.exclude(_compliance_file_exists)
+
+        # Other file filter (HAS_OTHER / NO_OTHER)
+        filter_has_other = request.GET.getlist('has_other')
+        if filter_has_other:
+            _other_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type='other'
+                )
+            )
+            if 'HAS_OTHER' in filter_has_other and 'NO_OTHER' not in filter_has_other:
+                groups_qs = groups_qs.filter(_other_exists)
+            elif 'NO_OTHER' in filter_has_other and 'HAS_OTHER' not in filter_has_other:
+                groups_qs = groups_qs.exclude(_other_exists)
+
+        # Needs retest filter (NEEDS_RETEST / NO_RETEST)
+        filter_retest = request.GET.getlist('needs_retest')
+        if filter_retest:
+            _retest_exists = Exists(
+                insp.exclude(needs_retest__isnull=True).exclude(needs_retest='').exclude(needs_retest='NO')
+            )
+            if 'NEEDS_RETEST' in filter_retest and 'NO_RETEST' not in filter_retest:
+                groups_qs = groups_qs.filter(_retest_exists)
+            elif 'NO_RETEST' in filter_retest and 'NEEDS_RETEST' not in filter_retest:
+                groups_qs = groups_qs.exclude(_retest_exists)
+
+        # COA uploaded status filter (COA_UPLOADED / NO_COA)
+        filter_coa_uploaded = request.GET.getlist('coa_uploaded')
+        if filter_coa_uploaded:
+            _coa_up_exists = Exists(
+                InspectionDocument.objects.filter(
+                    inspection__inspection_group_id=OuterRef('pk'),
+                    document_type__in=['coa', 'lab_form']
+                )
+            )
+            if 'COA_UPLOADED' in filter_coa_uploaded and 'NO_COA' not in filter_coa_uploaded:
+                groups_qs = groups_qs.filter(_coa_up_exists)
+            elif 'NO_COA' in filter_coa_uploaded and 'COA_UPLOADED' not in filter_coa_uploaded:
+                groups_qs = groups_qs.exclude(_coa_up_exists)
+
+        # Lab filter
+        filter_lab = request.GET.getlist('lab')
+        if filter_lab:
+            groups_qs = groups_qs.filter(
+                Exists(insp.filter(lab__in=filter_lab))
+            )
+
+        # Test type filter (DNA, FAT, PROTEIN, CALCIUM)
+        filter_test_type = request.GET.getlist('test_type')
+        if filter_test_type:
+            _test_q = Q()
+            if 'DNA' in filter_test_type: _test_q |= Q(dna=True)
+            if 'FAT' in filter_test_type: _test_q |= Q(fat=True)
+            if 'PROTEIN' in filter_test_type: _test_q |= Q(protein=True)
+            if 'CALCIUM' in filter_test_type: _test_q |= Q(calcium=True)
+            if _test_q:
+                groups_qs = groups_qs.filter(Exists(insp.filter(_test_q)))
+
         # Count duplicate groups for the badge
         duplicate_groups_count = groups_qs.filter(_dup_q).count() if _dup_q else 0
 
@@ -1284,7 +1479,7 @@ def api_inspections(request):
             has_rfi = any(_has_file(pid, 'rfi') for pid in _all_ids_for_group)
             has_invoice = any(_has_file(pid, 'invoice') for pid in _all_ids_for_group)
             has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group)
-            has_compliance = any(_has_file(pid, 'compliance') for pid in _all_ids_for_group)
+            has_compliance = any(_has_file(pid, 'compliance') or _has_file(pid, 'composition') for pid in _all_ids_for_group)
             has_lab_form = any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group)
             # Compliance: matches frontend badge logic
             # Product is "assessed" if it has compliance or composition file uploaded
@@ -2028,11 +2223,72 @@ def api_dropdown_option_delete(request):
 def api_users(request):
     """API endpoint for user management from Next.js frontend. No login required."""
     from django.contrib.auth import get_user_model
-    from django.contrib.auth.hashers import make_password
-    from ..models import InspectorMapping, InspectorSalary, InspectorManagerAllocation
+    from django.contrib.auth.hashers import make_password, check_password as _check_pw
+    from ..models import InspectorMapping, InspectorSalary, InspectorManagerAllocation, UserOTP
     import json
+    import secrets as _secrets
+    from django.utils import timezone as _tz
+    from datetime import timedelta as _td
 
     User = get_user_model()
+
+    # ── OTP helpers ──
+    def _generate_otp():
+        return f"{_secrets.randbelow(1000000):06d}"
+
+    def _create_and_send_otp(user):
+        """Create a new OTP for the user and send it via email."""
+        from django.core.mail import send_mail
+        from django.conf import settings as _settings
+
+        # Invalidate all previous unused OTPs
+        UserOTP.objects.filter(user=user, is_used=False).update(is_used=True)
+
+        plaintext_otp = _generate_otp()
+        UserOTP.objects.create(
+            user=user,
+            otp_hash=make_password(plaintext_otp),
+            expires_at=_tz.now() + _td(hours=48),
+        )
+
+        site_url = getattr(_settings, 'SITE_URL', 'http://localhost:3000')
+        setup_url = f"{site_url}/setup-account"
+
+        html_msg = (
+            f'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#333">'
+            f'<p>Good day {user.first_name or user.username},</p>'
+            f'<p>An account has been created for you on the <strong>Food Safety Agency APS System</strong>.</p>'
+            f'<p>To set up your account, use the one-time setup code below:</p>'
+            f'<p style="text-align:center;font-size:14px;color:#666;margin-bottom:4px">Your one-time setup code is:</p>'
+            f'<p style="text-align:center;font-size:32px;font-weight:700;letter-spacing:8px;color:#007890;margin:8px 0 24px 0">{plaintext_otp}</p>'
+            f'<p style="text-align:center;margin:0 0 24px 0">'
+            f'<a href="{setup_url}" style="display:inline-block;padding:12px 32px;background:#007890;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px">Set Up Your Account</a>'
+            f'</p>'
+            f'<p><strong>Important:</strong></p>'
+            f'<ul>'
+            f'<li>This code expires in 48 hours.</li>'
+            f'<li>You will need to enter your email address and this code on the setup page.</li>'
+            f'<li>If you did not expect this email, please ignore it or contact your administrator.</li>'
+            f'</ul>'
+            f'<p>Kind regards,<br>Food Safety Agency</p>'
+            f'</div>'
+        )
+
+        send_mail(
+            subject='Food Safety Agency - Set Up Your Account',
+            message=(
+                f'Good day {user.first_name or user.username},\n\n'
+                f'Your account has been created on the Food Safety Agency system.\n\n'
+                f'Your one-time setup code is: {plaintext_otp}\n\n'
+                f'Please visit {setup_url} to set up your password.\n'
+                f'This code expires in 48 hours.\n\n'
+                f'Kind regards,\nFood Safety Agency'
+            ),
+            from_email=getattr(_settings, 'DEFAULT_FROM_EMAIL', ''),
+            recipient_list=[user.email],
+            html_message=html_msg,
+            fail_silently=False,
+        )
 
     def _cors(response):
         response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -2107,19 +2363,14 @@ def api_users(request):
             if action == 'add_user':
                 username = data.get('username', '').strip()
                 email = data.get('email', '').strip()
-                password = data.get('password', '')
-                password2 = data.get('password2', '')
                 first_name = data.get('first_name', '').strip()
                 last_name = data.get('last_name', '').strip()
                 role = data.get('role', 'inspector')
                 monthly_salary = data.get('monthly_salary')
 
-                # Validation
-                if not username or not email or not password or not first_name or not last_name:
-                    return _cors(JsonResponse({'success': False, 'error': 'All fields are required (username, email, password, first_name, last_name).'}))
-
-                if password != password2:
-                    return _cors(JsonResponse({'success': False, 'error': 'Passwords do not match.'}))
+                # Validation (no password required — OTP will be emailed)
+                if not username or not email or not first_name or not last_name:
+                    return _cors(JsonResponse({'success': False, 'error': 'All fields are required (username, email, first_name, last_name).'}))
 
                 if User.objects.filter(username=username).exists():
                     return _cors(JsonResponse({'success': False, 'error': f'Username "{username}" is already taken.'}))
@@ -2130,10 +2381,10 @@ def api_users(request):
                 user = User.objects.create(
                     username=username,
                     email=email,
-                    password=make_password(password),
                     first_name=first_name,
                     last_name=last_name,
                 )
+                user.set_unusable_password()
                 user.role = role
                 user.save()
 
@@ -2149,7 +2400,21 @@ def api_users(request):
                     except (ValueError, TypeError):
                         pass
 
-                return _cors(JsonResponse({'success': True, 'message': f'User "{username}" created successfully.', 'user_id': user.id}))
+                # Generate OTP and send setup email
+                try:
+                    _create_and_send_otp(user)
+                    return _cors(JsonResponse({
+                        'success': True,
+                        'message': f'User "{username}" created. Setup email with OTP sent to {email}.',
+                        'user_id': user.id,
+                    }))
+                except Exception as e:
+                    return _cors(JsonResponse({
+                        'success': True,
+                        'message': f'User "{username}" created, but failed to send setup email: {e}. You can resend the OTP later.',
+                        'user_id': user.id,
+                        'email_error': str(e),
+                    }))
 
             # ── edit_user ──
             elif action == 'edit_user':
@@ -2240,6 +2505,37 @@ def api_users(request):
                 user.save()
 
                 return _cors(JsonResponse({'success': True, 'message': f'Password for "{user.username}" has been reset.'}))
+
+            # ── reset_otp ──
+            elif action == 'reset_otp':
+                user_id = data.get('user_id')
+                if not user_id:
+                    return _cors(JsonResponse({'success': False, 'error': 'Missing user_id.'}))
+
+                try:
+                    user = User.objects.get(id=user_id)
+                except User.DoesNotExist:
+                    return _cors(JsonResponse({'success': False, 'error': f'User with id {user_id} not found.'}))
+
+                if not user.email:
+                    return _cors(JsonResponse({'success': False, 'error': f'User "{user.username}" has no email address.'}))
+
+                # Invalidate current password
+                user.set_unusable_password()
+                user.save()
+
+                # Generate new OTP and send email
+                try:
+                    _create_and_send_otp(user)
+                    return _cors(JsonResponse({
+                        'success': True,
+                        'message': f'OTP reset for "{user.username}". Setup email sent to {user.email}.'
+                    }))
+                except Exception as e:
+                    return _cors(JsonResponse({
+                        'success': False,
+                        'error': f'Password invalidated but failed to send OTP email: {e}'
+                    }))
 
             # ── delete_user (soft delete: deactivates account, preserves all data) ──
             elif action == 'delete_user':
@@ -2467,6 +2763,8 @@ def api_lab_analytics(request):
     try:
         base = _I.objects.filter(is_sample_taken=True)
 
+        # Maps both coded keys (lab_a) and plain-text DB values (FSL, SANBI)
+        # to canonical display names. DB has both formats from legacy data.
         _LAB_DISPLAY = {
             'lab_a': 'Food Safety Laboratory',
             'lab_b': 'Merieux NutriSciences',
@@ -2474,7 +2772,18 @@ def api_lab_analytics(request):
             'lab_d': 'SANBI',
             'lab_e': 'SMT',
             'lab_f': 'ARC',
+            # Plain-text variants stored by older inspections
+            'FSL':     'Food Safety Laboratory',
+            'Merieux': 'Merieux NutriSciences',
+            'SGS':     'AGRI Food Laboratory (SGS)',
+            'SANBI':   'SANBI',
+            'SMT':     'SMT',
+            'ARC':     'ARC',
         }
+        # Reverse: display name → all raw keys that map to it
+        _LAB_REVERSE_KEYS: dict[str, list[str]] = {}
+        for _k, _v in _LAB_DISPLAY.items():
+            _LAB_REVERSE_KEYS.setdefault(_v, []).append(_k)
 
         # Apply date filters from query params
         _date_from = request.GET.get('date_from')
@@ -2486,10 +2795,9 @@ def api_lab_analytics(request):
         if _date_to:
             base = base.filter(date_of_inspection__lte=_date_to)
         if _lab_filter:
-            # Support both raw key (lab_a) and display name (Food Safety Laboratory)
-            _LAB_REVERSE = {v: k for k, v in _LAB_DISPLAY.items()}
-            _lab_key = _LAB_REVERSE.get(_lab_filter, _lab_filter)
-            base = base.filter(lab=_lab_key)
+            # Filter by ALL raw keys that map to this display name
+            _lab_keys = _LAB_REVERSE_KEYS.get(_lab_filter, [_lab_filter])
+            base = base.filter(lab__in=_lab_keys)
         if _commodity_filter:
             base = base.filter(commodity=_commodity_filter)
 
@@ -2509,21 +2817,23 @@ def api_lab_analytics(request):
         dna_count       = base.filter(dna=True).count()
         total_tests     = fat_count + protein_count + calcium_count + dna_count
 
-        # By lab (filtered for current view)
-        labs = [
-            {'lab': _LAB_DISPLAY.get(row['lab'], row['lab']), 'n': row['n']}
-            for row in base.exclude(lab='').exclude(lab__isnull=True)
-                .values('lab').annotate(n=Count('id')).order_by('-n')[:10]
-        ]
+        # By lab (filtered) — merge counts by display name
+        _lab_merged: dict[str, int] = {}
+        for row in base.exclude(lab='').exclude(lab__isnull=True).values('lab').annotate(n=Count('id')):
+            display = _LAB_DISPLAY.get(row['lab'], row['lab'])
+            _lab_merged[display] = _lab_merged.get(display, 0) + row['n']
+        labs = sorted([{'lab': k, 'n': v} for k, v in _lab_merged.items()], key=lambda x: -x['n'])[:10]
 
-        # By lab (ALL labs, unfiltered — always show full picture, include 0-count labs)
+        # By lab (ALL labs, unfiltered) — merge counts by display name
         _all_samples = _I.objects.filter(is_sample_taken=True)
-        _lab_counts = {row['lab']: row['n'] for row in _all_samples.exclude(lab='').exclude(lab__isnull=True).values('lab').annotate(n=Count('id'))}
-        all_labs_stats = [
-            {'lab': _LAB_DISPLAY.get(key, key), 'n': _lab_counts.get(key, 0)}
-            for key in _LAB_DISPLAY.keys()
-        ]
-        all_labs_stats.sort(key=lambda x: -x['n'])
+        _all_lab_merged: dict[str, int] = {}
+        for row in _all_samples.exclude(lab='').exclude(lab__isnull=True).values('lab').annotate(n=Count('id')):
+            display = _LAB_DISPLAY.get(row['lab'], row['lab'])
+            _all_lab_merged[display] = _all_lab_merged.get(display, 0) + row['n']
+        # Include all known labs even with 0 count
+        for _disp_name in set(_LAB_DISPLAY.values()):
+            _all_lab_merged.setdefault(_disp_name, 0)
+        all_labs_stats = sorted([{'lab': k, 'n': v} for k, v in _all_lab_merged.items()], key=lambda x: -x['n'])
 
         # By commodity (filtered)
         commodities = list(
@@ -2678,6 +2988,23 @@ def api_login(request):
             request.session['last_activity'] = timezone.now().isoformat()
             request.session['authenticated'] = True
             request.session.modified = True
+
+            # Log the login
+            try:
+                from ..models import SystemLog
+                x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+                SystemLog.log_activity(
+                    user=user,
+                    action='LOGIN',
+                    page='/login',
+                    description=f'{user.get_full_name() or user.username} logged in',
+                    ip_address=ip,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')
+                )
+            except Exception:
+                pass
+
             return _cors(JsonResponse({'success': True, 'username': user.username}))
         else:
             return _cors(JsonResponse({'success': False, 'error': 'Invalid username or password.'}, status=401))
@@ -2835,6 +3162,87 @@ def api_delete_file(request):
 
 
 @_csrf_exempt
+def api_verify_otp(request):
+    """Public endpoint for OTP verification and password setup. No auth required."""
+    import json
+    from django.contrib.auth import get_user_model
+    from django.contrib.auth.hashers import check_password as _check_pw
+    from ..models import UserOTP
+
+    User = get_user_model()
+
+    if request.method == 'OPTIONS':
+        r = JsonResponse({})
+        r['Access-Control-Allow-Origin'] = '*'
+        r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        r['Access-Control-Allow-Headers'] = 'Content-Type'
+        return r
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    email = data.get('email', '').strip().lower()
+    otp_code = data.get('otp_code', '').strip()
+    new_password = data.get('new_password', '')
+    confirm_password = data.get('confirm_password', '')
+
+    if not email or not otp_code:
+        return JsonResponse({'success': False, 'error': 'Email and OTP code are required.'})
+
+    if not new_password or not confirm_password:
+        return JsonResponse({'success': False, 'error': 'New password and confirmation are required.'})
+
+    if new_password != confirm_password:
+        return JsonResponse({'success': False, 'error': 'Passwords do not match.'})
+
+    if len(new_password) < 8:
+        return JsonResponse({'success': False, 'error': 'Password must be at least 8 characters long.'})
+
+    # Find user
+    try:
+        user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'No account found with that email address.'})
+
+    # Find latest valid OTP
+    otp_record = UserOTP.objects.filter(
+        user=user,
+        is_used=False,
+    ).order_by('-created_at').first()
+
+    if not otp_record:
+        return JsonResponse({'success': False, 'error': 'No active OTP found. Please request a new one from your administrator.'})
+
+    if otp_record.is_expired:
+        return JsonResponse({'success': False, 'error': 'This OTP has expired. Please request a new one from your administrator.'})
+
+    if otp_record.is_locked:
+        return JsonResponse({'success': False, 'error': 'Too many failed attempts. Please request a new OTP from your administrator.'})
+
+    # Verify OTP
+    if not _check_pw(otp_code, otp_record.otp_hash):
+        otp_record.attempts += 1
+        otp_record.save(update_fields=['attempts'])
+        remaining = otp_record.MAX_ATTEMPTS - otp_record.attempts
+        return JsonResponse({'success': False, 'error': f'Invalid OTP code. {remaining} attempt(s) remaining.'})
+
+    # OTP valid — set the user's password
+    user.set_password(new_password)
+    user.save()
+
+    # Mark OTP as used
+    otp_record.is_used = True
+    otp_record.save(update_fields=['is_used'])
+
+    return JsonResponse({'success': True, 'message': 'Your password has been set successfully. You can now log in.'})
+
+
+@_csrf_exempt
 def api_upload_document(request):
     """API upload endpoint for the Next.js frontend (no login_required, no CSRF).
     Proxies to the same logic as upload_document in core_views.py."""
@@ -2878,7 +3286,7 @@ def api_upload_document(request):
 
 @_csrf_exempt
 def api_inspection_form_data(request):
-    """API endpoint returning dropdown options for the Add Inspection form."""
+    """API endpoint returning dropdown options for the Add/Edit Inspection form."""
     from ..models import FoodSafetyAgencyInspection as _Insp, Client as _Client
 
     def _cors(response):
@@ -3182,6 +3590,52 @@ def api_add_inspection(request):
 
 
 # ---------------------------------------------------------------------------
+#  API: Log Activity (called by Next.js frontend)
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_log_activity(request):
+    """Log a user activity from the Next.js frontend."""
+    from ..models import SystemLog
+
+    def _cors(r):
+        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        r['Access-Control-Allow-Headers'] = 'Content-Type'
+        return r
+
+    if request.method == 'OPTIONS':
+        return _cors(JsonResponse({'ok': True}))
+
+    if request.method != 'POST':
+        return _cors(JsonResponse({'success': False}, status=405))
+
+    if not request.user or not request.user.is_authenticated:
+        return _cors(JsonResponse({'success': False, 'error': 'Not authenticated'}, status=401))
+
+    try:
+        import json as _json
+        body = _json.loads(request.body)
+        action = body.get('action', 'VIEW')
+        page = body.get('page', '')
+        description = body.get('description', '')
+
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+        SystemLog.log_activity(
+            user=request.user,
+            action=action,
+            page=page,
+            description=description,
+            ip_address=ip_address,
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+        return _cors(JsonResponse({'success': True}))
+    except Exception as e:
+        return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
+
+
+# ---------------------------------------------------------------------------
 #  API: System Logs
 # ---------------------------------------------------------------------------
 @_csrf_exempt
@@ -3217,6 +3671,7 @@ def api_system_logs(request):
         )
         user_filter = request.GET.get('user', '')
         action_filter = request.GET.get('action', '')
+        doc_type_filter = request.GET.get('doc_type', '')
         page_filter = request.GET.get('page_filter', '')
         date_from = request.GET.get('date_from', '')
         date_to = request.GET.get('date_to', '')
@@ -3230,6 +3685,8 @@ def api_system_logs(request):
             logs = logs.filter(user__username__icontains=user_filter)
         if action_filter:
             logs = logs.filter(action=action_filter)
+        if doc_type_filter:
+            logs = logs.filter(action='FILE_UPLOAD', description__icontains=doc_type_filter)
         if page_filter:
             logs = logs.filter(page__icontains=page_filter)
         if date_from:
@@ -3264,6 +3721,7 @@ def api_system_logs(request):
             'action': l.action or '',
             'page': l.page or '',
             'description': l.description or '',
+            'details': l.details if l.details else {},
             'ip_address': l.ip_address or '',
             'location': geo_map.get(l.ip_address or '', {}).get('display', ''),
             'suburb': geo_map.get(l.ip_address or '', {}).get('suburb', ''),
@@ -4404,7 +4862,7 @@ def api_get_inspection_group(request, pk):
 @_csrf_exempt
 def api_edit_inspection_group(request):
     """JSON POST endpoint to update an inspection group from the Next.js edit page."""
-    from ..models import FoodSafetyAgencyInspection as _Insp, InspectionGroup as _Group
+    from ..models import FoodSafetyAgencyInspection as _Insp, InspectionGroup as _Group, Client as _Client
     from collections import defaultdict
     import json as _json
     from django.db import transaction
@@ -4466,6 +4924,24 @@ def api_edit_inspection_group(request):
         products_data = data.get('products', [])
 
         with transaction.atomic():
+            # If client name changed, get or create a Client record and re-link
+            old_client_name = (group.client_name if group else insp.client_name) or ''
+            if client_name and client_name.lower() != old_client_name.lower():
+                new_client = _Client.objects.filter(name__iexact=client_name).first()
+                if not new_client:
+                    new_client = _Client.objects.create(
+                        name=client_name,
+                        town=town,
+                        corporate_group=corporate_group,
+                        group_type=group_type,
+                        facility_type=facility_type,
+                    )
+                if group:
+                    group.client = new_client
+                # Invalidate form-data cache so the new client appears in dropdowns
+                from django.core.cache import cache as _cache
+                _cache.delete('add_inspection_form_data')
+
             # Update parent InspectionGroup
             if group:
                 group.client_name = client_name
@@ -4494,6 +4970,10 @@ def api_edit_inspection_group(request):
                     except Exception:
                         pass
                 group.save()
+
+                # If client changed, update client FK on all child inspections
+                if client_name.lower() != old_client_name.lower():
+                    _Insp.objects.filter(inspection_group=group).update(client=group.client)
 
                 # Update client email if provided
                 if group.client and additional_email:

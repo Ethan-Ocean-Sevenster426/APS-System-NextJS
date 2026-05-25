@@ -1,17 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
+
+const PAGE_NAMES: Record<string, string> = {
+  "/": "Home",
+  "/inspections": "Inspection Records",
+  "/clients": "Client Allocation",
+  "/analytics": "Inspector Analytics",
+  "/lab-analytics": "Lab Analytics",
+  "/export-sheet": "Export Sheet",
+  "/debtors": "Debtors",
+  "/user-management": "User Management",
+  "/system-logs": "System Logs",
+  "/server-view": "Server View",
+  "/training": "Training",
+  "/settings": "Settings",
+};
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const pathname = usePathname();
+  const prevPath = useRef("");
 
   // Sync collapsed state from localStorage after hydration to avoid SSR mismatch
   useEffect(() => {
     const stored = localStorage.getItem("sidebarCollapsed");
     if (stored === "true") setSidebarCollapsed(true);
   }, []);
+
+  // Log page views
+  useEffect(() => {
+    if (!pathname || pathname === prevPath.current) return;
+    prevPath.current = pathname;
+    const pageName = PAGE_NAMES[pathname] || pathname;
+    fetch("/api/log-activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "VIEW",
+        page: pathname,
+        description: `Viewed ${pageName}`,
+      }),
+    }).catch(() => {});
+  }, [pathname]);
 
   const toggleCollapse = () => {
     setSidebarCollapsed(prev => {

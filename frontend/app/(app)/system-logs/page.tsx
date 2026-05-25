@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
+interface LogEntryDetails {
+  filename?: string;
+  file_size?: number;
+  file_size_display?: string;
+  document_type?: string;
+  upload_type?: string;
+  file_path?: string;
+  client_name?: string;
+  inspection_id?: string;
+  inspection_sequence?: string;
+  inspector_name?: string;
+  date_of_inspection?: string;
+  commodity?: string;
+  group_id?: string;
+  inspections_affected?: number;
+  compliance_status?: string;
+}
+
 interface LogEntry {
   id: number;
   timestamp: string;
@@ -12,20 +30,12 @@ interface LogEntry {
   action: string;
   page: string;
   description: string;
+  details: LogEntryDetails;
   ip_address: string;
   location: string;
   suburb: string;
   city: string;
   country_code: string;
-}
-
-interface DuplicateGroup {
-  client_name: string;
-  inspector: string;
-  date: string;
-  count: number;
-  first_id: number;
-  last_id: number;
 }
 
 interface EditHistoryEntry {
@@ -45,8 +55,6 @@ interface SystemLogsResponse {
   total_pages: number;
   page_num: number;
   logs: LogEntry[];
-  duplicates: DuplicateGroup[];
-  duplicate_count: number;
   edit_history: EditHistoryEntry[];
   edit_history_total: number;
   all_users: string[];
@@ -63,15 +71,55 @@ const TEXT = "#111827";
 const TEXT_LIGHT = "#6b7280";
 
 const ACTION_COLORS: Record<string, { bg: string; color: string }> = {
-  VIEW:   { bg: "#dbeafe", color: "#1d4ed8" },
-  LOGIN:  { bg: "#dcfce7", color: "#15803d" },
-  LOGOUT: { bg: "#fef3c7", color: "#b45309" },
-  CREATE: { bg: "#d1fae5", color: "#047857" },
-  UPDATE: { bg: "#cffafe", color: "#0e7490" },
-  DELETE: { bg: "#fee2e2", color: "#dc2626" },
+  VIEW:            { bg: "#dbeafe", color: "#1d4ed8" },
+  LOGIN:           { bg: "#dcfce7", color: "#15803d" },
+  LOGOUT:          { bg: "#fef3c7", color: "#b45309" },
+  CREATE:          { bg: "#d1fae5", color: "#047857" },
+  UPDATE:          { bg: "#cffafe", color: "#0e7490" },
+  DELETE:          { bg: "#fee2e2", color: "#dc2626" },
+  FILE_UPLOAD:     { bg: "#e0e7ff", color: "#4338ca" },
+  EXPORT:          { bg: "#f3e8ff", color: "#7c3aed" },
+  SETTINGS:        { bg: "#fff7ed", color: "#c2410c" },
+  USER_MANAGEMENT: { bg: "#fdf4ff", color: "#a21caf" },
+  PASSWORD_RESET:  { bg: "#fef2f2", color: "#b91c1c" },
 };
 
-const ALL_ACTIONS = ["VIEW", "LOGIN", "LOGOUT", "CREATE", "UPDATE", "DELETE"];
+const ALL_ACTIONS = [
+  "LOGIN", "LOGOUT", "FILE_UPLOAD", "UPDATE", "CREATE", "DELETE",
+  "EXPORT", "SETTINGS", "USER_MANAGEMENT", "PASSWORD_RESET", "VIEW",
+];
+
+const ACTION_LABELS: Record<string, string> = {
+  VIEW: "View Page",
+  LOGIN: "Login",
+  LOGOUT: "Logout",
+  CREATE: "Create Record",
+  UPDATE: "Update / Sent Status",
+  DELETE: "Delete Record",
+  FILE_UPLOAD: "File Upload",
+  EXPORT: "Data Export",
+  SETTINGS: "Settings Change",
+  USER_MANAGEMENT: "User Management",
+  PASSWORD_RESET: "Password Reset",
+};
+
+const ALL_DOC_TYPES = [
+  "COMPLIANCE", "COMPOSITION", "RFI", "INVOICE", "COA", "LAB",
+  "LAB_FORM", "RETEST", "OCCURRENCE", "OTHER",
+];
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  COMPLIANCE: "Compliance",
+  COMPOSITION: "Composition",
+  RFI: "RFI",
+  INVOICE: "Invoice",
+  COA: "COA / Lab Results",
+  LAB: "Lab",
+  LAB_FORM: "Lab Form",
+  RETEST: "Retest",
+  OCCURRENCE: "Occurrence",
+  OTHER: "Other",
+};
 
 const PAGE_LABELS: Record<string, string> = {
   "/home/": "Home",
@@ -135,13 +183,11 @@ function formatDatetime(iso: string): string {
 /* ------------------------------------------------------------------ */
 export default function SystemLogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [editHistory, setEditHistory] = useState<EditHistoryEntry[]>([]);
   const [allUsers, setAllUsers] = useState<string[]>([]);
   const [allPages, setAllPages] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [duplicateCount, setDuplicateCount] = useState(0);
   const [editHistoryTotal, setEditHistoryTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,33 +195,43 @@ export default function SystemLogsPage() {
   // Filters
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [docTypeFilter, setDocTypeFilter] = useState("");
   const [pageFilter, setPageFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [pageNum, setPageNum] = useState(1);
 
-  // View: 'logs' | 'dupes' | 'history'
-  const [activeView, setActiveView] = useState<"logs" | "dupes" | "history">("logs");
+  // View: 'logs' | 'history'
+  const [activeView, setActiveView] = useState<"logs" | "history">("logs");
+
+  // Expandable rows for FILE_UPLOAD details
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const toggleRow = (id: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Keep refs for stable fetch
-  const filtersRef = useRef({ userFilter, actionFilter, pageFilter, dateFrom, dateTo });
-  filtersRef.current = { userFilter, actionFilter, pageFilter, dateFrom, dateTo };
+  const filtersRef = useRef({ userFilter, actionFilter, docTypeFilter, pageFilter, dateFrom, dateTo });
+  filtersRef.current = { userFilter, actionFilter, docTypeFilter, pageFilter, dateFrom, dateTo };
 
   const applyData = (data: SystemLogsResponse) => {
     setLogs(data.logs ?? []);
-    setDuplicates(data.duplicates ?? []);
     setEditHistory(data.edit_history ?? []);
     setAllUsers(data.all_users ?? []);
     setAllPages(data.all_pages ?? []);
     setTotal(data.total ?? 0);
     setTotalPages(data.total_pages ?? 1);
-    setDuplicateCount(data.duplicate_count ?? 0);
     setEditHistoryTotal(data.edit_history_total ?? 0);
   };
 
   const doFetch = useCallback(async (opts: {
-    userFilter?: string; actionFilter?: string; pageFilter?: string;
+    userFilter?: string; actionFilter?: string; docTypeFilter?: string; pageFilter?: string;
     dateFrom?: string; dateTo?: string; showAll?: boolean; pageNum?: number;
   } = {}) => {
     setLoading(true);
@@ -185,6 +241,7 @@ export default function SystemLogsPage() {
       const params = new URLSearchParams();
       const u = opts.userFilter ?? f.userFilter;
       const a = opts.actionFilter ?? f.actionFilter;
+      const dct = opts.docTypeFilter ?? f.docTypeFilter;
       const pf = opts.pageFilter ?? f.pageFilter;
       const df = opts.dateFrom ?? f.dateFrom;
       const dt = opts.dateTo ?? f.dateTo;
@@ -192,6 +249,7 @@ export default function SystemLogsPage() {
       const pn = opts.pageNum ?? pageNum;
       if (u) params.set("user", u);
       if (a) params.set("action", a);
+      if (dct) params.set("doc_type", dct);
       if (pf) params.set("page_filter", pf);
       if (df) params.set("date_from", df);
       if (dt) params.set("date_to", dt);
@@ -217,9 +275,9 @@ export default function SystemLogsPage() {
   };
 
   const handleClear = () => {
-    setUserFilter(""); setActionFilter(""); setPageFilter("");
+    setUserFilter(""); setActionFilter(""); setDocTypeFilter(""); setPageFilter("");
     setDateFrom(""); setDateTo(""); setShowAll(false); setPageNum(1);
-    doFetch({ userFilter: "", actionFilter: "", pageFilter: "", dateFrom: "", dateTo: "", showAll: false, pageNum: 1 });
+    doFetch({ userFilter: "", actionFilter: "", docTypeFilter: "", pageFilter: "", dateFrom: "", dateTo: "", showAll: false, pageNum: 1 });
   };
 
   const handleToggleShowAll = () => {
@@ -234,7 +292,7 @@ export default function SystemLogsPage() {
     doFetch({ pageNum: n });
   };
 
-  const switchView = (view: "dupes" | "history") => {
+  const switchView = (view: "history") => {
     setActiveView(prev => prev === view ? "logs" : view);
   };
 
@@ -269,7 +327,7 @@ export default function SystemLogsPage() {
 .sl-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 1.25rem 1.5rem; box-sizing: border-box; }
 
 /* Filter grid */
-.sl-filter-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+.sl-filter-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 10px; }
 .sl-filter-label { display: block; font-size: 10px; font-weight: 600; color: #374151; margin-bottom: 3px; }
 .sl-filter-select { width: 100%; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 12px; background: white; color: #111827; outline: none; box-sizing: border-box; }
 
@@ -317,6 +375,9 @@ export default function SystemLogsPage() {
 .sl-page-btn:disabled { color: #9ca3af; cursor: default; }
 .sl-page-btn:not(:disabled) { color: #374151; }
 .sl-page-btn:not(:disabled):hover { background: #f9fafb; }
+
+/* Expandable upload detail rows */
+.sl-table tbody tr[style*="pointer"]:hover { background-color: #f0f9ff !important; }
 
 /* Table responsive */
 .sl-table-responsive { overflow-x: auto; width: 100%; }
@@ -394,7 +455,14 @@ export default function SystemLogsPage() {
                 <label className="sl-filter-label">Action</label>
                 <select value={actionFilter} onChange={e => setActionFilter(e.target.value)} className="sl-filter-select">
                   <option value="">All Actions</option>
-                  {ALL_ACTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {ALL_ACTIONS.map(a => <option key={a} value={a}>{ACTION_LABELS[a] || a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="sl-filter-label">Document Type</label>
+                <select value={docTypeFilter} onChange={e => setDocTypeFilter(e.target.value)} className="sl-filter-select">
+                  <option value="">All Documents</option>
+                  {ALL_DOC_TYPES.map(d => <option key={d} value={d}>{DOC_TYPE_LABELS[d] || d}</option>)}
                 </select>
               </div>
               <div>
@@ -431,16 +499,11 @@ export default function SystemLogsPage() {
           <div className="sl-card-header">
             <h3 className="sl-card-title">
               {activeView === "logs" && <><i className="fas fa-list-alt" style={{ color: PRIMARY }} /> Activity Logs</>}
-              {activeView === "dupes" && <><i className="fas fa-copy" style={{ color: "#dc2626" }} /> Duplicate Inspections</>}
               {activeView === "history" && <><i className="fas fa-history" style={{ color: "#7c3aed" }} /> Inspection Edit History</>}
             </h3>
             <div className="sl-tab-group" style={{ display: "flex", gap: 6 }}>
               <button className={`sl-tab-btn ${activeView === "logs" ? "active" : ""}`} style={activeView === "logs" ? { background: PRIMARY } : {}} onClick={() => setActiveView("logs")}>
                 <i className="fas fa-list-alt" /> Logs
-              </button>
-              <button className={`sl-tab-btn ${activeView === "dupes" ? "active" : ""}`} style={activeView === "dupes" ? { background: "#dc2626" } : {}} onClick={() => switchView("dupes")}>
-                <i className="fas fa-copy" /> Duplicates
-                {duplicateCount > 0 && <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 8, padding: "0 6px", fontSize: 10, marginLeft: 2 }}>{duplicateCount}</span>}
               </button>
               <button className={`sl-tab-btn ${activeView === "history" ? "active" : ""}`} style={activeView === "history" ? { background: "#7c3aed" } : {}} onClick={() => switchView("history")}>
                 <i className="fas fa-history" /> Edit History
@@ -448,7 +511,6 @@ export default function SystemLogsPage() {
             </div>
             <span className="sl-view-count">
               {activeView === "logs" && `Showing ${logs.length} of ${total}`}
-              {activeView === "dupes" && `${duplicateCount} duplicate groups`}
               {activeView === "history" && `${editHistoryTotal} total edits (showing latest 200)`}
             </span>
           </div>
@@ -495,19 +557,119 @@ export default function SystemLogsPage() {
                       </tr>
                     ) : logs.map(log => {
                       const ac = ACTION_COLORS[log.action?.toUpperCase()] ?? { bg: "#f3f4f6", color: "#374151" };
+                      const isUpload = log.action?.toUpperCase() === "FILE_UPLOAD";
+                      const hasDetails = isUpload && log.details && Object.keys(log.details).length > 0;
+                      const isExpanded = expandedRows.has(log.id);
+                      const d = log.details || {};
+
+                      /* Doc-type badge colours */
+                      const DOC_BADGE: Record<string, { bg: string; fg: string }> = {
+                        COMPLIANCE:  { bg: "#dcfce7", fg: "#15803d" },
+                        COMPOSITION: { bg: "#fef3c7", fg: "#b45309" },
+                        RFI:         { bg: "#dbeafe", fg: "#1d4ed8" },
+                        INVOICE:     { bg: "#e0e7ff", fg: "#4338ca" },
+                        COA:         { bg: "#cffafe", fg: "#0e7490" },
+                        RETEST:      { bg: "#fce7f3", fg: "#be185d" },
+                        OCCURRENCE:  { bg: "#fee2e2", fg: "#dc2626" },
+                        OTHER:       { bg: "#f3f4f6", fg: "#374151" },
+                      };
+                      const dtKey = (d.document_type || "").toUpperCase();
+                      const dtBadge = DOC_BADGE[dtKey] ?? { bg: "#f3f4f6", fg: "#374151" };
+
                       return (
-                        <tr key={log.id}>
-                          <td style={{ whiteSpace: "nowrap", fontSize: 12, color: TEXT_LIGHT }}>{formatTimestamp(log.timestamp)}</td>
-                          <td style={{ fontWeight: 500, color: TEXT }}>{log.username}</td>
-                          <td>
-                            <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
-                              {log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-"}
-                            </span>
-                          </td>
-                          <td style={{ color: TEXT }}>{friendlyPage(log.page)}</td>
-                          <td style={{ color: TEXT_LIGHT, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description || "-"}</td>
-                          <td style={{ fontSize: 12, color: TEXT_LIGHT, fontFamily: "monospace", whiteSpace: "nowrap" }}>{log.ip_address || "-"}</td>
-                        </tr>
+                        <React.Fragment key={log.id}>
+                          <tr
+                            onClick={() => hasDetails && toggleRow(log.id)}
+                            style={{ cursor: hasDetails ? "pointer" : "default" }}
+                          >
+                            <td style={{ whiteSpace: "nowrap", fontSize: 12, color: TEXT_LIGHT }}>
+                              {hasDetails && (
+                                <i className={`fas fa-chevron-${isExpanded ? "down" : "right"}`} style={{ marginRight: 6, fontSize: 10, color: "#9ca3af", transition: "transform 0.15s" }} />
+                              )}
+                              {formatTimestamp(log.timestamp)}
+                            </td>
+                            <td style={{ fontWeight: 500, color: TEXT }}>{log.username}</td>
+                            <td>
+                              <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                                {ACTION_LABELS[log.action?.toUpperCase()] || (log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-")}
+                              </span>
+                              {/* Show doc type badge inline for uploads */}
+                              {isUpload && d.document_type && (
+                                <span className="sl-action-badge" style={{ background: dtBadge.bg, color: dtBadge.fg, marginLeft: 4 }}>
+                                  {d.document_type}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ color: TEXT }}>{friendlyPage(log.page)}</td>
+                            <td style={{ color: TEXT_LIGHT, maxWidth: 380 }}>
+                              {isUpload && hasDetails ? (
+                                <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+                                  {/* Client / Group */}
+                                  <div style={{ fontWeight: 500, color: TEXT }}>
+                                    {d.client_name || d.group_id || "-"}
+                                    {d.compliance_status && (
+                                      <span className="sl-action-badge" style={{
+                                        background: d.compliance_status === "compliant" ? "#dcfce7" : "#fee2e2",
+                                        color: d.compliance_status === "compliant" ? "#15803d" : "#dc2626",
+                                        fontSize: 10, marginLeft: 6,
+                                      }}>
+                                        {d.compliance_status === "compliant" ? "Compliant" : "Non-Compliant"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Filename */}
+                                  <div style={{ color: "#4338ca", fontFamily: "monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 350 }} title={d.filename}>
+                                    {d.filename}
+                                  </div>
+                                  {/* File path */}
+                                  {d.file_path && (
+                                    <div style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 350 }} title={d.file_path}>
+                                      {d.file_path}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", maxWidth: 380 }}>{log.description || "-"}</span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: 12, color: TEXT_LIGHT, fontFamily: "monospace", whiteSpace: "nowrap" }}>{log.ip_address || "-"}</td>
+                          </tr>
+                          {isExpanded && hasDetails && (
+                            <tr>
+                              <td colSpan={6} style={{ padding: 0, background: "#f8fafc", borderBottom: `2px solid ${PRIMARY}` }}>
+                                <div style={{ padding: "12px 24px 12px 40px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 24px", fontSize: 12 }}>
+                                  {d.file_size_display && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Size:</span> {d.file_size_display}</div>
+                                  )}
+                                  {d.inspector_name && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Inspector:</span> {d.inspector_name}</div>
+                                  )}
+                                  {d.commodity && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Commodity:</span> {d.commodity}</div>
+                                  )}
+                                  {d.inspection_id && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Inspection ID:</span>{" "}<span style={{ fontFamily: "monospace" }}>{d.inspection_id}</span></div>
+                                  )}
+                                  {d.inspection_sequence && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Sequence #:</span>{" "}<span style={{ fontFamily: "monospace" }}>{d.inspection_sequence}</span></div>
+                                  )}
+                                  {d.date_of_inspection && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Inspection Date:</span> {d.date_of_inspection}</div>
+                                  )}
+                                  {d.upload_type && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Upload Method:</span>{" "}<span style={{ textTransform: "capitalize" }}>{d.upload_type}</span></div>
+                                  )}
+                                  {d.group_id && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Group ID:</span>{" "}<span style={{ fontFamily: "monospace" }}>{d.group_id}</span></div>
+                                  )}
+                                  {d.inspections_affected != null && (
+                                    <div><span style={{ fontWeight: 600, color: "#374151" }}>Inspections Affected:</span> {d.inspections_affected}</div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -525,28 +687,81 @@ export default function SystemLogsPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 10 }}>
                     {logs.map(log => {
                       const ac = ACTION_COLORS[log.action?.toUpperCase()] ?? { bg: "#f3f4f6", color: "#374151" };
+                      const isUpload = log.action?.toUpperCase() === "FILE_UPLOAD";
+                      const hasDetails = isUpload && log.details && Object.keys(log.details).length > 0;
+                      const isExpanded = expandedRows.has(log.id);
+                      const d = log.details || {};
                       return (
-                        <div key={log.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
+                        <div key={log.id} onClick={() => hasDetails && toggleRow(log.id)} style={{ background: "#fff", borderRadius: 10, border: `1px solid ${isExpanded ? PRIMARY : "#e5e7eb"}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px", cursor: hasDetails ? "pointer" : "default" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                             <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{log.username}</div>
-                            <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
-                              {log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-"}
-                            </span>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              <span className="sl-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                                {ACTION_LABELS[log.action?.toUpperCase()] || (log.action ? log.action.charAt(0) + log.action.slice(1).toLowerCase() : "-")}
+                              </span>
+                              {isUpload && d.document_type && (
+                                <span className="sl-action-badge" style={{ background: "#e0e7ff", color: "#4338ca" }}>
+                                  {d.document_type}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 4 }}>
                             <i className="fas fa-clock" style={{ marginRight: 4 }} />{formatTimestamp(log.timestamp)}
                           </div>
-                          <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: 4 }}>
-                            <i className="fas fa-file" style={{ marginRight: 4, color: "#9ca3af" }} />{friendlyPage(log.page)}
-                          </div>
-                          {log.description && (
-                            <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {log.description}
-                            </div>
+                          {/* Upload details shown inline */}
+                          {isUpload && hasDetails ? (
+                            <>
+                              {(d.client_name || d.group_id) && (
+                                <div style={{ fontSize: "0.8rem", color: "#1f2937", fontWeight: 500, marginBottom: 4 }}>
+                                  {d.client_name || d.group_id}
+                                  {d.compliance_status && (
+                                    <span className="sl-action-badge" style={{
+                                      background: d.compliance_status === "compliant" ? "#dcfce7" : "#fee2e2",
+                                      color: d.compliance_status === "compliant" ? "#15803d" : "#dc2626",
+                                      fontSize: 10, marginLeft: 6,
+                                    }}>
+                                      {d.compliance_status === "compliant" ? "Compliant" : "Non-Compliant"}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {d.filename && (
+                                <div style={{ fontSize: "0.7rem", color: "#4338ca", fontFamily: "monospace", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {d.filename}
+                                </div>
+                              )}
+                              {d.file_path && (
+                                <div style={{ fontSize: "0.6rem", color: "#9ca3af", fontFamily: "monospace", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isExpanded ? "normal" : "nowrap", wordBreak: "break-all" }}>
+                                  {d.file_path}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: 4 }}>
+                                <i className="fas fa-file" style={{ marginRight: 4, color: "#9ca3af" }} />{friendlyPage(log.page)}
+                              </div>
+                              {log.description && (
+                                <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {log.description}
+                                </div>
+                              )}
+                            </>
                           )}
                           <div style={{ fontSize: "0.65rem", color: "#9ca3af", fontFamily: "monospace" }}>
                             <i className="fas fa-network-wired" style={{ marginRight: 4 }} />{log.ip_address || "-"}
                           </div>
+                          {isExpanded && hasDetails && (
+                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", fontSize: 11 }}>
+                              {d.file_size_display && <div><span style={{ fontWeight: 600 }}>Size:</span> {d.file_size_display}</div>}
+                              {d.inspector_name && <div><span style={{ fontWeight: 600 }}>Inspector:</span> {d.inspector_name}</div>}
+                              {d.commodity && <div><span style={{ fontWeight: 600 }}>Commodity:</span> {d.commodity}</div>}
+                              {d.inspection_id && <div><span style={{ fontWeight: 600 }}>Inspection ID:</span> {d.inspection_id}</div>}
+                              {d.inspection_sequence && <div><span style={{ fontWeight: 600 }}>Insp #:</span> {d.inspection_sequence}</div>}
+                              {d.date_of_inspection && <div><span style={{ fontWeight: 600 }}>Date:</span> {d.date_of_inspection}</div>}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -556,95 +771,6 @@ export default function SystemLogsPage() {
             </>
           )}
 
-          {/* ---- Duplicates ---- */}
-          {!loading && !error && activeView === "dupes" && (
-            <>
-              {/* Desktop Table */}
-              <div className="sl-table-responsive sl-desktop-only">
-                <table className="sl-table">
-                  <thead>
-                    <tr>
-                      {["Groups", "Client / Facility", "Inspector", "Date", "ID Range", "Action"].map(col => (
-                        <th key={col}>{col}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {duplicates.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="sl-empty">
-                          <i className="fas fa-check-circle" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12, color: "#15803d" }} />
-                          No duplicate inspection groups found.
-                        </td>
-                      </tr>
-                    ) : duplicates.map((dup, idx) => {
-                      const badgeBg = dup.count >= 10 ? "#dc2626" : dup.count >= 5 ? "#f59e0b" : "#6b7280";
-                      return (
-                        <tr key={idx}>
-                          <td>
-                            <span className="sl-count-badge" style={{ background: badgeBg }}>{dup.count}x</span>
-                          </td>
-                          <td style={{ fontWeight: 500, color: TEXT }}>{dup.client_name}</td>
-                          <td style={{ color: TEXT }}>{dup.inspector || "-"}</td>
-                          <td style={{ color: TEXT }}>{formatDate(dup.date)}</td>
-                          <td style={{ fontSize: 11, color: TEXT_LIGHT }}>#{dup.first_id} - #{dup.last_id}</td>
-                          <td>
-                            <a
-                              href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
-                              target="_blank" rel="noopener noreferrer"
-                              style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-                            >
-                              <i className="fas fa-external-link-alt" /> View
-                            </a>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="sl-mobile-only" style={{ display: "none" }}>
-                {duplicates.length === 0 ? (
-                  <div className="sl-empty">
-                    <i className="fas fa-check-circle" style={{ fontSize: 32, opacity: 0.4, display: "block", marginBottom: 12, color: "#15803d" }} />
-                    No duplicate inspection groups found.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 10 }}>
-                    {duplicates.map((dup, idx) => {
-                      const badgeBg = dup.count >= 10 ? "#dc2626" : dup.count >= 5 ? "#f59e0b" : "#6b7280";
-                      return (
-                        <div key={idx} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                            <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1f2937" }}>{dup.client_name}</div>
-                            <span className="sl-count-badge" style={{ background: badgeBg }}>{dup.count}x</span>
-                          </div>
-                          <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: 4 }}>
-                            <i className="fas fa-user" style={{ marginRight: 4, color: "#9ca3af" }} />{dup.inspector || "-"}
-                          </div>
-                          <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: 4 }}>
-                            <i className="fas fa-calendar" style={{ marginRight: 4 }} />{formatDate(dup.date)}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: "0.65rem", color: "#9ca3af" }}>#{dup.first_id} - #{dup.last_id}</span>
-                            <a
-                              href={`/inspections?client=${encodeURIComponent(dup.client_name)}&inspection_date_from=${dup.date}&inspection_date_to=${dup.date}`}
-                              target="_blank" rel="noopener noreferrer"
-                              style={{ padding: "4px 10px", border: "none", borderRadius: 4, background: PRIMARY, color: "white", fontSize: 11, fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
-                            >
-                              <i className="fas fa-external-link-alt" /> View
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
 
           {/* ---- Edit History ---- */}
           {!loading && !error && activeView === "history" && (

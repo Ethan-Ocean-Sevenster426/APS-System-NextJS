@@ -399,6 +399,21 @@ def register(request):
 
 def user_logout(request):
     """Handle user logout."""
+    # Log logout before session is destroyed
+    if request.user and request.user.is_authenticated:
+        try:
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+            SystemLog.log_activity(
+                user=request.user,
+                action='LOGOUT',
+                page='/logout',
+                description=f'{request.user.get_full_name() or request.user.username} logged out',
+                ip_address=ip,
+                user_agent=request.META.get('HTTP_USER_AGENT', '')
+            )
+        except Exception:
+            pass
     logout(request)
     return redirect('login')
 
@@ -1029,6 +1044,29 @@ def add_fsa_inspection(request):
                         first_inspection.occurrence_uploaded_date = timezone.now()
 
                     first_inspection.save()
+
+                    # Create InspectionDocument records for each uploaded file
+                    from main.models import InspectionDocument as _InspDoc
+                    _now = timezone.now()
+                    _doc_types_uploaded = []
+                    if 'rfi_file' in request.FILES:
+                        _doc_types_uploaded.append('rfi')
+                    if 'invoice_file' in request.FILES:
+                        _doc_types_uploaded.append('invoice')
+                    if 'labform_file' in request.FILES:
+                        _doc_types_uploaded.append('lab_form')
+                    if 'coa_file' in request.FILES:
+                        _doc_types_uploaded.append('coa')
+                    if 'composition_file' in request.FILES:
+                        _doc_types_uploaded.append('composition')
+                    if 'occurrence_file' in request.FILES:
+                        _doc_types_uploaded.append('occurrence')
+                    for _dt in _doc_types_uploaded:
+                        _InspDoc.objects.update_or_create(
+                            inspection=first_inspection,
+                            document_type=_dt,
+                            defaults={'uploaded_by': request.user, 'uploaded_date': _now}
+                        )
 
                     # Clear file cache
                     from django.core.cache import cache
@@ -2900,6 +2938,9 @@ def shipment_list(request):
                                 elif category == 'composition': has_composition = True
                                 elif category == 'occurrence': has_occurrence = True
 
+            # Composition counts as compliance for file status
+            has_compliance = has_compliance or has_composition
+
             # Determine file status
             if has_rfi and has_invoice and has_lab and has_compliance:
                 file_status = 'all_files'  # Green
@@ -2979,7 +3020,7 @@ def shipment_list(request):
         has_invoice = file_check_result['has_invoice']
         has_lab = file_check_result['has_lab']
         has_lab_form = file_check_result['has_lab_form']
-        has_compliance = file_check_result['has_compliance']
+        has_compliance = file_check_result['has_compliance'] or file_check_result['has_composition']
         has_composition = file_check_result['has_composition']
         has_occurrence = file_check_result['has_occurrence']
         file_status = file_check_result['file_status']
@@ -4343,8 +4384,17 @@ def upload_document(request):
                                     else:
                                         print(f"WARNING: Unrecognized product_compliance_status for group upload: '{product_compliance_status}'")
 
+                                # Also create InspectionDocument records for counting
+                                from main.models import InspectionDocument as _InspDoc
+                                for _insp_id in matching_inspections:
+                                    _InspDoc.objects.update_or_create(
+                                        inspection_id=_insp_id,
+                                        document_type=document_type,
+                                        defaults={'uploaded_by': request.user, 'uploaded_date': current_time}
+                                    )
+
                                 print(f"Updated upload tracking for {updated_count} inspections in group {group_id}")
-                                
+
                                 # Clear ALL relevant caches to ensure updated data is shown
                                 from django.core.cache import cache
 
@@ -4366,6 +4416,7 @@ def upload_document(request):
 
                                 if inspection_date:
                                     cache_keys_to_clear.extend([
+                                        f"file_check_{client_name_from_group}_{inspection_date}",
                                         f"file_status_{client_name_from_group}_{inspection_date}",
                                         f"local_files:{client_name_from_group}:{current_time.year}:{current_time.strftime('%B')}",
                                         # CRITICAL: Also clear with SANITIZED folder name (lowercase, underscores)
@@ -4509,6 +4560,14 @@ def upload_document(request):
                         # Verify the update by re-fetching from database
                         inspection.refresh_from_db()
                         print(f"DEBUG: Re-fetched is_product_compliant from database: {inspection.is_product_compliant}")
+                    # Also create InspectionDocument record for counting
+                    from main.models import InspectionDocument as _InspDoc
+                    _InspDoc.objects.update_or_create(
+                        inspection_id=inspection.id,
+                        document_type=document_type,
+                        defaults={'uploaded_by': request.user, 'uploaded_date': current_time}
+                    )
+
                     # Clear cache after individual upload - CLEAR ALL RELEVANT CACHES
                     from django.core.cache import cache
 
@@ -4518,6 +4577,7 @@ def upload_document(request):
                     # Clear all cache keys that could affect file detection
                     cache_keys_to_clear = [
                         "filter_options",
+                        f"file_check_{client_name}_{inspection.date_of_inspection}",
                         f"file_status_{client_name}_{inspection_date}",
                         "inspection_files_cache",
                         f"local_files:{client_name}:{current_time.year}:{current_time.strftime('%B')}",
@@ -4572,21 +4632,62 @@ def upload_document(request):
                 else:
                     ip_address = request.META.get('REMOTE_ADDR')
                 
-                # Prepare log details
+                # Prepare log details with full traceability
+                _file_size_bytes = uploaded_file.size
+                if _file_size_bytes >= 1048576:
+                    _file_size_str = f"{_file_size_bytes / 1048576:.1f} MB"
+                elif _file_size_bytes >= 1024:
+                    _file_size_str = f"{_file_size_bytes / 1024:.1f} KB"
+                else:
+                    _file_size_str = f"{_file_size_bytes} bytes"
+
                 log_details = {
                     'filename': uploaded_file.name,
-                    'file_size': uploaded_file.size,
+                    'file_size': _file_size_bytes,
+                    'file_size_display': _file_size_str,
                     'document_type': document_type.upper(),
                     'upload_type': upload_type,
-                    'file_path': file_path
+                    'file_path': file_path,
+                    'client_name': client_name if client_name else '',
                 }
-                
+
+                # Add inspection-level context for traceability
+                if upload_type == 'inspection' and inspection_id:
+                    try:
+                        _log_insp = FoodSafetyAgencyInspection.objects.filter(id=int(inspection_id)).first()
+                        if _log_insp:
+                            log_details['inspection_id'] = inspection_id
+                            log_details['inspection_sequence'] = _log_insp.inspection_sequence or ''
+                            log_details['inspector_name'] = _log_insp.inspector_name or ''
+                            log_details['client_name'] = _log_insp.client_name or client_name or ''
+                            log_details['date_of_inspection'] = str(_log_insp.date_of_inspection) if _log_insp.date_of_inspection else ''
+                            log_details['commodity'] = _log_insp.commodity or ''
+                    except Exception:
+                        log_details['inspection_id'] = inspection_id
+                elif upload_type == 'group' and group_id:
+                    log_details['group_id'] = group_id
+                    # Get inspection count in the group
+                    if matching_inspections:
+                        log_details['inspections_affected'] = len(matching_inspections)
+
+                # Include compliance status for compliance/composition uploads
+                _pcs = request.POST.get('product_compliance_status', '')
+                if _pcs:
+                    log_details['compliance_status'] = _pcs
+
                 if upload_type == 'group':
                     log_description = f"Uploaded {document_type.upper()} file '{uploaded_file.name}' for inspection group {group_id}"
-                    log_details['group_id'] = group_id
+                    if _pcs:
+                        log_description += f" (compliance: {_pcs})"
+                    log_description += f" [{_file_size_str}]"
                 else:
+                    _log_client = log_details.get('client_name', '')
                     log_description = f"Uploaded {document_type.upper()} file '{uploaded_file.name}' for inspection {inspection_id}"
-                    log_details['inspection_id'] = inspection_id
+                    if _log_client:
+                        log_description += f" ({_log_client})"
+                    if _pcs:
+                        log_description += f" [compliance: {_pcs}]"
+                    log_description += f" [{_file_size_str}]"
                 
                 SystemLog.log_activity(
                     user=request.user,
@@ -4603,8 +4704,32 @@ def upload_document(request):
             except Exception as log_error:
                 print(f"WARNING: Error logging file upload: {log_error}")
             
+            # Create InspectionDocument record for counting
+            try:
+                from ..models import InspectionDocument as _InspDoc
+                from django.utils import timezone as _tz
+                _target_id = None
+                if upload_type == 'inspection' and inspection_id:
+                    _target_id = int(inspection_id)
+                elif upload_type == 'group' and matching_inspections:
+                    for _mid in matching_inspections:
+                        _InspDoc.objects.update_or_create(
+                            inspection_id=_mid,
+                            document_type=document_type,
+                            defaults={'uploaded_by': request.user, 'uploaded_date': _tz.now()}
+                        )
+                    _target_id = None  # already handled
+                if _target_id:
+                    _InspDoc.objects.update_or_create(
+                        inspection_id=_target_id,
+                        document_type=document_type,
+                        defaults={'uploaded_by': request.user, 'uploaded_date': _tz.now()}
+                    )
+            except Exception as _doc_err:
+                print(f"WARNING: Failed to create InspectionDocument record: {_doc_err}")
+
             message = f'{document_type.upper()} uploaded successfully'
-            
+
             return JsonResponse({
                 'success': True,
                 'message': message,
@@ -10554,21 +10679,32 @@ def analytics_dashboard_api(request):
             inspector = _grp['inspector_name']
             inspection_times[inspector] = inspection_times.get(inspector, 0) + _dur
 
-    # Get hours/km from InspectionGroup (group-level) to avoid double-counting
+    # Get hours/km from InspectionGroup (group-level) + ungrouped inspections
+    # This mirrors _api_travel_per_inspector() so financial data matches travel data
     _api_fin_group = {}
-    for _row in group_qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
-    ).values('inspector_name').annotate(
+    _excl_fin = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
+    for _row in group_qs.exclude(_excl_fin).values('inspector_name').annotate(
         total_hours=Sum('hours'), total_km=Sum('km_traveled'),
     ):
         _api_fin_group[_row['inspector_name']] = {
             'total_hours': float(_row['total_hours'] or 0),
             'total_km': float(_row['total_km'] or 0),
         }
+    # Add ungrouped (legacy) inspections that have no inspection_group
+    for _row in qs.filter(inspection_group__isnull=True).exclude(_excl_fin).values('inspector_name').annotate(
+        total_hours=Sum('hours'), total_km=Sum('km_traveled'),
+    ):
+        name = _row['inspector_name']
+        if name in _api_fin_group:
+            _api_fin_group[name]['total_hours'] += float(_row['total_hours'] or 0)
+            _api_fin_group[name]['total_km'] += float(_row['total_km'] or 0)
+        else:
+            _api_fin_group[name] = {
+                'total_hours': float(_row['total_hours'] or 0),
+                'total_km': float(_row['total_km'] or 0),
+            }
 
-    inspector_financials_qs = qs.exclude(
-        Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
-    ).values('inspector_name').annotate(
+    inspector_financials_qs = qs.exclude(_excl_fin).values('inspector_name').annotate(
         total_inspections=Count('id'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
@@ -10830,6 +10966,11 @@ def analytics_dashboard_api(request):
         _mk = _grp['date_of_inspection'].strftime('%Y-%m')
         _travel_hrs_by_month[_mk] = round(_travel_hrs_by_month.get(_mk, 0) + _dur, 2)
     data['monthlyTravelHoursTrend'] = [{'month': _mk, 'total_hours': _v} for _mk, _v in sorted(_travel_hrs_by_month.items())]
+
+    # === DOCUMENT TYPE COUNTS ===
+    from main.models import InspectionDocument as _InspDoc
+    _doc_counts_qs = _InspDoc.objects.values('document_type').annotate(count=Count('id')).order_by('document_type')
+    data['documentTypeCounts'] = {row['document_type']: row['count'] for row in _doc_counts_qs}
 
     return JsonResponse(data, encoder=DjangoJSONEncoder)
 
@@ -14737,6 +14878,7 @@ def delete_inspection_file(request):
             cache_keys_to_clear = [
                 f"shipment_list_{request.user.id}_{request.user.role}",
                 "filter_options",
+                f"file_check_{client_name}_{inspection_date}",
                 f"inspection_files_{client_name}_{inspection_date}",
                 f"file_status_{client_name}_{inspection_date}",
                 f"files_cache_{client_name}_{inspection_date}",
@@ -14768,6 +14910,8 @@ def delete_inspection_file(request):
                 f"local_files:{client_folder}:{year_folder}:{month_folder}",
                 f"local_files:{client_name.replace(' ', '_')}:{year_folder}:{month_folder}",
                 f"local_files:{client_folder.replace(' ', '_')}:{year_folder}:{month_folder}",
+                f"file_check_{client_name}_{inspection_date}",
+                f"file_check_{client_folder}_{inspection_date}",
                 f"inspection_files_{client_name}_{inspection_date}",
                 f"inspection_files_{client_folder}_{inspection_date}",
                 f"file_status_{client_name}_{inspection_date}",
@@ -15131,10 +15275,11 @@ def get_page_clients_files(request):
         has_invoice = len(files_by_category.get('invoice', [])) > 0
         has_lab = len(files_by_category.get('lab', [])) > 0
         has_retest = len(files_by_category.get('retest', [])) > 0
-        has_compliance = len(files_by_category.get('compliance', [])) > 0
+        has_compliance_raw = len(files_by_category.get('compliance', [])) > 0
         has_occurrence = len(files_by_category.get('occurrence', [])) > 0
         has_composition = len(files_by_category.get('composition', [])) > 0
-        
+        has_compliance = has_compliance_raw or has_composition  # Composition counts as compliance
+
         # Determine status based on user requirements:
         # Green: ALL required documents (RFI, Invoice, Lab, Compliance) exist
         # Orange: Only compliance document exists (or compliance + some others but not all)
@@ -15146,7 +15291,7 @@ def get_page_clients_files(request):
             file_status = 'all_files'  # Green - all required documents exist
         elif has_compliance:
             file_status = 'compliance_only'  # Orange - compliance exists (with or without other docs)
-        elif has_rfi or has_invoice or has_lab or has_retest or has_occurrence or has_composition:
+        elif has_rfi or has_invoice or has_lab or has_retest or has_occurrence:
             file_status = 'partial_files'  # Blue - has some files but no compliance
         else:
             file_status = 'no_files'  # Red - no files at all
@@ -15559,8 +15704,8 @@ def get_page_clients_file_status(request):
                         # explicitly uploads a document for that specific product.
                         # Auto-syncing would incorrectly mark ALL products as uploaded when
                         # only one file exists in the folder.
-                has_compliance = has_compliance or has_compliance_dir
-                
+                has_compliance = has_compliance or has_compliance_dir or has_composition
+
                 # Determine status for this specific client+date combination
                 # Match sent status logic: only require RFI, Invoice, and Compliance
                 if has_rfi and has_invoice and has_compliance:

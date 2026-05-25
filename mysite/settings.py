@@ -205,6 +205,9 @@ AUTO_ORGANIZE_ZIP_FILES = True  # Automatically organize ZIP files by inspection
 EMAIL_BACKEND = 'main.graph_email_backend.GraphEmailBackend'
 DEFAULT_FROM_EMAIL = 'foodsafetyagency.aps@afsq.co.za'
 
+# Frontend URL for email links (OTP setup, password reset, etc.)
+SITE_URL = env('SITE_URL', default='http://localhost:3000')
+
 # Microsoft Graph API Credentials
 GRAPH_CLIENT_ID = env('GRAPH_CLIENT_ID', default='')
 GRAPH_CLIENT_SECRET = env('GRAPH_CLIENT_SECRET', default='')

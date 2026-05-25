@@ -193,8 +193,6 @@ export default function UserManagementPage() {
   const [addForm, setAddForm] = useState({
     username: "",
     email: "",
-    password: "",
-    confirm_password: "",
     first_name: "",
     last_name: "",
     role: "inspector",
@@ -311,23 +309,17 @@ export default function UserManagementPage() {
   };
 
   const handleAddUser = async () => {
-    if (addForm.password !== addForm.confirm_password) {
-      addMessage("Passwords do not match", "error");
-      return;
-    }
-    if (!addForm.username || !addForm.email || !addForm.password || !addForm.role) {
+    if (!addForm.username || !addForm.email || !addForm.first_name || !addForm.last_name || !addForm.role) {
       addMessage("Please fill in all required fields", "error");
       return;
     }
     const data = await postAction({ action: "add_user", ...addForm });
     if (data.success) {
-      addMessage(data.message || "User added successfully", "success");
+      addMessage(data.message || "User added. Setup email with OTP sent.", "success");
       setShowAddModal(false);
       setAddForm({
         username: "",
         email: "",
-        password: "",
-        confirm_password: "",
         first_name: "",
         last_name: "",
         role: "inspector",
@@ -336,6 +328,27 @@ export default function UserManagementPage() {
       fetchUsers();
     } else {
       addMessage(data.error || "Failed to add user", "error");
+    }
+  };
+
+  const handleResetOTP = async (user: UserRecord) => {
+    if (
+      !confirm(
+        `Reset OTP for "${user.username}"?\n\n` +
+          `This will:\n` +
+          `- Invalidate their current password\n` +
+          `- Generate a new OTP code\n` +
+          `- Send a setup email to ${user.email}\n\n` +
+          `The user will need to set up a new password using the OTP.`
+      )
+    )
+      return;
+
+    const data = await postAction({ action: "reset_otp", user_id: user.id });
+    if (data.success) {
+      addMessage(data.message || "OTP reset email sent", "success");
+    } else {
+      addMessage(data.error || "Failed to reset OTP", "error");
     }
   };
 
@@ -872,6 +885,17 @@ export default function UserManagementPage() {
                               </svg>
                             </button>
                             <button
+                              className="um-btn um-btn-xs"
+                              style={{ backgroundColor: "#7c3aed", color: "white" }}
+                              title="Reset OTP (send setup email)"
+                              onClick={() => handleResetOTP(user)}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                                <polyline points="22,6 12,13 2,6" />
+                              </svg>
+                            </button>
+                            <button
                               className={`um-btn um-btn-xs ${
                                 user.is_active ? "um-btn-warning" : "um-btn-success"
                               }`}
@@ -1012,6 +1036,18 @@ export default function UserManagementPage() {
             </svg>
             Send Reset Email
           </div>
+          <div
+            className="um-context-menu-item"
+            onClick={() => {
+              handleResetOTP(contextMenu.user!);
+              setContextMenu((c) => ({ ...c, visible: false }));
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+            </svg>
+            Reset OTP
+          </div>
           <div className="um-context-menu-divider" />
           <div
             className="um-context-menu-item"
@@ -1062,6 +1098,9 @@ export default function UserManagementPage() {
               </button>
             </div>
             <div>
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", padding: "10px 14px", borderRadius: "6px", marginBottom: "12px", fontSize: "0.85rem" }}>
+                A one-time setup code (OTP) will be emailed to the user. They will use this code to set their own password.
+              </div>
               <div className="um-form-group">
                 <div>
                   <label className="um-form-label">Username *</label>
@@ -1083,29 +1122,7 @@ export default function UserManagementPage() {
               </div>
               <div className="um-form-group">
                 <div>
-                  <label className="um-form-label">Password *</label>
-                  <input
-                    className="um-form-control"
-                    type="password"
-                    value={addForm.password}
-                    onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="um-form-label">Confirm Password *</label>
-                  <input
-                    className="um-form-control"
-                    type="password"
-                    value={addForm.confirm_password}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, confirm_password: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <div className="um-form-group">
-                <div>
-                  <label className="um-form-label">First Name</label>
+                  <label className="um-form-label">First Name *</label>
                   <input
                     className="um-form-control"
                     value={addForm.first_name}

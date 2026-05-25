@@ -39,6 +39,8 @@ const COMMODITY_LABEL: Record<string, string> = {
   PMP:     "PMP (Processed)",
   POULTRY: "Poultry",
   EGGS:    "Eggs",
+  DAIRY:   "Dairy",
+  FISH:    "Fish",
 };
 
 const COMMODITY_COLOR: Record<string, string> = {
@@ -46,6 +48,8 @@ const COMMODITY_COLOR: Record<string, string> = {
   PMP:     "#f97316",
   POULTRY: "#eab308",
   EGGS:    "#84cc16",
+  DAIRY:   "#06b6d4",
+  FISH:    "#3b82f6",
 };
 
 const TEST_CONFIG = [
@@ -192,59 +196,311 @@ export default function LabAnalyticsPage() {
     });
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!data) return;
-    import("jspdf").then((mod: any) => {
-      const jsPDF = mod.default || mod.jsPDF;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const jsPDFModule: any = await import("jspdf");
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
+      const autoTableModule: any = await import("jspdf-autotable");
+      const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-      const pageW = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = 0;
+      const W = 297, H = 210;
+      const ML = 15, MR = 15, MT = 20, MB = 18;
+      const CW = W - ML - MR;
 
-      // Header
-      doc.setFillColor(0, 120, 144);
-      doc.rect(0, 0, pageW, 20, "F");
-      doc.setFontSize(14); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold");
-      doc.text("Lab Analytics Report", margin, 10);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal");
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-ZA")}`, pageW - 55, 10);
-      y = 28;
+      // Brand colors
+      const TEAL: [number, number, number] = [0, 120, 144];
+      const DARK: [number, number, number] = [15, 23, 42];
+      const WHITE: [number, number, number] = [255, 255, 255];
+      const GRAY: [number, number, number] = [107, 114, 128];
+      const GRAY_LIGHT: [number, number, number] = [156, 163, 175];
+      const GREEN: [number, number, number] = [5, 150, 105];
+      const RED: [number, number, number] = [220, 38, 38];
+      const AMBER: [number, number, number] = [245, 158, 11];
+      const BLUE: [number, number, number] = [59, 130, 246];
+      const PURPLE: [number, number, number] = [139, 92, 246];
+      const ROW_ALT: [number, number, number] = [248, 250, 252];
+      const ROW_WHITE: [number, number, number] = [255, 255, 255];
 
-      // KPIs
-      const kpis = [
-        `Inspections: ${data.total_inspections}`,
-        `Samples: ${data.total_samples}`,
-        `Tests: ${data.total_tests}`,
-        `Needs COA: ${data.needs_coa}`,
-        `Needs Retest: ${data.needs_retest}`,
+      // Filter description
+      const filterDesc = [
+        dateFrom && `From: ${dateFrom}`,
+        dateTo && `To: ${dateTo}`,
+        labFilter && `Lab: ${labFilter}`,
+        commodityFilter && `Commodity: ${commodityFilter}`,
+      ].filter(Boolean).join("  |  ") || "All Data — No Filters Applied";
+
+      // Fetch logo
+      let logoDataUrl: string | null = null;
+      try {
+        const logoRes = await fetch("/logo.png");
+        if (logoRes.ok) {
+          const blob = await logoRes.blob();
+          logoDataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch { /* skip */ }
+
+      // Capture chart canvases
+      const chartImages: string[] = [];
+      const chartCanvases = document.querySelectorAll("canvas");
+      for (const cvs of Array.from(chartCanvases)) {
+        try {
+          const dataUrl = cvs.toDataURL("image/png", 1.0);
+          if (dataUrl && dataUrl.length > 100) chartImages.push(dataUrl);
+        } catch { /* skip */ }
+      }
+
+      // ── PAGE 1: COVER PAGE ──
+      doc.setFillColor(...DARK);
+      doc.rect(0, 0, W, H, "F");
+
+      doc.setDrawColor(...TEAL);
+      doc.setLineWidth(0.8);
+      doc.line(ML, 50, W - MR, 50);
+      doc.line(ML, H - 50, W - MR, H - 50);
+
+      if (logoDataUrl) {
+        try { doc.addImage(logoDataUrl, "PNG", W / 2 - 18, 58, 36, 32); } catch { /* skip */ }
+      }
+
+      const logoBottom = logoDataUrl ? 98 : 75;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(28);
+      doc.setTextColor(...WHITE);
+      doc.text("FOOD SAFETY AGENCY (PTY) LTD", W / 2, logoBottom, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(18);
+      doc.setTextColor(...TEAL);
+      doc.text("Lab Analytics Report", W / 2, logoBottom + 12, { align: "center" });
+
+      doc.setFillColor(...TEAL);
+      doc.rect(W / 2 - 30, logoBottom + 18, 60, 1.2, "F");
+
+      doc.setFontSize(12);
+      doc.setTextColor(...GRAY_LIGHT);
+      const reportDate = new Date().toLocaleDateString("en-ZA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+      doc.text(reportDate, W / 2, logoBottom + 30, { align: "center" });
+
+      doc.setFontSize(9);
+      doc.setTextColor(...GRAY);
+      doc.text(filterDesc, W / 2, logoBottom + 38, { align: "center", maxWidth: CW - 40 });
+
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY);
+      doc.text("CONFIDENTIAL — For authorized personnel only", W / 2, H - 30, { align: "center" });
+
+      // ── PAGE 2: KPI SUMMARY + TEST BREAKDOWN + CHARTS ──
+      doc.addPage();
+      let y = MT + 4;
+
+      // KPI Section Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...DARK);
+      doc.text("Key Metrics", ML, y);
+      doc.setDrawColor(...TEAL);
+      doc.setLineWidth(0.5);
+      doc.line(ML, y + 1.5, ML + 40, y + 1.5);
+      y += 7;
+
+      // KPI cards — row 1
+      const drawCard = (x: number, y: number, w: number, h: number, label: string, value: string, color: [number, number, number]) => {
+        doc.setFillColor(246, 248, 250);
+        doc.roundedRect(x, y, w, h, 1.5, 1.5, "F");
+        doc.setFillColor(...color);
+        doc.rect(x, y, w, 1.5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(...color);
+        doc.text(value, x + w / 2, y + h / 2 - 1, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.setTextColor(...GRAY);
+        doc.text(label.toUpperCase(), x + w / 2, y + h / 2 + 5.5, { align: "center" });
+      };
+
+      const gap = 3, cH = 22;
+      const cW5 = (CW - 4 * gap) / 5;
+      const kpiItems = [
+        { label: "Total Inspections", value: String(data.total_inspections), color: TEAL },
+        { label: "Samples Collected", value: String(data.total_samples), color: GREEN },
+        { label: "Tests Conducted", value: String(data.total_tests), color: BLUE },
+        { label: "Awaiting COA", value: String(data.needs_coa), color: AMBER },
+        { label: "Needs Retest", value: String(data.needs_retest), color: RED },
       ];
-      doc.setFontSize(9); doc.setTextColor(50, 50, 50); doc.setFont("helvetica", "bold");
-      doc.text(kpis.join("   |   "), margin, y);
-      y += 10;
+      kpiItems.forEach((k, i) => drawCard(ML + i * (cW5 + gap), y, cW5, cH, k.label, k.value, k.color));
+      y += cH + 3;
 
-      // Table
-      const headers = ["Date", "Client", "Product", "Commodity", "Lab", "Tests", "Retest"];
-      const colW = [22, 55, 45, 28, 45, 40, 16];
-      const rowH = 5.5;
-      // Header row
-      doc.setFillColor(0, 120, 144);
-      doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH + 1, "F");
-      doc.setFontSize(6); doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold");
-      let cx = margin;
-      headers.forEach((h, i) => { doc.text(h, cx + 1.5, y + rowH / 2 + 1.5, { baseline: "middle" }); cx += colW[i]; });
-      y += rowH + 1;
-      // Body
-      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 50);
-      data.recent.forEach((r, ri) => {
-        if (y + rowH > doc.internal.pageSize.getHeight() - 10) { doc.addPage(); y = 14; }
-        if (ri % 2 === 0) { doc.setFillColor(245, 247, 250); doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH, "F"); }
-        cx = margin;
-        const vals = [r.date || "", r.client_name, r.product_name, COMMODITY_LABEL[r.commodity] || r.commodity, r.lab, (r.tests || []).join(", "), r.needs_retest || "No"];
-        vals.forEach((v, i) => { doc.text(String(v).substring(0, 35), cx + 1.5, y + rowH / 2 + 1, { baseline: "middle" }); cx += colW[i]; });
-        y += rowH;
+      // Test type cards — row 2
+      const cW4 = (CW - 3 * gap) / 4;
+      const testItems = [
+        { label: "Fat Tests", value: String(data.fat_count), color: BLUE },
+        { label: "Protein Tests", value: String(data.protein_count), color: PURPLE },
+        { label: "Calcium Tests", value: String(data.calcium_count), color: GREEN },
+        { label: "DNA Tests", value: String(data.dna_count), color: AMBER },
+      ];
+      testItems.forEach((k, i) => drawCard(ML + i * (cW4 + gap), y, cW4, cH, k.label, k.value, k.color));
+      y += cH + 8;
+
+      // ── Lab breakdown bars ──
+      if (data.labs?.length) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(...DARK);
+        doc.text("Samples by Laboratory", ML, y);
+        doc.setDrawColor(...TEAL);
+        doc.setLineWidth(0.5);
+        doc.line(ML, y + 1.5, ML + 55, y + 1.5);
+        y += 6;
+
+        const maxN = Math.max(...data.labs.map(l => l.n), 1);
+        const barMaxW = CW - 80;
+        for (const lab of data.labs) {
+          const filledW = (lab.n / maxN) * barMaxW;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(...DARK);
+          doc.text(lab.lab, ML, y + 4);
+
+          const barX = ML + 50;
+          doc.setFillColor(229, 231, 235);
+          doc.roundedRect(barX, y, barMaxW, 6, 1.5, 1.5, "F");
+          if (filledW > 0) {
+            doc.setFillColor(...TEAL);
+            doc.roundedRect(barX, y, Math.max(filledW, 3), 6, 1.5, 1.5, "F");
+          }
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(...TEAL);
+          doc.text(String(lab.n), barX + barMaxW + 3, y + 4);
+          y += 8;
+        }
+        y += 4;
+      }
+
+      // ── Charts (2 per row) ──
+      if (chartImages.length > 0) {
+        if (y + 55 > H - MB) { doc.addPage(); y = MT + 4; }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(...DARK);
+        doc.text("Charts & Trends", ML, y);
+        doc.setDrawColor(...TEAL);
+        doc.setLineWidth(0.5);
+        doc.line(ML, y + 1.5, ML + 45, y + 1.5);
+        y += 5;
+
+        const slotW = (CW - 4) / 2;
+        const maxChH = 55;
+
+        for (let i = 0; i < Math.min(chartImages.length, 6); i += 2) {
+          if (y + maxChH + 4 > H - MB) { doc.addPage(); y = MT + 4; }
+
+          try {
+            const c1 = chartCanvases[i];
+            const ar1 = c1 ? c1.width / c1.height : 2;
+            let w1 = slotW, h1 = w1 / ar1;
+            if (h1 > maxChH) { h1 = maxChH; w1 = h1 * ar1; }
+            if (w1 > slotW) { w1 = slotW; h1 = w1 / ar1; }
+            doc.addImage(chartImages[i], "PNG", ML, y, w1, h1);
+
+            let maxH = h1;
+            if (i + 1 < chartImages.length && i + 1 < 6) {
+              const c2 = chartCanvases[i + 1];
+              const ar2 = c2 ? c2.width / c2.height : 2;
+              let w2 = slotW, h2 = w2 / ar2;
+              if (h2 > maxChH) { h2 = maxChH; w2 = h2 * ar2; }
+              if (w2 > slotW) { w2 = slotW; h2 = w2 / ar2; }
+              doc.addImage(chartImages[i + 1], "PNG", ML + slotW + 4, y, w2, h2);
+              maxH = Math.max(h1, h2);
+            }
+            y += maxH + 4;
+          } catch { /* skip */ }
+        }
+      }
+
+      // ── TABLE: Recent Samples ──
+      doc.addPage();
+      let ty = MT + 4;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...DARK);
+      doc.text("Recent Samples", ML, ty);
+      doc.setDrawColor(...TEAL);
+      doc.setLineWidth(0.5);
+      doc.line(ML, ty + 1.5, ML + 48, ty + 1.5);
+      ty += 5;
+
+      autoTable(doc, {
+        startY: ty,
+        head: [["Date", "Client", "Product", "Commodity", "Lab", "Tests", "Retest"]],
+        body: data.recent.map(r => [
+          r.date || "", r.client_name, r.product_name,
+          COMMODITY_LABEL[r.commodity] || r.commodity,
+          r.lab, (r.tests || []).join(", "), r.needs_retest || "No",
+        ]),
+        margin: { left: ML, right: MR, top: MT, bottom: MB },
+        styles: { font: "helvetica", fontSize: 7, cellPadding: 1.8, lineColor: [229, 231, 235], lineWidth: 0.15, overflow: "ellipsize" },
+        headStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", cellPadding: 2 },
+        alternateRowStyles: { fillColor: ROW_ALT },
+        bodyStyles: { fillColor: ROW_WHITE },
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 50, fontStyle: "bold" }, 4: { cellWidth: 42 }, 6: { cellWidth: 14 } },
+        showHead: "everyPage",
+        didParseCell: (hookData: { section: string; column: { index: number }; cell: { text: string[]; styles: { textColor: [number, number, number] } } }) => {
+          if (hookData.section === "body" && hookData.column.index === 6) {
+            const val = (hookData.cell.text[0] ?? "").toLowerCase();
+            hookData.cell.styles.textColor = val === "yes" ? RED : GREEN;
+          }
+        },
       });
+
+      // ── HEADERS, FOOTERS, PAGE NUMBERS ──
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        if (p === 1) continue;
+
+        // Header
+        if (logoDataUrl) {
+          try { doc.addImage(logoDataUrl, "PNG", ML, 4, 10, 9); } catch { /* skip */ }
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...TEAL);
+        doc.text("Food Safety Agency", ML + (logoDataUrl ? 12 : 0), 10);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7);
+        doc.setTextColor(...GRAY_LIGHT);
+        doc.text("Confidential", W - MR, 10, { align: "right" });
+        doc.setDrawColor(...TEAL);
+        doc.setLineWidth(0.4);
+        doc.line(ML, 14, W - MR, 14);
+
+        // Footer
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.3);
+        doc.line(ML, H - 12, W - MR, H - 12);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(...GRAY_LIGHT);
+        doc.text(`Food Safety Agency (Pty) Ltd  |  Lab Analytics Report  |  ${new Date().toLocaleDateString("en-ZA")}`, W / 2, H - 8, { align: "center" });
+        doc.text(`Page ${p - 1} of ${totalPages - 1}`, W - MR, H - 8, { align: "right" });
+      }
+
       doc.save(`Lab_Analytics_${new Date().toISOString().slice(0, 10)}.pdf`);
-    });
+    } catch (err: unknown) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed: " + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const maxMonthly = data && data.monthly?.length ? Math.max(...data.monthly.map(m => m.count), 1) : 1;

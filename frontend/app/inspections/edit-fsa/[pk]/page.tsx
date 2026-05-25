@@ -101,9 +101,14 @@ function Autocomplete({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const pickedRef = useRef(false);
+  const query = open ? search : value;
   const filtered = options.filter(o =>
-    o.toLowerCase().includes((open ? search : value).toLowerCase())
+    o.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 50);
+  const trimmed = search.trim();
+  const exactMatch = trimmed && options.some(o => o.toLowerCase() === trimmed.toLowerCase());
+  const showAddNew = open && trimmed && !exactMatch;
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -120,16 +125,39 @@ function Autocomplete({
         type="text"
         className="form-control"
         value={open ? search : value}
-        placeholder={placeholder}
-        onFocus={() => { setOpen(true); setSearch(value); }}
-        onChange={e => { setSearch(e.target.value); setOpen(true); }}
+        placeholder={placeholder || `Search or add new ${label.toLowerCase()}...`}
+        onFocus={() => { console.log(`[Autocomplete:${label}] FOCUS — current value="${value}"`); setOpen(true); setSearch(value); pickedRef.current = false; }}
+        onChange={e => { console.log(`[Autocomplete:${label}] TYPING — search="${e.target.value}"`); setSearch(e.target.value); setOpen(true); }}
+        onBlur={() => {
+          console.log(`[Autocomplete:${label}] BLUR — search="${search}", value="${value}", pickedRef=${pickedRef.current}`);
+          setTimeout(() => {
+            if (!pickedRef.current && search !== value) {
+              console.log(`[Autocomplete:${label}] BLUR COMMIT — setting to "${search}"`);
+              onChange(search);
+            }
+            pickedRef.current = false;
+          }, 150);
+        }}
+        onKeyDown={e => { if (e.key === "Enter" && trimmed) { console.log(`[Autocomplete:${label}] ENTER — committing "${trimmed}"`); e.preventDefault(); onChange(trimmed); setOpen(false); setSearch(""); } }}
         autoComplete="off"
       />
-      {open && filtered.length > 0 && (
+      {open && (filtered.length > 0 || showAddNew) && (
         <div className="client-dropdown" style={{ display: "block" }}>
+          {showAddNew && (
+            <div className="client-dropdown-item"
+              style={{ borderBottom: "2px solid #f59e0b", background: "#fef3c7" }}
+              onMouseDown={() => { pickedRef.current = true; }}
+              onClick={() => { console.log(`[Autocomplete:${label}] ADD NEW clicked — "${trimmed}"`); onChange(trimmed); setOpen(false); setSearch(""); }}>
+              <span style={{ color: "#92400e" }}>
+                <i className="fas fa-plus-circle" style={{ marginRight: 6 }} />
+                <strong>Add new: &quot;{trimmed}&quot;</strong>
+              </span>
+            </div>
+          )}
           {filtered.map(o => (
             <div key={o} className="client-dropdown-item"
-              onClick={() => { onChange(o); setOpen(false); setSearch(""); }}>
+              onMouseDown={() => { pickedRef.current = true; }}
+              onClick={() => { console.log(`[Autocomplete:${label}] DROPDOWN SELECT — "${o}"`); onChange(o); setOpen(false); setSearch(""); }}>
               <span className="client-name">{o}</span>
             </div>
           ))}
@@ -190,6 +218,8 @@ export default function EditInspectionPage() {
       fetch("/api/inspection-form-data/").then(r => r.json()),
     ])
       .then(([g, f]) => {
+        console.log(`[EditPage] LOADED inspection data:`, { client_name: g.client_name, town: g.town, corporate_group: g.corporate_group, group_type: g.group_type, facility_type: g.facility_type, date: g.date_of_inspection, products: g.products?.length });
+        console.log(`[EditPage] LOADED form options:`, { clients: f.clients?.length, towns: f.towns?.length, corporate_groups: f.corporate_groups?.length });
         if (!g.success) throw new Error(g.error || "Failed to load inspection");
         if (!f.success) throw new Error(f.error || "Failed to load form options");
 
@@ -294,26 +324,25 @@ export default function EditInspectionPage() {
   };
 
   const goNext = () => {
+    console.log(`[EditPage] goNext — current step=${step}, clientName="${clientName}", town="${town}"`);
     const errors = validateStep(step);
     if (step === 1) setStep1Error(errors);
     if (step === 2) setStep2Error(errors);
     if (step === 3) setStep3Error(errors);
-    if (errors.length > 0) return;
+    if (errors.length > 0) { console.log(`[EditPage] goNext BLOCKED — errors:`, errors); return; }
 
     if (step === 1 && !isOccurrence) rebuildProducts();
     setStep(s => Math.min(s + 1, maxStep));
   };
 
-  const goPrev = () => setStep(s => Math.max(s - 1, 1));
+  const goPrev = () => { console.log(`[EditPage] goPrev — current step=${step}`); setStep(s => Math.max(s - 1, 1)); };
 
   /* ---- Submit ---- */
   const handleSave = async () => {
+    console.log(`[EditPage] SAVE clicked — clientName="${clientName}", town="${town}", corporateGroup="${corporateGroup}", groupType="${groupType}", facilityType="${facilityType}"`);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/edit-inspection-group/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = {
           inspection_id: Number(pk),
           client_name: clientName,
           town,
@@ -328,9 +357,15 @@ export default function EditInspectionPage() {
           travel_start_time: travelStart,
           travel_end_time: travelEnd,
           products: isOccurrence ? [] : products,
-        }),
+      };
+      console.log(`[EditPage] SAVE payload:`, JSON.stringify(payload, null, 2));
+      const res = await fetch("/api/edit-inspection-group/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
+      console.log(`[EditPage] SAVE response:`, data);
       if (data.success) {
         window.location.href = "/inspections";
       } else {
@@ -473,8 +508,10 @@ export default function EditInspectionPage() {
             <Autocomplete label="Client" required options={options?.clients.map(c => c.name) ?? []}
               value={clientName}
               onChange={v => {
+                console.log(`[EditPage] Client onChange called — new value="${v}", old value="${clientName}"`);
                 setClientName(v);
                 const found = options?.clients.find(c => c.name === v);
+                console.log(`[EditPage] Client lookup — found in options: ${!!found}`);
                 if (found) {
                   if (found.town && !town) setTown(found.town);
                   if (found.email && !primaryEmail) setPrimaryEmail(found.email);
@@ -487,7 +524,7 @@ export default function EditInspectionPage() {
             />
 
             <Autocomplete label="Town" required options={options?.towns ?? []}
-              value={town} onChange={setTown} placeholder="Start typing to search towns..." />
+              value={town} onChange={v => { console.log(`[EditPage] Town onChange — new="${v}", old="${town}"`); setTown(v); }} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
               <label className="form-label">Client Email (Primary)</label>
@@ -526,7 +563,7 @@ export default function EditInspectionPage() {
 
             <div className="form-group">
               <label className="form-label">Corporate Group <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
+              <select className="form-control" value={corporateGroup} onChange={e => { console.log(`[EditPage] Corporate Group changed — "${e.target.value}"`); setCorporateGroup(e.target.value); }}>
                 <option value="">Select corporate group (required)</option>
                 {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
                 {corporateGroup && !(options?.corporate_groups ?? []).includes(corporateGroup) && corporateGroup !== "Not Applicable" && corporateGroup !== "Other" && (
@@ -539,7 +576,7 @@ export default function EditInspectionPage() {
 
             <div className="form-group">
               <label className="form-label">Group Type <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={groupType} onChange={e => setGroupType(e.target.value)}>
+              <select className="form-control" value={groupType} onChange={e => { console.log(`[EditPage] Group Type changed — "${e.target.value}"`); setGroupType(e.target.value); }}>
                 <option value="">Select group type (required)</option>
                 {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
@@ -547,7 +584,7 @@ export default function EditInspectionPage() {
 
             <div className="form-group">
               <label className="form-label">Facility Type <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
+              <select className="form-control" value={facilityType} onChange={e => { console.log(`[EditPage] Facility Type changed — "${e.target.value}"`); setFacilityType(e.target.value); }}>
                 <option value="">Select facility type (required)</option>
                 {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
