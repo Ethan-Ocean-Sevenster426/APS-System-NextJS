@@ -652,9 +652,15 @@ export default function UserManagementPage() {
 }
 
 /* Alert boxes */
-.um-alert-box { padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
-.um-alert-error { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
-.um-alert-success { background: #d1fae5; border: 1px solid #10b981; color: #065f46; }
+.um-alert-box { padding: 14px 18px; border-radius: 10px; display: flex; align-items: center; gap: 12px; font-size: 0.875rem; font-weight: 500; animation: slideIn 0.3s ease; }
+.um-alert-error { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; box-shadow: 0 4px 16px rgba(239,68,68,0.15); }
+.um-alert-success { background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; box-shadow: 0 4px 16px rgba(16,185,129,0.15); }
+.um-alert-box .alert-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.um-alert-success .alert-icon { background: #d1fae5; color: #059669; }
+.um-alert-error .alert-icon { background: #fee2e2; color: #dc2626; }
+.um-alert-box .alert-dismiss { margin-left: auto; background: none; border: none; cursor: pointer; opacity: 0.5; font-size: 14px; padding: 4px; color: inherit; }
+.um-alert-box .alert-dismiss:hover { opacity: 1; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* Messages container */
 .um-messages { position: fixed; top: 1rem; right: 1rem; z-index: 20000; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -669,9 +675,15 @@ export default function UserManagementPage() {
               className={`um-alert-box ${
                 m.type === "success" ? "um-alert-success" : "um-alert-error"
               }`}
-              style={{ minWidth: 280, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
+              style={{ minWidth: 320, maxWidth: 440 }}
             >
-              {m.text}
+              <span className="alert-icon">
+                <i className={`fas ${m.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}`} />
+              </span>
+              <span style={{ flex: 1, lineHeight: 1.4 }}>{m.text}</span>
+              <button className="alert-dismiss" onClick={() => setMessages(prev => prev.filter(x => x.id !== m.id))}>
+                <i className="fas fa-times" />
+              </button>
             </div>
           ))}
         </div>

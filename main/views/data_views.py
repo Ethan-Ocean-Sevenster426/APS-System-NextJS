@@ -2251,7 +2251,9 @@ def api_users(request):
             expires_at=_tz.now() + _td(hours=48),
         )
 
-        site_url = getattr(_settings, 'SITE_URL', 'http://localhost:3000')
+        # Derive site URL from request to work in both dev and production
+        _scheme = 'https' if request.is_secure() or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https' else 'http'
+        site_url = f"{_scheme}://{request.get_host()}"
         setup_url = f"{site_url}/setup-account"
 
         html_msg = (
