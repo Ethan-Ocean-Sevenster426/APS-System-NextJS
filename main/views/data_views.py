@@ -2813,18 +2813,17 @@ def api_lab_analytics(request):
 
         # Count "Awaiting COA" by checking the actual file system (media/docs/)
         # The coa_uploaded_date field is stale — uploads go to disk but don't set it.
-        # Files live at: media/docs/{group_id}/{inspection_id}/lab/
+        # Files live at: media/docs/{client_id}/{inspection_id}/lab/
         import os
         from django.conf import settings as _settings
         _docs_base = os.path.join(_settings.MEDIA_ROOT, 'docs')
         _awaiting_coa = 0
-        for _insp in base.filter(sent_date__isnull=False).only('id', 'inspection_group_id'):
+        for _insp in base.filter(sent_date__isnull=False).only('id', 'client_id'):
             _has_lab_file = False
-            for _parent in {str(_insp.inspection_group_id), str(_insp.id)} if _insp.inspection_group_id else {str(_insp.id)}:
-                _lab_dir = os.path.join(_docs_base, _parent, str(_insp.id), 'lab')
+            if _insp.client_id:
+                _lab_dir = os.path.join(_docs_base, str(_insp.client_id), str(_insp.id), 'lab')
                 if os.path.isdir(_lab_dir) and os.listdir(_lab_dir):
                     _has_lab_file = True
-                    break
             if not _has_lab_file:
                 _awaiting_coa += 1
         needs_coa = _awaiting_coa
