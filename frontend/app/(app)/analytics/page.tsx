@@ -237,6 +237,7 @@ function baseChartOptions(title?: string, yLabel?: string, opts?: { datalabels?:
         clip: false,
       } : { display: false },
     },
+    layout: { padding: { right: 10 } },
     scales: {
       x: { ticks: { font: { size: isMobile ? 7 : 9 }, maxRotation: isMobile ? 70 : 60, minRotation: isMobile ? 45 : 30 } },
       y: { beginAtZero: true, ticks: { font: { size: isMobile ? 8 : 9 } }, title: yLabel ? { display: true, text: yLabel, font: { size: isMobile ? 9 : 10 } } : undefined },
