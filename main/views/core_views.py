@@ -10567,7 +10567,7 @@ def analytics_dashboard_api(request):
         total_hours=Sum('hours')
     ).order_by('-total_hours'))
 
-    # Inspections list (no limit — full filtered dataset)
+    # Inspections list — no limit, full filtered dataset for accurate reporting
     inspections_list = list(qs.order_by('-date_of_inspection').values(
         'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
         'facility_type', 'is_sample_taken', 'approved_status', 'town'
