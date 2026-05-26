@@ -10567,11 +10567,11 @@ def analytics_dashboard_api(request):
         total_hours=Sum('hours')
     ).order_by('-total_hours'))
 
-    # Inspections list
+    # Inspections list (no limit — full filtered dataset)
     inspections_list = list(qs.order_by('-date_of_inspection').values(
         'date_of_inspection', 'inspector_name', 'client_name', 'commodity',
         'facility_type', 'is_sample_taken', 'approved_status', 'town'
-    )[:200])
+    ))
 
     # Inspector performance (always show ALL inspectors)
     inspector_performance = list(all_qs.exclude(
@@ -10883,14 +10883,15 @@ def analytics_dashboard_api(request):
 
     # Daily travel trend (km + hours per day from InspectionGroup)
     from django.db.models.functions import TruncDay as _TD
+    _daily_travel_raw = list(group_qs.exclude(
+        Q(date_of_inspection__isnull=True)
+    ).values('date_of_inspection').annotate(
+        total_km=Sum('km_traveled'),
+        total_hours=Sum('hours'),
+    ).order_by('date_of_inspection'))
     data['dailyTravelTrend'] = [
-        {'day': r['day'], 'total_km': float(r['total_km'] or 0), 'total_hours': float(r['total_hours'] or 0)}
-        for r in group_qs.exclude(
-            Q(date_of_inspection__isnull=True)
-        ).annotate(day=_TD('date_of_inspection')).values('day').annotate(
-            total_km=Sum('km_traveled'),
-            total_hours=Sum('hours'),
-        ).order_by('day')
+        {'day': str(r['date_of_inspection']), 'total_km': float(r['total_km'] or 0), 'total_hours': float(r['total_hours'] or 0)}
+        for r in _daily_travel_raw
     ]
 
     # Helper: bucket by month and week simultaneously
