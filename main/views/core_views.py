@@ -10881,6 +10881,18 @@ def analytics_dashboard_api(request):
         count=Count('id')
     ).order_by('month'))
 
+    # Daily travel trend (km + hours per day from InspectionGroup)
+    from django.db.models.functions import TruncDay as _TD
+    data['dailyTravelTrend'] = [
+        {'day': r['day'], 'total_km': float(r['total_km'] or 0), 'total_hours': float(r['total_hours'] or 0)}
+        for r in group_qs.exclude(
+            Q(date_of_inspection__isnull=True)
+        ).annotate(day=_TD('date_of_inspection')).values('day').annotate(
+            total_km=Sum('km_traveled'),
+            total_hours=Sum('hours'),
+        ).order_by('day')
+    ]
+
     # Helper: bucket by month and week simultaneously
     def _week_key(dt):
         """Return ISO week key like '2026-W09' from a date."""

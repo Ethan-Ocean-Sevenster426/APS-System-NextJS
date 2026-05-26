@@ -80,6 +80,7 @@ interface AnalyticsData {
   weeklyApprovalTrend: { week: string; avg_days: number; count: number }[];
   dailyApprovalTrend: { day: string; avg_days: number; count: number }[];
   monthlyTravelHoursTrend: { month: string; total_hours: number }[];
+  dailyTravelTrend: { day: string; total_km: number; total_hours: number }[];
   docSendTime: { name: string; avg_days: number; count: number }[];
   invoiceUploadTime: { name: string; avg_days: number; count: number }[];
   coaAnalysisTime: { commodity: string; avg_days: number; count: number }[];
@@ -2404,15 +2405,15 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
   };
   const _weeklyTravel = _aggTravel(data.monthlyInspectorTrend || []);
 
-  // For daily: use inspectionsList to get per-day totals
+  // For daily: use dedicated dailyTravelTrend from backend (not limited like inspectionsList)
   const _dailyTravel = (() => {
     const km: Record<string, number> = {};
     const hrs: Record<string, number> = {};
-    (data.inspectionsList || []).forEach(i => {
-      const d = i.date_of_inspection;
+    (data.dailyTravelTrend || []).forEach(r => {
+      const d = String(r.day || "").substring(0, 10);
       if (!d) return;
-      km[d] = (km[d] || 0) + (Number((i as Record<string, unknown>).km_traveled) || 0);
-      hrs[d] = (hrs[d] || 0) + (Number((i as Record<string, unknown>).hours) || 0);
+      km[d] = (km[d] || 0) + (r.total_km || 0);
+      hrs[d] = (hrs[d] || 0) + (r.total_hours || 0);
     });
     return { km, hrs, days: Object.keys(km).sort() };
   })();
