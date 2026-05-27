@@ -902,7 +902,7 @@ export default function InspectionsPage() {
   // Filter options: use full lists from backend, fallback to current page
   const inspectorOptions = allInspectors.length > 0 ? allInspectors : [...new Set(inspections.map(i => i.inspector_name).filter(Boolean))].sort() as string[];
   const corpGroupOptions = allCorpGroups.length > 0 ? allCorpGroups : [...new Set(inspections.map(i => i.corporate_group).filter(Boolean))].sort() as string[];
-  const groupTypeOptions = allGroupTypes.length > 0 ? allGroupTypes : [...new Set(inspections.map(i => i.group_type).filter(Boolean))].sort() as string[];
+  const groupTypeOptions = ["Corporate Store", "Franchise Store", "Individual / Independent Owner"];
   const clientOptions = useMemo(() => [...new Set(inspections.map(i => i.client_name).filter(Boolean))].sort() as string[], [inspections]);
 
 

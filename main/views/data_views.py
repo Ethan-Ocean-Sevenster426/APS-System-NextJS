@@ -1118,10 +1118,18 @@ def api_inspections(request):
         # ── Additional server-side filters ──
         from ..models import InspectionDocument
 
-        # Group type filter
+        # Group type (store type) filter — match clean names + DB variants
         filter_group_types = request.GET.getlist('group_type')
         if filter_group_types:
-            groups_qs = groups_qs.filter(group_type__in=filter_group_types)
+            _gt_variants = {
+                'Corporate Store': ['Corporate Store', 'Corporate'],
+                'Franchise Store': ['Franchise Store', 'Franchise'],
+                'Individual / Independent Owner': ['Individual / Independent Owner', 'Individual'],
+            }
+            _all_matches = []
+            for _gt in filter_group_types:
+                _all_matches.extend(_gt_variants.get(_gt, [_gt]))
+            groups_qs = groups_qs.filter(group_type__in=_all_matches)
 
         # Occurrence filter (OCCURRENCE / INSPECTION)
         filter_occurrence = request.GET.getlist('occurrence')
