@@ -8,6 +8,8 @@ interface MultiSelectDropdownProps {
   selected: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
+  /** Show a search input to filter options */
+  searchable?: boolean;
   /** Extra wrapper style */
   style?: React.CSSProperties;
 }
@@ -18,10 +20,13 @@ export default function MultiSelectDropdown({
   selected,
   onChange,
   placeholder = "All",
+  searchable = false,
   style,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // Close on outside mousedown — works in React 17+ because we check
   // containment instead of relying on stopPropagation.
@@ -29,11 +34,23 @@ export default function MultiSelectDropdown({
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
+        setSearch("");
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Auto-focus search input when dropdown opens
+  useEffect(() => {
+    if (open && searchable && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [open, searchable]);
+
+  const filteredOptions = searchable && search
+    ? options.filter((opt) => opt.toLowerCase().includes(search.toLowerCase()))
+    : options;
 
   const toggle = (value: string) => {
     onChange(
@@ -124,12 +141,38 @@ export default function MultiSelectDropdown({
             </button>
           </div>
 
+          {/* Search */}
+          {searchable && (
+            <div style={{ padding: "6px 10px", borderBottom: "1px solid #f3f4f6" }}>
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                style={{
+                  width: "100%",
+                  padding: "5px 8px",
+                  fontSize: "0.78rem",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 4,
+                  outline: "none",
+                  color: "#1f2937",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#007890")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+              />
+            </div>
+          )}
+
           {/* Options */}
           <div style={{ maxHeight: 220, overflowY: "auto" }}>
-            {options.length === 0 ? (
-              <div style={{ padding: "8px 10px", fontSize: 12, color: "#9ca3af" }}>No options</div>
+            {filteredOptions.length === 0 ? (
+              <div style={{ padding: "8px 10px", fontSize: 12, color: "#9ca3af" }}>
+                {search ? "No matches" : "No options"}
+              </div>
             ) : (
-              options.map((opt) => (
+              filteredOptions.map((opt) => (
                 <label
                   key={opt}
                   style={{

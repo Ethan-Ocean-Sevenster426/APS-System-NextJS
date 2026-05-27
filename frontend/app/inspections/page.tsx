@@ -168,11 +168,11 @@ const LAB_NAME_TO_CODE: Record<string, string> = {
   "ARC": "lab_f",
 };
 
-function IrMultiSelect({ label, options, selected, onChange }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
+function IrMultiSelect({ label, options, selected, onChange, searchable }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void; searchable?: boolean }) {
   return (
     <div className="ir-filter-field">
       <label className="ir-form-label">{label}</label>
-      <MultiSelectDropdown label={label} options={options} selected={selected} onChange={onChange} />
+      <MultiSelectDropdown label={label} options={options} selected={selected} onChange={onChange} searchable={searchable} />
     </div>
   );
 }
@@ -1707,9 +1707,9 @@ export default function InspectionsPage() {
 
                 {/* Dropdowns grid */}
                 <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
-                  <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} />
-                  <IrMultiSelect label="Business" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
-                  <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
+                  <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} searchable />
+                  <IrMultiSelect label="Business" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} searchable />
+                  <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} searchable />
                   <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
