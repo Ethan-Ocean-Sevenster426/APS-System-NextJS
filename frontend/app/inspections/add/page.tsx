@@ -515,7 +515,10 @@ export default function AddInspectionPage() {
                 </h4>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ color: "#92400e" }}>Facility Type <span style={{ color: "#ef4444" }}>*</span></label>
-                  <Autocomplete label="" options={FACILITY_TYPES} value={facilityType} onChange={setFacilityType} />
+                  <select className="form-control" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
+                    <option value="">Select facility type...</option>
+                    {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -985,9 +988,21 @@ export default function AddInspectionPage() {
               </select>
             </div>
 
-            <Autocomplete label="Store Type" required options={GROUP_TYPES} value={groupType} onChange={setGroupType} />
+            <div className="form-group">
+              <label className="form-label">Store Type<span style={{ color: "#ef4444" }}> *</span></label>
+              <select className="form-control" value={groupType} onChange={e => setGroupType(e.target.value)}>
+                <option value="">Select store type...</option>
+                {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
 
-            <Autocomplete label="Facility Type" required options={FACILITY_TYPES} value={facilityType} onChange={setFacilityType} />
+            <div className="form-group">
+              <label className="form-label">Facility Type<span style={{ color: "#ef4444" }}> *</span></label>
+              <select className="form-control" value={facilityType} onChange={e => setFacilityType(e.target.value)}>
+                <option value="">Select facility type...</option>
+                {FACILITY_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
 
             <div className="form-group">
               <label className="form-label">Commodity Types <span style={{ color: "#ef4444" }}>*</span></label>
