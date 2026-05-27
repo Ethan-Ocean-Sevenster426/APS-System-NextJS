@@ -231,6 +231,8 @@ export default function InspectionsPage() {
 
   // Applied filter state — only updated when "Apply Filters" is clicked
   const [appliedFilters, setAppliedFilters] = useState({
+    inspector: [] as string[],
+    corporateGroup: [] as string[],
     groupType: [] as string[],
     occurrence: [] as string[],
     sampled: [] as string[],
@@ -285,7 +287,198 @@ export default function InspectionsPage() {
     loading: boolean;
   }>({ visible: false, clientName: "", inspectionDate: "", groupId: "", files: {}, loading: false });
 
-  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, inspector?: string, corpGroup?: string, filters?: {
+  // Corporate invoice modal state
+  interface CorpInvoiceItem {
+    client_name: string;
+    inspector_name: string;
+    invoice_date: string;
+    item_code: string;
+    description: string;
+    quantity: number;
+    unit_amount: number;
+    total: number;
+    account_code: string;
+    city: string;
+    corporate_group?: string;
+    tax_rate?: string;
+  }
+  interface CorpMonthSummary { month: string; label: string; items: CorpInvoiceItem[]; total: number; stores: number; }
+  const [corpInvoiceModal, setCorpInvoiceModal] = useState(false);
+  const [corpInvoiceGroup, setCorpInvoiceGroup] = useState("");
+  const [corpInvoiceMonths, setCorpInvoiceMonths] = useState<CorpMonthSummary[]>([]);
+  const [corpInvoiceSelected, setCorpInvoiceSelected] = useState<CorpMonthSummary | null>(null);
+  const [corpInvoiceLoading, setCorpInvoiceLoading] = useState(false);
+  const [corpInvoiceFile, setCorpInvoiceFile] = useState<string | null>(null);
+  const [corpInvoiceUploading, setCorpInvoiceUploading] = useState(false);
+  const corpInvoiceFileRef = useRef<HTMLInputElement>(null);
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const checkCorpInvoiceFile = async (group: string, month: string) => {
+    try {
+      const res = await fetch(`/api/corporate-invoice-file?corporate_group=${encodeURIComponent(group)}&month=${month}`);
+      const data = await res.json();
+      setCorpInvoiceFile(data.has_file ? data.filename : null);
+    } catch { setCorpInvoiceFile(null); }
+  };
+
+  const uploadCorpInvoiceFile = async (file: File) => {
+    if (!corpInvoiceSelected || !corpInvoiceGroup) return;
+    setCorpInvoiceUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("corporate_group", corpInvoiceGroup);
+      fd.append("month", corpInvoiceSelected.month);
+      const res = await fetch("/api/corporate-invoice-file", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success) {
+        setCorpInvoiceFile(data.filename);
+        showToast("Invoice uploaded");
+      } else {
+        alert("Upload failed: " + (data.error || "Unknown error"));
+      }
+    } catch (e) { alert("Upload error: " + String(e)); }
+    finally { setCorpInvoiceUploading(false); }
+  };
+
+  const fetchCorpInvoiceMonths = async (group: string) => {
+    if (!group) return;
+    setCorpInvoiceLoading(true);
+    setCorpInvoiceSelected(null); setCorpInvoiceFile(null);
+    setCorpInvoiceMonths([]);
+    try {
+      // Fetch last 12 months of data for this corporate group
+      const now = new Date();
+      const dateFrom = `${now.getFullYear() - 1}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const dateTo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const res = await fetch(`/api/export-sheet?date_from=${dateFrom}&date_to=${dateTo}&corporate_group=${encodeURIComponent(group)}`);
+      const data = await res.json();
+      if (data.success && data.items?.length) {
+        // Group items by month
+        const byMonth = new Map<string, CorpInvoiceItem[]>();
+        (data.items as CorpInvoiceItem[]).forEach(item => {
+          // invoice_date is DD/MM/YYYY
+          const parts = item.invoice_date?.split("/");
+          if (parts?.length === 3) {
+            const key = `${parts[2]}-${parts[1]}`; // YYYY-MM
+            if (!byMonth.has(key)) byMonth.set(key, []);
+            byMonth.get(key)!.push(item);
+          }
+        });
+        const months: CorpMonthSummary[] = [];
+        byMonth.forEach((items, month) => {
+          const [y, m] = month.split("-").map(Number);
+          const stores = new Set(items.map(i => i.client_name)).size;
+          months.push({
+            month,
+            label: `${MONTH_NAMES[m - 1]} ${y}`,
+            items,
+            total: items.reduce((s, i) => s + (i.total || 0), 0),
+            stores,
+          });
+        });
+        months.sort((a, b) => b.month.localeCompare(a.month)); // newest first
+        setCorpInvoiceMonths(months);
+      }
+    } catch (err) {
+      console.error("Corp invoice fetch failed:", err);
+    } finally {
+      setCorpInvoiceLoading(false);
+    }
+  };
+
+  const exportCorpInvoiceExcel = async () => {
+    if (!corpInvoiceSelected) return;
+    try {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Food Safety Agency";
+      const ws = wb.addWorksheet("Invoice Data");
+
+      const headers = [
+        "*ContactName", "EmailAddress", "POAddressLine1", "POAddressLine2",
+        "POAddressLine3", "POAddressLine4", "POCity", "PORegion",
+        "POPostalCode", "POCountry", "*InvoiceNumber", "Reference",
+        "*InvoiceDate", "*DueDate", "Total", "InventoryItemCode",
+        "*Description", "*Quantity", "*UnitAmount", "Discount",
+        "*AccountCode", "*TaxType", "Tax Amount", "TrackingName1",
+        "TrackingOption1", "TrackingName2", "TrackingOption2",
+        "Currency", "BrandingTheme",
+      ];
+
+      const colWidths = [25, 20, 20, 20, 20, 20, 15, 15, 12, 15, 20, 20, 12, 12, 12, 15, 50, 10, 12, 10, 15, 25, 12, 15, 15, 15, 15, 10, 15];
+      ws.columns = headers.map((h, i) => ({ header: h, key: h, width: colWidths[i] || 15 }));
+
+      const headerRow = ws.getRow(1);
+      headerRow.eachCell((cell: unknown) => {
+        const c = cell as { fill: unknown; font: unknown };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+        c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      });
+      headerRow.commit();
+
+      const corpAbbrev = corpInvoiceGroup.replace(/[^A-Za-z]/g, "").substring(0, 3).toUpperCase();
+      const [ym, mm] = corpInvoiceSelected.month.split("-");
+      const invNumber = `FSA-CORP-${corpAbbrev}-${ym.slice(2)}${mm}`;
+
+      corpInvoiceSelected.items.forEach(item => {
+        ws.addRow([
+          corpInvoiceGroup, "", "", "", "", "",
+          item.city || "", "", "", "",
+          invNumber, corpInvoiceSelected.label,
+          item.invoice_date || "", "", "",
+          item.item_code || "", item.description || "",
+          item.quantity || 0, item.unit_amount || 0, "",
+          item.account_code || "", item.tax_rate || "Tax Exempt", "",
+          "", "", "", "", "", "",
+        ]);
+      });
+
+      // Summary sheet
+      const ss = wb.addWorksheet("Summary");
+      ss.columns = [
+        { header: "Store", key: "store", width: 35 },
+        { header: "Line Items", key: "items", width: 12 },
+        { header: "Subtotal", key: "subtotal", width: 15 },
+      ];
+      const sHeaderRow = ss.getRow(1);
+      sHeaderRow.eachCell((cell: unknown) => {
+        const c = cell as { fill: unknown; font: unknown };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+        c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      });
+      sHeaderRow.commit();
+
+      const storeMap = new Map<string, { count: number; total: number }>();
+      corpInvoiceSelected.items.forEach(item => {
+        const name = item.client_name || "Unknown";
+        const cur = storeMap.get(name) || { count: 0, total: 0 };
+        cur.count++;
+        cur.total += item.total || 0;
+        storeMap.set(name, cur);
+      });
+      storeMap.forEach((val, name) => ss.addRow([name, val.count, val.total]));
+      const totalRow = ss.addRow(["TOTAL", corpInvoiceSelected.items.length, corpInvoiceSelected.total]);
+      totalRow.eachCell((cell: unknown) => { (cell as { font: unknown }).font = { bold: true }; });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Corporate_Invoice_${corpInvoiceGroup.replace(/\s+/g, "_")}_${corpInvoiceSelected.month}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Excel export failed: " + String(e));
+    }
+  };
+
+  const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, filters?: {
+    inspector?: string[]; corporateGroup?: string[];
     groupType?: string[]; occurrence?: string[]; sampled?: string[]; sentStatus?: string[];
     compliance?: string[]; approved?: string[]; email?: string;
     rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
@@ -297,10 +490,10 @@ export default function InspectionsPage() {
     if (from) p.set("date_from", from);
     if (to) p.set("date_to", to);
     if (search) p.set("client_search", search);
-    if (inspector) p.set("inspector", inspector);
-    if (corpGroup) p.set("corporate_group", corpGroup);
     // Send all filters to backend
     if (filters) {
+      if (filters.inspector?.length) filters.inspector.forEach(v => p.append("inspector", v));
+      if (filters.corporateGroup?.length) filters.corporateGroup.forEach(v => p.append("corporate_group", v));
       if (filters.groupType?.length) filters.groupType.forEach(v => p.append("group_type", v));
       if (filters.occurrence?.length) filters.occurrence.forEach(v => p.append("occurrence", v));
       if (filters.sampled?.length) filters.sampled.forEach(v => p.append("sampled", v));
@@ -717,9 +910,7 @@ export default function InspectionsPage() {
     if (showUndeliverable) {
       fetchUndeliverable(page);
     } else {
-      const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
-      const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
-      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, singleInspector, singleCorpGroup, appliedFilters);
+      fetchInspections(showDuplicates, dateFrom, dateTo, page, debouncedSearch, appliedFilters);
     }
   };
 
@@ -741,6 +932,12 @@ export default function InspectionsPage() {
 
   const inspectionHasPmpOrRaw = (s: Inspection) => {
     return (s.products || []).some(p => isPmpOrRaw(p.commodity));
+  };
+
+  const groupNeedsRfi = (s: Inspection): boolean => {
+    const products = s.products || [];
+    if (products.length === 0) return true;
+    return products.some(p => isPmpOrRaw(p.commodity));
   };
 
   const getSampleBadge = (product: Product, isOccurrence: boolean, _hasCompliance: boolean) => {
@@ -1403,8 +1600,9 @@ export default function InspectionsPage() {
         .ir-badge { font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap; }
         .ir-badge-green { background: #dcfce7; color: #166534; }
         .ir-badge-red { background: #fee2e2; color: #991b1b; }
+        .ir-badge-grey { background: #e5e7eb; color: #9ca3af; }
         .ir-table-info { font-size: 0.875rem; color: #6b7280; margin-bottom: 12px; }
-        .ir-approved-select { width: 72px; display: block; margin: 0 auto; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.75rem; }
+        .ir-approved-select { width: 90px; display: block; margin: 0 auto; padding: 2px 18px 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.75rem; appearance: auto; -webkit-appearance: menulist; }
         .ir-detail-content { padding: 0; background: #f8fafc; border-top: 2px solid #e6f3f7; }
         @media (max-width: 768px) {
           .ir-header h1 { font-size: 1.1rem; }
@@ -1421,7 +1619,7 @@ export default function InspectionsPage() {
           .ir-card-body { padding: 6px; }
           .ir-table th, .ir-table td { padding: 4px 6px; font-size: 0.65rem; }
           .ir-table { min-width: 700px; }
-          .ir-approved-select { width: 60px; font-size: 0.65rem; }
+          .ir-approved-select { width: 80px; font-size: 0.65rem; }
           .ir-detail-content { overflow-x: auto; }
           .ir-detail-layout { flex-direction: column !important; gap: 8px !important; padding: 6px !important; }
           .ir-detail-left { flex: 1 1 auto !important; width: 100% !important; }
@@ -1480,9 +1678,7 @@ export default function InspectionsPage() {
                     <ClientSearchInput value={clientSearch} onChange={setClientSearch} options={clientOptions}
                       onEnter={() => {
                         setCurrentPage(1);
-                        const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
-                        const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
-                        fetchInspections(showDuplicates, dateFrom, dateTo, 1, clientSearch, singleInspector, singleCorpGroup);
+                        fetchInspections(showDuplicates, dateFrom, dateTo, 1, clientSearch, appliedFilters);
                       }}
                     />
                   </div>
@@ -1503,8 +1699,8 @@ export default function InspectionsPage() {
                 {/* Dropdowns grid */}
                 <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
                   <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} />
-                  <IrMultiSelect label="Corporate Group" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
-                  <IrMultiSelect label="Group Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
+                  <IrMultiSelect label="Business" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} />
+                  <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} />
                   <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
@@ -1520,7 +1716,6 @@ export default function InspectionsPage() {
                       <IrMultiSelect label="Lab" options={["Food Safety Laboratory", "Merieux NutriSciences", "AGRI Food Laboratory (SGS)", "SANBI", "SMT", "ARC"]} selected={labFilter} onChange={setLabFilter} />
                       <IrMultiSelect label="Test Type" options={["DNA", "FAT", "PROTEIN", "CALCIUM"]} selected={testTypeFilter} onChange={setTestTypeFilter} />
                       <IrMultiSelect label="Needs Retest" options={["NEEDS_RETEST", "NO_RETEST"]} selected={retestFilter} onChange={setRetestFilter} />
-                      <IrMultiSelect label="COA Uploaded" options={["COA_UPLOADED", "NO_COA"]} selected={coaStatusFilter} onChange={setCoaStatusFilter} />
                     </>
                   )}
                 </div>
@@ -1530,7 +1725,7 @@ export default function InspectionsPage() {
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
                       setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]);
-                      setAppliedFilters({ groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [] });
+                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [] });
                       setCurrentPage(1);
                       fetchInspections(showDuplicates, "", "", 1, "");
                     }}>
@@ -1539,6 +1734,7 @@ export default function InspectionsPage() {
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
                       const af = {
+                        inspector: inspectorFilter, corporateGroup: corpGroupFilter,
                         groupType: groupTypeFilter, occurrence: occurrenceFilter, sampled: sampledFilter,
                         sentStatus: sentStatusFilter, compliance: complianceFilter, approved: approvedFilter,
                         fileStatus: fileStatusFilter, rfi: rfiFilter, invoice: invoiceFilter,
@@ -1548,20 +1744,18 @@ export default function InspectionsPage() {
                       };
                       setAppliedFilters(af);
                       setCurrentPage(1);
-                      const singleInspector = inspectorFilter.length === 1 ? inspectorFilter[0] : "";
-                      const singleCorpGroup = corpGroupFilter.length === 1 ? corpGroupFilter[0] : "";
-                      fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, singleInspector, singleCorpGroup, af);
+                      fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, af);
                     }}>
                     <i className="fas fa-filter" /> Apply Filters
                   </button>
                   {roleLoaded && !isLabTechRestricted && (showDuplicates ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
+                      onClick={() => { setShowDuplicates(false); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch, appliedFilters); }}>
                       <i className="fas fa-times" /> Clear Duplicates
                     </button>
                   ) : (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#f59e0b", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowDuplicates(true); setCurrentPage(1); fetchInspections(true, dateFrom, dateTo, 1, debouncedSearch); }}>
+                      onClick={() => { setShowDuplicates(true); setCurrentPage(1); fetchInspections(true, dateFrom, dateTo, 1, debouncedSearch, appliedFilters); }}>
                       <i className="fas fa-copy" /> View Duplicates
                       {duplicateGroupsCount > 0 && (
                         <span style={{ background: "#fff", color: "#f59e0b", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{duplicateGroupsCount}</span>
@@ -1570,7 +1764,7 @@ export default function InspectionsPage() {
                   ))}
                   {roleLoaded && !isLabTechRestricted && (showUndeliverable ? (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#dc2626", color: "#fff", borderRadius: 6 }}
-                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch); }}>
+                      onClick={() => { setShowUndeliverable(false); setShowDuplicates(false); setBouncedEmails(new Set()); setCurrentPage(1); fetchInspections(false, dateFrom, dateTo, 1, debouncedSearch, appliedFilters); }}>
                       <i className="fas fa-times" /> Clear Undeliverable
                     </button>
                   ) : (
@@ -1580,6 +1774,18 @@ export default function InspectionsPage() {
                       <span style={{ background: "#fff", color: "#ef4444", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{undeliverableCount}</span>
                     </button>
                   ))}
+                  {roleLoaded && !isLabTechRestricted && (
+                    <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#007890", color: "#fff", borderRadius: 6 }}
+                      onClick={() => {
+                        if (corpGroupFilter.length === 1) {
+                          setCorpInvoiceGroup(corpGroupFilter[0]);
+                          fetchCorpInvoiceMonths(corpGroupFilter[0]);
+                        }
+                        setCorpInvoiceModal(true);
+                      }}>
+                      <i className="fas fa-building" /> Corporate Invoice
+                    </button>
+                  )}
                 </div>
               </form>
               )}
@@ -1647,7 +1853,7 @@ export default function InspectionsPage() {
                       </div>
                       {/* File Status Row */}
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6, marginBottom: 6 }}>
-                        <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : "ir-badge-red"}`}>RFI: {s.has_rfi ? "Yes" : "No"}</span>
+                        <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : groupNeedsRfi(s) ? "ir-badge-red" : "ir-badge-grey"}`}>RFI: {s.has_rfi ? "Yes" : groupNeedsRfi(s) ? "No" : "N/R"}</span>
                         <span className={`ir-badge ${s.has_invoice ? "ir-badge-green" : "ir-badge-red"}`}>Inv: {s.has_invoice ? "Yes" : "No"}</span>
                         <span className={`ir-badge ${s.has_lab ? "ir-badge-green" : "ir-badge-red"}`}>COA: {s.has_lab ? "Yes" : "No"}</span>
                         <span className={`ir-badge ${s.has_compliance ? "ir-badge-green" : "ir-badge-red"}`}>Comp: {s.has_compliance ? "Yes" : "No"}</span>
@@ -1683,7 +1889,7 @@ export default function InspectionsPage() {
                                 const data = await res.json();
                                 if (data.success) {
                                   setInspections(prev => prev.filter(i => i.id !== s.id));
-                                  setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch), 500);
+                                  setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch, appliedFilters), 500);
                                 } else {
                                   alert("Delete failed: " + (data.error || "Unknown error"));
                                 }
@@ -1759,8 +1965,8 @@ export default function InspectionsPage() {
                             </td>
                             {roleLoaded && !isLabTechRestricted && (
                               <td className="center">
-                                <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.has_rfi ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_rfi ? "File" : "No-File"}
+                                <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : groupNeedsRfi(s) ? "ir-badge-red" : "ir-badge-grey"}`}>
+                                  <i className={`fas fa-${s.has_rfi ? "check" : groupNeedsRfi(s) ? "times" : "minus"}`} style={{ fontSize: 8 }} /> {s.has_rfi ? "File" : groupNeedsRfi(s) ? "No-File" : "N/R"}
                                 </span>
                               </td>
                             )}
@@ -1900,7 +2106,7 @@ export default function InspectionsPage() {
                                           if (data.success) {
                                             setInspections(prev => prev.filter(i => i.id !== s.id));
                                             // Refetch to get updated list from server
-                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch), 500);
+                                            setTimeout(() => fetchInspections(showDuplicates, dateFrom, dateTo, currentPage, debouncedSearch, appliedFilters), 500);
                                           } else {
                                             alert("Delete failed: " + (data.error || "Unknown error"));
                                           }
@@ -2201,6 +2407,199 @@ export default function InspectionsPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Corporate Invoice Modal */}
+      {corpInvoiceModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex",
+          alignItems: "center", justifyContent: "center", zIndex: 9999,
+        }} onClick={() => { setCorpInvoiceModal(false); setCorpInvoiceSelected(null); setCorpInvoiceFile(null); }}>
+          <div style={{
+            background: "#f3f4f6", borderRadius: 8, width: "96%", maxWidth: 1300,
+            maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Top bar — matches ir-card-header style */}
+            <div style={{ padding: "12px 16px", background: "#fff", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {corpInvoiceSelected && (
+                  <button onClick={() => { setCorpInvoiceSelected(null); setCorpInvoiceFile(null); }}
+                    style={{ background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 13, color: "#374151" }}>
+                    <i className="fas fa-arrow-left" />
+                  </button>
+                )}
+                <div className="ir-card-title">
+                  <i className="fas fa-building" />
+                  {corpInvoiceSelected
+                    ? `${corpInvoiceGroup} — ${corpInvoiceSelected.label} Invoice`
+                    : "Corporate Invoice"}
+                </div>
+              </div>
+              <button onClick={() => { setCorpInvoiceModal(false); setCorpInvoiceSelected(null); setCorpInvoiceFile(null); }}
+                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280", padding: "2px 8px", lineHeight: 1 }}>
+                &times;
+              </button>
+            </div>
+
+            {/* Phase 1: Group selector + month list */}
+            {!corpInvoiceSelected && (
+              <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+                {/* Group selector card */}
+                <div className="ir-card" style={{ marginBottom: 12 }}>
+                  <div className="ir-card-body" style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="ir-form-label" style={{ marginBottom: 4, display: "block" }}>Business</label>
+                      <select className="ir-form-control" value={corpInvoiceGroup}
+                        onChange={e => { setCorpInvoiceGroup(e.target.value); if (e.target.value) fetchCorpInvoiceMonths(e.target.value); }}>
+                        <option value="">-- Select Group --</option>
+                        {(allCorpGroups.length > 0 ? allCorpGroups : corpGroupOptions).map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Month list card */}
+                <div className="ir-card">
+                  <div className="ir-card-header">
+                    <div className="ir-card-title"><i className="fas fa-file-invoice-dollar" /> Monthly Invoices</div>
+                  </div>
+                  <div className="ir-card-body">
+                    {corpInvoiceLoading ? (
+                      <div style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 8 }} />Loading...
+                      </div>
+                    ) : !corpInvoiceGroup ? (
+                      <div className="ir-table-info" style={{ textAlign: "center", padding: 32 }}>Select a corporate group above to see available invoices.</div>
+                    ) : corpInvoiceMonths.length === 0 ? (
+                      <div className="ir-table-info" style={{ textAlign: "center", padding: 32 }}>No invoices found for {corpInvoiceGroup}.</div>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table className="ir-table">
+                          <thead>
+                            <tr>
+                              <th>Month</th>
+                              <th className="center" style={{ width: 90 }}>Stores</th>
+                              <th className="center" style={{ width: 100 }}>Line Items</th>
+                              <th style={{ width: 140, textAlign: "right" }}>Total</th>
+                              <th className="center" style={{ width: 60 }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {corpInvoiceMonths.map(m => (
+                              <tr key={m.month} onClick={() => { setCorpInvoiceSelected(m); checkCorpInvoiceFile(corpInvoiceGroup, m.month); }}
+                                style={{ cursor: "pointer" }}
+                                onMouseEnter={e => (e.currentTarget.style.background = "#f0fdf4")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                                <td>
+                                  <span style={{ fontWeight: 600, color: "#007890" }}>{m.label} Invoice</span>
+                                </td>
+                                <td className="center">{m.stores}</td>
+                                <td className="center">{m.items.length}</td>
+                                <td style={{ textAlign: "right", fontWeight: 600 }}>R{m.total.toFixed(2)}</td>
+                                <td className="center"><i className="fas fa-chevron-right" style={{ fontSize: 10, color: "#94a3b8" }} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phase 2: Selected month detail */}
+            {corpInvoiceSelected && (() => {
+              const sel = corpInvoiceSelected;
+              return (
+                <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+                  {/* Action bar card */}
+                  <div className="ir-card" style={{ marginBottom: 12 }}>
+                    <div className="ir-card-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                      <div className="ir-table-info" style={{ margin: 0 }}>
+                        {sel.stores} store{sel.stores !== 1 ? "s" : ""} &middot; {sel.items.length} line items &middot; <b style={{ color: "#007890" }}>Total: R{sel.total.toFixed(2)}</b>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        {corpInvoiceFile ? (
+                          <>
+                            <a href={`/api/corporate-invoice-file?corporate_group=${encodeURIComponent(corpInvoiceGroup)}&month=${sel.month}&download=1`} target="_blank" rel="noopener noreferrer"
+                              style={{ padding: "6px 14px", background: "#007890", color: "#fff", borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                              <i className="fas fa-eye" style={{ fontSize: 10 }} />View Invoice
+                            </a>
+                            <button onClick={() => corpInvoiceFileRef.current?.click()} disabled={corpInvoiceUploading}
+                              style={{ padding: "6px 14px", background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                              <i className={`fas ${corpInvoiceUploading ? "fa-spinner fa-spin" : "fa-sync"}`} style={{ fontSize: 10 }} />Replace
+                            </button>
+                          </>
+                        ) : (
+                          <button onClick={() => corpInvoiceFileRef.current?.click()} disabled={corpInvoiceUploading}
+                            style={{ padding: "6px 14px", background: "#007890", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                            <i className={`fas ${corpInvoiceUploading ? "fa-spinner fa-spin" : "fa-upload"}`} style={{ fontSize: 10 }} />
+                            {corpInvoiceUploading ? "Uploading..." : "Upload Invoice"}
+                          </button>
+                        )}
+                        <input ref={corpInvoiceFileRef} type="file" accept=".pdf" style={{ display: "none" }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadCorpInvoiceFile(f); e.target.value = ""; }} />
+                        <button onClick={exportCorpInvoiceExcel}
+                          style={{ padding: "6px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <i className="fas fa-file-excel" style={{ fontSize: 10 }} />Export Excel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Invoice table card */}
+                  <div className="ir-card">
+                    <div className="ir-card-header">
+                      <div className="ir-card-title"><i className="fas fa-clipboard-check" /> Invoice Line Items</div>
+                    </div>
+                    <div className="ir-card-body">
+                      <div style={{ overflowX: "auto" }}>
+                        <table className="ir-table">
+                          <thead>
+                            <tr>
+                              <th>Store</th>
+                              <th style={{ width: 100 }}>Date</th>
+                              <th style={{ width: 90 }}>Code</th>
+                              <th>Description</th>
+                              <th className="center" style={{ width: 70 }}>Qty</th>
+                              <th style={{ width: 90, textAlign: "right" }}>Rate</th>
+                              <th style={{ width: 100, textAlign: "right" }}>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sel.items.map((item, idx) => (
+                              <tr key={idx}>
+                                <td><span style={{ fontWeight: 600, color: "#007890", fontSize: "0.75rem" }}>{item.client_name}</span></td>
+                                <td style={{ whiteSpace: "nowrap" }}>{item.invoice_date}</td>
+                                <td style={{ whiteSpace: "nowrap" }}>{item.item_code}</td>
+                                <td style={{ color: "#475569", maxWidth: 350, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</td>
+                                <td className="center">{item.quantity?.toFixed(2)}</td>
+                                <td style={{ textAlign: "right" }}>R{item.unit_amount?.toFixed(2)}</td>
+                                <td style={{ textAlign: "right", fontWeight: 600 }}>R{item.total?.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr style={{ background: "#e6f3f7" }}>
+                              <td colSpan={6} style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", color: "#007890", fontSize: "0.85rem", borderTop: "2px solid #007890" }}>Invoice Total</td>
+                              <td style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", color: "#007890", fontSize: "0.85rem", borderTop: "2px solid #007890" }}>R{sel.total.toFixed(2)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

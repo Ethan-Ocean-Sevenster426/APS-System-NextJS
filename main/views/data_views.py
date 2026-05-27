@@ -1071,6 +1071,7 @@ def api_inspections(request):
                 first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
                 first_sent=Subquery(insp.order_by('id').values('sent_date')[:1]),
                 first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('id').values('sent_by')[:1]),
+                first_sent_by_name=Subquery(insp.exclude(sent_by_name='').order_by('id').values('sent_by_name')[:1]),
             )
             .order_by('-date_of_inspection')
         )
@@ -1097,15 +1098,15 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(inspector_q)
             # inspector_manager sees all inspections - no filtering needed
 
-        # Server-side inspector filter
-        filter_inspector = request.GET.get('inspector', '').strip()
-        if filter_inspector:
-            groups_qs = groups_qs.filter(inspector_name__iexact=filter_inspector)
+        # Server-side inspector filter (supports multi-select)
+        filter_inspectors = request.GET.getlist('inspector')
+        if filter_inspectors:
+            groups_qs = groups_qs.filter(inspector_name__in=filter_inspectors)
 
-        # Server-side corporate group filter
-        filter_corp_group = request.GET.get('corporate_group', '').strip()
-        if filter_corp_group:
-            groups_qs = groups_qs.filter(corporate_group__iexact=filter_corp_group)
+        # Server-side corporate group filter (supports multi-select)
+        filter_corp_groups = request.GET.getlist('corporate_group')
+        if filter_corp_groups:
+            groups_qs = groups_qs.filter(corporate_group__in=filter_corp_groups)
 
         if date_from:
             groups_qs = groups_qs.filter(date_of_inspection__gte=date_from)
@@ -1205,10 +1206,16 @@ def api_inspections(request):
                     document_type='rfi'
                 )
             )
+            _has_pmp_or_raw = Exists(
+                FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group_id=OuterRef('pk'),
+                    commodity__iregex=r'^(PMP|RAW)$'
+                )
+            )
             if 'HAS_RFI' in filter_has_rfi and 'NO_RFI' not in filter_has_rfi:
                 groups_qs = groups_qs.filter(_rfi_exists)
             elif 'NO_RFI' in filter_has_rfi and 'HAS_RFI' not in filter_has_rfi:
-                groups_qs = groups_qs.exclude(_rfi_exists)
+                groups_qs = groups_qs.exclude(_rfi_exists).filter(_has_pmp_or_raw)
 
         # Invoice file filter (HAS_INVOICE / NO_INVOICE)
         filter_has_invoice = request.GET.getlist('has_invoice')
@@ -1381,6 +1388,7 @@ def api_inspections(request):
                     first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
                     first_sent=Subquery(insp.filter(sent_date__isnull=False).order_by('-id').values('sent_date')[:1]),
                     first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('-id').values('sent_by')[:1]),
+                    first_sent_by_name=Subquery(insp.exclude(sent_by_name='').order_by('-id').values('sent_by_name')[:1]),
                 )
                 .filter(_undel_q)
                 .order_by('-date_of_inspection')
@@ -1553,7 +1561,7 @@ def api_inspections(request):
                 'date_of_inspection': g.date_of_inspection.isoformat() if g.date_of_inspection else None,
                 'approved_status': g.first_approved or 'PENDING',
                 'sent_date': g.first_sent.isoformat() if g.first_sent else None,
-                'sent_by_name': _user_name_map.get(g.first_sent_by_id, '') if getattr(g, 'first_sent_by_id', None) else '',
+                'sent_by_name': getattr(g, 'first_sent_by_name', '') or (_user_name_map.get(g.first_sent_by_id, '') if getattr(g, 'first_sent_by_id', None) else ''),
                 'is_occurrence_report': g.is_occurrence_report,
                 'has_rfi': has_rfi,
                 'has_invoice': has_invoice,
@@ -3890,10 +3898,14 @@ def api_export_sheet(request):
         except Exception:
             end_date = today
 
-        inspections = _I.objects.filter(
+        corp_group = request.GET.get('corporate_group', '').strip()
+        qs_filter = dict(
             commodity__in=['RAW', 'PMP'], hours__isnull=False, km_traveled__isnull=False,
-            date_of_inspection__gte=start_date, date_of_inspection__lte=end_date
-        ).only(
+            date_of_inspection__gte=start_date, date_of_inspection__lte=end_date,
+        )
+        if corp_group:
+            qs_filter['corporate_group__iexact'] = corp_group
+        inspections = _I.objects.filter(**qs_filter).only(
             'id', 'commodity', 'date_of_inspection', 'inspector_name', 'client_name',
             'town', 'product_name', 'product_class', 'hours', 'km_traveled',
             'is_sample_taken', 'bought_sample', 'fat', 'protein', 'calcium', 'dna',
@@ -3925,6 +3937,8 @@ def api_export_sheet(request):
             th = float(first.hours) if first.hours else 0
             tk = float(first.km_traveled) if first.km_traveled else 0
 
+            _batch_start = len(invoice_items)
+
             if th > 0 or tk > 0:
                 pmp = [i for i in vinsp if 'PMP' in (i.commodity or '').upper()]
                 raw = [i for i in vinsp if 'RAW' in (i.commodity or '').upper()]
@@ -3944,11 +3958,78 @@ def api_export_sheet(request):
                 invoice_items.extend(generate_test_line_items(iid, raw[0], inv_ref, rfi_ref, 'RAW', city, lab_name,
                     {'fat': any(i.fat and i.is_sample_taken for i in raw), 'protein': any(i.protein and i.is_sample_taken for i in raw), 'dna': any(i.dna and i.is_sample_taken for i in raw)}))
 
+            # Attach corporate_group to every item generated in this batch
+            _cg = first.corporate_group or ''
+            for _item in invoice_items[_batch_start:]:
+                _item['corporate_group'] = _cg
+
         invoice_items.sort(key=lambda x: (x.get('client_name', ''), x.get('invoice_date', ''), x.get('item_code', '')))
         return _cors(JsonResponse({'success': True, 'items': invoice_items, 'total_items': len(invoice_items), 'inspections_processed': processed, 'date_from': start_date.strftime('%Y-%m-%d'), 'date_to': end_date.strftime('%Y-%m-%d')}))
     except Exception as e:
         import traceback; traceback.print_exc()
         return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
+
+
+# ---------------------------------------------------------------------------
+#  API: Corporate Invoice File (upload / check / serve)
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_corporate_invoice_file(request):
+    """Upload, check, or serve a corporate invoice PDF.
+
+    GET  ?corporate_group=X&month=YYYY-MM          → {has_file, filename}
+    GET  ?corporate_group=X&month=YYYY-MM&download=1 → serve the PDF
+    POST  corporate_group, month, file              → save the PDF
+    """
+    import os, re
+    from django.conf import settings as _settings
+
+    def _sanitize(name):
+        return re.sub(r'[^\w\s\-]', '', name).strip().replace(' ', '_')
+
+    corp = request.GET.get('corporate_group', '') or request.POST.get('corporate_group', '')
+    month = request.GET.get('month', '') or request.POST.get('month', '')
+    corp = corp.strip()
+    month = month.strip()
+
+    if not corp or not month:
+        return JsonResponse({'success': False, 'error': 'corporate_group and month are required'}, status=400)
+
+    folder = os.path.join(_settings.MEDIA_ROOT, 'docs', 'corporate_invoices', _sanitize(corp), month)
+
+    if request.method == 'GET':
+        download = request.GET.get('download')
+        # Find any PDF in folder
+        if os.path.isdir(folder):
+            pdfs = [f for f in os.listdir(folder) if f.lower().endswith('.pdf')]
+            if pdfs:
+                if download:
+                    from django.http import FileResponse
+                    filepath = os.path.join(folder, pdfs[0])
+                    return FileResponse(open(filepath, 'rb'), as_attachment=False, filename=pdfs[0], content_type='application/pdf')
+                return JsonResponse({'success': True, 'has_file': True, 'filename': pdfs[0]})
+        return JsonResponse({'success': True, 'has_file': False, 'filename': None})
+
+    if request.method == 'POST':
+        uploaded = request.FILES.get('file')
+        if not uploaded:
+            return JsonResponse({'success': False, 'error': 'No file provided'}, status=400)
+        if not uploaded.name.lower().endswith('.pdf'):
+            return JsonResponse({'success': False, 'error': 'Only PDF files allowed'}, status=400)
+
+        os.makedirs(folder, exist_ok=True)
+        # Remove old files
+        if os.path.isdir(folder):
+            for old in os.listdir(folder):
+                os.remove(os.path.join(folder, old))
+        # Save new
+        dest = os.path.join(folder, uploaded.name)
+        with open(dest, 'wb') as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+        return JsonResponse({'success': True, 'filename': uploaded.name})
+
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
 
 # ---------------------------------------------------------------------------
