@@ -586,30 +586,48 @@ export default function LabAnalyticsPage() {
           font-size: 0.65rem; font-weight: 600; background: #eff6ff;
           color: #2563eb; margin-right: 4px;
         }
-        @media (max-width: 900px) {
-          .la-stat-grid { grid-template-columns: repeat(2, 1fr); }
-          .la-mid-grid  { grid-template-columns: 1fr; }
-          .la-month-chart { gap: 4px; }
+        /* Tablet landscape / small desktop */
+        @media (max-width: 1100px) {
+          .la-stat-grid { grid-template-columns: repeat(3, 1fr) !important; }
         }
+        /* Tablet portrait */
+        @media (max-width: 900px) {
+          .la-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .la-mid-grid  { grid-template-columns: 1fr !important; }
+          .la-month-chart { gap: 4px; }
+          .la-section-title { font-size: 0.9rem; }
+        }
+        /* Mobile landscape / small tablet */
         @media (max-width: 768px) {
           .la-wrap { padding: 16px 12px 32px; }
+          .la-header-title { font-size: 1.1rem !important; }
+          .la-header-sub { font-size: 0.72rem !important; }
           .la-filter-bar { flex-direction: column !important; gap: 8px !important; }
           .la-filter-bar > div { flex: 1 1 100% !important; min-width: 0 !important; }
           .la-filter-bar input, .la-filter-bar select { width: 100% !important; box-sizing: border-box; }
-          .la-filter-btns { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+          .la-filter-btns { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; }
           .la-filter-btns button { flex: 1; min-width: 0; }
           .la-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
           .la-table { min-width: 600px; }
           .la-lab-row { flex-wrap: wrap; }
+          .la-card { padding: 14px 14px; }
+          .la-test-row > div:nth-child(2) { width: 50px !important; font-size: 0.75rem !important; }
         }
+        /* Mobile portrait */
         @media (max-width: 480px) {
           .la-wrap { padding: 12px 8px 24px; }
-          .la-stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .la-header-title { font-size: 1rem !important; }
+          .la-stat-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
           .la-mid-grid { gap: 12px; }
-          .la-card { padding: 12px 14px; }
+          .la-card { padding: 12px 10px; }
           .la-month-chart { height: 80px; gap: 2px; }
-          .la-test-row { gap: 8px; }
-          .la-test-row > div:nth-child(3) { min-width: 60px; }
+          .la-test-row { gap: 8px; padding: 10px 0; }
+          .la-test-row > div:nth-child(2) { width: 44px !important; font-size: 0.72rem !important; }
+          .la-test-row > div:nth-child(4) { width: 32px !important; font-size: 0.75rem !important; }
+          .la-test-row > div:nth-child(5) { width: 36px !important; font-size: 0.65rem !important; padding: 2px 4px !important; }
+          .la-section-title { font-size: 0.82rem; gap: 6px; }
+          .la-table th, .la-table td { padding: 8px 10px; }
+          .la-filter-card { padding: 10px 12px !important; }
         }
       `}</style>
 
@@ -618,14 +636,14 @@ export default function LabAnalyticsPage() {
         <div className="la-wrap">
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <h1 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#fff" }}>
+            <h1 className="la-header-title" style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#fff" }}>
               <i className="fas fa-flask" style={{ marginRight: 10 }} />Lab Analytics
             </h1>
-            <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>Sample testing overview and results</p>
+            <p className="la-header-sub" style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.8)" }}>Sample testing overview and results</p>
           </div>
 
           {/* Filter Bar */}
-          <div style={{ background: "white", borderRadius: 8, padding: "12px 16px", marginBottom: 16, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", border: "1px solid #e5e7eb" }}>
+          <div className="la-filter-card" style={{ background: "white", borderRadius: 8, padding: "12px 16px", marginBottom: 16, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)", border: "1px solid #e5e7eb" }}>
             <div className="la-filter-bar" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: "0.75rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px", minWidth: 120 }}>
                 <label style={{ fontSize: "0.65rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.5px" }}>Date From</label>
