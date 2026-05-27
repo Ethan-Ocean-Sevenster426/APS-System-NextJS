@@ -1140,18 +1140,18 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(is_occurrence_report=False)
 
         # Sampled filter (SAMPLED / NOT_SAMPLED)
+        # Checks at individual inspection level — a group shows if it has at least one matching inspection
         filter_sampled = request.GET.getlist('sampled')
         if filter_sampled:
-            _sampled_exists = Exists(insp.filter(is_sample_taken=True))
             if 'SAMPLED' in filter_sampled and 'NOT_SAMPLED' not in filter_sampled:
-                groups_qs = groups_qs.filter(_sampled_exists)
+                # Show groups that have at least one sampled inspection
+                groups_qs = groups_qs.filter(Exists(insp.filter(is_sample_taken=True)))
             elif 'NOT_SAMPLED' in filter_sampled and 'SAMPLED' not in filter_sampled:
-                # Exclude groups that were sampled
-                groups_qs = groups_qs.exclude(_sampled_exists)
-                # Also exclude groups where ALL inspections are EGGS or POULTRY
-                # (these commodities are never sampled, so they aren't meaningful NOT_SAMPLED results)
-                _has_non_egg_poultry = Exists(insp.exclude(commodity__in=['EGGS', 'POULTRY']))
-                groups_qs = groups_qs.filter(_has_non_egg_poultry)
+                # Show groups that have at least one not-sampled inspection (excluding EGGS/POULTRY)
+                _not_sampled_exists = Exists(
+                    insp.filter(is_sample_taken=False).exclude(commodity__in=['EGGS', 'POULTRY'])
+                )
+                groups_qs = groups_qs.filter(_not_sampled_exists)
 
         # Sent status filter (SENT / NOT_SENT)
         filter_sent = request.GET.getlist('sent_status')
