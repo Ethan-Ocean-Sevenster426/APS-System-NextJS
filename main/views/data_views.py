@@ -1146,7 +1146,12 @@ def api_inspections(request):
             if 'SAMPLED' in filter_sampled and 'NOT_SAMPLED' not in filter_sampled:
                 groups_qs = groups_qs.filter(_sampled_exists)
             elif 'NOT_SAMPLED' in filter_sampled and 'SAMPLED' not in filter_sampled:
+                # Exclude groups that were sampled
                 groups_qs = groups_qs.exclude(_sampled_exists)
+                # Also exclude groups where ALL inspections are EGGS or POULTRY
+                # (these commodities are never sampled, so they aren't meaningful NOT_SAMPLED results)
+                _has_non_egg_poultry = Exists(insp.exclude(commodity__in=['EGGS', 'POULTRY']))
+                groups_qs = groups_qs.filter(_has_non_egg_poultry)
 
         # Sent status filter (SENT / NOT_SENT)
         filter_sent = request.GET.getlist('sent_status')
