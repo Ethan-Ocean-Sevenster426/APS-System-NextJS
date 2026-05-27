@@ -1191,11 +1191,14 @@ def api_inspections(request):
                 _comp_q |= Q(_has_comp_doc=True, _has_compliant=True, _has_non_compliant=False)
             if 'PENDING' in filter_compliance:
                 # Occurrence reports don't have compliance docs, so exclude them from PENDING
-                _comp_q |= Q(_has_comp_doc=False) & ~Q(is_occurrence_report=True)
+                # is_occurrence_report is on FoodSafetyAgencyInspection, not InspectionGroup
+                _comp_q |= Q(_has_comp_doc=False, _is_occurrence=False)
+            _occurrence_exists = Exists(insp.filter(is_occurrence_report=True))
             groups_qs = groups_qs.annotate(
                 _has_comp_doc=_comp_doc_exists,
                 _has_non_compliant=_non_compliant_exists,
                 _has_compliant=_compliant_exists,
+                _is_occurrence=_occurrence_exists,
             ).filter(_comp_q)
 
         # Approved filter (PENDING / APPROVED / REJECTED etc.)
