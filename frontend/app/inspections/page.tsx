@@ -159,6 +159,15 @@ function ClientSearchInput({ value, onChange, options, onEnter }: { value: strin
   );
 }
 
+const LAB_NAME_TO_CODE: Record<string, string> = {
+  "Food Safety Laboratory": "lab_a",
+  "Merieux NutriSciences": "lab_b",
+  "AGRI Food Laboratory (SGS)": "lab_c",
+  "SANBI": "lab_d",
+  "SMT": "lab_e",
+  "ARC": "lab_f",
+};
+
 function IrMultiSelect({ label, options, selected, onChange }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
   return (
     <div className="ir-filter-field">
@@ -508,7 +517,7 @@ export default function InspectionsPage() {
       if (filters.otherFile?.length) filters.otherFile.forEach(v => p.append("has_other", v));
       if (filters.retest?.length) filters.retest.forEach(v => p.append("needs_retest", v));
       if (filters.coaStatus?.length) filters.coaStatus.forEach(v => p.append("coa_uploaded", v));
-      if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", v));
+      if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", LAB_NAME_TO_CODE[v] || v));
       if (filters.testType?.length) filters.testType.forEach(v => p.append("test_type", v));
     }
     p.set("page", String(page ?? currentPage));
