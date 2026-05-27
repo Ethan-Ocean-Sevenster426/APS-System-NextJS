@@ -93,10 +93,10 @@ const FACILITY_TYPES = ["Retailer","Butchery","Re-Packer","Production Plant","Fa
 /*  Autocomplete (same as add page)                                    */
 /* ------------------------------------------------------------------ */
 function Autocomplete({
-  label, required, options, value, onChange, placeholder,
+  label, required, options, value, onChange, placeholder, strict,
 }: {
   label: string; required?: boolean; options: string[]; value: string;
-  onChange: (v: string) => void; placeholder?: string;
+  onChange: (v: string) => void; placeholder?: string; strict?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -108,7 +108,7 @@ function Autocomplete({
   ).slice(0, 50);
   const trimmed = search.trim();
   const exactMatch = trimmed && options.some(o => o.toLowerCase() === trimmed.toLowerCase());
-  const showAddNew = open && trimmed && !exactMatch;
+  const showAddNew = !strict && open && trimmed && !exactMatch;
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -305,8 +305,8 @@ export default function EditInspectionPage() {
       const missing = [];
       if (!clientName.trim()) missing.push("Client Name");
       if (!town.trim()) missing.push("Town");
-      if (!corporateGroup.trim()) missing.push("Corporate Group");
-      if (!groupType.trim()) missing.push("Group Type");
+      if (!corporateGroup.trim()) missing.push("Business");
+      if (!groupType.trim()) missing.push("Store Type");
       if (!facilityType.trim()) missing.push("Facility Type");
       return missing;
     }
@@ -570,22 +570,22 @@ export default function EditInspectionPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Corporate Group <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={corporateGroup} onChange={e => { console.log(`[EditPage] Corporate Group changed — "${e.target.value}"`); setCorporateGroup(e.target.value); }}>
-                <option value="">Select corporate group (required)</option>
+              <label className="form-label">Business <span style={{ color: "#ef4444" }}>*</span></label>
+              <select className="form-control" value={corporateGroup} onChange={e => { console.log(`[EditPage] Business changed — "${e.target.value}"`); setCorporateGroup(e.target.value); }}>
+                <option value="">Select business (required)</option>
                 {(options?.corporate_groups ?? []).map(g => <option key={g} value={g}>{g}</option>)}
                 {corporateGroup && !(options?.corporate_groups ?? []).includes(corporateGroup) && corporateGroup !== "Not Applicable" && corporateGroup !== "Other" && (
                   <option key={corporateGroup} value={corporateGroup}>{corporateGroup}</option>
                 )}
-                <option value="Not Applicable">Not Applicable (None)</option>
-                <option value="Other">Other (Unlisted Group)</option>
+                <option value="Not Applicable">Not Applicable</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Group Type <span style={{ color: "#ef4444" }}>*</span></label>
-              <select className="form-control" value={groupType} onChange={e => { console.log(`[EditPage] Group Type changed — "${e.target.value}"`); setGroupType(e.target.value); }}>
-                <option value="">Select group type (required)</option>
+              <label className="form-label">Store Type <span style={{ color: "#ef4444" }}>*</span></label>
+              <select className="form-control" value={groupType} onChange={e => { console.log(`[EditPage] Store Type changed — "${e.target.value}"`); setGroupType(e.target.value); }}>
+                <option value="">Select store type (required)</option>
                 {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
@@ -841,8 +841,8 @@ export default function EditInspectionPage() {
                   ["Client",          clientName || "—"],
                   ["Town",            town || "—"],
                   ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "—"],
-                  ["Corporate Group", corporateGroup || "—"],
-                  ["Group Type",      groupType || "—"],
+                  ["Business",        corporateGroup || "—"],
+                  ["Store Type",      groupType || "—"],
                   ["Facility Type",   facilityType || "—"],
                   ["KM / Hours",      `${kmTraveled} km / ${hoursWorked} hrs`],
                   ["Travel Times",    travelStart && travelEnd ? `${travelStart} → ${travelEnd}` : "—"],

@@ -243,8 +243,8 @@ export default function AddInspectionPage() {
       if (!dateOfInspection) m.push("Date of Inspection");
       if (!clientName.trim()) m.push("Client Name");
       if (!town.trim()) m.push("Town");
-      if (!corporateGroup.trim()) m.push("Corporate Group");
-      if (!groupType.trim()) m.push("Group Type");
+      if (!corporateGroup.trim()) m.push("Business");
+      if (!groupType.trim()) m.push("Store Type");
       if (!facilityType.trim()) m.push("Facility Type");
       if (Object.values(commodities).every(v => v === 0)) m.push("At least one commodity");
       return m;
@@ -614,14 +614,19 @@ export default function AddInspectionPage() {
                 </h4>
 
                 <div className="form-group">
-                  <label className="form-label" style={{ color: "#92400e" }}>Corporate Group</label>
-                  <Autocomplete label="" options={[...(options?.corporate_groups ?? []), "Not Applicable", "Other"]} value={corporateGroup} onChange={setCorporateGroup} />
+                  <label className="form-label" style={{ color: "#92400e" }}>Business</label>
+                  <select className="form-control" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
+                    <option value="">Select business...</option>
+                    {[...(options?.corporate_groups ?? []), "Not Applicable", "Other"].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ color: "#92400e" }}>Group Type</label>
+                  <label className="form-label" style={{ color: "#92400e" }}>Store Type</label>
                   <select className="form-control occ-input" value={groupType} onChange={e => setGroupType(e.target.value)}>
-                    <option value="">Select group type (optional)</option>
+                    <option value="">Select store type (optional)</option>
                     {GROUP_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
@@ -785,8 +790,8 @@ export default function AddInspectionPage() {
                 </h4>
                 <div className="review-summary-grid">
                   {[
-                    ["Corporate Group", corporateGroup || "\u2014"],
-                    ["Group Type", groupType || "\u2014"],
+                    ["Business", corporateGroup || "\u2014"],
+                    ["Store Type", groupType || "\u2014"],
                     ["KM Traveled", `${kmTraveled} km`],
                     ["Hours Worked", `${hoursWorked} hrs`],
                     ["Travel Start", travelStart || "\u2014"],
@@ -970,9 +975,17 @@ export default function AddInspectionPage() {
               <small style={{ display: "block", color: "#6b7280", fontSize: 11, marginTop: 4 }}>Documents will also be sent to these addresses.</small>
             </div>
 
-            <Autocomplete label="Corporate Group" required options={[...(options?.corporate_groups ?? []), "Not Applicable", "Other"]} value={corporateGroup} onChange={setCorporateGroup} />
+            <div className="form-group">
+              <label className="form-label">Business<span style={{ color: "#ef4444" }}> *</span></label>
+              <select className="form-control" value={corporateGroup} onChange={e => setCorporateGroup(e.target.value)}>
+                <option value="">Select business...</option>
+                {[...(options?.corporate_groups ?? []), "Not Applicable", "Other"].map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
 
-            <Autocomplete label="Group Type" required options={GROUP_TYPES} value={groupType} onChange={setGroupType} />
+            <Autocomplete label="Store Type" required options={GROUP_TYPES} value={groupType} onChange={setGroupType} />
 
             <Autocomplete label="Facility Type" required options={FACILITY_TYPES} value={facilityType} onChange={setFacilityType} />
 
@@ -1230,8 +1243,8 @@ export default function AddInspectionPage() {
                   ["Client",          clientName || "\u2014"],
                   ["Town",            town || "\u2014"],
                   ["Email(s)",        [primaryEmail, ...additionalEmails].filter(e => e.trim()).join('; ') || "\u2014"],
-                  ["Corporate Group", corporateGroup || "\u2014"],
-                  ["Group Type",      groupType || "\u2014"],
+                  ["Business",        corporateGroup || "\u2014"],
+                  ["Store Type",      groupType || "\u2014"],
                   ["Facility Type",   facilityType || "\u2014"],
                   ["KM / Hours",      `${kmTraveled} km / ${hoursWorked} hrs`],
                   ["Travel Times",    travelStart && travelEnd ? `${travelStart} \u2192 ${travelEnd}` : "\u2014"],
