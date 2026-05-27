@@ -381,6 +381,7 @@ export default function InspectionsPage() {
   const [corpEmailInput, setCorpEmailInput] = useState("");
   const [corpEmailLoading, setCorpEmailLoading] = useState(false);
   const [corpInvoiceSending, setCorpInvoiceSending] = useState(false);
+  const [corpSendConfirm, setCorpSendConfirm] = useState(false);
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   const checkCorpInvoiceFile = async (group: string, month: string) => {
@@ -593,8 +594,6 @@ export default function InspectionsPage() {
 
   const sendCorpInvoice = async () => {
     if (!corpInvoiceGroup || !corpInvoiceSelected || !corpInvoiceFile) return;
-    if (corpEmails.length === 0) { alert("No email addresses configured. Please add at least one email address first."); return; }
-    if (!confirm(`Send invoice to ${corpEmails.length} recipient(s)?\n\n${corpEmails.map(e => e.email).join("\n")}`)) return;
     setCorpInvoiceSending(true);
     try {
       const res = await fetch("/api/send-corporate-invoice", {
@@ -604,12 +603,12 @@ export default function InspectionsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || "Invoice sent successfully");
+        showToast(data.message || "Invoice sent successfully");
       } else {
-        alert("Send failed: " + (data.error || "Unknown error"));
+        showToast("Send failed: " + (data.error || "Unknown error"));
       }
-    } catch (e) { alert("Send error: " + String(e)); }
-    finally { setCorpInvoiceSending(false); }
+    } catch (e) { showToast("Send error: " + String(e)); }
+    finally { setCorpInvoiceSending(false); setCorpSendConfirm(false); }
   };
 
   const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, filters?: {
@@ -2684,7 +2683,7 @@ export default function InspectionsPage() {
                           style={{ padding: "6px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
                           <i className="fas fa-file-excel" style={{ fontSize: 10 }} />Export Excel
                         </button>
-                        <button onClick={sendCorpInvoice}
+                        <button onClick={() => setCorpSendConfirm(true)}
                           disabled={!corpInvoiceFile || corpEmails.length === 0 || corpInvoiceSending}
                           style={{
                             padding: "6px 14px", background: (!corpInvoiceFile || corpEmails.length === 0) ? "#d1d5db" : "#7c3aed",
@@ -2786,6 +2785,42 @@ export default function InspectionsPage() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Send Invoice Confirmation Modal */}
+      {corpSendConfirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} onClick={() => !corpInvoiceSending && setCorpSendConfirm(false)} />
+          <div style={{ position: "relative", background: "#fff", borderRadius: 12, padding: "28px 32px", maxWidth: 420, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className="fas fa-paper-plane" style={{ color: "#7c3aed", fontSize: 14 }} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Send Invoice</h3>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#64748b" }}>
+              This will send the invoice for <strong>{corpInvoiceGroup}</strong> ({corpInvoiceSelected?.month ? (() => { const [y, m] = corpInvoiceSelected.month.split("-"); return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`; })() : ""}) to the following {corpEmails.length === 1 ? "recipient" : `${corpEmails.length} recipients`}:
+            </p>
+            <div style={{ background: "#f8fafc", borderRadius: 8, padding: "10px 14px", marginBottom: 20, maxHeight: 140, overflowY: "auto" }}>
+              {corpEmails.map(e => (
+                <div key={e.id} style={{ fontSize: 13, color: "#334155", padding: "3px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <i className="fas fa-envelope" style={{ fontSize: 10, color: "#94a3b8" }} />{e.email}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setCorpSendConfirm(false)} disabled={corpInvoiceSending}
+                style={{ padding: "8px 18px", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Cancel
+              </button>
+              <button onClick={sendCorpInvoice} disabled={corpInvoiceSending}
+                style={{ padding: "8px 18px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: corpInvoiceSending ? 0.7 : 1 }}>
+                <i className={`fas ${corpInvoiceSending ? "fa-spinner fa-spin" : "fa-paper-plane"}`} style={{ fontSize: 11 }} />
+                {corpInvoiceSending ? "Sending..." : "Confirm & Send"}
+              </button>
+            </div>
           </div>
         </div>
       )}
