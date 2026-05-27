@@ -1070,10 +1070,10 @@ export default function ClientsPage() {
               })()}
             </div>
 
-            {/* Corporate Group */}
+            {/* Business */}
             <MultiSelect
-              label="Corporate Group"
-              placeholder="All Corporate Groups"
+              label="Business"
+              placeholder="All Businesses"
               options={corporateGroupOptions}
               selected={filterCorporateGroup}
               onChange={setFilterCorporateGroup}
@@ -1106,10 +1106,10 @@ export default function ClientsPage() {
               onChange={setFilterProvince}
             />
 
-            {/* Group Type */}
+            {/* Store Type */}
             <MultiSelect
-              label="Group Type"
-              placeholder="All Group Types"
+              label="Store Type"
+              placeholder="All Store Types"
               options={groupTypeOptions}
               selected={filterGroupType}
               onChange={setFilterGroupType}

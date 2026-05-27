@@ -367,6 +367,23 @@ class ClientEmail(models.Model):
     def __str__(self):
         return f"{self.email} -> {self.client.client_id}"
 
+
+class CorporateGroupEmail(models.Model):
+    """Email addresses associated with a corporate group for invoice sending."""
+    corporate_group = models.CharField(max_length=200, db_index=True)
+    email = models.EmailField()
+    label = models.CharField(max_length=100, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'corporate_group_emails'
+        ordering = ['corporate_group', 'email']
+        unique_together = [['corporate_group', 'email']]
+
+    def __str__(self):
+        return f"{self.email} ({self.corporate_group})"
+
+
 class Inspection(models.Model):
     """Inspection data model based on the provided structure"""
     

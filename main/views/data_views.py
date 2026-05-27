@@ -4048,6 +4048,207 @@ def api_corporate_invoice_file(request):
 
 
 # ---------------------------------------------------------------------------
+#  API: Corporate Group Emails — list / add
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_corporate_group_emails(request):
+    from ..models import CorporateGroupEmail
+
+    if request.method == 'GET':
+        corp = request.GET.get('corporate_group', '').strip()
+        if not corp:
+            return JsonResponse({'success': False, 'error': 'corporate_group is required'}, status=400)
+        emails = CorporateGroupEmail.objects.filter(corporate_group=corp)
+        return JsonResponse({
+            'success': True,
+            'emails': [
+                {'id': e.id, 'email': e.email, 'label': e.label or '', 'created_at': e.created_at.isoformat()}
+                for e in emails
+            ]
+        })
+
+    if request.method == 'POST':
+        import json, re
+        data = json.loads(request.body)
+        corp = data.get('corporate_group', '').strip()
+        email_addr = data.get('email', '').strip().lower()
+        label = data.get('label', '').strip()
+
+        if not corp or not email_addr:
+            return JsonResponse({'success': False, 'error': 'corporate_group and email are required'}, status=400)
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email_addr):
+            return JsonResponse({'success': False, 'error': 'Invalid email address'}, status=400)
+
+        obj, created = CorporateGroupEmail.objects.get_or_create(
+            corporate_group=corp,
+            email=email_addr,
+            defaults={'label': label}
+        )
+        if not created:
+            return JsonResponse({'success': False, 'error': 'Email already exists for this group'}, status=409)
+
+        return JsonResponse({
+            'success': True,
+            'email': {'id': obj.id, 'email': obj.email, 'label': obj.label or ''}
+        })
+
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+
+# ---------------------------------------------------------------------------
+#  API: Corporate Group Emails — delete
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_corporate_group_email_delete(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    import json
+    from ..models import CorporateGroupEmail
+
+    data = json.loads(request.body)
+    email_id = data.get('id')
+    if not email_id:
+        return JsonResponse({'success': False, 'error': 'id is required'}, status=400)
+
+    deleted, _ = CorporateGroupEmail.objects.filter(id=email_id).delete()
+    if not deleted:
+        return JsonResponse({'success': False, 'error': 'Email not found'}, status=404)
+
+    return JsonResponse({'success': True})
+
+
+# ---------------------------------------------------------------------------
+#  API: Send Corporate Invoice email
+# ---------------------------------------------------------------------------
+@_csrf_exempt
+def api_send_corporate_invoice(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    import json, os, re
+    from django.conf import settings as _settings
+    from django.core.mail import EmailMessage
+    from ..models import CorporateGroupEmail, SystemLog
+
+    data = json.loads(request.body)
+    corp = data.get('corporate_group', '').strip()
+    month = data.get('month', '').strip()
+
+    if not corp or not month:
+        return JsonResponse({'success': False, 'error': 'corporate_group and month are required'}, status=400)
+
+    # 1. Get recipient emails
+    to_emails = list(CorporateGroupEmail.objects.filter(corporate_group=corp).values_list('email', flat=True))
+    if not to_emails:
+        return JsonResponse({
+            'success': False,
+            'error': f'No email addresses configured for {corp}. Please add at least one email address first.'
+        }, status=400)
+
+    # 2. Find uploaded PDF
+    def _sanitize(name):
+        return re.sub(r'[^\w\s\-]', '', name).strip().replace(' ', '_')
+
+    folder = os.path.join(_settings.MEDIA_ROOT, 'docs', 'corporate_invoices', _sanitize(corp), month)
+    pdf_path = None
+    pdf_name = None
+    if os.path.isdir(folder):
+        pdfs = [f for f in os.listdir(folder) if f.lower().endswith('.pdf')]
+        if pdfs:
+            pdf_path = os.path.join(folder, pdfs[0])
+            pdf_name = pdfs[0]
+
+    if not pdf_path or not os.path.isfile(pdf_path):
+        return JsonResponse({
+            'success': False,
+            'error': f'No invoice PDF found for {corp} — {month}. Please upload the invoice first.'
+        }, status=400)
+
+    # 3. Format month for display
+    try:
+        y, m = month.split('-')
+        MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+                       "July", "August", "September", "October", "November", "December"]
+        formatted_month = f"{MONTH_NAMES[int(m) - 1]} {y}"
+    except (ValueError, IndexError):
+        formatted_month = month
+
+    # 4. Build HTML email
+    subject = f'FSA Corporate Invoice \u2014 {corp} \u2014 {formatted_month}'
+    html_body = f"""
+<div style="font-family: Calibri, Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
+    <p>Good day,</p>
+    <p>We trust this correspondence finds you well.</p>
+    <p>Please find attached the corporate invoice for <strong>{corp}</strong> for the period of <strong>{formatted_month}</strong>.</p>
+    <p>This invoice consolidates all inspection fees for your corporate group during the stated period. A detailed breakdown of individual store inspections and associated fees is included in the attached document.</p>
+    <p><strong>Invoice Details:</strong></p>
+    <table style="border-collapse: collapse; margin: 12px 0 20px;">
+        <tr style="background: #f8f9fa;">
+            <td style="padding: 8px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Corporate Group</td>
+            <td style="padding: 8px 14px; border: 1px solid #e5e7eb;">{corp}</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Invoice Period</td>
+            <td style="padding: 8px 14px; border: 1px solid #e5e7eb;">{formatted_month}</td>
+        </tr>
+        <tr style="background: #f8f9fa;">
+            <td style="padding: 8px 14px; font-weight: 600; border: 1px solid #e5e7eb;">Attachment</td>
+            <td style="padding: 8px 14px; border: 1px solid #e5e7eb;">{pdf_name}</td>
+        </tr>
+    </table>
+    <p>Should you require any clarification regarding the invoice or the inspections conducted, please do not hesitate to contact us:</p>
+    <p style="margin-bottom: 4px;"><strong>Manager: Agricultural Products Standards</strong><br>
+    Mr. Simphiwe Mathenjwa<br>
+    <a href="mailto:simphiwe.mathenjwa@afsq.co.za">simphiwe.mathenjwa@afsq.co.za</a></p>
+    <p style="margin-bottom: 4px;"><strong>General Enquiries</strong><br>
+    Email: <a href="mailto:Info@afsq.co.za">Info@afsq.co.za</a><br>
+    Call: (012) 361-1937</p>
+    <p>We appreciate your continued cooperation.</p>
+    <p>Kind Regards / Vriendelike Groete</p>
+</div>
+"""
+
+    # 5. Send via Graph API backend
+    try:
+        email = EmailMessage(
+            subject=subject,
+            body=html_body,
+            from_email=_settings.DEFAULT_FROM_EMAIL,
+            to=to_emails,
+            reply_to=[_settings.DEFAULT_FROM_EMAIL],
+        )
+        email.content_subtype = 'html'
+        email.attach_file(pdf_path)
+        email.send()
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': f'Failed to send email: {exc}'}, status=500)
+
+    # 6. Log activity
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    real_user = getattr(request, 'user', None)
+    if not real_user or not real_user.is_authenticated:
+        real_user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+
+    SystemLog.log_activity(
+        user=real_user,
+        action='EMAIL',
+        page='corporate_invoices',
+        object_type='corporate_invoice',
+        object_id=f'{corp}/{month}',
+        description=f'Sent corporate invoice for {corp} ({formatted_month}) to {", ".join(to_emails)}',
+        details={'corporate_group': corp, 'month': month, 'recipients': to_emails, 'filename': pdf_name},
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Invoice sent successfully to {", ".join(to_emails)}',
+        'recipients': to_emails,
+    })
+
+
+# ---------------------------------------------------------------------------
 #  API: Inspection Fees (unauthenticated proxy for React)
 # ---------------------------------------------------------------------------
 @_csrf_exempt

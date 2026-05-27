@@ -377,6 +377,10 @@ export default function InspectionsPage() {
   const [corpInvoiceFile, setCorpInvoiceFile] = useState<string | null>(null);
   const [corpInvoiceUploading, setCorpInvoiceUploading] = useState(false);
   const corpInvoiceFileRef = useRef<HTMLInputElement>(null);
+  const [corpEmails, setCorpEmails] = useState<{id: number; email: string; label: string}[]>([]);
+  const [corpEmailInput, setCorpEmailInput] = useState("");
+  const [corpEmailLoading, setCorpEmailLoading] = useState(false);
+  const [corpInvoiceSending, setCorpInvoiceSending] = useState(false);
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   const checkCorpInvoiceFile = async (group: string, month: string) => {
@@ -541,6 +545,71 @@ export default function InspectionsPage() {
     } catch (e) {
       alert("Excel export failed: " + String(e));
     }
+  };
+
+  // ── Corporate invoice email helpers ──
+  const fetchCorpEmails = async (group: string) => {
+    if (!group) { setCorpEmails([]); return; }
+    try {
+      const res = await fetch(`/api/corporate-group-emails?corporate_group=${encodeURIComponent(group)}`);
+      const data = await res.json();
+      if (data.success) setCorpEmails(data.emails || []);
+    } catch { setCorpEmails([]); }
+  };
+
+  const addCorpEmail = async () => {
+    const email = corpEmailInput.trim().toLowerCase();
+    if (!email || !corpInvoiceGroup) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Invalid email address"); return; }
+    setCorpEmailLoading(true);
+    try {
+      const res = await fetch("/api/corporate-group-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corporate_group: corpInvoiceGroup, email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCorpEmails(prev => [...prev, data.email]);
+        setCorpEmailInput("");
+      } else {
+        alert(data.error || "Failed to add email");
+      }
+    } catch (e) { alert("Error: " + String(e)); }
+    finally { setCorpEmailLoading(false); }
+  };
+
+  const removeCorpEmail = async (id: number) => {
+    try {
+      const res = await fetch("/api/corporate-group-emails/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) setCorpEmails(prev => prev.filter(e => e.id !== id));
+    } catch (e) { alert("Error: " + String(e)); }
+  };
+
+  const sendCorpInvoice = async () => {
+    if (!corpInvoiceGroup || !corpInvoiceSelected || !corpInvoiceFile) return;
+    if (corpEmails.length === 0) { alert("No email addresses configured. Please add at least one email address first."); return; }
+    if (!confirm(`Send invoice to ${corpEmails.length} recipient(s)?\n\n${corpEmails.map(e => e.email).join("\n")}`)) return;
+    setCorpInvoiceSending(true);
+    try {
+      const res = await fetch("/api/send-corporate-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corporate_group: corpInvoiceGroup, month: corpInvoiceSelected.month }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "Invoice sent successfully");
+      } else {
+        alert("Send failed: " + (data.error || "Unknown error"));
+      }
+    } catch (e) { alert("Send error: " + String(e)); }
+    finally { setCorpInvoiceSending(false); }
   };
 
   const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, filters?: {
@@ -2557,7 +2626,7 @@ export default function InspectionsPage() {
                           </thead>
                           <tbody>
                             {corpInvoiceMonths.map(m => (
-                              <tr key={m.month} onClick={() => { setCorpInvoiceSelected(m); checkCorpInvoiceFile(corpInvoiceGroup, m.month); }}
+                              <tr key={m.month} onClick={() => { setCorpInvoiceSelected(m); checkCorpInvoiceFile(corpInvoiceGroup, m.month); fetchCorpEmails(corpInvoiceGroup); }}
                                 style={{ cursor: "pointer" }}
                                 onMouseEnter={e => (e.currentTarget.style.background = "#f0fdf4")}
                                 onMouseLeave={e => (e.currentTarget.style.background = "")}>
@@ -2614,6 +2683,59 @@ export default function InspectionsPage() {
                         <button onClick={exportCorpInvoiceExcel}
                           style={{ padding: "6px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
                           <i className="fas fa-file-excel" style={{ fontSize: 10 }} />Export Excel
+                        </button>
+                        <button onClick={sendCorpInvoice}
+                          disabled={!corpInvoiceFile || corpEmails.length === 0 || corpInvoiceSending}
+                          style={{
+                            padding: "6px 14px", background: (!corpInvoiceFile || corpEmails.length === 0) ? "#d1d5db" : "#7c3aed",
+                            color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                            cursor: (!corpInvoiceFile || corpEmails.length === 0) ? "not-allowed" : "pointer",
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            opacity: corpInvoiceSending ? 0.7 : 1,
+                          }}
+                          title={!corpInvoiceFile ? "Upload an invoice PDF first" : corpEmails.length === 0 ? "Add email recipients first" : `Send to ${corpEmails.length} recipient(s)`}>
+                          <i className={`fas ${corpInvoiceSending ? "fa-spinner fa-spin" : "fa-paper-plane"}`} style={{ fontSize: 10 }} />
+                          {corpInvoiceSending ? "Sending..." : "Send Invoice"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email Recipients Card */}
+                  <div className="ir-card" style={{ marginBottom: 12 }}>
+                    <div className="ir-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div className="ir-card-title"><i className="fas fa-envelope" /> Email Recipients</div>
+                      <span style={{ fontSize: 11, color: "#6b7280" }}>{corpEmails.length} recipient{corpEmails.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="ir-card-body">
+                      {corpEmails.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                          {corpEmails.map(e => (
+                            <span key={e.id} style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              background: "#ede9fe", color: "#5b21b6", borderRadius: 16,
+                              padding: "4px 10px 4px 12px", fontSize: 12, fontWeight: 500,
+                            }}>
+                              {e.email}
+                              <button onClick={() => removeCorpEmail(e.id)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#7c3aed", fontSize: 14, lineHeight: 1, padding: "0 2px", fontWeight: 700 }}
+                                title="Remove email">&times;</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="email" value={corpEmailInput} onChange={e => setCorpEmailInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCorpEmail(); } }}
+                          placeholder="Add email address..."
+                          className="ir-form-control" style={{ flex: 1, fontSize: 12, padding: "6px 10px" }} />
+                        <button onClick={addCorpEmail} disabled={!corpEmailInput.trim() || corpEmailLoading}
+                          style={{
+                            padding: "6px 14px", background: "#007890", color: "#fff", border: "none", borderRadius: 6,
+                            fontSize: 12, fontWeight: 600, cursor: !corpEmailInput.trim() ? "not-allowed" : "pointer",
+                            opacity: !corpEmailInput.trim() ? 0.5 : 1, whiteSpace: "nowrap",
+                          }}>
+                          <i className={`fas ${corpEmailLoading ? "fa-spinner fa-spin" : "fa-plus"}`} style={{ fontSize: 10, marginRight: 4 }} />Add
                         </button>
                       </div>
                     </div>
