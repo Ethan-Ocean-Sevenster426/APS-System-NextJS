@@ -530,7 +530,7 @@ export default function LabAnalyticsPage() {
         @keyframes barGrow { from { width: 0; } }
         @keyframes barHeight { from { height: 0; } }
         .la-page-bg { min-height: 100vh; }
-        .la-wrap { padding: 20px 20px 48px; max-width: 1340px; margin: 0 auto; }
+        .la-wrap { padding: 20px 20px 48px; width: 100%; box-sizing: border-box; }
         .la-section-title {
           font-size: 1rem; font-weight: 600; color: #1f2937;
           margin: 0 0 12px; padding: 0 0 10px;
