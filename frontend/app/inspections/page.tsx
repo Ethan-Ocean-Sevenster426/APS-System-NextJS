@@ -177,6 +177,53 @@ function IrMultiSelect({ label, options, selected, onChange, searchable }: { lab
   );
 }
 
+function CorpInvoiceGroupPicker({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const filtered = search ? options.filter(o => o.toLowerCase().includes(search.toLowerCase())) : options;
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(""); } };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  useEffect(() => { if (open && searchRef.current) searchRef.current.focus(); }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button type="button" className="ir-form-control" onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", background: open ? "#f9fafb" : "white", color: value ? "#1f2937" : "#6b7280" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value || "-- Select Business --"}</span>
+        <i className={`fas fa-chevron-${open ? "up" : "down"}`} style={{ fontSize: 10, color: "#9ca3af" }} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid #e5e7eb", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 2000, overflow: "hidden" }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid #f3f4f6" }}>
+            <input ref={searchRef} type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search business..."
+              style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem", border: "1px solid #e5e7eb", borderRadius: 4, outline: "none" }}
+              onFocus={e => (e.currentTarget.style.borderColor = "#007890")} onBlur={e => (e.currentTarget.style.borderColor = "#e5e7eb")} />
+          </div>
+          <div style={{ maxHeight: 250, overflowY: "auto" }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: "10px 12px", fontSize: 13, color: "#9ca3af" }}>No matches</div>
+            ) : filtered.map(g => (
+              <div key={g} onClick={() => { onChange(g); setOpen(false); setSearch(""); }}
+                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.82rem", color: "#1f2937", background: g === value ? "#f0fafb" : "transparent", fontWeight: g === value ? 600 : 400 }}
+                onMouseEnter={e => { if (g !== value) e.currentTarget.style.background = "#f9fafb"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = g === value ? "#f0fafb" : "transparent"; }}>
+                {g}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const perf = {
   pageStart: Date.now(),
   log(label: string, start: number, extra?: Record<string, unknown>) {
@@ -1783,7 +1830,7 @@ export default function InspectionsPage() {
                       <span style={{ background: "#fff", color: "#ef4444", borderRadius: 999, padding: "1px 7px", fontWeight: 700, marginLeft: 4, fontSize: 12 }}>{undeliverableCount}</span>
                     </button>
                   ))}
-                  {roleLoaded && !isLabTechRestricted && (
+                  {roleLoaded && (isAdmin || role === "super_admin" || role === "developer") && (
                     <button type="button" className="ir-btn" style={{ padding: "8px 16px", fontSize: 14, background: "#007890", color: "#fff", borderRadius: 6 }}
                       onClick={() => {
                         if (corpGroupFilter.length === 1) {
@@ -2463,13 +2510,11 @@ export default function InspectionsPage() {
                   <div className="ir-card-body" style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
                     <div style={{ flex: 1 }}>
                       <label className="ir-form-label" style={{ marginBottom: 4, display: "block" }}>Business</label>
-                      <select className="ir-form-control" value={corpInvoiceGroup}
-                        onChange={e => { setCorpInvoiceGroup(e.target.value); if (e.target.value) fetchCorpInvoiceMonths(e.target.value); }}>
-                        <option value="">-- Select Group --</option>
-                        {(allCorpGroups.length > 0 ? allCorpGroups : corpGroupOptions).map(g => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                      </select>
+                      <CorpInvoiceGroupPicker
+                        options={(allCorpGroups.length > 0 ? allCorpGroups : corpGroupOptions) as string[]}
+                        value={corpInvoiceGroup}
+                        onChange={(v) => { setCorpInvoiceGroup(v); if (v) fetchCorpInvoiceMonths(v); }}
+                      />
                     </div>
                   </div>
                 </div>
