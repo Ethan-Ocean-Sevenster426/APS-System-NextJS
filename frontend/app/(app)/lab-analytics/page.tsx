@@ -589,16 +589,27 @@ export default function LabAnalyticsPage() {
         @media (max-width: 900px) {
           .la-stat-grid { grid-template-columns: repeat(2, 1fr); }
           .la-mid-grid  { grid-template-columns: 1fr; }
+          .la-month-chart { gap: 4px; }
         }
         @media (max-width: 768px) {
           .la-wrap { padding: 16px 12px 32px; }
           .la-filter-bar { flex-direction: column !important; gap: 8px !important; }
-          .la-filter-bar select { width: 100% !important; }
+          .la-filter-bar > div { flex: 1 1 100% !important; min-width: 0 !important; }
+          .la-filter-bar input, .la-filter-bar select { width: 100% !important; box-sizing: border-box; }
+          .la-filter-btns { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+          .la-filter-btns button { flex: 1; min-width: 0; }
+          .la-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
+          .la-table { min-width: 600px; }
+          .la-lab-row { flex-wrap: wrap; }
         }
         @media (max-width: 480px) {
           .la-wrap { padding: 12px 8px 24px; }
-          .la-stat-grid { grid-template-columns: 1fr; gap: 10px; }
+          .la-stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
           .la-mid-grid { gap: 12px; }
+          .la-card { padding: 12px 14px; }
+          .la-month-chart { height: 80px; gap: 2px; }
+          .la-test-row { gap: 8px; }
+          .la-test-row > div:nth-child(3) { min-width: 60px; }
         }
       `}</style>
 
@@ -642,22 +653,24 @@ export default function LabAnalyticsPage() {
                   {allCommodities.map(c => <option key={c} value={c}>{COMMODITY_LABEL[c] || c}</option>)}
                 </select>
               </div>
-              <button onClick={() => fetchData(dateFrom, dateTo, labFilter, commodityFilter)}
-                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
-                <i className="fas fa-filter" style={{ marginRight: 6 }} />Apply
-              </button>
-              <button onClick={handleReset}
-                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white" }}>
-                <i className="fas fa-undo" style={{ marginRight: 6 }} />Reset
-              </button>
-              <button onClick={handleExtractExcel}
-                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
-                <i className="fas fa-file-download" style={{ marginRight: 6 }} />Extract
-              </button>
-              <button onClick={handleExportPdf}
-                style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#d13438", color: "white" }}>
-                <i className="fas fa-file-pdf" style={{ marginRight: 6 }} />PDF
-              </button>
+              <div className="la-filter-btns" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button onClick={() => fetchData(dateFrom, dateTo, labFilter, commodityFilter)}
+                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
+                  <i className="fas fa-filter" style={{ marginRight: 6 }} />Apply
+                </button>
+                <button onClick={handleReset}
+                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white" }}>
+                  <i className="fas fa-undo" style={{ marginRight: 6 }} />Reset
+                </button>
+                <button onClick={handleExtractExcel}
+                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white" }}>
+                  <i className="fas fa-file-download" style={{ marginRight: 6 }} />Extract
+                </button>
+                <button onClick={handleExportPdf}
+                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#d13438", color: "white" }}>
+                  <i className="fas fa-file-pdf" style={{ marginRight: 6 }} />PDF
+                </button>
+              </div>
             </div>
           </div>
 
@@ -861,7 +874,7 @@ export default function LabAnalyticsPage() {
             {loading ? (
               <div style={{ padding: "32px 0", textAlign: "center" }}><Spinner /></div>
             ) : data && data.recent.length > 0 ? (
-              <div style={{ overflowX: "auto", maxHeight: 520 }}>
+              <div className="la-table-scroll" style={{ overflowX: "auto", maxHeight: 520 }}>
                 <table className="la-table">
                   <thead>
                     <tr>
