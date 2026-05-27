@@ -593,6 +593,7 @@ class FoodSafetyAgencyInspection(models.Model):
     is_sent = models.BooleanField(default=False, help_text="Whether documents have been sent to client")
     sent_date = models.DateTimeField(blank=True, null=True, help_text="Date when documents were sent")
     sent_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name='sent_inspections', help_text="User who marked documents as sent")
+    sent_by_name = models.CharField(max_length=150, blank=True, default='', help_text="Name of user who sent documents (persists after user deletion)")
     
     # OneDrive upload tracking
     onedrive_uploaded = models.BooleanField(default=False, help_text="Whether files have been uploaded to OneDrive")

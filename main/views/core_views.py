@@ -16250,13 +16250,15 @@ def update_sent_status(request):
                 from django.utils import timezone
                 sent_date = timezone.now() if is_sent else None
                 sent_by = request.user if is_sent else None
+                sent_by_name_val = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username) if is_sent and hasattr(request, 'user') and request.user.is_authenticated else ''
 
                 updated_count = 0
                 for inspection in matching_inspections:
                     inspection.is_sent = is_sent
                     inspection.sent_date = sent_date
                     inspection.sent_by = sent_by
-                    inspection.save(update_fields=['is_sent', 'sent_date', 'sent_by'])
+                    inspection.sent_by_name = sent_by_name_val
+                    inspection.save(update_fields=['is_sent', 'sent_date', 'sent_by', 'sent_by_name'])
                     updated_count += 1
 
                 print(f" Updated sent status for {updated_count} inspections in inspection_group {inspection_group_id}")
@@ -16331,19 +16333,21 @@ def update_sent_status(request):
 
         # Update sent status for all inspections in the group
         is_sent = sent_status == 'YES' if sent_status else False
-        
+
         from django.utils import timezone
         sent_date = timezone.now() if is_sent else None
         sent_by = request.user if is_sent else None
-        
+        sent_by_name_val = (f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username) if is_sent and hasattr(request, 'user') and request.user.is_authenticated else ''
+
         updated_count = 0
         for inspection in matching_inspections:
             inspection.is_sent = is_sent
             inspection.sent_date = sent_date
             inspection.sent_by = sent_by
-            inspection.save(update_fields=['is_sent', 'sent_date', 'sent_by'])
+            inspection.sent_by_name = sent_by_name_val
+            inspection.save(update_fields=['is_sent', 'sent_date', 'sent_by', 'sent_by_name'])
             updated_count += 1
-        
+
         print(f" Updated sent status for {updated_count} inspections in group {group_id}")
 
         # CRITICAL: Clear the shipment list cache so refreshing shows the updated status
@@ -16974,7 +16978,8 @@ def send_group_documents(request):
             _real_user = _User.objects.filter(is_superuser=True).first() or _User.objects.filter(is_staff=True).first() or _User.objects.first()
 
         # Mark inspections as sent (reuse group_inspections queryset from above)
-        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=_real_user)
+        _sent_by_name = f"{_real_user.first_name} {_real_user.last_name}".strip() or _real_user.username if _real_user else ''
+        group_inspections.update(is_sent=True, sent_date=timezone.now(), sent_by=_real_user, sent_by_name=_sent_by_name)
 
         # Log the activity
         from ..models import SystemLog
