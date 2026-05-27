@@ -1191,7 +1191,7 @@ def api_inspections(request):
                 _comp_q |= Q(_has_comp_doc=True, _has_compliant=True, _has_non_compliant=False)
             if 'PENDING' in filter_compliance:
                 # Occurrence reports don't have compliance docs, so exclude them from PENDING
-                _comp_q |= Q(_has_comp_doc=False, is_occurrence_report=False)
+                _comp_q |= Q(_has_comp_doc=False) & ~Q(is_occurrence_report=True)
             groups_qs = groups_qs.annotate(
                 _has_comp_doc=_comp_doc_exists,
                 _has_non_compliant=_non_compliant_exists,
