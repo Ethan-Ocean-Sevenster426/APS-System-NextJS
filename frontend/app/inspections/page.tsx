@@ -181,7 +181,9 @@ function CorpInvoiceGroupPicker({ options, value, onChange }: { options: string[
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const filtered = search ? options.filter(o => o.toLowerCase().includes(search.toLowerCase())) : options;
 
   useEffect(() => {
@@ -192,18 +194,26 @@ function CorpInvoiceGroupPicker({ options, value, onChange }: { options: string[
 
   useEffect(() => { if (open && searchRef.current) searchRef.current.focus(); }, [open]);
 
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setOpen(o => !o);
+  };
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button type="button" className="ir-form-control" onClick={() => setOpen(o => !o)}
+      <button ref={btnRef} type="button" className="ir-form-control" onClick={handleToggle}
         style={{ width: "100%", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", background: open ? "#f9fafb" : "white", color: value ? "#1f2937" : "#6b7280" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value || "-- Select Business --"}</span>
         <i className={`fas fa-chevron-${open ? "up" : "down"}`} style={{ fontSize: 10, color: "#9ca3af" }} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid #e5e7eb", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 2000, overflow: "hidden" }}>
+        <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, background: "white", border: "1px solid #e5e7eb", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 10001, overflow: "hidden" }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid #f3f4f6" }}>
             <input ref={searchRef} type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search business..."
-              style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem", border: "1px solid #e5e7eb", borderRadius: 4, outline: "none" }}
+              style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem", border: "1px solid #e5e7eb", borderRadius: 4, outline: "none", boxSizing: "border-box" }}
               onFocus={e => (e.currentTarget.style.borderColor = "#007890")} onBlur={e => (e.currentTarget.style.borderColor = "#e5e7eb")} />
           </div>
           <div style={{ maxHeight: 250, overflowY: "auto" }}>
