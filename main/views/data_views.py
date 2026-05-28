@@ -1247,6 +1247,7 @@ def api_inspections(request):
                 groups_qs = groups_qs.exclude(_invoice_exists)
 
         # COA file filter (HAS_COA / NO_COA)
+        # Exclude groups that only have EGGS/POULTRY commodities since those don't require COA files
         filter_has_coa = request.GET.getlist('has_coa')
         if filter_has_coa:
             _coa_exists = Exists(
@@ -1255,6 +1256,14 @@ def api_inspections(request):
                     document_type__in=['coa', 'lab_form']
                 )
             )
+            # Groups that only have EGGS/POULTRY inspections (no RAW/PMP/etc)
+            _has_non_egg_poultry = Exists(
+                FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group_id=OuterRef('pk')
+                ).exclude(commodity__in=['EGGS', 'POULTRY'])
+            )
+            # Always exclude EGGS/POULTRY-only groups from COA filtering since they don't require COA
+            groups_qs = groups_qs.filter(_has_non_egg_poultry)
             if 'HAS_COA' in filter_has_coa and 'NO_COA' not in filter_has_coa:
                 groups_qs = groups_qs.filter(_coa_exists)
             elif 'NO_COA' in filter_has_coa and 'HAS_COA' not in filter_has_coa:
@@ -2926,8 +2935,10 @@ def api_lab_analytics(request):
             count = base.filter(date_of_inspection__gte=first, date_of_inspection__lte=last).count()
             monthly.append({'month': first.strftime('%b %Y'), 'count': count})
 
-        # Recent samples
-        recent_qs = base.order_by('-date_of_inspection')[:50].values(
+        # Recent samples — return all when exporting for PDF, else limit to 50
+        _export = request.GET.get('export') == '1'
+        _recent_base = base.order_by('-date_of_inspection')
+        recent_qs = (_recent_base if _export else _recent_base[:50]).values(
             'client_name', 'product_name', 'commodity', 'lab',
             'needs_retest', 'fat', 'protein', 'calcium', 'dna', 'date_of_inspection'
         )

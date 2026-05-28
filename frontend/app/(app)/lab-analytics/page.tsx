@@ -199,6 +199,17 @@ export default function LabAnalyticsPage() {
   const handleExportPdf = async () => {
     if (!data) return;
     try {
+      // Fetch ALL samples for the PDF (not just the last 50 shown on screen)
+      const ep = new URLSearchParams();
+      if (dateFrom) ep.set("date_from", dateFrom);
+      if (dateTo) ep.set("date_to", dateTo);
+      if (labFilter) ep.set("lab", labFilter);
+      if (commodityFilter) ep.set("commodity", commodityFilter);
+      ep.set("export", "1");
+      const exportRes = await fetch(`/api/lab-analytics?${ep.toString()}`);
+      const exportData = await exportRes.json();
+      const allSamples: typeof data.recent = exportData.success ? exportData.recent : data.recent;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const jsPDFModule: any = await import("jspdf");
       const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
@@ -434,16 +445,17 @@ export default function LabAnalyticsPage() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(...DARK);
-      doc.text("Recent Samples", ML, ty);
+      const sampleTitle = (dateFrom || dateTo || labFilter || commodityFilter) ? `Filtered Samples (${allSamples.length})` : `Recent Samples (${allSamples.length})`;
+      doc.text(sampleTitle, ML, ty);
       doc.setDrawColor(...TEAL);
       doc.setLineWidth(0.5);
-      doc.line(ML, ty + 1.5, ML + 48, ty + 1.5);
+      doc.line(ML, ty + 1.5, ML + doc.getTextWidth(sampleTitle), ty + 1.5);
       ty += 5;
 
       autoTable(doc, {
         startY: ty,
         head: [["Date", "Client", "Product", "Commodity", "Lab", "Tests", "Retest"]],
-        body: data.recent.map(r => [
+        body: allSamples.map(r => [
           r.date || "", r.client_name, r.product_name,
           COMMODITY_LABEL[r.commodity] || r.commodity,
           r.lab, (r.tests || []).join(", "), r.needs_retest || "No",
