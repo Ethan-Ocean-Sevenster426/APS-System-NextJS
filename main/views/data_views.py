@@ -1233,6 +1233,7 @@ def api_inspections(request):
                 groups_qs = groups_qs.exclude(_rfi_exists).filter(_has_pmp_or_raw)
 
         # Invoice file filter (HAS_INVOICE / NO_INVOICE)
+        # Exclude occurrence reports and EGGS/POULTRY-only groups since they don't require invoices
         filter_has_invoice = request.GET.getlist('has_invoice')
         if filter_has_invoice:
             _invoice_exists = Exists(
@@ -1241,10 +1242,17 @@ def api_inspections(request):
                     document_type='invoice'
                 )
             )
+            # Groups that have at least one non-occurrence, non-EGGS/POULTRY inspection
+            _needs_invoice = Exists(
+                FoodSafetyAgencyInspection.objects.filter(
+                    inspection_group_id=OuterRef('pk'),
+                    is_occurrence_report=False
+                ).exclude(commodity__in=['EGGS', 'POULTRY'])
+            )
             if 'HAS_INVOICE' in filter_has_invoice and 'NO_INVOICE' not in filter_has_invoice:
                 groups_qs = groups_qs.filter(_invoice_exists)
             elif 'NO_INVOICE' in filter_has_invoice and 'HAS_INVOICE' not in filter_has_invoice:
-                groups_qs = groups_qs.exclude(_invoice_exists)
+                groups_qs = groups_qs.exclude(_invoice_exists).filter(_needs_invoice)
 
         # COA file filter (HAS_COA / NO_COA)
         # Exclude groups that only have EGGS/POULTRY commodities since those don't require COA files
@@ -1256,17 +1264,18 @@ def api_inspections(request):
                     document_type__in=['coa', 'lab_form']
                 )
             )
-            # Groups that only have EGGS/POULTRY inspections (no RAW/PMP/etc)
+            # Groups that have at least one non-occurrence, non-EGGS/POULTRY inspection
             _has_non_egg_poultry = Exists(
                 FoodSafetyAgencyInspection.objects.filter(
-                    inspection_group_id=OuterRef('pk')
+                    inspection_group_id=OuterRef('pk'),
+                    is_occurrence_report=False
                 ).exclude(commodity__in=['EGGS', 'POULTRY'])
             )
-            # Always exclude EGGS/POULTRY-only groups from COA filtering since they don't require COA
-            groups_qs = groups_qs.filter(_has_non_egg_poultry)
             if 'HAS_COA' in filter_has_coa and 'NO_COA' not in filter_has_coa:
                 groups_qs = groups_qs.filter(_coa_exists)
             elif 'NO_COA' in filter_has_coa and 'HAS_COA' not in filter_has_coa:
+                # Only show groups that actually need a COA (exclude occurrence/EGGS/POULTRY-only)
+                groups_qs = groups_qs.filter(_has_non_egg_poultry)
                 groups_qs = groups_qs.exclude(_coa_exists)
 
         # Compliance file filter (HAS_COMP / NO_COMP)
