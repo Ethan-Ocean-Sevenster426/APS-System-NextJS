@@ -382,7 +382,19 @@ export default function InspectionsPage() {
   const [corpEmailLoading, setCorpEmailLoading] = useState(false);
   const [corpInvoiceSending, setCorpInvoiceSending] = useState(false);
   const [corpSendConfirm, setCorpSendConfirm] = useState(false);
+  const [corpAllInvoices, setCorpAllInvoices] = useState<{corporate_group: string; corporate_group_raw: string; month: string; filename: string}[]>([]);
+  const [corpAllInvoicesLoading, setCorpAllInvoicesLoading] = useState(false);
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const fetchAllCorpInvoices = async () => {
+    setCorpAllInvoicesLoading(true);
+    try {
+      const res = await fetch("/api/corporate-invoice-file");
+      const data = await res.json();
+      if (data.success) setCorpAllInvoices(data.invoices || []);
+    } catch { /* ignore */ }
+    finally { setCorpAllInvoicesLoading(false); }
+  };
 
   const checkCorpInvoiceFile = async (group: string, month: string) => {
     try {
@@ -1916,6 +1928,7 @@ export default function InspectionsPage() {
                           fetchCorpInvoiceMonths(corpGroupFilter[0]);
                         }
                         setCorpInvoiceModal(true);
+                        fetchAllCorpInvoices();
                       }}>
                       <i className="fas fa-building" /> Corporate Invoice
                     </button>
@@ -2600,7 +2613,7 @@ export default function InspectionsPage() {
                 {/* Month list card */}
                 <div className="ir-card">
                   <div className="ir-card-header">
-                    <div className="ir-card-title"><i className="fas fa-file-invoice-dollar" /> Monthly Invoices</div>
+                    <div className="ir-card-title"><i className="fas fa-file-invoice-dollar" /> {corpInvoiceGroup ? "Monthly Invoices" : "All Uploaded Invoices"}</div>
                   </div>
                   <div className="ir-card-body">
                     {corpInvoiceLoading ? (
@@ -2608,7 +2621,55 @@ export default function InspectionsPage() {
                         <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 8 }} />Loading...
                       </div>
                     ) : !corpInvoiceGroup ? (
-                      <div className="ir-table-info" style={{ textAlign: "center", padding: 32 }}>Select a corporate group above to see available invoices.</div>
+                      /* Show all uploaded invoices across all groups */
+                      corpAllInvoicesLoading ? (
+                        <div style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                          <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 8 }} />Loading...
+                        </div>
+                      ) : corpAllInvoices.length === 0 ? (
+                        <div className="ir-table-info" style={{ textAlign: "center", padding: 32 }}>No uploaded invoices found.</div>
+                      ) : (
+                        <div style={{ overflowX: "auto" }}>
+                          <table className="ir-table">
+                            <thead>
+                              <tr>
+                                <th>Business</th>
+                                <th>Month</th>
+                                <th>File</th>
+                                <th className="center" style={{ width: 140 }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {corpAllInvoices.map((inv, idx) => {
+                                const [y, m] = inv.month.split("-");
+                                const monthLabel = `${MONTH_NAMES[parseInt(m) - 1] || m} ${y}`;
+                                return (
+                                  <tr key={idx}>
+                                    <td><span style={{ fontWeight: 600, color: "#007890" }}>{inv.corporate_group}</span></td>
+                                    <td>{monthLabel}</td>
+                                    <td style={{ fontSize: 12, color: "#64748b" }}>{inv.filename}</td>
+                                    <td className="center" style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                                      <a href={`/api/corporate-invoice-file?corporate_group=${encodeURIComponent(inv.corporate_group_raw)}&month=${inv.month}&download=1`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        style={{ padding: "4px 10px", background: "#007890", color: "#fff", borderRadius: 5, fontSize: 11, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                        <i className="fas fa-eye" style={{ fontSize: 9 }} />View
+                                      </a>
+                                      <button onClick={async () => {
+                                        if (!confirm(`Delete ${inv.corporate_group} - ${monthLabel} invoice?`)) return;
+                                        await fetch("/api/corporate-invoice-file", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ corporate_group: inv.corporate_group_raw, month: inv.month }) });
+                                        fetchAllCorpInvoices();
+                                      }}
+                                        style={{ padding: "4px 10px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                        <i className="fas fa-trash" style={{ fontSize: 9 }} />Delete
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
                     ) : corpInvoiceMonths.length === 0 ? (
                       <div className="ir-table-info" style={{ textAlign: "center", padding: 32 }}>No invoices found for {corpInvoiceGroup}.</div>
                     ) : (

@@ -51,3 +51,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: String(e) }, { status: 502 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const cookie = request.headers.get("cookie") || "";
+    const res = await fetch(`${DJANGO_API_URL}/api/corporate-invoice-file/`, {
+      method: "DELETE",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 502 });
+  }
+}
