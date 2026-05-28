@@ -1098,9 +1098,12 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(inspector_q)
             # inspector_manager sees all inspections - no filtering needed
 
-        # Always exclude corporate store inspections from the main list
-        # (they are only viewed via the Corporate Invoice section)
-        groups_qs = groups_qs.exclude(group_type__in=['Corporate Store', 'Corporate'])
+        # Only show Franchise and Individual stores in the main list
+        # (Corporate stores are only viewed via the Corporate Invoice section)
+        groups_qs = groups_qs.filter(
+            Q(group_type__in=['Franchise Store', 'Franchise', 'Individual / Independent Owner', 'Individual'])
+            | Q(group_type__isnull=True) | Q(group_type='')
+        )
 
         # Server-side inspector filter (supports multi-select)
         filter_inspectors = request.GET.getlist('inspector')
