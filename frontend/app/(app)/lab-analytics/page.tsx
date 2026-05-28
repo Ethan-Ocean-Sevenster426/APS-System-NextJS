@@ -162,38 +162,51 @@ export default function LabAnalyticsPage() {
 
   const handleReset = () => { setDateFrom(""); setDateTo(""); setLabFilter(""); setCommodityFilter(""); fetchData("", "", "", ""); };
 
-  const handleExtractExcel = () => {
+  const handleExtractExcel = async () => {
     if (!data) return;
-    import("xlsx").then(XLSX => {
-      const wb = XLSX.utils.book_new();
-      // Summary sheet
-      const summary = [
-        { Metric: "Total Inspections", Value: data.total_inspections },
-        { Metric: "Total Samples", Value: data.total_samples },
-        { Metric: "Tests Run", Value: data.total_tests },
-        { Metric: "Fat Tests", Value: data.fat_count },
-        { Metric: "Protein Tests", Value: data.protein_count },
-        { Metric: "Calcium Tests", Value: data.calcium_count },
-        { Metric: "DNA Tests", Value: data.dna_count },
-        { Metric: "Needs COA Upload", Value: data.needs_coa },
-        { Metric: "Needs Retest", Value: data.needs_retest },
-      ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Summary");
-      // Samples sheet
-      if (data.recent.length) {
-        const rows = data.recent.map(r => ({
-          Date: r.date,
-          Client: r.client_name,
-          Product: r.product_name,
-          Commodity: COMMODITY_LABEL[r.commodity] || r.commodity,
-          Lab: r.lab,
-          Tests: (r.tests || []).join(", "),
-          "Needs Retest": r.needs_retest,
-        }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Samples");
-      }
-      XLSX.writeFile(wb, `Lab_Analytics_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    });
+    // Fetch ALL samples (not just the 50 shown on screen)
+    const ep = new URLSearchParams();
+    if (dateFrom) ep.set("date_from", dateFrom);
+    if (dateTo) ep.set("date_to", dateTo);
+    if (labFilter) ep.set("lab", labFilter);
+    if (commodityFilter) ep.set("commodity", commodityFilter);
+    ep.set("export", "1");
+    let allSamples: typeof data.recent = data.recent;
+    try {
+      const exportRes = await fetch(`/api/lab-analytics?${ep.toString()}`);
+      const exportData = await exportRes.json();
+      if (exportData.success) allSamples = exportData.recent;
+    } catch { /* fall back to data.recent */ }
+
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    // Summary sheet
+    const summary = [
+      { Metric: "Total Inspections", Value: data.total_inspections },
+      { Metric: "Total Samples", Value: data.total_samples },
+      { Metric: "Tests Run", Value: data.total_tests },
+      { Metric: "Fat Tests", Value: data.fat_count },
+      { Metric: "Protein Tests", Value: data.protein_count },
+      { Metric: "Calcium Tests", Value: data.calcium_count },
+      { Metric: "DNA Tests", Value: data.dna_count },
+      { Metric: "Needs COA Upload", Value: data.needs_coa },
+      { Metric: "Needs Retest", Value: data.needs_retest },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Summary");
+    // Samples sheet — all filtered samples, not just last 50
+    if (allSamples.length) {
+      const rows = allSamples.map(r => ({
+        Date: r.date,
+        Client: r.client_name,
+        Product: r.product_name,
+        Commodity: COMMODITY_LABEL[r.commodity] || r.commodity,
+        Lab: r.lab,
+        Tests: (r.tests || []).join(", "),
+        "Needs Retest": r.needs_retest,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Samples");
+    }
+    XLSX.writeFile(wb, `Lab_Analytics_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const handleExportPdf = async () => {
