@@ -4061,6 +4061,20 @@ def api_corporate_invoice_file(request):
                         })
         return JsonResponse({'success': True, 'invoices': all_invoices})
 
+    # Handle DELETE before the corp/month check since DELETE reads from JSON body
+    if request.method == 'DELETE':
+        import json as _json
+        body = _json.loads(request.body) if request.body else {}
+        d_corp = body.get('corporate_group', '').strip()
+        d_month = body.get('month', '').strip()
+        if not d_corp or not d_month:
+            return JsonResponse({'success': False, 'error': 'corporate_group and month required'}, status=400)
+        del_folder = os.path.join(_settings.MEDIA_ROOT, 'docs', 'corporate_invoices', d_corp, d_month)
+        if os.path.isdir(del_folder):
+            import shutil
+            shutil.rmtree(del_folder)
+        return JsonResponse({'success': True})
+
     if not corp or not month:
         return JsonResponse({'success': False, 'error': 'corporate_group and month are required'}, status=400)
 
@@ -4097,19 +4111,6 @@ def api_corporate_invoice_file(request):
             for chunk in uploaded.chunks():
                 f.write(chunk)
         return JsonResponse({'success': True, 'filename': uploaded.name})
-
-    if request.method == 'DELETE':
-        import json as _json
-        body = _json.loads(request.body) if request.body else {}
-        d_corp = body.get('corporate_group', '').strip()
-        d_month = body.get('month', '').strip()
-        if not d_corp or not d_month:
-            return JsonResponse({'success': False, 'error': 'corporate_group and month required'}, status=400)
-        del_folder = os.path.join(_settings.MEDIA_ROOT, 'docs', 'corporate_invoices', _sanitize(d_corp), d_month)
-        if os.path.isdir(del_folder):
-            import shutil
-            shutil.rmtree(del_folder)
-        return JsonResponse({'success': True})
 
     return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
