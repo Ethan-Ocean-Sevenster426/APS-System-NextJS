@@ -2880,6 +2880,11 @@ def api_lab_analytics(request):
             _insp_qs = _insp_qs.filter(date_of_inspection__gte=_date_from)
         if _date_to:
             _insp_qs = _insp_qs.filter(date_of_inspection__lte=_date_to)
+        if _lab_filter:
+            _lab_keys = _LAB_REVERSE_KEYS.get(_lab_filter, [_lab_filter])
+            _insp_qs = _insp_qs.filter(lab__in=_lab_keys)
+        if _commodity_filter:
+            _insp_qs = _insp_qs.filter(commodity=_commodity_filter)
         total_inspections = _insp_qs.count()
 
         # Count "Awaiting COA" by checking the actual file system (media/docs/)
