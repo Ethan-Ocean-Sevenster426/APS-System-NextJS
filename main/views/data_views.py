@@ -1098,15 +1098,15 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(inspector_q)
             # inspector_manager sees all inspections - no filtering needed
 
-        # Exclude corporate stores from the main list — they are only
-        # viewed via the Corporate Invoice section.  Independent stores
-        # use placeholder corporate_group values like "Not Applicable",
-        # "Other", "Other (Unlisted Group)" which should still show.
-        _NON_CORPORATE = ['Not Applicable', 'Other', 'Other (Unlisted Group)', '', 'Test']
-        groups_qs = groups_qs.filter(
-            Q(corporate_group__in=_NON_CORPORATE)
-            | Q(corporate_group__isnull=True)
-        )
+        # Exclude corporate stores from the main list for admin /
+        # inspector_manager roles — they use the Corporate Invoice section.
+        # Inspectors and lab technicians still need to see all stores.
+        if _user_role not in ('inspector', 'lab_technician'):
+            _NON_CORPORATE = ['Not Applicable', 'Other', 'Other (Unlisted Group)', '', 'Test']
+            groups_qs = groups_qs.filter(
+                Q(corporate_group__in=_NON_CORPORATE)
+                | Q(corporate_group__isnull=True)
+            )
 
         # Server-side inspector filter (supports multi-select)
         filter_inspectors = request.GET.getlist('inspector')
