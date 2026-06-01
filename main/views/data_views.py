@@ -2897,6 +2897,13 @@ def api_lab_analytics(request):
         # that have NO InspectionDocument with document_type in ['coa', 'lab', 'lab_form'].
         from ..models import InspectionGroup as _IG_coa, InspectionDocument as _ID_coa
         _coa_group_qs = _IG_coa.objects.all()
+        # Match inspections page visibility: exclude corporate for non-inspector/lab_tech roles
+        _coa_user_role = getattr(request.user, 'role', '') if request.user.is_authenticated else ''
+        if _coa_user_role not in ('inspector', 'lab_technician'):
+            _NON_CORP_COA = ['Not Applicable', 'Other', 'Other (Unlisted Group)', '', 'Test']
+            _coa_group_qs = _coa_group_qs.filter(
+                Q(corporate_group__in=_NON_CORP_COA) | Q(corporate_group__isnull=True)
+            )
         if _date_from:
             _coa_group_qs = _coa_group_qs.filter(date_of_inspection__gte=_date_from)
         if _date_to:
