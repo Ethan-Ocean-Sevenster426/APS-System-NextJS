@@ -2899,13 +2899,13 @@ def api_lab_analytics(request):
             _coa_group_qs = _coa_group_qs.filter(date_of_inspection__gte=_date_from)
         if _date_to:
             _coa_group_qs = _coa_group_qs.filter(date_of_inspection__lte=_date_to)
-        # Must have at least one sent, sampled, non-EGGS/POULTRY inspection
+        # Must have at least one sampled, non-EGGS/POULTRY inspection
+        # (matches inspections page NO_COA filter — no sent_date requirement)
         _coa_group_qs = _coa_group_qs.filter(
             Exists(
                 _I.objects.filter(
                     inspection_group_id=OuterRef('pk'),
                     is_sample_taken=True,
-                    sent_date__isnull=False,
                     is_occurrence_report=False,
                 ).exclude(commodity__in=['EGGS', 'POULTRY'])
             )
