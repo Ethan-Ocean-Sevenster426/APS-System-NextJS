@@ -1271,7 +1271,7 @@ def api_inspections(request):
             _coa_exists = Exists(
                 InspectionDocument.objects.filter(
                     inspection__inspection_group_id=OuterRef('pk'),
-                    document_type__in=['coa', 'lab_form']
+                    document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
             # Groups that have at least one non-occurrence, non-EGGS/POULTRY inspection
@@ -1333,7 +1333,7 @@ def api_inspections(request):
             _coa_up_exists = Exists(
                 InspectionDocument.objects.filter(
                     inspection__inspection_group_id=OuterRef('pk'),
-                    document_type__in=['coa', 'lab_form']
+                    document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
             if 'COA_UPLOADED' in filter_coa_uploaded and 'NO_COA' not in filter_coa_uploaded:
