@@ -65,10 +65,12 @@ function Spinner() {
   );
 }
 
-function StatCard({ label, value, icon, color, borderColor, loading, tooltip }: { label: string; value: number; icon: string; color: string; borderColor: string; loading: boolean; tooltip?: string }) {
+function StatCard({ label, value, icon, color, borderColor, loading, tooltip, href }: { label: string; value: number; icon: string; color: string; borderColor: string; loading: boolean; tooltip?: string; href?: string }) {
   const [showTip, setShowTip] = useState(false);
   return (
-    <div style={{
+    <div
+      onClick={href ? () => { window.location.href = href; } : undefined}
+      style={{
       background: "#fff",
       borderRadius: 8,
       padding: "12px 14px",
@@ -79,7 +81,12 @@ function StatCard({ label, value, icon, color, borderColor, loading, tooltip }: 
       alignItems: "center",
       gap: 10,
       position: "relative",
-    }}>
+      cursor: href ? "pointer" : undefined,
+      transition: href ? "box-shadow 0.15s" : undefined,
+    }}
+      onMouseEnter={href ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 12px rgba(0,0,0,0.12)"; } : undefined}
+      onMouseLeave={href ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 2px rgba(0,0,0,0.05)"; } : undefined}
+    >
       <div style={{
         width: 32,
         height: 32,
@@ -728,8 +735,8 @@ export default function LabAnalyticsPage() {
             <StatCard label="Total Inspections" value={data?.total_inspections ?? 0} icon="fa-clipboard-list" color="#0d9488" borderColor="#0d9488" loading={loading} tooltip="Total number of inspections conducted across all inspectors." />
             <StatCard label="Samples Collected" value={data?.total_samples ?? 0} icon="fa-vial" color="#8b5cf6" borderColor="#8b5cf6" loading={loading} tooltip="Number of inspections where a product sample was collected for lab testing." />
             <StatCard label="Individual Lab Tests" value={data?.total_tests ?? 0} icon="fa-flask" color="#3b82f6" borderColor="#3b82f6" loading={loading} tooltip="Total individual tests run (Fat, Protein, Calcium, DNA). One sample can have multiple tests, e.g. Fat + Protein = 2 tests." />
-            <StatCard label="Awaiting COA" value={data?.needs_coa ?? 0} icon="fa-file-upload" color="#f97316" borderColor="#f97316" loading={loading} tooltip="Samples still waiting for a Certificate of Analysis (COA) to be uploaded from the lab." />
-            <StatCard label="Needs Retest" value={data?.needs_retest ?? 0} icon="fa-redo-alt" color="#ef4444" borderColor="#ef4444" loading={loading} tooltip="Samples flagged for retesting due to failed or inconclusive lab results." />
+            <StatCard label="Awaiting COA" value={data?.needs_coa ?? 0} icon="fa-file-upload" color="#f97316" borderColor="#f97316" loading={loading} tooltip="Samples still waiting for a Certificate of Analysis (COA) to be uploaded from the lab. Click to view." href="/inspections?has_coa=NO_COA&sampled=SAMPLED" />
+            <StatCard label="Needs Retest" value={data?.needs_retest ?? 0} icon="fa-redo-alt" color="#ef4444" borderColor="#ef4444" loading={loading} tooltip="Samples flagged for retesting due to failed or inconclusive lab results. Click to view." href="/inspections?needs_retest=NEEDS_RETEST" />
           </div>
 
           {/* Mid row: Tests breakdown + Monthly trend */}

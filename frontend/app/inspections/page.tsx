@@ -729,9 +729,27 @@ export default function InspectionsPage() {
     return () => clearTimeout(timer);
   }, [clientSearch]);
 
-  // Initial load on mount
+  // Initial load on mount — check URL params for pre-applied filters (e.g. from Lab Analytics)
   useEffect(() => {
-    fetchInspections(false, "", "", 1, "");
+    const sp = new URLSearchParams(window.location.search);
+    const urlCoa = sp.getAll("has_coa");
+    const urlRetest = sp.getAll("needs_retest");
+    const urlSampled = sp.getAll("sampled");
+    if (urlCoa.length || urlRetest.length || urlSampled.length) {
+      if (urlCoa.length) setCoaFileFilter(urlCoa);
+      if (urlRetest.length) setRetestFilter(urlRetest);
+      if (urlSampled.length) setSampledFilter(urlSampled);
+      const af = {
+        ...appliedFilters,
+        coaFile: urlCoa,
+        retest: urlRetest,
+        sampled: urlSampled,
+      };
+      setAppliedFilters(af);
+      fetchInspections(false, "", "", 1, "", af);
+    } else {
+      fetchInspections(false, "", "", 1, "");
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
