@@ -1268,9 +1268,12 @@ def api_inspections(request):
         # Exclude groups that only have EGGS/POULTRY commodities since those don't require COA files
         filter_has_coa = request.GET.getlist('has_coa')
         if filter_has_coa:
+            # Check across ALL inspections for the same client+date (not just this group)
+            # so duplicate groups sharing the same COA are handled correctly
             _coa_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    inspection__client_name=OuterRef('client_name'),
+                    inspection__date_of_inspection=OuterRef('date_of_inspection'),
                     document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
@@ -1332,7 +1335,8 @@ def api_inspections(request):
         if filter_coa_uploaded:
             _coa_up_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    inspection__client_name=OuterRef('client_name'),
+                    inspection__date_of_inspection=OuterRef('date_of_inspection'),
                     document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
@@ -1527,14 +1531,11 @@ def api_inspections(request):
             _all_ids_for_group = _client_date_insp_ids.get(
                 ((g.client_name or '').lower(), g.date_of_inspection), set()
             ) or {str(pid) for pid in insp_ids}
-            # COA badge uses only the group's own inspection IDs so duplicate groups
-            # don't falsely show COA as uploaded from a sibling group
-            _own_ids = {str(pid) for pid in insp_ids}
             has_rfi = any(_has_file(pid, 'rfi') for pid in _all_ids_for_group)
             has_invoice = any(_has_file(pid, 'invoice') for pid in _all_ids_for_group)
-            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _own_ids)
+            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group)
             has_compliance = any(_has_file(pid, 'compliance') or _has_file(pid, 'composition') for pid in _all_ids_for_group)
-            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _own_ids)
+            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group)
             # Compliance: matches frontend badge logic
             # Product is "assessed" if it has compliance or composition file uploaded
             # NON_COMPLIANT if any product is non-compliant (with file proof)
@@ -1582,14 +1583,14 @@ def api_inspections(request):
                 if p.protein: prod['protein'] = True
                 if p.calcium: prod['calcium'] = True
                 if p.is_direction_present_for_this_inspection: prod['is_direction_present_for_this_inspection'] = True
-                # COA uses group-own IDs only (no cross-group bleed from duplicates)
-                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _own_ids): prod['coa_uploaded'] = True
+                # Use expanded client+date IDs so per-product flags match file viewer
+                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group): prod['coa_uploaded'] = True
                 if any(_has_file(pid, 'composition') for pid in _all_ids_for_group): prod['composition_uploaded'] = True
                 if any(_has_file(pid, 'compliance') for pid in _all_ids_for_group): prod['compliance_uploaded'] = True
                 if any(_has_file(pid, 'occurrence') for pid in _all_ids_for_group): prod['occurrence_uploaded'] = True
                 if any(_has_file(pid, 'retest') for pid in _all_ids_for_group): prod['retest_uploaded'] = True
                 if any(_has_file(pid, 'other') for pid in _all_ids_for_group): prod['other_uploaded'] = True
-                if any(_has_file(pid, 'lab_form') for pid in _own_ids): prod['lab_form_uploaded'] = True
+                if any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group): prod['lab_form_uploaded'] = True
                 products.append(prod)
 
             # Build fallback_group_id string
@@ -2891,7 +2892,7 @@ def api_lab_analytics(request):
         total_inspections = _insp_qs.count()
 
         # Count "Awaiting COA" at the GROUP level — matches the NO_COA filter on inspections page.
-        # Groups with at least one sent sampled inspection (excluding EGGS/POULTRY-only groups)
+        # Groups with at least one sampled inspection (excluding EGGS/POULTRY-only groups)
         # that have NO InspectionDocument with document_type in ['coa', 'lab', 'lab_form'].
         from ..models import InspectionGroup as _IG_coa, InspectionDocument as _ID_coa
         _coa_group_qs = _IG_coa.objects.all()
@@ -2900,7 +2901,6 @@ def api_lab_analytics(request):
         if _date_to:
             _coa_group_qs = _coa_group_qs.filter(date_of_inspection__lte=_date_to)
         # Must have at least one sampled, non-EGGS/POULTRY inspection
-        # (matches inspections page NO_COA filter — no sent_date requirement)
         _coa_group_qs = _coa_group_qs.filter(
             Exists(
                 _I.objects.filter(
@@ -2918,10 +2918,11 @@ def api_lab_analytics(request):
             _coa_group_qs = _coa_group_qs.filter(
                 Exists(_I.objects.filter(inspection_group_id=OuterRef('pk'), commodity=_commodity_filter))
             )
-        # Exclude groups that DO have a COA document
+        # Exclude groups that have a COA document (check across all groups for same client+date)
         _coa_doc_exists = Exists(
             _ID_coa.objects.filter(
-                inspection__inspection_group_id=OuterRef('pk'),
+                inspection__client_name=OuterRef('client_name'),
+                inspection__date_of_inspection=OuterRef('date_of_inspection'),
                 document_type__in=['coa', 'lab', 'lab_form']
             )
         )
