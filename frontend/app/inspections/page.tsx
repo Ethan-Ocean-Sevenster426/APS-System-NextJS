@@ -1034,15 +1034,19 @@ export default function InspectionsPage() {
                     has_lab: s.has_lab || (f.coa && f.coa.length > 0) || (f.lab && f.lab.length > 0),
                     has_compliance: s.has_compliance || (f.compliance && f.compliance.length > 0) || (f.composition && f.composition.length > 0),
                     has_lab_form: s.has_lab_form || (f.lab_form && f.lab_form.length > 0),
-                    products: s.products?.map(p => ({
-                      ...p,
-                      coa_uploaded: p.coa_uploaded || (f.coa && f.coa.length > 0) || (f.lab && f.lab.length > 0),
-                      composition_uploaded: p.composition_uploaded || (f.composition && f.composition.length > 0),
-                      occurrence_uploaded: p.occurrence_uploaded || (f.occurrence && f.occurrence.length > 0),
-                      retest_uploaded: p.retest_uploaded || (f.retest && f.retest.length > 0),
-                      other_uploaded: p.other_uploaded || (f.other && f.other.length > 0),
-                      lab_form_uploaded: p.lab_form_uploaded || (f.lab_form && f.lab_form.length > 0),
-                    })),
+                    products: s.products?.map(p => {
+                      const hasLabFiles = (f.coa && f.coa.length > 0) || (f.lab && f.lab.length > 0);
+                      return {
+                        ...p,
+                        // Only mark COA as uploaded for sampled products (non-sampled don't need COA)
+                        coa_uploaded: p.coa_uploaded || (p.is_sample_taken && hasLabFiles),
+                        composition_uploaded: p.composition_uploaded || (f.composition && f.composition.length > 0),
+                        occurrence_uploaded: p.occurrence_uploaded || (f.occurrence && f.occurrence.length > 0),
+                        retest_uploaded: p.retest_uploaded || (f.retest && f.retest.length > 0),
+                        other_uploaded: p.other_uploaded || (f.other && f.other.length > 0),
+                        lab_form_uploaded: p.lab_form_uploaded || (f.lab_form && f.lab_form.length > 0),
+                      };
+                    }),
                   };
                 }));
               }
