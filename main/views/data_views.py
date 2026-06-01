@@ -1527,11 +1527,14 @@ def api_inspections(request):
             _all_ids_for_group = _client_date_insp_ids.get(
                 ((g.client_name or '').lower(), g.date_of_inspection), set()
             ) or {str(pid) for pid in insp_ids}
+            # COA badge uses only the group's own inspection IDs so duplicate groups
+            # don't falsely show COA as uploaded from a sibling group
+            _own_ids = {str(pid) for pid in insp_ids}
             has_rfi = any(_has_file(pid, 'rfi') for pid in _all_ids_for_group)
             has_invoice = any(_has_file(pid, 'invoice') for pid in _all_ids_for_group)
-            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group)
+            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _own_ids)
             has_compliance = any(_has_file(pid, 'compliance') or _has_file(pid, 'composition') for pid in _all_ids_for_group)
-            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group)
+            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _own_ids)
             # Compliance: matches frontend badge logic
             # Product is "assessed" if it has compliance or composition file uploaded
             # NON_COMPLIANT if any product is non-compliant (with file proof)
@@ -1579,14 +1582,14 @@ def api_inspections(request):
                 if p.protein: prod['protein'] = True
                 if p.calcium: prod['calcium'] = True
                 if p.is_direction_present_for_this_inspection: prod['is_direction_present_for_this_inspection'] = True
-                # Use expanded client+date IDs so per-product flags match expand view
-                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group): prod['coa_uploaded'] = True
+                # COA uses group-own IDs only (no cross-group bleed from duplicates)
+                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _own_ids): prod['coa_uploaded'] = True
                 if any(_has_file(pid, 'composition') for pid in _all_ids_for_group): prod['composition_uploaded'] = True
                 if any(_has_file(pid, 'compliance') for pid in _all_ids_for_group): prod['compliance_uploaded'] = True
                 if any(_has_file(pid, 'occurrence') for pid in _all_ids_for_group): prod['occurrence_uploaded'] = True
                 if any(_has_file(pid, 'retest') for pid in _all_ids_for_group): prod['retest_uploaded'] = True
                 if any(_has_file(pid, 'other') for pid in _all_ids_for_group): prod['other_uploaded'] = True
-                if any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group): prod['lab_form_uploaded'] = True
+                if any(_has_file(pid, 'lab_form') for pid in _own_ids): prod['lab_form_uploaded'] = True
                 products.append(prod)
 
             # Build fallback_group_id string
@@ -2820,7 +2823,7 @@ def api_home_stats(request):
 def api_lab_analytics(request):
     """Lab analytics dashboard data for lab technician role."""
     from ..models import FoodSafetyAgencyInspection as _I
-    from django.db.models import Count, Q
+    from django.db.models import Count, Q, Exists, OuterRef
 
     def _cors(r):
         r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -2887,22 +2890,42 @@ def api_lab_analytics(request):
             _insp_qs = _insp_qs.filter(commodity=_commodity_filter)
         total_inspections = _insp_qs.count()
 
-        # Count "Awaiting COA" by checking the actual file system (media/docs/)
-        # The coa_uploaded_date field is stale — uploads go to disk but don't set it.
-        # Files live at: media/docs/{client_id}/{inspection_id}/lab/
-        import os
-        from django.conf import settings as _settings
-        _docs_base = os.path.join(_settings.MEDIA_ROOT, 'docs')
-        _awaiting_coa = 0
-        for _insp in base.filter(sent_date__isnull=False).only('id', 'client_id'):
-            _has_lab_file = False
-            if _insp.client_id:
-                _lab_dir = os.path.join(_docs_base, str(_insp.client_id), str(_insp.id), 'lab')
-                if os.path.isdir(_lab_dir) and os.listdir(_lab_dir):
-                    _has_lab_file = True
-            if not _has_lab_file:
-                _awaiting_coa += 1
-        needs_coa = _awaiting_coa
+        # Count "Awaiting COA" at the GROUP level — matches the NO_COA filter on inspections page.
+        # Groups with at least one sent sampled inspection (excluding EGGS/POULTRY-only groups)
+        # that have NO InspectionDocument with document_type in ['coa', 'lab', 'lab_form'].
+        from ..models import InspectionGroup as _IG_coa, InspectionDocument as _ID_coa
+        _coa_group_qs = _IG_coa.objects.all()
+        if _date_from:
+            _coa_group_qs = _coa_group_qs.filter(date_of_inspection__gte=_date_from)
+        if _date_to:
+            _coa_group_qs = _coa_group_qs.filter(date_of_inspection__lte=_date_to)
+        # Must have at least one sent, sampled, non-EGGS/POULTRY inspection
+        _coa_group_qs = _coa_group_qs.filter(
+            Exists(
+                _I.objects.filter(
+                    inspection_group_id=OuterRef('pk'),
+                    is_sample_taken=True,
+                    sent_date__isnull=False,
+                    is_occurrence_report=False,
+                ).exclude(commodity__in=['EGGS', 'POULTRY'])
+            )
+        )
+        if _lab_filter:
+            _coa_group_qs = _coa_group_qs.filter(
+                Exists(_I.objects.filter(inspection_group_id=OuterRef('pk'), lab__in=_lab_keys))
+            )
+        if _commodity_filter:
+            _coa_group_qs = _coa_group_qs.filter(
+                Exists(_I.objects.filter(inspection_group_id=OuterRef('pk'), commodity=_commodity_filter))
+            )
+        # Exclude groups that DO have a COA document
+        _coa_doc_exists = Exists(
+            _ID_coa.objects.filter(
+                inspection__inspection_group_id=OuterRef('pk'),
+                document_type__in=['coa', 'lab', 'lab_form']
+            )
+        )
+        needs_coa = _coa_group_qs.exclude(_coa_doc_exists).count()
         needs_retest    = base.filter(needs_retest__in=['Yes', 'YES', 'yes']).count()
         fat_count       = base.filter(fat=True).count()
         protein_count   = base.filter(protein=True).count()
