@@ -1268,12 +1268,12 @@ def api_inspections(request):
         # Exclude groups that only have EGGS/POULTRY commodities since those don't require COA files
         filter_has_coa = request.GET.getlist('has_coa')
         if filter_has_coa:
-            # Check across ALL inspections for the same client+date (not just this group)
-            # so duplicate groups sharing the same COA are handled correctly
+            # Check by group_id (reliable) OR by client_name+date (catches duplicate groups)
             _coa_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__client_name=OuterRef('client_name'),
-                    inspection__date_of_inspection=OuterRef('date_of_inspection'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
@@ -1335,8 +1335,9 @@ def api_inspections(request):
         if filter_coa_uploaded:
             _coa_up_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__client_name=OuterRef('client_name'),
-                    inspection__date_of_inspection=OuterRef('date_of_inspection'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type__in=['coa', 'lab', 'lab_form']
                 )
             )
@@ -2918,11 +2919,12 @@ def api_lab_analytics(request):
             _coa_group_qs = _coa_group_qs.filter(
                 Exists(_I.objects.filter(inspection_group_id=OuterRef('pk'), commodity=_commodity_filter))
             )
-        # Exclude groups that have a COA document (check across all groups for same client+date)
+        # Exclude groups with COA doc (by group_id OR by client_name+date for duplicates)
         _coa_doc_exists = Exists(
             _ID_coa.objects.filter(
-                inspection__client_name=OuterRef('client_name'),
-                inspection__date_of_inspection=OuterRef('date_of_inspection'),
+                Q(inspection__inspection_group_id=OuterRef('pk'))
+                | Q(inspection__client_name=OuterRef('client_name'),
+                    inspection__date_of_inspection=OuterRef('date_of_inspection')),
                 document_type__in=['coa', 'lab', 'lab_form']
             )
         )
