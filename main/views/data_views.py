@@ -1098,15 +1098,7 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(inspector_q)
             # inspector_manager sees all inspections - no filtering needed
 
-        # Exclude corporate stores from the main list for admin /
-        # inspector_manager roles — they use the Corporate Invoice section.
-        # Inspectors and lab technicians still need to see all stores.
-        if _user_role not in ('inspector', 'lab_technician'):
-            _NON_CORPORATE = ['Not Applicable', 'Other', 'Other (Unlisted Group)', '', 'Test']
-            groups_qs = groups_qs.filter(
-                Q(corporate_group__in=_NON_CORPORATE)
-                | Q(corporate_group__isnull=True)
-            )
+        # Corporate stores are visible to all roles in the main inspections list
 
         # Server-side inspector filter (supports multi-select)
         filter_inspectors = request.GET.getlist('inspector')
@@ -2898,12 +2890,6 @@ def api_lab_analytics(request):
         from ..models import InspectionGroup as _IG_coa, InspectionDocument as _ID_coa
         _coa_group_qs = _IG_coa.objects.all()
         # Match inspections page visibility: exclude corporate for non-inspector/lab_tech roles
-        _coa_user_role = getattr(request.user, 'role', '') if request.user.is_authenticated else ''
-        if _coa_user_role not in ('inspector', 'lab_technician'):
-            _NON_CORP_COA = ['Not Applicable', 'Other', 'Other (Unlisted Group)', '', 'Test']
-            _coa_group_qs = _coa_group_qs.filter(
-                Q(corporate_group__in=_NON_CORP_COA) | Q(corporate_group__isnull=True)
-            )
         if _date_from:
             _coa_group_qs = _coa_group_qs.filter(date_of_inspection__gte=_date_from)
         if _date_to:
