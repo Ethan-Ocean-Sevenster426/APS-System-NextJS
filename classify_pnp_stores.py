@@ -1869,7 +1869,11 @@ no_match = []
 
 for c in pnp_clients.order_by('name'):
     store_part = c.name.lower()
-    store_part = store_part.replace('pick n pay', '').replace('pnp', '').strip()
+    # Remove all variations of "Pick n Pay" prefix
+    for prefix in ["pick 'n pay", "pick ' n pay", "pick n pay", "pick a pay", "pnp"]:
+        store_part = store_part.replace(prefix, '')
+    # Clean up leftover dashes, spaces, dots
+    store_part = store_part.strip(' -.,')
 
     if not store_part:
         print(f'  SKIP: {c.name} - no store name to match')
