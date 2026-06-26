@@ -13,6 +13,18 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
 import csv
 import io
+
+_CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'https://v4-project.moc-pty.com',
+    'https://portal.fsa-pty.co.za',
+]
+
+def _get_cors_origin(request):
+    origin = request.META.get('HTTP_ORIGIN', '')
+    if origin in _CORS_ALLOWED_ORIGINS:
+        return origin
+    return _CORS_ALLOWED_ORIGINS[0]
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
@@ -1008,7 +1020,7 @@ def api_inspections(request):
 
     def json_response(data, status=200):
         response = JsonResponse(data, status=status, safe=False)
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         return response
 
@@ -1682,7 +1694,7 @@ def api_clients(request):
 
     def json_response(data, status=200):
         response = JsonResponse(data, status=status, safe=False)
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         return response
 
@@ -1957,7 +1969,7 @@ def api_client_add(request):
     import json
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2063,7 +2075,7 @@ def api_client_edit(request):
     import json
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2126,7 +2138,7 @@ def api_client_delete(request):
     import json
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2165,7 +2177,7 @@ def api_dropdown_options(request):
     import json
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2226,7 +2238,7 @@ def api_dropdown_option_delete(request):
     import json
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2347,7 +2359,7 @@ def api_users(request):
         )
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -2707,7 +2719,8 @@ def api_users(request):
                     from django.conf import settings as _settings
                     uid = urlsafe_base64_encode(force_bytes(user.pk))
                     token = default_token_generator.make_token(user)
-                    reset_url = f'http://localhost:3000/reset-password/{uid}/{token}/'
+                    origin = request.META.get('HTTP_ORIGIN', 'https://v4-project.moc-pty.com')
+                    reset_url = f'{origin}/reset-password/{uid}/{token}/'
                     # TEST MODE: redirect all emails to dev address
                     send_mail(
                         subject='Password Reset Request',
@@ -2772,7 +2785,7 @@ from django.views.decorators.csrf import csrf_exempt as _csrf_exempt
 def api_home_stats(request):
     """Lightweight endpoint returning total client and inspection counts for the home page."""
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -2820,7 +2833,7 @@ def api_lab_analytics(request):
     from django.db.models import Count, Q, Exists, OuterRef
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -3032,7 +3045,7 @@ def api_lab_analytics(request):
 def api_me(request):
     """Return the currently authenticated user's profile and role."""
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         r['Access-Control-Allow-Credentials'] = 'true'
@@ -3060,7 +3073,7 @@ def api_me(request):
 def api_login(request):
     """CSRF-exempt JSON login endpoint for the Next.js frontend."""
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type, X-Requested-With'
         r['Access-Control-Allow-Credentials'] = 'true'
@@ -3132,7 +3145,7 @@ def api_get_inspection_files(request):
     Replicates the logic of get_inspection_files in core_views.py."""
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -3196,7 +3209,7 @@ def api_serve_file(request):
     import os, mimetypes, urllib.parse
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -3241,7 +3254,7 @@ def api_delete_file(request):
     import os
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, DELETE, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -3376,7 +3389,7 @@ def api_upload_document(request):
     Proxies to the same logic as upload_document in core_views.py."""
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         return response
@@ -3418,7 +3431,7 @@ def api_inspection_form_data(request):
     from ..models import FoodSafetyAgencyInspection as _Insp, Client as _Client
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -3504,7 +3517,7 @@ def api_add_inspection(request):
     from django.db.models import Min
 
     def _cors(response):
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
@@ -3726,7 +3739,7 @@ def api_log_activity(request):
     from ..models import SystemLog
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -3771,7 +3784,7 @@ def api_system_logs(request):
     from ..models import SystemLog
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -3945,7 +3958,7 @@ def api_export_sheet(request):
     from .core_views import generate_visit_hours_km_items, generate_test_line_items
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4354,7 +4367,7 @@ def api_react_fees_get(request):
     from datetime import date as _date_cls
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4420,7 +4433,7 @@ def api_react_fees_update(request):
     from decimal import Decimal
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4510,7 +4523,7 @@ def api_react_fees_history(request):
     from ..models import FeeHistory as _FH
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4544,7 +4557,7 @@ def api_server_view(request):
     from django.conf import settings as _s
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4621,7 +4634,7 @@ def api_settings(request):
     from django.conf import settings as _s
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4681,7 +4694,7 @@ def api_download_backup(request):
     from django.http import FileResponse, Http404
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4725,7 +4738,7 @@ def api_submit_ticket(request):
     from ..models import Ticket
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4762,7 +4775,7 @@ def api_support_tickets(request):
     from ..models import Ticket
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4832,7 +4845,7 @@ def api_support_update_status(request, ticket_id):
     from ..models import Ticket
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4859,7 +4872,7 @@ def api_support_delete_ticket(request, ticket_id):
     from ..models import Ticket
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4882,7 +4895,7 @@ def api_support_create_ticket(request):
     from ..models import Ticket
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4926,7 +4939,7 @@ def api_debtors(request):
     from datetime import date as _date
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -4979,7 +4992,7 @@ from django.views.decorators.csrf import csrf_exempt as _csrf_exempt_decorator
 def api_analytics(request):
     """Proxy for analytics dashboard data - bypasses auth for Next.js."""
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -5098,7 +5111,7 @@ def api_inspector_salaries(request):
     from ..models import InspectorSalary
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -5142,7 +5155,7 @@ def api_quarterly_targets(request):
     from ..models import QuarterlyTarget
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -5199,7 +5212,7 @@ def api_quarterly_targets(request):
 # ---------------------------------------------------------------------------
 
 def _insp_cors(r):
-    r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
     r['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     r['Access-Control-Allow-Headers'] = 'Content-Type'
     return r
@@ -5568,7 +5581,7 @@ def api_admin_analytics(request):
     from django.utils import timezone as _tz
 
     def _cors(r):
-        r['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         r['Access-Control-Allow-Headers'] = 'Content-Type'
         return r
@@ -5698,7 +5711,7 @@ def api_inspector_mappings(request):
 
     def _cors_json(data, status=200):
         resp = JsonResponse(data, status=status, safe=False)
-        resp['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        resp['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         resp['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         resp['Access-Control-Allow-Headers'] = 'Content-Type'
         return resp
