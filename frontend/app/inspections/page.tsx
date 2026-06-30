@@ -91,6 +91,7 @@ interface Inspection {
   time_of_visit?: string;
   comment?: string;
   has_lab_form?: boolean;
+  created_at?: string;
   products?: Product[];
 }
 
@@ -2006,6 +2007,10 @@ export default function InspectionsPage() {
                         <span style={{ fontWeight: 500, fontSize: 11, color: "#007890" }}>{s.internal_account_code}</span>
                       </div>}
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Captured:</span>
+                        <span style={{ fontWeight: 500 }}>{s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Approved:</span>
                         <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
                           {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
@@ -2092,6 +2097,7 @@ export default function InspectionsPage() {
                       <th className="center" style={{ width: 60 }}>COA</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Compliance</th>}
                       <th className="center" style={{ width: 180, whiteSpace: "nowrap" }}>Date</th>
+                      <th className="center" style={{ width: 130, whiteSpace: "nowrap" }}>Captured</th>
                       <th className="center" style={{ width: 80 }}>Approved</th>
                       {roleLoaded && !isLabTechRestricted && <th style={{ width: 160 }}>Email</th>}
                       <th className="center" style={{ width: 80 }}>Sent</th>
@@ -2101,13 +2107,13 @@ export default function InspectionsPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -2159,6 +2165,9 @@ export default function InspectionsPage() {
                             )}
                             <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: "#6b7280" }}>
                               {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}
+                            </td>
+                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: "#6b7280" }}>
+                              {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                             </td>
                             <td className="center">
                               {isAdmin ? (

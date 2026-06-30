@@ -1180,20 +1180,26 @@ def api_inspections(request):
         if filter_compliance:
             _comp_doc_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type__in=['compliance', 'composition']
                 )
             )
             _non_compliant_exists = Exists(
                 FoodSafetyAgencyInspection.objects.filter(
-                    inspection_group_id=OuterRef('pk'),
+                    Q(inspection_group_id=OuterRef('pk'))
+                    | Q(client_name=OuterRef('client_name'),
+                        date_of_inspection=OuterRef('date_of_inspection')),
                     is_product_compliant=False,
                     documents__document_type__in=['compliance', 'composition']
                 )
             )
             _compliant_exists = Exists(
                 FoodSafetyAgencyInspection.objects.filter(
-                    inspection_group_id=OuterRef('pk'),
+                    Q(inspection_group_id=OuterRef('pk'))
+                    | Q(client_name=OuterRef('client_name'),
+                        date_of_inspection=OuterRef('date_of_inspection')),
                     is_product_compliant=True,
                     documents__document_type__in=['compliance', 'composition']
                 )
@@ -1231,7 +1237,9 @@ def api_inspections(request):
         if filter_has_rfi:
             _rfi_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type='rfi'
                 )
             )
@@ -1252,7 +1260,9 @@ def api_inspections(request):
         if filter_has_invoice:
             _invoice_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type='invoice'
                 )
             )
@@ -1300,7 +1310,9 @@ def api_inspections(request):
         if filter_has_compliance:
             _compliance_file_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type__in=['compliance', 'composition']
                 )
             )
@@ -1314,7 +1326,9 @@ def api_inspections(request):
         if filter_has_other:
             _other_exists = Exists(
                 InspectionDocument.objects.filter(
-                    inspection__inspection_group_id=OuterRef('pk'),
+                    Q(inspection__inspection_group_id=OuterRef('pk'))
+                    | Q(inspection__client_name=OuterRef('client_name'),
+                        inspection__date_of_inspection=OuterRef('date_of_inspection')),
                     document_type='other'
                 )
             )
@@ -1637,6 +1651,7 @@ def api_inspections(request):
                 'has_lab_form': has_lab_form,
                 'inspection_compliance_status': _compliance_status,
                 'products': products,
+                'created_at': g.created_at.isoformat() if g.created_at else None,
             })
 
         import math as _math
