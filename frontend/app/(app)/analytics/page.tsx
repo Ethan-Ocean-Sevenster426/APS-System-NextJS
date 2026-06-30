@@ -1657,14 +1657,17 @@ export default function AnalyticsPage() {
                 </div>
                 <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: 8 }}>Inspection Targets</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  {([["eggs", "Egg Inspections", 0], ["poultry", "Poultry Inspections", 0], ["raw", "RAW Inspections", 0], ["pmp", "PMP Inspections", 0], ["raw_samples", "RAW Samples", 0], ["pmp_samples", "PMP Samples", 0]] as [string, string, number][]).map(([key, label, def]) => (
+                  {([["eggs", "Egg Inspections"], ["poultry", "Poultry Inspections"], ["raw", "RAW Inspections"], ["pmp", "PMP Inspections"], ["raw_samples", "RAW Samples"], ["pmp_samples", "PMP Samples"]] as [string, string][]).map(([key, label]) => {
+                    const val = (editingTarget as unknown as Record<string, number>)[key];
+                    return (
                     <div key={key}>
                       <label style={{ fontSize: "0.7rem", color: "#6b7280", display: "block", marginBottom: 2 }}>{label}</label>
-                      <input type="number" min={0} value={(editingTarget as unknown as Record<string, number>)[key] ?? def}
-                        onChange={e => setEditingTarget(t => ({ ...t, [key]: Number(e.target.value) }))}
+                      <input type="number" min={0} placeholder="0" value={val || ""}
+                        onChange={e => setEditingTarget(t => ({ ...t, [key]: e.target.value === "" ? 0 : Number(e.target.value) }))}
                         style={{ width: "100%", padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }} />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
                   <button onClick={applyTargetToAll} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#f59e0b", color: "white", cursor: "pointer", fontSize: "0.85rem", fontWeight: 500 }}>

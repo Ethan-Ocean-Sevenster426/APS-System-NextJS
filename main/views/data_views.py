@@ -5050,7 +5050,7 @@ def api_analytics(request):
             if u.last_name: _non.add(u.last_name)
             if u.username: _non.add(u.username)
         _non.discard('')
-        _non.add('admin')
+        _non.update(['admin', 'API User', 'Test Inspector'])
 
         inspectors = list(FoodSafetyAgencyInspection.objects.exclude(
             Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=_non)
@@ -5164,6 +5164,7 @@ def api_inspector_salaries(request):
     return _cors(JsonResponse({'salaries': sal_data}))
 
 
+@_csrf_exempt
 def api_quarterly_targets(request):
     """Proxy for quarterly targets - bypasses auth for Next.js."""
     import json
