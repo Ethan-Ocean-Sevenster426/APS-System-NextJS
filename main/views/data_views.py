@@ -1364,7 +1364,7 @@ def api_inspections(request):
             elif 'NO_COA' in filter_coa_uploaded and 'COA_UPLOADED' not in filter_coa_uploaded:
                 groups_qs = groups_qs.exclude(_coa_up_exists)
 
-        # Lab filter — map display names back to all raw DB keys
+        # Lab filter — any variant (code, display name, plain text) → all sibling variants
         filter_lab = request.GET.getlist('lab')
         if filter_lab:
             _LAB_MAP = {
@@ -1375,14 +1375,20 @@ def api_inspections(request):
                 'Merieux': 'Merieux NutriSciences', 'SGS': 'AGRI Food Laboratory (SGS)',
                 'SANBI': 'SANBI', 'SMT': 'SMT', 'ARC': 'ARC',
             }
-            _rev = {}
+            _groups = {}
             for _k, _v in _LAB_MAP.items():
-                _rev.setdefault(_v, []).append(_k)
-            _expanded_labs = []
+                _groups.setdefault(_v, set()).add(_k)
+                _groups[_v].add(_v)
+            _any = {}
+            for _disp, _keys in _groups.items():
+                for _key in _keys:
+                    _any[_key] = _keys
+                _any[_disp] = _keys
+            _expanded_labs = set()
             for val in filter_lab:
-                _expanded_labs.extend(_rev.get(val, [val]))
+                _expanded_labs.update(_any.get(val, {val}))
             groups_qs = groups_qs.filter(
-                Exists(insp.filter(lab__in=_expanded_labs))
+                Exists(insp.filter(lab__in=list(_expanded_labs)))
             )
 
         # Test type filter (DNA, FAT, PROTEIN, CALCIUM)
