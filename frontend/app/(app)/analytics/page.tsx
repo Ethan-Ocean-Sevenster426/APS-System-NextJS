@@ -1483,7 +1483,7 @@ export default function AnalyticsPage() {
             }
           `}</style>
           {activePanel === "overview" && <OverviewPanel data={data} totalKm={totalKm} avgDocSend={avgDocSend} avgApproval={avgApproval} totalSamples={totalSamples} filters={filters} />}
-          {activePanel === "inspectors" && <InspectorsPanel data={data} inspectorMetric={inspectorMetric} setInspectorMetric={setInspectorMetric} quarterlyTargets={quarterlyTargets} targetYear={targetYear} targetQuarter={targetQuarter} setTargetYear={setTargetYear} setTargetQuarter={setTargetQuarter} onSetTargets={() => setShowTargetsModal(true)} filterInspector={filters.inspector.length === 1 ? filters.inspector[0] : ""} />}
+          {activePanel === "inspectors" && <InspectorsPanel data={data} inspectorMetric={inspectorMetric} setInspectorMetric={setInspectorMetric} quarterlyTargets={quarterlyTargets} targetYear={targetYear} targetQuarter={targetQuarter} setTargetYear={setTargetYear} setTargetQuarter={setTargetQuarter} onSetTargets={() => { setEditingTarget(t => ({ ...t, year: targetYear, quarter: targetQuarter, inspector_name: "", eggs: 0, poultry: 0, raw: 0, pmp: 0, raw_samples: 0, pmp_samples: 0 })); setShowTargetsModal(true); }} filterInspector={filters.inspector.length === 1 ? filters.inspector[0] : ""} />}
           {activePanel === "compliance" && <CompliancePanel data={data} />}
           {activePanel === "operations" && <OperationsPanel data={data} />}
           {activePanel === "timelines" && <TimelinesPanel data={data} />}
@@ -1630,7 +1630,7 @@ export default function AnalyticsPage() {
                     }
                   }} style={{ flex: 1, padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: "0.85rem" }}>
                     <option value="">-- Select Inspector --</option>
-                    {data?.filterOptions?.inspectors?.map(n => <option key={n} value={n}>{n}</option>)}
+                    {(data?.filterOptions?.inspectors ?? []).filter(n => !data?.nonInspectorNames?.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                   <select value={editingTarget.year} onChange={e => {
                     const yr = Number(e.target.value);
