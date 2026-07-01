@@ -1297,8 +1297,14 @@ def api_inspections(request):
             if 'HAS_COA' in filter_has_coa and 'NO_COA' not in filter_has_coa:
                 groups_qs = groups_qs.filter(_coa_exists)
             elif 'NO_COA' in filter_has_coa and 'HAS_COA' not in filter_has_coa:
-                # Only show groups that actually need a COA (exclude occurrence/EGGS/POULTRY-only)
-                groups_qs = groups_qs.filter(_has_non_egg_poultry)
+                # Only show sampled inspections missing COA (has DNA/Fat/Pro/Cal tests but no lab file)
+                _has_tests = Q(dna=True) | Q(fat=True) | Q(protein=True) | Q(calcium=True)
+                _sampled = Exists(
+                    FoodSafetyAgencyInspection.objects.filter(
+                        inspection_group_id=OuterRef('pk')
+                    ).filter(_has_tests)
+                )
+                groups_qs = groups_qs.filter(_sampled)
                 groups_qs = groups_qs.exclude(_coa_exists)
 
         # Compliance file filter (HAS_COMP / NO_COMP)
