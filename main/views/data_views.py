@@ -1157,15 +1157,11 @@ def api_inspections(request):
         # Checks at individual inspection level — a group shows if it has at least one matching inspection
         filter_sampled = request.GET.getlist('sampled')
         if filter_sampled:
+            _has_tests = Q(dna=True) | Q(fat=True) | Q(protein=True) | Q(calcium=True)
             if 'SAMPLED' in filter_sampled and 'NOT_SAMPLED' not in filter_sampled:
-                # Show groups that have at least one sampled inspection
-                groups_qs = groups_qs.filter(Exists(insp.filter(is_sample_taken=True)))
+                groups_qs = groups_qs.filter(Exists(insp.filter(_has_tests)))
             elif 'NOT_SAMPLED' in filter_sampled and 'SAMPLED' not in filter_sampled:
-                # Show groups that have at least one not-sampled inspection (excluding EGGS/POULTRY)
-                _not_sampled_exists = Exists(
-                    insp.filter(is_sample_taken=False).exclude(commodity__in=['EGGS', 'POULTRY'])
-                )
-                groups_qs = groups_qs.filter(_not_sampled_exists)
+                groups_qs = groups_qs.exclude(Exists(insp.filter(_has_tests)))
 
         # Sent status filter (SENT / NOT_SENT)
         filter_sent = request.GET.getlist('sent_status')
