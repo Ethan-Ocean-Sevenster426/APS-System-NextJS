@@ -4469,9 +4469,12 @@ def upload_document(request):
                         except ValueError:
                             print(f"WARNING: Could not parse date from group_id: {date_str}")
             
-            elif upload_type == 'individual' and inspection_id:
+            elif upload_type == 'inspection' and inspection_id:
                 # Update individual inspection - try id first (primary key), then remote_id
                 # Handle both positive and negative IDs
+                # (upload_type is only ever 'group' or 'inspection'; this branch
+                #  previously checked 'individual' and never ran, so per-inspection
+                #  uploads skipped is_product_compliant and all tracking fields)
                 try:
                     inspection_id_int = int(inspection_id)
                     inspection = FoodSafetyAgencyInspection.objects.filter(id=inspection_id_int).first()
@@ -4579,18 +4582,19 @@ def upload_document(request):
 
                     # CRITICAL: Create sanitized folder name to match cache keys in get_inspection_files_local
                     sanitized_folder = create_folder_name(client_name)
+                    _insp_date_str = str(inspection.date_of_inspection) if inspection.date_of_inspection else ''
 
                     # Clear all cache keys that could affect file detection
                     cache_keys_to_clear = [
                         "filter_options",
                         f"file_check_{client_name}_{inspection.date_of_inspection}",
-                        f"file_status_{client_name}_{inspection_date}",
+                        f"file_status_{client_name}_{_insp_date_str}",
                         "inspection_files_cache",
                         f"local_files:{client_name}:{current_time.year}:{current_time.strftime('%B')}",
                         # CRITICAL: Also clear with SANITIZED folder name (lowercase, underscores)
                         f"local_files:{sanitized_folder}:{current_time.year}:{current_time.strftime('%B')}",
                         "page_clients_status_cache",
-                        f"files_cache_{client_name}_{inspection_date}",
+                        f"files_cache_{client_name}_{_insp_date_str}",
                         f"compliance_status_{client_name}_{inspection.date_of_inspection}",
                         f"onedrive_compliance_{client_name}_{inspection.date_of_inspection}",
                         f"local_compliance_{client_name}_{inspection.date_of_inspection}"
