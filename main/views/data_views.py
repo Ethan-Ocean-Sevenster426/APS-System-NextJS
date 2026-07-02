@@ -5077,7 +5077,8 @@ from django.views.decorators.csrf import csrf_exempt as _csrf_exempt_decorator
 
 @_csrf_exempt_decorator
 def api_analytics(request):
-    """Proxy for analytics dashboard data - bypasses auth for Next.js."""
+    """Analytics dashboard data for the Next.js frontend.
+    Restricted to super_admin/developer (the roles that can open the page)."""
     def _cors(r):
         r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
         r['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
@@ -5086,6 +5087,24 @@ def api_analytics(request):
 
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({'ok': True}))
+
+    # Auth guard — only roles that can see the analytics page
+    if not (request.user and request.user.is_authenticated):
+        return _cors(JsonResponse({'success': False, 'error': 'Not authenticated'}, status=401))
+    if getattr(request.user, 'role', '') not in ('super_admin', 'developer'):
+        return _cors(JsonResponse({'success': False, 'error': 'Permission denied'}, status=403))
+
+    # Short-TTL response cache — the dashboard runs ~50 aggregate queries over
+    # the whole inspections table; identical filter combos within 60s reuse it.
+    from django.core.cache import cache as _an_cache
+    import hashlib as _hashlib
+    _qs_norm = '&'.join(f'{k}={v}' for k, v in sorted(request.GET.items()))
+    _cache_key = 'api_analytics:' + _hashlib.md5(_qs_norm.encode()).hexdigest()
+    _cached = _an_cache.get(_cache_key)
+    if _cached is not None:
+        _resp = JsonResponse(_cached)
+        _resp['X-Analytics-Cache'] = 'hit'
+        return _cors(_resp)
 
     from .core_views import analytics_dashboard_api
 
@@ -5186,6 +5205,11 @@ def api_analytics(request):
 
         from django.core.serializers.json import DjangoJSONEncoder
         response = JsonResponse(data, encoder=DjangoJSONEncoder)
+        # Cache the fully-built payload (re-parse so cached copy is JSON-safe)
+        try:
+            _an_cache.set(_cache_key, json.loads(response.content), 60)
+        except Exception:
+            pass
     except Exception:
         pass
 
