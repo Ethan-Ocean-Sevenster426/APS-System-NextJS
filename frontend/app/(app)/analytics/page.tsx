@@ -62,7 +62,7 @@ interface AnalyticsData {
   inspectorSampleMatrix: { inspector_name: string; commodity: string; count: number }[];
   approvalPerInspector: { inspector_name: string; total: number; approved: number; pending: number }[];
   monthlyInspectorTrend: { day: string; inspector_name: string; count: number; total_km: number; total_hours: number; samples: number }[];
-  inspectorFinancials: { inspector_name: string; total_inspections: number; total_hours: number; total_km: number; total_samples: number; inspection_time: number; revenue_hours: number; revenue_km: number; revenue_samples: number; total_revenue: number }[];
+  inspectorFinancials: { inspector_name: string; total_inspections: number; total_hours: number; total_km: number; total_samples: number; inspection_time: number; revenue_hours: number; revenue_km: number; revenue_samples: number; total_revenue: number; months_active?: number }[];
   financialSummary: { total_revenue: number; hourly_rate: number; km_rate: number; sample_rate: number };
   monthlyOccurrenceTrend: { month: string; count: number }[];
   monthlyTravelTrend: { month: string; total_km: number }[];
@@ -644,7 +644,8 @@ export default function AnalyticsPage() {
       // Sheet 2: Financial Summary
       const kmRate = data.financialSummary?.km_rate ?? 4.5;
       const finRows = (data.inspectorFinancials ?? []).map(r => {
-        const sal = lookupSalary(salaries, r.inspector_name);
+        // Match the on-page table: salary scaled to months worked in range
+        const sal = lookupSalary(salaries, r.inspector_name) * (r.months_active || 1);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + e.amount, 0);
         const mgmt = (sal + exp) * 0.20;
         const cost = sal + exp + mgmt;
@@ -1069,7 +1070,8 @@ export default function AnalyticsPage() {
       // TABLE PAGES: FINANCIAL
       // ══════════════════════════════════════════════════════════════════
       const finData = (data!.inspectorFinancials ?? []).map(r => {
-        const sal = lookupSalary(salaries, r.inspector_name ?? "");
+        // Match the on-page table: salary scaled to months worked in range
+        const sal = lookupSalary(salaries, r.inspector_name ?? "") * (r.months_active || 1);
         const exp = expenseLog.filter(e => e.inspector === r.inspector_name).reduce((s, e) => s + (e.amount || 0), 0);
         const revT = r.total_revenue || 0;
         const mgmt = (sal + exp) * 0.20;
@@ -2702,7 +2704,10 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
 
   // Build enriched rows
   const rows = filteredFin.map(r => {
-    const salary = getSalary(r.inspector_name);
+    // Salary is monthly CTC — scale to the months the inspector actually
+    // worked in the filtered range so cost covers the same period as revenue
+    const monthsActive = r.months_active || 1;
+    const salary = getSalary(r.inspector_name) * monthsActive;
     const expenses = getExpenses(r.inspector_name);
     const mgmtFees = (salary + expenses) * 0.20; // 20% of (salary + expenses)
     const totalCost = salary + expenses + mgmtFees;
@@ -2880,7 +2885,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <th style={thStyle} title="Revenue from KM">Rev(KM)</th>
                 <th style={thStyle} title="Revenue from samples">Rev(Smp)</th>
                 <th style={thStyle} title="Total Revenue">Tot Rev</th>
-                <th style={costThStyle} title="Monthly salary CTC">Salary</th>
+                <th style={costThStyle} title="Salary cost for the filtered period (monthly CTC × months the inspector worked in range)">Salary</th>
                 <th style={costThStyle} title="Logged expenses">Exp</th>
                 <th style={costThStyle} title="Management Fees = 20% × (Salary+Expenses)">Mgmt</th>
                 <th style={costThStyle} title="Total Cost">Tot Cost</th>

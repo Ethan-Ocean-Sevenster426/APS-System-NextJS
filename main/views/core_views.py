@@ -10726,6 +10726,10 @@ def analytics_dashboard_api(request):
         total_inspections=Count('id'),
         total_samples=Count('id', filter=Q(is_sample_taken=True)),
         total_bought_sample=Sum('bought_sample'),
+        # Distinct calendar months this inspector worked in the filtered range —
+        # lets the frontend scale monthly salary to the period so cost and
+        # revenue cover the same time span
+        months_active=Count(TruncMonth('date_of_inspection'), distinct=True),
     ).order_by('-total_inspections')
 
     inspector_financials = []
@@ -10754,6 +10758,7 @@ def analytics_dashboard_api(request):
             'revenue_km': rev_km,
             'revenue_samples': rev_samples,
             'total_revenue': tot,
+            'months_active': item['months_active'] or 1,
         })
 
     data['inspectorFinancials'] = inspector_financials
