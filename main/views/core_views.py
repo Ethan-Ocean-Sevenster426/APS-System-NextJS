@@ -10766,9 +10766,10 @@ def analytics_dashboard_api(request):
 
     # Phase 2: Time-based analytics (filtered)
 
-    # Only real staff appear in the who-did-what timeline charts —
-    # developer/test/generic accounts are noise, not workflow
-    _STAFF_ROLES = {'admin', 'super_admin', 'financial'}
+    # Only the admin staff who do document/invoice work appear in the
+    # who-did-what timeline charts — super admins, developers, and
+    # test/generic accounts are noise, not workflow
+    _STAFF_ROLES = {'admin', 'financial'}
     _EXCLUDED_USERNAMES = {'admin', 'api_user', 'API User', 'Test Inspector'}
 
     def _is_staff_actor(user):
