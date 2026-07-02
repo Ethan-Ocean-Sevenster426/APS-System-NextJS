@@ -1378,6 +1378,8 @@ def edit_fsa_inspection(request, pk):
             if form.is_valid():
                 try:
                   with transaction.atomic():
+                    # Preserve additional_email if POST didn't provide one
+                    original_additional_email = inspection.additional_email
                     # Preserve upload tracking fields before saving
                     original_rfi_date = inspection.rfi_uploaded_date
                     original_rfi_by = inspection.rfi_uploaded_by
@@ -1396,6 +1398,8 @@ def edit_fsa_inspection(request, pk):
                     inspection = form.save()
 
                     # Restore fields that form.save() would overwrite
+                    if not inspection.additional_email and original_additional_email:
+                        inspection.additional_email = original_additional_email
                     inspection.internal_account_code = original_account_code
                     inspection.rfi_uploaded_date = original_rfi_date
                     inspection.rfi_uploaded_by = original_rfi_by
@@ -1422,7 +1426,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.facility_type = request.POST.get('facility_type', '')
                         parent_group.group_type = request.POST.get('group_type', '')
                         parent_group.corporate_group = request.POST.get('corporate_group', '')
-                        parent_group.additional_email = request.POST.get('additional_email', '')
+                        _post_email = request.POST.get('additional_email', '')
+                        parent_group.additional_email = _post_email if _post_email else (parent_group.additional_email or '')
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
@@ -1605,7 +1610,8 @@ def edit_fsa_inspection(request, pk):
                         parent_group.facility_type = request.POST.get('facility_type', '')
                         parent_group.group_type = request.POST.get('group_type', '')
                         parent_group.corporate_group = request.POST.get('corporate_group', '')
-                        parent_group.additional_email = request.POST.get('additional_email', '')
+                        _post_email = request.POST.get('additional_email', '')
+                        parent_group.additional_email = _post_email if _post_email else (parent_group.additional_email or '')
                         parent_group.comment = form.cleaned_data.get('comment', '')
                         parent_group.km_traveled = float(request.POST.get('km_traveled', 0) or 0)
                         parent_group.hours = float(request.POST.get('hours', 0) or 0)
