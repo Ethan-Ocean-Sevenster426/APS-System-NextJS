@@ -10766,6 +10766,15 @@ def analytics_dashboard_api(request):
 
     # Phase 2: Time-based analytics (filtered)
 
+    # Only real staff appear in the who-did-what timeline charts —
+    # developer/test/generic accounts are noise, not workflow
+    _STAFF_ROLES = {'admin', 'super_admin', 'financial'}
+    _EXCLUDED_USERNAMES = {'admin', 'api_user', 'API User', 'Test Inspector'}
+
+    def _is_staff_actor(user):
+        return (getattr(user, 'role', '') in _STAFF_ROLES
+                and user.username not in _EXCLUDED_USERNAMES)
+
     # 1. Doc send time
     doc_send_time = []
     doc_send_filtered = qs.filter(
@@ -10773,6 +10782,8 @@ def analytics_dashboard_api(request):
     ).exclude(sent_by__isnull=True).select_related('sent_by')
     doc_send_by_user = {}
     for insp in doc_send_filtered:
+        if not _is_staff_actor(insp.sent_by):
+            continue
         delta = (insp.sent_date.date() - insp.date_of_inspection).days
         if delta < 0:
             continue
@@ -10792,6 +10803,8 @@ def analytics_dashboard_api(request):
     ).exclude(invoice_uploaded_by__isnull=True).select_related('invoice_uploaded_by')
     invoice_by_user = {}
     for insp in invoice_filtered:
+        if not _is_staff_actor(insp.invoice_uploaded_by):
+            continue
         delta = (insp.invoice_uploaded_date.date() - insp.date_of_inspection).days
         if delta < 0:
             continue
