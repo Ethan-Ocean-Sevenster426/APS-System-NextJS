@@ -2360,7 +2360,9 @@ def api_dropdown_option_delete(request):
 
 @_csrf_exempt
 def api_users(request):
-    """API endpoint for user management from Next.js frontend. No login required."""
+    """API endpoint for user management from Next.js frontend.
+    Restricted to super_admin/developer — it lists accounts and can
+    reset passwords, so it must never be open to unauthenticated calls."""
     from django.contrib.auth import get_user_model
     from django.contrib.auth.hashers import make_password, check_password as _check_pw
     from ..models import InspectorMapping, InspectorSalary, InspectorManagerAllocation, UserOTP
@@ -2445,6 +2447,12 @@ def api_users(request):
 
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({}))
+
+    # Auth guard — only roles that can see the User Management page
+    if not (request.user and request.user.is_authenticated):
+        return _cors(JsonResponse({'success': False, 'error': 'Not authenticated'}, status=401))
+    if getattr(request.user, 'role', '') not in ('super_admin', 'developer'):
+        return _cors(JsonResponse({'success': False, 'error': 'Permission denied'}, status=403))
 
     # ── GET: return all users ──
     if request.method == 'GET':
