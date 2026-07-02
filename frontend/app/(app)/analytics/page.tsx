@@ -1715,8 +1715,9 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
       label: c,
       data: dailyDays.map((day) => {
         const row = (data.dailyComplianceTrend || []).find((r) => r.day === day && r.commodity === c);
-        return row ? row.compliance_rate : 0;
+        return row ? row.compliance_rate : null;
       }),
+      spanGaps: false,
       borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
       backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
       ...lineDefaults,
@@ -1811,38 +1812,17 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
         <ChartWrap height="400px">
           <DLLine data={dailyChartData} options={(() => {
             const base = baseChartOptions(undefined, "Compliance %");
-            const _aligns: ("top" | "bottom")[] = ["top", "bottom", "top", "bottom"];
-            const _offsets = [12, 12, 32, 32];
             return {
               ...base,
-              layout: { padding: { top: 40, right: 50, bottom: 40, left: 10 } },
               interaction: { mode: "index" as const, intersect: false },
               plugins: {
                 ...(base.plugins as Record<string, unknown>),
                 tooltip: { enabled: true, mode: "index" as const, intersect: false, callbacks: { label: (ctx: { dataset: { label: string }; parsed: { y: number } }) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } },
-                datalabels: {
-                  display: "auto" as const,
-                  anchor: "center" as const,
-                  align: (ctx: any) => _aligns[ctx.datasetIndex % _aligns.length],
-                  offset: (ctx: any) => _offsets[ctx.datasetIndex % _offsets.length],
-                  color: (ctx: any) => ctx.dataset.borderColor,
-                  backgroundColor: "rgba(255,255,255,0.92)",
-                  borderColor: (ctx: any) => ctx.dataset.borderColor,
-                  borderWidth: 1.5,
-                  borderRadius: 4,
-                  padding: { top: 2, bottom: 2, left: 4, right: 4 },
-                  font: { size: 9, weight: "bold" as const },
-                  formatter: (v: unknown) => {
-                    const n = Number(v);
-                    return v == null || isNaN(n) ? "" : n.toFixed(1) + "%";
-                  },
-                  clamp: true,
-                  clip: false,
-                },
+                datalabels: { display: false },
               },
               scales: {
                 x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 30 }, grid: { color: "rgba(0,0,0,0.04)" } },
-                y: { min: 0, max: 105, ticks: { font: { size: 10 }, stepSize: 5, autoSkip: false, callback: (v: number) => v <= 100 ? v + "%" : "" }, title: { display: true, text: "Compliance %", font: { size: 11 } }, grid: { color: "rgba(0,0,0,0.06)" } },
+                y: { min: 0, max: 105, ticks: { font: { size: 10 }, stepSize: 10, callback: (v: number) => v <= 100 ? v + "%" : "" }, title: { display: true, text: "Compliance %", font: { size: 11 } }, grid: { color: "rgba(0,0,0,0.06)" } },
               },
             };
           })() as never} />

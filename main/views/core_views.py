@@ -10547,14 +10547,11 @@ def analytics_dashboard_api(request):
         _assessed = item['compliant'] + item['non_compliant']
         item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 1) if _assessed > 0 else None
 
-    # Daily compliance trend per commodity (last 30 days, or user's filtered range)
+    # Daily compliance trend per commodity (all time, or user's filtered range)
     from django.db.models.functions import TruncDay
-    thirty_days_ago = datetime.now() - timedelta(days=30)
     _daily_base_qs = qs.exclude(
         Q(is_occurrence_report=True) | Q(commodity__isnull=True) | Q(commodity='')
     )
-    if not _has_date_filter:
-        _daily_base_qs = _daily_base_qs.filter(date_of_inspection__gte=thirty_days_ago)
     daily_compliance_trend = list(_daily_base_qs.exclude(date_of_inspection__isnull=True).filter(date_of_inspection__lte=date.today()).annotate(
         day=TruncDay('date_of_inspection')
     ).values('day', 'commodity').annotate(
@@ -10562,9 +10559,15 @@ def analytics_dashboard_api(request):
         compliant=Count('id', filter=Q(is_product_compliant=True)),
         non_compliant=Count('id', filter=Q(is_product_compliant=False))
     ).order_by('day', 'commodity'))
+    _daily_filtered = []
     for item in daily_compliance_trend:
+        item['day'] = item['day'].strftime('%Y-%m-%d') if hasattr(item['day'], 'strftime') else str(item['day'])[:10]
         _assessed = item['compliant'] + item['non_compliant']
-        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2) if _assessed > 0 else None
+        if _assessed == 0:
+            continue
+        item['compliance_rate'] = round((item['compliant'] / _assessed) * 100, 2)
+        _daily_filtered.append(item)
+    daily_compliance_trend = _daily_filtered
 
     # Time allocation
     time_allocation = list(qs.exclude(
@@ -10590,6 +10593,7 @@ def analytics_dashboard_api(request):
 
     # Inspector trend: use user's date range if set, otherwise default to last 30 days
     # Always show ALL inspectors regardless of inspector filter
+    thirty_days_ago = datetime.now() - timedelta(days=30)
     _inspector_trend_base = all_qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(date_of_inspection__isnull=True)
