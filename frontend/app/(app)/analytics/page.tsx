@@ -1717,7 +1717,6 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
         const row = (data.dailyComplianceTrend || []).find((r) => r.day === day && r.commodity === c);
         return row ? row.compliance_rate : null;
       }),
-      spanGaps: false,
       borderColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
       backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
       ...lineDefaults,
@@ -2157,12 +2156,13 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
     } else if (trendView === "daily") {
       const todayStr = new Date().toISOString().slice(0, 10);
       const days = [...new Set(mergedDaily.map((d) => d.day))].sort().filter(d => d <= todayStr);
-      // Default: show current month only; scroll back/forward by month
-      const now = new Date();
-      const monthOffset = trendOffset; // 0 = current month, -1 = last month, etc.
-      const viewMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-      const viewMonthStr = `${viewMonth.getFullYear()}-${String(viewMonth.getMonth() + 1).padStart(2, "0")}`;
-      const visibleDays = days.filter(d => d.startsWith(viewMonthStr));
+      // Rolling window over the most recent days that HAVE data — a calendar-month
+      // window goes blank at the start of a new month. Each arrow click scrolls a week.
+      const windowSize = 31;
+      const step = 7;
+      const end = Math.max(Math.min(windowSize, days.length), days.length + trendOffset * step);
+      const start = Math.max(0, end - windowSize);
+      const visibleDays = days.slice(start, end);
       const commodities = [...new Set(mergedDaily.map((d) => d.commodity))];
       return {
         labels: visibleDays.map(d => { const dt = new Date(d + "T12:00:00"); return `${dt.getDate()} ${dt.toLocaleString("en", { month: "short" })}`; }),
@@ -2176,8 +2176,8 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
           backgroundColor: colorForCommodity(c) || CHART_PALETTE[i % CHART_PALETTE.length],
           ...lineDefaults,
         })),
-        canBack: days.some(d => d < viewMonthStr),
-        canForward: monthOffset < 0,
+        canBack: start > 0,
+        canForward: trendOffset < 0,
       };
     } else {
       // Weekly: group daily data by week
