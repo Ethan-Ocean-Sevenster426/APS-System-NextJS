@@ -1035,41 +1035,45 @@ def api_inspections(request):
         client_search = request.GET.get('client_search', '').strip()
 
         # Compute duplicate groups: same client_name + date + inspector + SAME products
-        # Single query to get all candidate duplicate group IDs with their product signatures
+        # Cached for 60s — scans every group + its inspections, too heavy per-request
         from collections import defaultdict
-        _dup_triples = list(
-            InspectionGroup.objects.values('client_name', 'date_of_inspection', 'inspector_name')
-            .annotate(_gc=Count('id'))
-            .filter(_gc__gt=1)
-            .values_list('client_name', 'date_of_inspection', 'inspector_name')
-        )
-        _dup_group_ids = set()
-        if _dup_triples:
-            # Build Q filter for all candidate combos at once
-            _combo_q = Q()
-            for _dc, _dd, _di in _dup_triples:
-                _combo_q |= Q(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
-            # Single query: fetch all candidate groups + their inspections
-            _candidate_groups = list(
-                InspectionGroup.objects.filter(_combo_q)
-                .prefetch_related('inspections')
+        from django.core.cache import cache as _dup_cache
+        _dup_group_ids = _dup_cache.get('api_inspections_dup_group_ids')
+        if _dup_group_ids is None:
+            _dup_triples = list(
+                InspectionGroup.objects.values('client_name', 'date_of_inspection', 'inspector_name')
+                .annotate(_gc=Count('id'))
+                .filter(_gc__gt=1)
+                .values_list('client_name', 'date_of_inspection', 'inspector_name')
             )
-            # Group by (client_name, date, inspector) then by product signature
-            _combo_map = defaultdict(list)  # (client, date, inspector) -> [(group_id, signature)]
-            for _cg in _candidate_groups:
-                _products = tuple(sorted(
-                    (_i.commodity or '', _i.product_name or '')
-                    for _i in _cg.inspections.all()
-                ))
-                _combo_map[(_cg.client_name, _cg.date_of_inspection, _cg.inspector_name)].append((_cg.id, _products))
-            # Find true duplicates: groups with identical product signatures
-            for _combo_key, _entries in _combo_map.items():
-                _sig_map = defaultdict(list)
-                for _gid, _sig in _entries:
-                    _sig_map[_sig].append(_gid)
-                for _sig, _gids in _sig_map.items():
-                    if len(_gids) > 1:
-                        _dup_group_ids.update(_gids)
+            _dup_group_ids = set()
+            if _dup_triples:
+                # Build Q filter for all candidate combos at once
+                _combo_q = Q()
+                for _dc, _dd, _di in _dup_triples:
+                    _combo_q |= Q(client_name=_dc, date_of_inspection=_dd, inspector_name=_di)
+                # Single query: fetch all candidate groups + their inspections
+                _candidate_groups = list(
+                    InspectionGroup.objects.filter(_combo_q)
+                    .prefetch_related('inspections')
+                )
+                # Group by (client_name, date, inspector) then by product signature
+                _combo_map = defaultdict(list)  # (client, date, inspector) -> [(group_id, signature)]
+                for _cg in _candidate_groups:
+                    _products = tuple(sorted(
+                        (_i.commodity or '', _i.product_name or '')
+                        for _i in _cg.inspections.all()
+                    ))
+                    _combo_map[(_cg.client_name, _cg.date_of_inspection, _cg.inspector_name)].append((_cg.id, _products))
+                # Find true duplicates: groups with identical product signatures
+                for _combo_key, _entries in _combo_map.items():
+                    _sig_map = defaultdict(list)
+                    for _gid, _sig in _entries:
+                        _sig_map[_sig].append(_gid)
+                    for _sig, _gids in _sig_map.items():
+                        if len(_gids) > 1:
+                            _dup_group_ids.update(_gids)
+            _dup_cache.set('api_inspections_dup_group_ids', _dup_group_ids, 60)
 
         _dup_q = Q(id__in=_dup_group_ids) if _dup_group_ids else Q(pk__in=[])
 
@@ -1498,18 +1502,32 @@ def api_inspections(request):
         _offset = (_page - 1) * _page_size
         groups = groups_qs[_offset:_offset + _page_size]
 
-        # ── Batch filesystem scan ──
+        # ── Batch filesystem probe ──
         # Also include inspection IDs from other groups sharing same client+date
         # so that file badges are consistent with the expand/files-modal view.
+        # Files live at docs/{client_id or group_id}/{inspection_id}/{category}/ —
+        # probe those paths directly (same lookup as get_inspection_files_local)
+        # instead of walking the whole docs tree.
         _file_map = {}  # (insp_id_str, category) -> bool
         _FILE_CATEGORIES = {'lab', 'coa', 'composition', 'compliance',
                             'occurrence', 'retest', 'other', 'lab_form',
                             'rfi', 'invoice'}
-        # Collect all inspection IDs for the current page only
-        _page_insp_ids = set()
+        # insp_id_str → set of candidate parent dir names
+        _page_probe = {}
+        # name_lower → list of insp_id_str needing a Client-by-name fallback
+        _orphan_by_name = {}
         for g in groups:
             for p in g.inspections.all():
-                _page_insp_ids.add(str(p.id))
+                _parents = set()
+                if p.client_id:
+                    _parents.add(str(p.client_id))
+                else:
+                    _nm = (p.client_name or g.client_name or '').lower()
+                    if _nm:
+                        _orphan_by_name.setdefault(_nm, []).append(str(p.id))
+                if p.inspection_group_id:
+                    _parents.add(str(p.inspection_group_id))
+                _page_probe[str(p.id)] = _parents
 
         # Build (client_name, date) → all inspection IDs (across ALL groups)
         # so file flags match the client+date lookup used by Files modal / expand
@@ -1520,34 +1538,47 @@ def api_inspections(request):
         _client_date_insp_ids = {}  # (client_name_lower, date) → set of insp_id strings
         if _client_date_pairs:
             from main.models import FoodSafetyAgencyInspection as _FSI_lookup
+            _cd_q = Q()
             for _cn, _dt in _client_date_pairs:
-                _all_ids = set(str(i) for i in _FSI_lookup.objects.filter(
-                    client_name__iexact=_cn,
-                    date_of_inspection=_dt
-                ).values_list('id', flat=True))
-                _client_date_insp_ids[(_cn, _dt)] = _all_ids
-                _page_insp_ids |= _all_ids  # include in filesystem scan
+                _cd_q |= Q(client_name__iexact=_cn, date_of_inspection=_dt)
+            for _iid, _cid, _gid, _cn, _dt in _FSI_lookup.objects.filter(_cd_q).values_list(
+                    'id', 'client_id', 'inspection_group_id', 'client_name', 'date_of_inspection'):
+                _key = ((_cn or '').lower(), _dt)
+                _iid_str = str(_iid)
+                _client_date_insp_ids.setdefault(_key, set()).add(_iid_str)
+                _parents = _page_probe.setdefault(_iid_str, set())
+                if _cid:
+                    _parents.add(str(_cid))
+                elif _cn:
+                    _orphan_by_name.setdefault(_cn.lower(), []).append(_iid_str)
+                if _gid:
+                    _parents.add(str(_gid))
+
+        # Modal falls back to Client-by-name when an inspection has no client FK —
+        # mirror that here so badges match (single batched query)
+        if _orphan_by_name:
+            from functools import reduce
+            from operator import or_ as _or
+            from ..models import Client as _ClientLookup
+            _name_q = reduce(_or, (Q(name__iexact=n) for n in _orphan_by_name))
+            for _c in _ClientLookup.objects.filter(_name_q).only('id', 'name'):
+                for _iid_str in _orphan_by_name.get(_c.name.lower(), []):
+                    _page_probe.setdefault(_iid_str, set()).add(str(_c.id))
 
         _docs_root = os.path.join(settings.MEDIA_ROOT, 'docs')
-        if os.path.isdir(_docs_root) and _page_insp_ids:
-            try:
-                for _cid in os.listdir(_docs_root):
-                    _client_dir = os.path.join(_docs_root, _cid)
-                    if not os.path.isdir(_client_dir):
+        if os.path.isdir(_docs_root) and _page_probe:
+            for _iid, _parents in _page_probe.items():
+                for _pid in _parents:
+                    _insp_dir = os.path.join(_docs_root, _pid, _iid)
+                    try:
+                        with os.scandir(_insp_dir) as _it:
+                            for _entry in _it:
+                                if (_entry.name in _FILE_CATEGORIES
+                                        and not _file_map.get((_iid, _entry.name))
+                                        and _entry.is_dir() and os.listdir(_entry.path)):
+                                    _file_map[(_iid, _entry.name)] = True
+                    except OSError:
                         continue
-                    for _iid in os.listdir(_client_dir):
-                        if _iid not in _page_insp_ids:
-                            continue
-                        _insp_dir = os.path.join(_client_dir, _iid)
-                        if not os.path.isdir(_insp_dir):
-                            continue
-                        for _cat in os.listdir(_insp_dir):
-                            if _cat in _FILE_CATEGORIES:
-                                _cat_path = os.path.join(_insp_dir, _cat)
-                                if os.path.isdir(_cat_path) and os.listdir(_cat_path):
-                                    _file_map[(_iid, _cat)] = True
-            except OSError:
-                pass
 
         def _has_file(insp_id, category):
             return _file_map.get((str(insp_id), category), False)
@@ -1572,11 +1603,14 @@ def api_inspections(request):
             _all_ids_for_group = _client_date_insp_ids.get(
                 ((g.client_name or '').lower(), g.date_of_inspection), set()
             ) or {str(pid) for pid in insp_ids}
-            has_rfi = any(_has_file(pid, 'rfi') for pid in _all_ids_for_group)
-            has_invoice = any(_has_file(pid, 'invoice') for pid in _all_ids_for_group)
-            has_lab = any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group)
-            has_compliance = any(_has_file(pid, 'compliance') or _has_file(pid, 'composition') for pid in _all_ids_for_group)
-            has_lab_form = any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group)
+            # One pass per category over the group's IDs, reused below for every product
+            _gflag = {cat: any(_has_file(pid, cat) for pid in _all_ids_for_group)
+                      for cat in _FILE_CATEGORIES}
+            has_rfi = _gflag['rfi']
+            has_invoice = _gflag['invoice']
+            has_lab = _gflag['lab'] or _gflag['coa']
+            has_compliance = _gflag['compliance'] or _gflag['composition']
+            has_lab_form = _gflag['lab_form']
             # Compliance: matches frontend badge logic
             # Product is "assessed" if it has compliance or composition file uploaded
             # NON_COMPLIANT if any product is non-compliant (with file proof)
@@ -1585,8 +1619,8 @@ def api_inspections(request):
             _any_non_compliant = False
             _any_compliant = False
             # Check compliance using expanded set (any file for client+date counts)
-            _group_has_compliance_doc = any(_has_file(pid, 'compliance') for pid in _all_ids_for_group)
-            _group_has_composition_doc = any(_has_file(pid, 'composition') for pid in _all_ids_for_group)
+            _group_has_compliance_doc = _gflag['compliance']
+            _group_has_composition_doc = _gflag['composition']
             for p in inspections:
                 has_compliance_doc = _group_has_compliance_doc or _has_file(p.id, 'compliance')
                 has_composition_doc = _group_has_composition_doc or _has_file(p.id, 'composition')
@@ -1624,14 +1658,14 @@ def api_inspections(request):
                 if p.protein: prod['protein'] = True
                 if p.calcium: prod['calcium'] = True
                 if p.is_direction_present_for_this_inspection: prod['is_direction_present_for_this_inspection'] = True
-                # Use expanded client+date IDs so per-product flags match file viewer
-                if any(_has_file(pid, 'lab') or _has_file(pid, 'coa') for pid in _all_ids_for_group): prod['coa_uploaded'] = True
-                if any(_has_file(pid, 'composition') for pid in _all_ids_for_group): prod['composition_uploaded'] = True
-                if any(_has_file(pid, 'compliance') for pid in _all_ids_for_group): prod['compliance_uploaded'] = True
-                if any(_has_file(pid, 'occurrence') for pid in _all_ids_for_group): prod['occurrence_uploaded'] = True
-                if any(_has_file(pid, 'retest') for pid in _all_ids_for_group): prod['retest_uploaded'] = True
-                if any(_has_file(pid, 'other') for pid in _all_ids_for_group): prod['other_uploaded'] = True
-                if any(_has_file(pid, 'lab_form') for pid in _all_ids_for_group): prod['lab_form_uploaded'] = True
+                # Use expanded client+date flags so per-product flags match file viewer
+                if _gflag['lab'] or _gflag['coa']: prod['coa_uploaded'] = True
+                if _gflag['composition']: prod['composition_uploaded'] = True
+                if _gflag['compliance']: prod['compliance_uploaded'] = True
+                if _gflag['occurrence']: prod['occurrence_uploaded'] = True
+                if _gflag['retest']: prod['retest_uploaded'] = True
+                if _gflag['other']: prod['other_uploaded'] = True
+                if _gflag['lab_form']: prod['lab_form_uploaded'] = True
                 products.append(prod)
 
             # Build fallback_group_id string
@@ -1678,28 +1712,36 @@ def api_inspections(request):
 
         import math as _math
 
-        # Get ALL unique inspectors for filter dropdown - only actual inspectors
-        from django.contrib.auth import get_user_model as _gum
-        _User = _gum()
-        _non_inspector_names = set()
-        for _u in _User.objects.exclude(role__in=['inspector', 'inspector_manager']):
-            _full = f"{_u.first_name} {_u.last_name}".strip()
-            if _full: _non_inspector_names.add(_full)
-            _non_inspector_names.add(_u.username)
-        _non_inspector_names.update(['API User', 'Test Inspector', 'admin'])
-        _all_inspectors = sorted(set(
-            n for n in InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
-            .values_list('inspector_name', flat=True)
-            if n not in _non_inspector_names
-        ))
-        _all_corp_groups = sorted(set(
-            InspectionGroup.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='')
-            .values_list('corporate_group', flat=True)
-        ))
-        _all_group_types = sorted(set(
-            InspectionGroup.objects.exclude(group_type__isnull=True).exclude(group_type='')
-            .values_list('group_type', flat=True)
-        ))
+        # Get ALL unique inspectors / businesses / store types for filter dropdowns.
+        # Cached for 5 min — these scan all users + all groups and rarely change.
+        from django.core.cache import cache as _opt_cache
+        _filter_opts = _opt_cache.get('api_inspections_filter_options')
+        if _filter_opts is None:
+            from django.contrib.auth import get_user_model as _gum
+            _User = _gum()
+            _non_inspector_names = set()
+            for _u in _User.objects.exclude(role__in=['inspector', 'inspector_manager']):
+                _full = f"{_u.first_name} {_u.last_name}".strip()
+                if _full: _non_inspector_names.add(_full)
+                _non_inspector_names.add(_u.username)
+            _non_inspector_names.update(['API User', 'Test Inspector', 'admin'])
+            _all_inspectors = sorted(set(
+                n for n in InspectionGroup.objects.exclude(inspector_name__isnull=True).exclude(inspector_name='')
+                .values_list('inspector_name', flat=True)
+                if n not in _non_inspector_names
+            ))
+            _all_corp_groups = sorted(set(
+                InspectionGroup.objects.exclude(corporate_group__isnull=True).exclude(corporate_group='')
+                .values_list('corporate_group', flat=True)
+            ))
+            _all_group_types = sorted(set(
+                InspectionGroup.objects.exclude(group_type__isnull=True).exclude(group_type='')
+                .values_list('group_type', flat=True)
+            ))
+            _opt_cache.set('api_inspections_filter_options',
+                           (_all_inspectors, _all_corp_groups, _all_group_types), 300)
+        else:
+            _all_inspectors, _all_corp_groups, _all_group_types = _filter_opts
 
         _resp = {
             'count': _total_count,
