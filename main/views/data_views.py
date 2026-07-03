@@ -5323,7 +5323,7 @@ def api_quarterly_targets(request):
 #  API: Get / Edit Inspection Group (for Next.js edit page)
 # ---------------------------------------------------------------------------
 
-def _insp_cors(r):
+def _insp_cors(request, r):
     r['Access-Control-Allow-Origin'] = _get_cors_origin(request)
     r['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     r['Access-Control-Allow-Headers'] = 'Content-Type'
@@ -5336,7 +5336,7 @@ def api_get_inspection_group(request, pk):
     from ..models import FoodSafetyAgencyInspection as _Insp, InspectionGroup as _Group
 
     if request.method == 'OPTIONS':
-        return _insp_cors(JsonResponse({'ok': True}))
+        return _insp_cors(request, JsonResponse({'ok': True}))
 
     try:
         insp = _Insp.objects.select_related('inspection_group', 'client').get(pk=pk)
@@ -5397,7 +5397,7 @@ def api_get_inspection_group(request, pk):
         if insp.client:
             client_email = insp.client.email or insp.client.manual_email or ''
 
-        return _insp_cors(JsonResponse({
+        return _insp_cors(request, JsonResponse({
             'success': True,
             'inspection_id': pk,
             'group_id': group.id if group else None,
@@ -5419,9 +5419,9 @@ def api_get_inspection_group(request, pk):
             'is_occurrence_report': bool(insp.is_occurrence_report),
         }))
     except _Insp.DoesNotExist:
-        return _insp_cors(JsonResponse({'success': False, 'error': 'Inspection not found'}, status=404))
+        return _insp_cors(request, JsonResponse({'success': False, 'error': 'Inspection not found'}, status=404))
     except Exception as e:
-        return _insp_cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
+        return _insp_cors(request, JsonResponse({'success': False, 'error': str(e)}, status=500))
 
 
 @_csrf_exempt
@@ -5435,16 +5435,16 @@ def api_edit_inspection_group(request):
     from datetime import date as _date
 
     if request.method == 'OPTIONS':
-        return _insp_cors(JsonResponse({'ok': True}))
+        return _insp_cors(request, JsonResponse({'ok': True}))
 
     if request.method != 'POST':
-        return _insp_cors(JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405))
+        return _insp_cors(request, JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405))
 
     try:
         data = _json.loads(request.body)
         inspection_id = data.get('inspection_id')
         if not inspection_id:
-            return _insp_cors(JsonResponse({'success': False, 'error': 'inspection_id is required'}))
+            return _insp_cors(request, JsonResponse({'success': False, 'error': 'inspection_id is required'}))
 
         # Quick update for approved_status only
         approved_only = data.get('approved_status')
@@ -5452,17 +5452,20 @@ def api_edit_inspection_group(request):
             try:
                 group = _Group.objects.get(pk=inspection_id)
             except _Group.DoesNotExist:
-                return _insp_cors(JsonResponse({'success': False, 'error': 'Group not found'}))
+                return _insp_cors(request, JsonResponse({'success': False, 'error': 'Group not found'}))
             _Insp.objects.filter(inspection_group=group).update(approved_status=approved_only)
-            return _insp_cors(JsonResponse({'success': True}))
+            return _insp_cors(request, JsonResponse({'success': True}))
 
-        # Try as InspectionGroup first, then as FoodSafetyAgencyInspection
+        # Resolve as FoodSafetyAgencyInspection FIRST — the edit page keys by
+        # product/inspection pk (same as api_get_inspection_group). Group ids and
+        # inspection ids overlap numerically, so trying InspectionGroup first
+        # silently edited an unrelated client's group whenever the ids collided.
         try:
-            group = _Group.objects.get(pk=inspection_id)
-            insp = _Insp.objects.filter(inspection_group=group).select_related('client').first()
-        except _Group.DoesNotExist:
             insp = _Insp.objects.select_related('inspection_group', 'client').get(pk=inspection_id)
             group = insp.inspection_group
+        except _Insp.DoesNotExist:
+            group = _Group.objects.get(pk=inspection_id)
+            insp = _Insp.objects.filter(inspection_group=group).select_related('client').first()
 
         # Parse date
         from datetime import datetime as _datetime
@@ -5676,13 +5679,13 @@ def api_edit_inspection_group(request):
             _fc.delete('add_inspection_form_data')
             _fc.delete('page_clients_status_cache')
 
-        return _insp_cors(JsonResponse({'success': True, 'message': f'Inspection for {client_name} updated successfully'}))
+        return _insp_cors(request, JsonResponse({'success': True, 'message': f'Inspection for {client_name} updated successfully'}))
 
     except _Insp.DoesNotExist:
-        return _insp_cors(JsonResponse({'success': False, 'error': 'Inspection not found'}, status=404))
+        return _insp_cors(request, JsonResponse({'success': False, 'error': 'Inspection not found'}, status=404))
     except Exception as e:
         import traceback
-        return _insp_cors(JsonResponse({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500))
+        return _insp_cors(request, JsonResponse({'success': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500))
 
 
 @_csrf_exempt
