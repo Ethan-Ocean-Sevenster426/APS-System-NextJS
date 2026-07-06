@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const DEFAULT_RECIPIENT = "ethansevenster5@gmail.com";
+const DEFAULT_RECIPIENT = "";
 
 /* ── Filament (Blue) design tokens ───────────────────────────────────────── */
 const F = {
