@@ -1781,7 +1781,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
       {/* Primary KPIs */}
       <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Total Inspections" value={data.totalInspections} />
-        <KpiCard label="Compliance Rate" value={`${data.complianceRate.toFixed(1)}%`} color="#10b981" />
+        <KpiCard label="Compliance Rate" value={`${Number(data.complianceRate ?? 0).toFixed(1)}%`} color="#10b981" />
         <KpiCard label="Active Inspectors" value={data.activeInspectors} color="#f59e0b" />
         <KpiCard label="Total Revenue" value={fmtRand(data.financialSummary?.total_revenue ?? 0)} color="#10b981" />
       </div>
@@ -1803,11 +1803,11 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
               <span className="font-semibold text-sm text-gray-800 w-20 flex-shrink-0">{c.commodity}</span>
               <div className="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden relative">
                 <div className="h-full rounded-full transition-all duration-500 flex items-center justify-center"
-                  style={{ width: `${Math.max(c.compliance_rate, 3)}%`, backgroundColor: colorForCommodity(c.commodity) }}>
-                  {c.compliance_rate > 10 && <span className="text-[11px] font-bold" style={{ color: "#fff" }}>{c.compliance_rate.toFixed(1)}%</span>}
+                  style={{ width: `${Math.max(Number(c.compliance_rate ?? 0), 3)}%`, backgroundColor: colorForCommodity(c.commodity) }}>
+                  {(c.compliance_rate ?? 0) > 10 && <span className="text-[11px] font-bold" style={{ color: "#fff" }}>{Number(c.compliance_rate ?? 0).toFixed(1)}%</span>}
                 </div>
               </div>
-              <span className="text-xs text-gray-500 flex-shrink-0" style={{ minWidth: 70, textAlign: "right" }}>{c.compliance_rate.toFixed(1)}% ({c.compliant}/{c.total})</span>
+              <span className="text-xs text-gray-500 flex-shrink-0" style={{ minWidth: 70, textAlign: "right" }}>{Number(c.compliance_rate ?? 0).toFixed(1)}% ({c.compliant}/{c.total})</span>
             </div>
           ))}
         </div>

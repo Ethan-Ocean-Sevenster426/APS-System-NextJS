@@ -1,16 +1,32 @@
 from django.shortcuts import redirect
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from functools import wraps
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.utils import timezone
 import hashlib
 
+
+def _is_api_request(request):
+    """
+    True when the request is an XHR/API call (served via the Next.js /api proxy)
+    rather than a full-page navigation. For these, denials must return a JSON
+    status code — an HTML redirect can't be parsed by the proxy and surfaces to
+    the browser as a 502 Bad Gateway.
+    """
+    if request.path.startswith('/api/'):
+        return True
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    accept = request.headers.get('Accept', '')
+    return 'application/json' in accept and 'text/html' not in accept
+
+
 def role_required(allowed_roles):
     """
     Decorator to check if user has the required role(s).
-    
+
     Usage:
     @role_required(['admin', 'super_admin'])
     @role_required(['financial'])
@@ -20,16 +36,20 @@ def role_required(allowed_roles):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             if not request.user.is_authenticated:
+                if _is_api_request(request):
+                    return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
                 return redirect('login')
-            
+
             user_role = getattr(request.user, 'role', 'inspector')
-            
+
             # Check if user's role is in the allowed roles
             if user_role in allowed_roles:
                 return view_func(request, *args, **kwargs)
             else:
+                if _is_api_request(request):
+                    return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
                 return redirect('home')
-        
+
         return _wrapped_view
     return decorator
 
