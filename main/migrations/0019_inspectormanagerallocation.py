@@ -12,18 +12,10 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
-    operations = [
-        migrations.CreateModel(
-            name='InspectorManagerAllocation',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('inspector_mapping', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='manager_allocations', to='main.inspectormapping')),
-                ('manager', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='managed_inspectors', to=settings.AUTH_USER_MODEL)),
-            ],
-            options={
-                'db_table': 'inspector_manager_allocations',
-                'unique_together': {('manager', 'inspector_mapping')},
-            },
-        ),
-    ]
+    # NOTE: The InspectorManagerAllocation model is already created by migration
+    # 0016 (CreateModel with the same db_table 'inspector_manager_allocations').
+    # This migration was a duplicate CreateModel, which made a fresh `migrate`
+    # fail with 'relation "inspector_manager_allocations" already exists'. The
+    # model already exists in both the database and the migration state after
+    # 0016, so this migration is now intentionally a no-op.
+    operations = []
