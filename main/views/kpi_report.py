@@ -95,10 +95,10 @@ def build_kpi_report_data(year, quarter):
             "is_meeting": is_meeting,
         })
 
-    # ── Late entries: captured on any day after the inspection was done ──
+    # ── Late entries: captured 2 or more days after the inspection was done ──
     late_qs = (
         FoodSafetyAgencyInspection.objects
-        .filter(created_at__date__gt=F("date_of_inspection"))
+        .filter(created_at__date__gt=F("date_of_inspection") + datetime.timedelta(days=1))
         .filter(date_of_inspection__gte=start, date_of_inspection__lte=end)
         .order_by("-created_at")
     )
@@ -173,6 +173,15 @@ def build_kpi_report_data(year, quarter):
             "missing": ", ".join(gaps),
         })
 
+    # Per-inspector summary of missing travel details (counts every affected visit)
+    missing_travel_by_inspector = {}
+    for _name in travel_qs.values_list("inspector_name", flat=True):
+        _k = _name or "—"
+        missing_travel_by_inspector[_k] = missing_travel_by_inspector.get(_k, 0) + 1
+    missing_travel_summary = sorted(
+        [{"inspector_name": k, "count": v} for k, v in missing_travel_by_inspector.items()],
+        key=lambda x: (-x["count"], x["inspector_name"]))
+
     # ── Duplicate inspections by inspector ──
     # A "duplicate" is the same inspection captured more than once for the same
     # client + date + inspector with an IDENTICAL product signature (commodity +
@@ -240,6 +249,7 @@ def build_kpi_report_data(year, quarter):
         "missing_rfi_count": len(missing_rfi_ids),
         "missing_travel": missing_travel,
         "missing_travel_count": missing_travel_count,
+        "missing_travel_summary": missing_travel_summary,
         "sample_discrepancies": sample_discrepancies,
         "clean_inspectors": clean_inspectors,
         "duplicate_summary": duplicate_summary,
@@ -359,13 +369,13 @@ def generate_kpi_pdf(data):
 
     story = [PageBreak()]  # page 1 is the cover (drawn by _cover); content starts on page 2
 
-    # ── Summary metric cards ──
+    # ── Summary metric cards — real data-quality issues (no target/meeting data) ──
     story += section("Summary")
     card_specs = [
-        ("Inspectors Meeting", str(meeting), GREEN),
-        ("Below Target", str(data["not_meeting_count"]), RED),
-        ("Meeting Rate", f"{rate}%", TEAL),
-        ("Late Entries", str(data["late_count"]), AMBER),
+        ("Late Entries (2+ days)", str(data["late_count"]), AMBER),
+        ("Missing RFI", str(data["missing_rfi_count"]), RED),
+        ("Missing Travel Details", str(data["missing_travel_count"]), TEAL),
+        ("Duplicate Inspections", str(data["duplicate_group_count"]), GREEN),
     ]
     card_cells = []
     for label, value, color in card_specs:
@@ -389,49 +399,8 @@ def generate_kpi_pdf(data):
     story.append(cards)
     story.append(Spacer(1, 8 * mm))
 
-    # ── KPI table ──
-    story += section("KPI Performance vs Targets")
-    if data["inspectors"]:
-        header = ["Inspector", "Eggs", "Poultry", "Raw", "PMP", "Total (Act/Tgt)", "Samples (Act/Tgt)", "Status"]
-        rows = [[Paragraph(f"<b>{h}</b>", cellC) for h in header]]
-        style_cmds = [
-            ("BACKGROUND", (0, 0), (-1, 0), DARK),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.4, HAIR),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ]
-        for r_i, insp in enumerate(data["inspectors"], start=1):
-            pc = {c["commodity"]: c for c in insp["per_commodity"]}
-            def fmt(commodity):
-                c = pc.get(commodity, {"actual": 0, "target": 0})
-                return f"{c['actual']}/{c['target']}"
-            status = "PASS  Meeting" if insp["is_meeting"] else "BELOW  Target"
-            rows.append([
-                Paragraph(insp["inspector_name"], cell),
-                fmt("EGGS"), fmt("POULTRY"), fmt("RAW"), fmt("PMP"),
-                f"{insp['actual_total']}/{insp['target_total']}",
-                f"{insp['samples_actual']}/{insp['samples_target']}",
-                Paragraph(f"<b>{status}</b>", cellC),
-            ])
-            style_cmds.append(("TEXTCOLOR", (7, r_i), (7, r_i), GREEN if insp["is_meeting"] else RED))
-            if r_i % 2 == 0:
-                style_cmds.append(("BACKGROUND", (0, r_i), (-1, r_i), ROW_ALT))
-        col_widths = [46 * mm, 22 * mm, 24 * mm, 20 * mm, 20 * mm, 36 * mm, 40 * mm, 34 * mm]
-        t = Table(rows, colWidths=col_widths, repeatRows=1)
-        t.setStyle(TableStyle(style_cmds))
-        story.append(t)
-    else:
-        story.append(Paragraph("No quarterly targets are configured for this period.", sub))
-
-    story.append(Spacer(1, 8 * mm))
-
     # ── Late entries — summarised per inspector ──
-    story += section("Late Entries by Inspector", f"(inspections captured after the date they were done — {data['late_count']} total)")
+    story += section("Late Entries by Inspector", f"(captured 2 or more days after the inspection date — {data['late_count']} total)")
     if data["late_summary"]:
         lh = ["Inspector", "Late Entries", "Avg Days Late", "Max Days Late"]
         lrows = [[Paragraph(f"<b>{h}</b>", cellC) for h in lh]]
@@ -500,34 +469,31 @@ def generate_kpi_pdf(data):
     else:
         story.append(Paragraph("Every RAW / PMP group has an RFI assigned. ✓", sub))
 
-    # ── Missing Travel Details ──
+    # ── Missing Travel Details — summarised per inspector ──
     story.append(Spacer(1, 8 * mm))
-    story += section("Missing Travel Details", f"(no km / hours / start / end time — {data['missing_travel_count']} total)")
-    if data["missing_travel"]:
+    story += section("Missing Travel Details by Inspector", f"(visits with no km / hours / start / end time — {data['missing_travel_count']} total)")
+    if data.get("missing_travel_summary"):
         rows_data = [[
-            Paragraph(e["inspector_name"], cell), Paragraph(e["client_name"], cell),
-            e["date"], Paragraph(f"<b>{e['missing']}</b>", cellC),
-        ] for e in data["missing_travel"]]
-        story.append(_simple_table(["Inspector", "Client / Facility", "Date", "Missing Fields"],
-                                    rows_data, [50 * mm, 84 * mm, 44 * mm, 50 * mm], red_col=3))
-        if data["missing_travel_count"] > len(data["missing_travel"]):
-            story.append(Spacer(1, 4))
-            story.append(Paragraph(f"Showing the {len(data['missing_travel'])} most recent of {data['missing_travel_count']}.", sub))
+            Paragraph(e["inspector_name"], cell),
+            Paragraph(f"<b>{e['count']}</b>", cellC),
+        ] for e in data["missing_travel_summary"]]
+        story.append(_simple_table(["Inspector", "Visits Missing Travel Details"],
+                                    rows_data, [130 * mm, 100 * mm], red_col=1))
     else:
         story.append(Paragraph("Every group has km, hours and travel times recorded. ✓", sub))
 
-    # ── Unrecorded samples (reported by lab technicians) ──
-    story.append(Spacer(1, 8 * mm))
-    story += section("Missing Samples (Lab-Reported)", f"(visit where the lab received a sample the inspector never recorded — {len(data.get('sample_discrepancies', []))} open)")
+    # ── Inspectors flagged as needing sample values (lab-reported) ──
+    # Only shown when there are open flags — no empty "all clear" filler.
     if data.get("sample_discrepancies"):
+        story.append(Spacer(1, 8 * mm))
+        story += section("Marked as Needing Sample Values",
+                         f"(the inspector didn't fill in the correct sampling information — {len(data['sample_discrepancies'])} open)")
         rows_data = [[
             Paragraph(e["inspector_name"], cell), Paragraph(e["client_name"] or "—", cell),
             e["date"] or "—", Paragraph(e["note"] or "—", cell), Paragraph(e["reported_by"] or "—", cell),
         ] for e in data["sample_discrepancies"]]
-        story.append(_simple_table(["Inspector", "Client / Facility", "Date", "Note", "Reported by"],
+        story.append(_simple_table(["Inspector", "Client / Facility", "Date", "Reason", "Flagged by"],
                                     rows_data, [42 * mm, 56 * mm, 30 * mm, 82 * mm, 40 * mm]))
-    else:
-        story.append(Paragraph("No unrecorded samples reported by the lab. ✓", sub))
 
     # ── Duplicate inspections by inspector ──
     story.append(Spacer(1, 8 * mm))
@@ -545,20 +511,6 @@ def generate_kpi_pdf(data):
             rows_data, [80 * mm, 55 * mm, 50 * mm, 45 * mm], red_col=2))
     else:
         story.append(Paragraph("No duplicate inspections detected this period. ✓", sub))
-
-    # ── Clean record: inspectors with no lab-reported issues ──
-    story.append(Spacer(1, 8 * mm))
-    story += section("Clean Record — No Lab-Reported Issues",
-                     "(inspectors the lab technician has flagged no sampling issues against)")
-    if data.get("clean_inspectors"):
-        cleanCell = ParagraphStyle("cleanCell", parent=cell, textColor=GREEN)
-        rows_data = [[
-            Paragraph(name, cleanCell),
-            Paragraph("<font color='#059669'><b>✓  All samples recorded</b></font>", cellC),
-        ] for name in data["clean_inspectors"]]
-        story.append(_simple_table(["Inspector", "Lab Status"], rows_data, [130 * mm, 100 * mm]))
-    else:
-        story.append(Paragraph("Every inspector currently has an open lab-reported sample issue.", sub))
 
     doc.build(story, onFirstPage=_cover, onLaterPages=_later)
     buf.seek(0)
