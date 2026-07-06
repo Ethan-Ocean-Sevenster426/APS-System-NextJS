@@ -290,6 +290,9 @@ export default function InspectionsPage() {
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
 
+  // Missing-sample flags (super admins & lab technicians): group ids currently flagged
+  const [flaggedGroups, setFlaggedGroups] = useState<Set<string>>(new Set());
+
   // Lab-tech specific filters
   const [retestFilter, setRetestFilter] = useState<string[]>([]);
   const [coaStatusFilter, setCoaStatusFilter] = useState<string[]>([]);
@@ -792,6 +795,29 @@ export default function InspectionsPage() {
   const isLabTechRestricted = false; // Lab techs now see everything
   const isAdmin = role === "admin";
   const isInspector = role === "inspector" || role === "inspector_manager";
+  // Super admins & lab technicians can flag a visit as "inspector didn't add the correct sampling info"
+  const canFlag = role === "super_admin" || role === "developer" || role === "lab_technician";
+
+  // Load which groups already have an open missing-sample flag
+  useEffect(() => {
+    if (!canFlag) return;
+    fetch("/api/sample-discrepancies/open-groups", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.group_ids)) setFlaggedGroups(new Set(d.group_ids.map(String))); })
+      .catch(() => {});
+  }, [canFlag]);
+
+  const toggleSampleFlag = useCallback(async (s: Inspection) => {
+    const gid = String(s.group_id || s.id);
+    const wasFlagged = flaggedGroups.has(gid);
+    setFlaggedGroups(prev => { const n = new Set(prev); wasFlagged ? n.delete(gid) : n.add(gid); return n; });
+    try {
+      await fetch("/api/sample-discrepancies/toggle-group", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_id: gid, inspector_name: s.inspector_name, client_name: s.client_name, date_of_inspection: s.date_of_inspection }),
+      });
+    } catch { /* revert on error */ setFlaggedGroups(prev => { const n = new Set(prev); wasFlagged ? n.add(gid) : n.delete(gid); return n; }); }
+  }, [flaggedGroups]);
 
   // Show toast notification
   const showToast = useCallback((message: string) => {
@@ -1319,6 +1345,26 @@ export default function InspectionsPage() {
                     }}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Missing-sample flag — visible only to super admins & lab technicians */}
+            {canFlag && !isOccurrence && (
+              <div style={{ marginTop: 8, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
+                <button
+                  onClick={e => { e.stopPropagation(); toggleSampleFlag(s); }}
+                  title="Flag this visit: inspector didn't add the correct sampling information"
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    padding: "6px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, cursor: "pointer", border: "none",
+                    background: flaggedGroups.has(String(s.group_id || s.id)) ? "#fee2e2" : "#f3f4f6",
+                    color: flaggedGroups.has(String(s.group_id || s.id)) ? "#b91c1c" : "#374151",
+                    boxShadow: flaggedGroups.has(String(s.group_id || s.id)) ? "0 0 0 1px rgba(220,38,38,0.25)" : "0 0 0 1px #e5e7eb",
+                  }}
+                >
+                  <i className={flaggedGroups.has(String(s.group_id || s.id)) ? "fas fa-flag" : "far fa-flag"} style={{ fontSize: 9 }} />
+                  {flaggedGroups.has(String(s.group_id || s.id)) ? "Flagged: no sampling info" : "Flag: no sampling info added"}
+                </button>
               </div>
             )}
 
@@ -2048,7 +2094,7 @@ export default function InspectionsPage() {
                           onClick={e => e.stopPropagation()}>
                           <i className="fas fa-edit" /> Edit
                         </a>
-                        {(!isInspector || showDuplicates) && (
+                        {!isInspector && (
                           <button style={{ flex: 1, padding: "8px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
                             onClick={async e => {
                               e.stopPropagation();
@@ -2264,7 +2310,7 @@ export default function InspectionsPage() {
                                     onClick={e => e.stopPropagation()} title="Edit">
                                     <i className="fas fa-edit" />
                                   </a>
-                                  {(!isInspector || showDuplicates) && (
+                                  {!isInspector && (
                                     <button style={{ padding: "3px 6px", background: "#ef4444", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
                                       title="Delete"
                                       onClick={async e => {
@@ -2493,7 +2539,8 @@ export default function InspectionsPage() {
                                     style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", background: "#3b82f6", color: "white", borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
                                     <i className="fas fa-download" style={{ fontSize: 10 }} />Download
                                   </a>
-                                  {(!isInspector || ["rfi", "compliance", "composition", "other"].includes(cat.key)) && (
+                                  {/* Inspectors may upload documents but may NOT delete any of them. */}
+                                  {!isInspector && (
                                     <button
                                       onClick={async () => {
                                         if (!confirm(`Delete "${f.name}"?`)) return;

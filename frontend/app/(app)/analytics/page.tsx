@@ -1,39 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
+import dynamic from "next/dynamic";
 import InspectorDashboard from "@/components/InspectorDashboard";
 import MultiSelectDropdown from "@/components/ui/MultiSelectDropdown";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  RadialLinearScale,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { Bar, Line, Radar } from "react-chartjs-2";
-import ChartDataLabels from "chartjs-plugin-datalabels";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  RadialLinearScale,
-  Filler,
-  Title,
-  Tooltip,
-  Legend
-);
-// DO NOT register ChartDataLabels globally — pass per-chart via plugins prop
+// chart.js is heavy (~380KB); load it lazily in its own chunk so it is not in
+// the analytics route's initial JS bundle. The wrappers inject the datalabels
+// plugin per-chart. ssr:false is fine — this whole page is client-rendered.
+const DLBar = dynamic(() => import("@/components/charts").then(m => m.DLBar), { ssr: false });
+const DLLine = dynamic(() => import("@/components/charts").then(m => m.DLLine), { ssr: false });
+const DLRadar = dynamic(() => import("@/components/charts").then(m => m.DLRadar), { ssr: false });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -289,13 +266,7 @@ function ChartWrap({ children, height = "300px" }: { children: React.ReactNode; 
   return <div className="analytics-chart-wrap" style={{ position: "relative", height, minHeight: 200, overflow: "visible" }}>{children}</div>;
 }
 
-// Wrapper components that inject ChartDataLabels plugin per-chart (not globally)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DLBar(props: any) { return <Bar {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DLLine(props: any) { return <Line {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DLRadar(props: any) { return <Radar {...props} plugins={[ChartDataLabels, ...(props.plugins || [])]} />; }
+// DLBar / DLLine / DLRadar are imported lazily from "@/components/charts" (see top of file).
 
 // ── Main Page Component ────────────────────────────────────────────────────────
 
@@ -317,6 +288,17 @@ export default function AnalyticsPage() {
   const [xeroInvoices, setXeroInvoices] = useState<{ invoices: Array<Record<string, unknown>>; aging: Record<string, number>; total_count?: number }>({ invoices: [], aging: {} });
   const [xeroPage, setXeroPage] = useState(1);
   const [xeroSyncing, setXeroSyncing] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  // Close the Export dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-analytics-export]")) setExportMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [exportMenuOpen]);
 
   // ── User role & identity ────────────────────────────────────────────────────
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -755,6 +737,9 @@ export default function AnalyticsPage() {
       } catch { /* skip logo */ }
 
       // ── Capture charts at high DPI with data labels enabled for PDF ──
+      // chart.js is lazy-loaded; by export time it's already in memory, so this
+      // dynamic import resolves instantly and gives us the Chart registry.
+      const { Chart: ChartJS } = await import("chart.js");
       const allChartImages: string[] = [];
       const allChartCanvases = Array.from(document.querySelectorAll("canvas"));
       const HI_DPR = 8;
@@ -1277,7 +1262,15 @@ export default function AnalyticsPage() {
 
   const totalKm = useMemo(() => data?.travelPerInspector?.reduce((s, t) => s + t.total_km, 0) ?? 0, [data]);
   const avgDocSend = useMemo(() => avg(data?.docSendTime?.map(d => d.avg_days) ?? []), [data]);
-  const avgApproval = useMemo(() => avg(data?.approvalTime?.map(d => d.avg_days) ?? []), [data]);
+  // Count-weighted overall average days to approval. A plain mean of each
+  // inspector's average would over-weight inspectors with few inspections; this
+  // weights by how many inspections each inspector actually had.
+  const avgApproval = useMemo(() => {
+    const rows = data?.approvalTime ?? [];
+    const totalCount = rows.reduce((s, d) => s + (d.count || 0), 0);
+    if (!totalCount) return 0;
+    return rows.reduce((s, d) => s + (d.avg_days || 0) * (d.count || 0), 0) / totalCount;
+  }, [data]);
   const totalSamples = useMemo(() => data?.samplesByCommodity?.filter(d => isSampleCommodity(d.commodity)).reduce((s, d) => s + d.count, 0) ?? 0, [data]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1405,24 +1398,36 @@ export default function AnalyticsPage() {
           <div className="analytics-filter-btns" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
             <button onClick={handleApply}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-filter" /> Apply
+              <i className="fas fa-filter" /> Apply Filters
             </button>
             <button onClick={handleReset}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#6b7280", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-undo" /> Reset
+              <i className="fas fa-times" /> Clear Filters
             </button>
-            <button onClick={handleExtractExcel}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-file-excel" /> Export Excel
-            </button>
-            <button onClick={handleExportPdf} disabled={pdfLoading}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: pdfLoading ? "wait" : "pointer", background: pdfLoading ? "#9ca3af" : "#d13438", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", opacity: pdfLoading ? 0.7 : 1 }}>
-              <i className={pdfLoading ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} /> {pdfLoading ? "Generating..." : "Export PDF"}
-            </button>
-            <button onClick={() => { /* TODO: toggle info panel */ }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-              <i className="fas fa-info-circle" /> Info
-            </button>
+            {/* Single Export button with a dropdown of options */}
+            <div style={{ position: "relative" }} data-analytics-export>
+              <button onClick={() => setExportMenuOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 6, border: "none", fontWeight: 500, fontSize: "0.75rem", cursor: "pointer", background: "#007890", color: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                <i className="fas fa-file-export" /> Export <i className="fas fa-chevron-down" style={{ fontSize: "0.6rem" }} />
+              </button>
+              {exportMenuOpen && (
+                <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", minWidth: 190, zIndex: 1000, overflow: "hidden" }}>
+                  <button onClick={() => { setExportMenuOpen(false); handleExtractExcel(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer", fontSize: "0.8rem", color: "#1f2937" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e6f3f7"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                    <i className="fas fa-file-excel" style={{ color: "#059669" }} /> Export to Excel
+                  </button>
+                  <div style={{ height: 1, background: "#e5e7eb" }} />
+                  <button onClick={() => { if (pdfLoading) return; setExportMenuOpen(false); handleExportPdf(); }} disabled={pdfLoading}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: pdfLoading ? "wait" : "pointer", fontSize: "0.8rem", color: "#1f2937", opacity: pdfLoading ? 0.6 : 1 }}
+                    onMouseEnter={e => { if (!pdfLoading) (e.currentTarget as HTMLElement).style.background = "#e6f3f7"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                    <i className={pdfLoading ? "fas fa-spinner fa-spin" : "fas fa-file-pdf"} style={{ color: "#d13438" }} /> {pdfLoading ? "Generating PDF..." : "Export as PDF"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1785,8 +1790,8 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
       <div className="analytics-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="Occurrence Reports" value={data.totalOccurrenceReports} color="#ef4444" icon="fas fa-exclamation-circle" />
         <KpiCard label="Total KM Traveled" value={totalKm.toLocaleString("en-ZA")} color="#007890" icon="fas fa-road" />
-        <KpiCard label="Avg Days: Doc Send" value={avgDocSend.toFixed(1)} color="#f59e0b" icon="fas fa-paper-plane" />
-        <KpiCard label="Avg Days: Approval" value={avgApproval.toFixed(1)} color="#8764b8" icon="fas fa-hourglass-half" />
+        <KpiCard label="Avg Days: Doc Send" value={Math.round(avgDocSend)} color="#f59e0b" icon="fas fa-paper-plane" />
+        <KpiCard label="Avg Days: Approval" value={Math.round(avgApproval)} color="#8764b8" icon="fas fa-hourglass-half" />
         <KpiCard label="Total Samples Taken" value={totalSamples} color="#10b981" icon="fas fa-vial" />
       </div>
 
@@ -1870,7 +1875,10 @@ function InspectorsPanel({ data, inspectorMetric, setInspectorMetric, quarterlyT
 }) {
   const [radarInspector, setRadarInspector] = useState(filterInspector || "all");
   useEffect(() => { setRadarInspector(filterInspector || "all"); }, [filterInspector]);
-  const metricLabel: Record<string, string> = { count: "Inspections", total_km: "KM Traveled", total_hours: "Hours", samples: "Samples" };
+  // Inspector-performance metrics only. KM Traveled / Hours are travel/operations
+  // measures (they have their own charts on the Operations tab), so they're kept
+  // out of this ranking to keep it about the inspectors' own output.
+  const metricLabel: Record<string, string> = { count: "Inspections", samples: "Samples" };
 
   // Inspector totals for selected metric — ranked bar chart
   const inspectorTotals = [...new Set((data.monthlyInspectorTrend || []).map((d) => d.inspector_name))]
@@ -2477,7 +2485,8 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
 
 function TimelinesPanel({ data }: { data: AnalyticsData }) {
   const [timelineView, setTimelineView] = useState<"daily" | "weekly" | "monthly">("weekly");
-  const lineOpts = baseChartOptions(undefined, "Avg Days");
+  // Days are always shown as whole numbers (no decimal point).
+  const lineOpts = baseChartOptions(undefined, "Avg Days", { datalabelFormatter: (v: number) => { const n = Number(v); return !n || isNaN(n) ? "" : String(Math.round(n)); } });
 
   const isWeekly = timelineView === "weekly";
   const isDaily = timelineView === "daily";
@@ -2529,7 +2538,7 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
     indexAxis: "y" as const,
     plugins: {
       ...((baseChartOptions() as Record<string, unknown>).plugins as Record<string, unknown>),
-      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : n.toFixed(1); } },
+      datalabels: { anchor: "end" as const, align: "right" as const, font: { size: 9, weight: "bold" as const }, color: "#374151", formatter: (v: unknown) => { const n = Number(v); return !n || isNaN(n) ? "" : String(Math.round(n)); } },
     },
     scales: {
       x: { beginAtZero: true, ticks: { font: { size: 10 } }, title: { display: true, text: "Avg Days", font: { size: 11 } } },
@@ -2583,8 +2592,30 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
     );
   }
 
+  // Count-weighted overall averages (in days) for the clear summary blocks.
+  const wAvg = (rows: { avg_days: number; count: number }[]) => {
+    const c = rows.reduce((s, r) => s + (r.count || 0), 0);
+    return c ? rows.reduce((s, r) => s + (r.avg_days || 0) * (r.count || 0), 0) / c : 0;
+  };
+  const summaryStats = [
+    hasApprovalData && { label: "Avg Days to Approval", value: wAvg(data.approvalTime || []), color: "#8764b8" },
+    hasDocSendData && { label: "Avg Days to Send Docs", value: wAvg(data.docSendTime || []), color: "#0078d4" },
+    hasInvoiceData && { label: "Avg Days to Invoice", value: wAvg(data.invoiceUploadTime || []), color: "#f59e0b" },
+    hasCoaData && { label: "Avg Days: Sample → COA", value: wAvg(data.coaAnalysisTime || []), color: "#10b981" },
+  ].filter(Boolean) as { label: string; value: number; color: string }[];
+
   return (
     <div className="flex flex-col" style={{ gap: "1rem", marginBottom: "1rem" }}>
+      {/* Clear white summary blocks — average days for each stage (easy to read) */}
+      <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: "0.75rem" }}>
+        {summaryStats.map(s => (
+          <div key={s.label} className="bg-white rounded-md border border-gray-200 text-center" style={{ padding: "0.9rem 0.75rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: "1.9rem", fontWeight: 700, color: s.color, lineHeight: 1.15 }}>{Math.round(s.value)}</div>
+            <div style={{ fontSize: "0.7rem", color: "#6b7280", marginTop: 2, fontWeight: 600 }}>days</div>
+            <div style={{ fontSize: "0.72rem", color: "#374151", marginTop: 4, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
       {/* Weekly / Monthly toggle */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>

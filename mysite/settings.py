@@ -119,11 +119,13 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'v4_inspection',
-        'USER': 'inspection_user',
-        'PASSWORD': 'InspectionTest2026',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        # Read from the environment (Docker/production); fall back to the local
+        # dev values so nothing changes when running outside a container.
+        'NAME': env('DB_NAME', default='v4_inspection'),
+        'USER': env('DB_USER', default='inspection_user'),
+        'PASSWORD': env('DB_PASSWORD', default='InspectionTest2026'),
+        'HOST': env('DB_HOST', default='127.0.0.1'),
+        'PORT': env('DB_PORT', default='5432'),
     },
 }
 

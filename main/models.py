@@ -1558,3 +1558,30 @@ class InspectionDocument(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} - {self.inspection}"
+
+
+class SampleDiscrepancy(models.Model):
+    """
+    Raised by a lab technician when a physical sample was received in the lab but
+    the inspector never recorded it in the system ("inspector didn't add the
+    sample"). Surfaced in the Inspector KPI report and visible only to
+    super admins and lab technicians.
+    """
+    inspector_name = models.CharField(max_length=100, blank=True, help_text="Inspector who should have recorded the sample")
+    client_name = models.CharField(max_length=200, blank=True, help_text="Client / facility")
+    date_of_inspection = models.DateField(null=True, blank=True, help_text="Date the inspection was done")
+    inspection_group_id = models.CharField(max_length=50, blank=True, db_index=True, help_text="The inspection group (visit) this flag is against")
+    commodity = models.CharField(max_length=50, blank=True, help_text="Sample commodity / type")
+    note = models.TextField(blank=True, help_text="Lab technician's note")
+    reported_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="reported_discrepancies")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    rectified = models.BooleanField(default=False, db_index=True)
+    rectified_at = models.DateTimeField(null=True, blank=True)
+    rectified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="rectified_discrepancies")
+
+    class Meta:
+        db_table = "sample_discrepancies"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Missing sample — {self.inspector_name} ({self.client_name})"

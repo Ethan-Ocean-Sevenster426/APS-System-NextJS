@@ -1,0 +1,64 @@
+# Production stack: Postgres + Django (gunicorn) + Next.js.
+#   docker compose up -d --build
+#
+# Secrets (SECRET_KEY, GRAPH_*, XERO_*) are read from a local .env file that is
+# NOT committed. Copy .env.docker.example to .env and fill it in before running.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-v4_inspection}
+      POSTGRES_USER: ${DB_USER:-inspection_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-InspectionTest2026}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-inspection_user} -d ${DB_NAME:-v4_inspection}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-v4_inspection}
+      DB_USER: ${DB_USER:-inspection_user}
+      DB_PASSWORD: ${DB_PASSWORD:-InspectionTest2026}
+      # Email (Microsoft Graph) — pulled from .env, blank locally
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID:-}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
+      GRAPH_TENANT_ID: ${GRAPH_TENANT_ID:-}
+    volumes:
+      - media:/app/media
+    ports:
+      - "8001:8000"   # host:container — Django admin/API also reachable directly
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Server-side proxy target inside the compose network.
+      DJANGO_API_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  media:

@@ -1844,7 +1844,7 @@ def delete_fsa_inspection(request, pk):
 
 @csrf_exempt
 @login_required(login_url='login')
-@role_required(['admin', 'super_admin', 'developer', 'inspector', 'inspector_manager'])
+@role_required(['admin', 'super_admin', 'developer'])
 def delete_inspection_group(request):
     """Delete all inspections in a group (same client and date) via AJAX."""
     import json
@@ -9906,8 +9906,10 @@ def analytics_dashboard(request):
             fee_rates[fee.fee_code] = float(fee.rate)
     except Exception:
         pass
-    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
-    km_rate = fee_rates.get('inspection_km_rate', 0)
+    # Fall back to the app's standard rates (same defaults the invoice/export code
+    # uses) so revenue is never silently zero when a fee row hasn't been configured.
+    hourly_rate = fee_rates.get('inspection_hour_rate', 540.60)
+    km_rate = fee_rates.get('inspection_km_rate', fee_rates.get('travel_rate_per_km', 6.50))
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to travel end time) per inspector
@@ -10675,8 +10677,10 @@ def analytics_dashboard_api(request):
             fee_rates[fee.fee_code] = float(fee.rate)
     except Exception:
         pass
-    hourly_rate = fee_rates.get('inspection_hour_rate', 0)
-    km_rate = fee_rates.get('inspection_km_rate', 0)
+    # Fall back to the app's standard rates (same defaults the invoice/export code
+    # uses) so revenue is never silently zero when a fee row hasn't been configured.
+    hourly_rate = fee_rates.get('inspection_hour_rate', 540.60)
+    km_rate = fee_rates.get('inspection_km_rate', fee_rates.get('travel_rate_per_km', 6.50))
     sample_rate = fee_rates.get('sample_collection', 0)
 
     # Calculate inspection time (travel start to end) per inspector
@@ -10865,25 +10869,32 @@ def analytics_dashboard_api(request):
     data['approvalTime'] = approval_time
 
     # 5. Travel time per inspector
+    # Travel times live on the InspectionGroup (one visit = one travel leg), so we
+    # aggregate over groups — NOT over inspections. Summing per-inspection would
+    # count a visit's travel once for every product/inspection in the group and
+    # inflate the hours (roughly by the number of inspections per visit). Dedupe by
+    # group id as well, so the commodity filter's JOIN can't duplicate a group.
     travel_time_per_inspector = []
-    travel_time_filtered = qs.exclude(
+    travel_time_filtered = group_qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(
-        Q(inspection_group__isnull=True)
-    ).exclude(
-        Q(inspection_group__travel_start_time__isnull=True) | Q(inspection_group__travel_end_time__isnull=True)
-    ).select_related('inspection_group').values('inspector_name', 'inspection_group__travel_start_time', 'inspection_group__travel_end_time')
+        Q(travel_start_time__isnull=True) | Q(travel_end_time__isnull=True)
+    ).values('id', 'inspector_name', 'travel_start_time', 'travel_end_time')
     tt_dict = {}
-    for insp in travel_time_filtered:
-        start = insp['inspection_group__travel_start_time']
-        end = insp['inspection_group__travel_end_time']
+    _tt_seen_groups = set()
+    for grp in travel_time_filtered:
+        if grp['id'] in _tt_seen_groups:
+            continue
+        _tt_seen_groups.add(grp['id'])
+        start = grp['travel_start_time']
+        end = grp['travel_end_time']
         if start and end:
             start_dt = datetime.combine(datetime.today(), start)
             end_dt = datetime.combine(datetime.today(), end)
             if end_dt < start_dt:
                 end_dt += timedelta(days=1)
             duration = (end_dt - start_dt).total_seconds() / 3600
-            name = insp['inspector_name']
+            name = grp['inspector_name']
             tt_dict[name] = tt_dict.get(name, 0) + duration
     travel_time_per_inspector = sorted(
         [{'inspector_name': n, 'total_hours': round(h, 1)} for n, h in tt_dict.items() if h > 0],

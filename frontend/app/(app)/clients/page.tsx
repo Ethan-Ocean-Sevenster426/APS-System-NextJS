@@ -753,16 +753,9 @@ export default function ClientsPage() {
   /* ------------------------------------------------------------------ */
   /*  Render                                                             */
   /* ------------------------------------------------------------------ */
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ width: 36, height: 36, border: "3px solid #e2e8f0", borderTopColor: "#007890", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <div style={{ fontSize: 14, color: "#64748b" }}>Loading...</div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    </div>
-  );
-
+  // No full-page loading gate: the header + filters render immediately (fast
+  // FCP/LCP) and the table below shows its own "Loading clients..." state until
+  // the fetch resolves.
   return (
     <>
       {/* ---- Scoped styles ---- */}
@@ -1137,13 +1130,8 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <div className="cas-loading">
-            <div style={{ width: 22, height: 22, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", marginRight: 10, flexShrink: 0 }} /> Loading clients...
-          </div>
-        ) : (
-          <div className="cas-table-container">
+        {/* Table — structure renders immediately; body shows skeleton rows while loading */}
+        <div className="cas-table-container">
             <table className="cas-table">
               <thead>
                 <tr>
@@ -1160,7 +1148,16 @@ export default function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {clients.map((c, i) => (
+                {loading && Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`}>
+                    {Array.from({ length: 10 }).map((_, j) => (
+                      <td key={j} style={{ padding: "10px 12px" }}>
+                        <div style={{ height: 10, background: "#e5e7eb", borderRadius: 4, opacity: 0.8 }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {!loading && clients.map((c, i) => (
                   <tr
                     key={c.client_id}
                     onContextMenu={(e) => handleContextMenu(e, c)}
@@ -1179,7 +1176,7 @@ export default function ClientsPage() {
                     <td style={{ padding: "0.5rem" }}>{c.phone_number || "-"}</td>
                   </tr>
                 ))}
-                {clients.length === 0 && (
+                {!loading && clients.length === 0 && (
                   <tr>
                     <td colSpan={10} style={{ textAlign: "center", padding: "2rem", color: "#9ca3af" }}>
                       No clients found.
@@ -1189,7 +1186,6 @@ export default function ClientsPage() {
               </tbody>
             </table>
           </div>
-        )}
 
         {/* Pagination */}
         {!loading && numPages > 1 && (

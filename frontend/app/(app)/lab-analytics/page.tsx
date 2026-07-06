@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
+import dynamic from "next/dynamic";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// chart.js is heavy; load it lazily in its own chunk (shared with other analytics
+// pages) instead of shipping it in this route's initial JS bundle.
+const Bar = dynamic(() => import("@/components/charts").then(m => m.Bar), { ssr: false });
 
 interface LabData {
   total_samples:      number;

@@ -3371,6 +3371,14 @@ def api_delete_file(request):
     if not os.path.isfile(file_path):
         return _cors(JsonResponse({'success': False, 'error': 'File not found'}, status=404))
 
+    # Inspectors may upload documents but must NOT be able to delete any of them.
+    user_role = getattr(request.user, 'role', '') if getattr(request, 'user', None) and request.user.is_authenticated else ''
+    if user_role in ('inspector', 'inspector_manager'):
+        return _cors(JsonResponse({
+            'success': False,
+            'error': 'Inspectors cannot delete documents. You can upload files, but only a manager or admin can delete them.',
+        }, status=403))
+
     os.remove(file_path)
     return _cors(JsonResponse({'success': True, 'message': f'File deleted: {os.path.basename(file_path)}'}))
 
@@ -4017,6 +4025,22 @@ def api_system_logs(request):
         except Exception:
             pass
 
+        # Summary stats across the whole filtered log set (not just this page)
+        from django.db.models import Count as _Count
+        from django.utils import timezone as _tz
+        # .order_by() clears the base '-timestamp' ordering so it doesn't leak
+        # into the GROUP BY and split the counts.
+        action_counts = {row['action']: row['c'] for row in logs.order_by().values('action').annotate(c=_Count('id')) if row['action']}
+        stats = {
+            'total_events': total,
+            'events_today': logs.filter(timestamp__date=_tz.now().date()).count(),
+            'active_users': logs.values('user').distinct().count(),
+            'file_uploads': action_counts.get('FILE_UPLOAD', 0),
+            'logins': action_counts.get('LOGIN', 0),
+            'record_edits': edit_history_total,
+            'action_counts': action_counts,
+        }
+
         return _cors(JsonResponse({
             'success': True,
             'total': total,
@@ -4029,6 +4053,7 @@ def api_system_logs(request):
             'edit_history_total': edit_history_total,
             'all_users': all_users,
             'all_pages': all_pages,
+            'stats': stats,
         }))
     except Exception as e:
         return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))

@@ -314,7 +314,10 @@ export default function AddInspectionPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Upload RFI file if present
+        // Upload RFI file if present. RFI is mandatory for RAW/PMP, so a failed
+        // upload must NOT be silently swallowed — otherwise the inspection is
+        // created with no RFI (exactly the gap we are closing).
+        const rfiRequired = commodities.RAW > 0 || commodities.PMP > 0;
         if (rfiFile && data.group_id) {
           try {
             const fd = new FormData();
@@ -324,10 +327,27 @@ export default function AddInspectionPage() {
             fd.append("group_id", `${slug}_${dateSlug}_g${data.group_id}`);
             fd.append("document_type", "rfi");
             fd.append("file", rfiFile);
-            await fetch("/api/upload-document", { method: "POST", body: fd });
-          } catch {
-            // Non-blocking: inspection created, file upload failed silently
+            const up = await fetch("/api/upload-document", { method: "POST", body: fd });
+            const upData = await up.json().catch(() => ({ success: up.ok }));
+            if (!up.ok || upData.success === false) {
+              throw new Error(upData.error || "RFI upload failed");
+            }
+          } catch (err) {
+            // Inspection exists but the required RFI didn't attach. Keep the user
+            // here with a clear warning so they re-upload from the Inspections page.
+            setToast({
+              msg: "Inspection saved, but the RFI upload failed. Please open the inspection on the Inspections page and upload the RFI — it is required for Raw/PMP.",
+              ok: false,
+            });
+            setSubmitting(false);
+            setTimeout(() => { window.location.href = "/inspections"; }, 3500);
+            return;
           }
+        } else if (rfiRequired) {
+          // Should be unreachable (step 3 validation blocks this), but guard anyway.
+          setToast({ msg: "An RFI document is required for Raw Meat / PMP inspections.", ok: false });
+          setSubmitting(false);
+          return;
         }
         window.location.href = "/inspections";
       } else {

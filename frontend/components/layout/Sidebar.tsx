@@ -36,7 +36,8 @@ const ALL_SECTIONS: NavSection[] = [
   {
     label: "Account",
     items: [
-      { href: "/settings", label: "Settings", icon: "fas fa-sliders-h" },
+      { href: "/notifications", label: "Notifications", icon: "fas fa-bell"      },
+      { href: "/settings",      label: "Settings",      icon: "fas fa-sliders-h" },
     ],
   },
 ];
@@ -63,11 +64,11 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
   ]),
   super_admin: new Set([
     "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet",    "/user-management", "/system-logs", "/server-view",
-    "/training", "/settings",
+    "/training", "/notifications", "/settings",
   ]),
   developer: new Set([
     "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet",    "/user-management", "/system-logs", "/server-view",
-    "/training", "/settings",
+    "/training", "/notifications", "/settings",
   ]),
 };
 
@@ -122,28 +123,43 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
   // Don't render nav until role is known (prevents flash of wrong items)
   const sections = role ? filterSections(ALL_SECTIONS, role) : [];
 
+  // Keep the ORIGINAL dark FSA colours everywhere. On the Notifications page,
+  // adopt the Filament sidebar's item styling: fully-rounded tinted active
+  // items (no left-border indicator) with a little more breathing room.
+  const filament = pathname === "/notifications";
+  const T = {
+    aside: "#0f172a", border: "#1e293b", brandBorder: "#1e293b",
+    brandTitle: "#ffffff", brandSub: "#64748b",
+    toggle: "#475569", groupLabel: "#475569",
+    itemText: "#94a3b8", itemHoverBg: "#1e293b", itemHoverText: "#e2e8f0",
+    activeBg: "#007890", activeText: "#ffffff",
+    activeBorder: filament ? "transparent" : "#00b4d8",
+    itemRadius: filament ? 8 : 4,
+    userName: "#e2e8f0", userRole: "#475569", signout: "#64748b",
+  };
+
   return (
     <aside style={{
       width: collapsed ? 64 : 180,
       minWidth: collapsed ? 64 : 180,
       height: "100vh",
-      backgroundColor: "#0f172a",
-      color: "#cbd5e1",
+      backgroundColor: T.aside,
+      color: T.itemText,
       display: "flex",
       flexDirection: "column",
       flexShrink: 0,
-      borderRight: "1px solid #1e293b",
+      borderRight: `1px solid ${T.border}`,
       transition: "width 0.25s ease, min-width 0.25s ease",
       overflow: "hidden",
     }}>
 
       {/* Brand — only when expanded */}
       {!collapsed && (
-        <div style={{ padding: "8px 8px", borderBottom: "1px solid #1e293b", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", flexShrink: 0 }}>
-          <Image src="/logo.png" alt="FSA Logo" width={56} height={56} style={{ borderRadius: "8px", marginBottom: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
+        <div style={{ padding: "8px 8px", borderBottom: `1px solid ${T.brandBorder}`, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", flexShrink: 0 }}>
+          <Image src="/logo.png" alt="FSA Logo" width={110} height={57} priority style={{ height: 48, width: "auto", borderRadius: "8px", marginBottom: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }} />
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "0.62rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.2 }}>Food Safety Agency</div>
-            <div style={{ fontSize: "0.5rem", color: "#64748b", marginTop: "1px" }}>Management Platform</div>
+            <div style={{ fontSize: "0.62rem", fontWeight: 700, color: T.brandTitle, lineHeight: 1.2 }}>Food Safety Agency</div>
+            <div style={{ fontSize: "0.5rem", color: T.brandSub, marginTop: "1px" }}>Management Platform</div>
           </div>
         </div>
       )}
@@ -157,13 +173,13 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
           justifyContent: collapsed ? "center" : "flex-end",
           padding: collapsed ? "10px 0" : "10px 8px",
           background: "none", border: "none",
-          borderBottom: "1px solid #1e293b",
-          color: "#475569", cursor: "pointer",
+          borderBottom: `1px solid ${T.brandBorder}`,
+          color: T.toggle, cursor: "pointer",
           fontSize: "0.6rem", transition: "color 0.15s",
           flexShrink: 0, width: "100%",
         }}
         onMouseEnter={e => e.currentTarget.style.color = "#007890"}
-        onMouseLeave={e => e.currentTarget.style.color = "#475569"}
+        onMouseLeave={e => e.currentTarget.style.color = T.toggle}
       >
         <i className={`fas fa-${collapsed ? "chevron-right" : "chevron-left"}`} />
       </button>
@@ -173,7 +189,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
         {sections.map((section) => (
           <div key={section.label} style={{ marginBottom: 0 }}>
             {!collapsed && (
-              <div style={{ fontSize: "0.55rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 6px", marginBottom: 1, marginTop: "6px" }}>
+              <div style={{ fontSize: "0.55rem", fontWeight: 700, color: T.groupLabel, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 6px", marginBottom: 1, marginTop: "6px" }}>
                 {section.label}
               </div>
             )}
@@ -192,26 +208,26 @@ export default function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) 
                         gap: collapsed ? 0 : 8,
                         padding: collapsed ? "9px 0" : "7px 10px",
                         justifyContent: collapsed ? "center" : "flex-start",
-                        borderRadius: collapsed ? 0 : 4,
+                        borderRadius: collapsed ? 0 : T.itemRadius,
                         fontSize: "0.62rem",
                         fontWeight: isActive ? 600 : 400,
-                        color: isActive ? "#ffffff" : "#94a3b8",
+                        color: isActive ? T.activeText : T.itemText,
                         textDecoration: "none",
-                        backgroundColor: isActive ? "#007890" : "transparent",
-                        borderLeft: collapsed ? "none" : (isActive ? "2px solid #00b4d8" : "2px solid transparent"),
+                        backgroundColor: isActive ? T.activeBg : "transparent",
+                        borderLeft: collapsed ? "none" : (isActive ? `2px solid ${T.activeBorder}` : "2px solid transparent"),
                         borderRight: "none",
                         transition: "all 0.15s ease",
                       }}
                       onMouseEnter={(e) => {
                         if (!isActive) {
-                          e.currentTarget.style.backgroundColor = "#1e293b";
-                          e.currentTarget.style.color = "#e2e8f0";
+                          e.currentTarget.style.backgroundColor = T.itemHoverBg;
+                          e.currentTarget.style.color = T.itemHoverText;
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isActive) {
                           e.currentTarget.style.backgroundColor = "transparent";
-                          e.currentTarget.style.color = "#94a3b8";
+                          e.currentTarget.style.color = T.itemText;
                         }
                       }}
                     >

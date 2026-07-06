@@ -67,6 +67,21 @@ const ROLE_LABELS: Record<string, string> = {
   developer: "Developer",
 };
 
+/* ── Filament (FSA teal) tokens + stat widget ────────────────────────────── */
+function Stat({ label, value, icon, tint, color }: { label: string; value: React.ReactNode; icon: string; tint: string; color: string; }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 0 0 1px rgba(17,24,39,0.05), 0 1px 2px 0 rgba(0,0,0,0.05)", padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6b7280" }}>{label}</span>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: tint, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className={icon} style={{ color, fontSize: "0.85rem" }} />
+        </div>
+      </div>
+      <div style={{ fontSize: "1.75rem", fontWeight: 700, letterSpacing: "-0.02em", color: "#007890", marginTop: 8, lineHeight: 1.1 }}>{value}</div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -281,6 +296,19 @@ export default function UserManagementPage() {
       return true;
     });
   }, [users, appliedRoles, appliedStatuses, appliedSearch]);
+
+  // ---- summary stats (client-side over all users) ----
+  const stats = useMemo(() => {
+    const active = users.filter((u) => u.is_active).length;
+    const roleCount = (r: string) => users.filter((u) => u.role === r).length;
+    return {
+      total: users.length,
+      active,
+      inactive: users.length - active,
+      inspectors: roleCount("inspector") + roleCount("inspector_manager"),
+      admins: roleCount("admin") + roleCount("super_admin") + roleCount("developer"),
+    };
+  }, [users]);
 
   // ---- API helpers ----
   const postAction = async (body: Record<string, unknown>) => {
@@ -529,10 +557,10 @@ export default function UserManagementPage() {
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100vw", height: "100vh", background: "url('/background.jpg') no-repeat center center fixed", backgroundSize: "cover", zIndex: -2, pointerEvents: "none" }} />
       <style>{`
 /* Card styles */
-.um-card { background: #ffffff; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); margin-bottom: 10px; border: 1px solid #e5e7eb; width: 100%; }
-.um-card-header { padding: 0.625rem 0.875rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; min-height: 44px; }
-.um-card-title { font-size: 0.8125rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 0.375rem; }
-.um-card-body { padding: 0.875rem 1rem; }
+.um-card { background: #ffffff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(17,24,39,0.05), 0 1px 2px 0 rgba(0,0,0,0.05); margin-bottom: 20px; border: none; width: 100%; }
+.um-card-header { padding: 14px 20px; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; min-height: 44px; }
+.um-card-title { font-size: 0.95rem; font-weight: 600; color: #111827; display: flex; align-items: center; gap: 0.375rem; }
+.um-card-body { padding: 20px; }
 
 /* Button styles */
 .um-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.35rem 0.65rem; border-radius: 4px; border: none; font-weight: 500; font-size: 0.6875rem; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -547,13 +575,13 @@ export default function UserManagementPage() {
 .um-btn-xs { padding: 4px 8px; font-size: 0.7rem; width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
 
 /* Table styles */
-.um-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; background: white; }
-.um-table th { background-color: #fafafa; color: #1f2937; text-align: left; padding: 10px 12px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #e5e7eb; font-size: 0.75rem; position: sticky; top: 0; z-index: 10; }
-.um-table tr:nth-child(even) { background-color: #fafafa; }
+.um-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: white; }
+.um-table th { background-color: #fafafa; color: #6b7280; text-align: left; padding: 11px 18px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #f3f4f6; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; z-index: 10; }
+.um-table tr:nth-child(even) { background-color: #ffffff; }
 .um-table tr:nth-child(odd) { background-color: white; }
-.um-table tbody tr:hover { background-color: rgba(0, 115, 135, 0.04); }
+.um-table tbody tr:hover { background-color: #f9fafb; }
 .um-table tbody tr { cursor: pointer; transition: background-color 0.15s ease; }
-.um-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.75rem; white-space: nowrap; color: #374151; }
+.um-table td { padding: 12px 18px; border-top: 1px solid #f3f4f6; border-bottom: none; font-size: 0.8rem; white-space: nowrap; color: #374151; }
 
 /* Role badges */
 .um-role-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2); display: inline-block; }
@@ -600,9 +628,9 @@ export default function UserManagementPage() {
 .um-password-toggle { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b7280; padding: 0.25rem; }
 
 /* Header */
-.um-header { text-align: center; margin-bottom: 16px; }
-.um-header h1 { color: #fff; font-size: 1.3rem; font-weight: 700; margin: 0 0 4px; }
-.um-header h2 { color: rgba(255,255,255,0.8); font-size: 0.8rem; font-weight: 400; margin: 0; }
+.um-header { text-align: left; margin-bottom: 24px; }
+.um-header h1 { color: #fff; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; text-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+.um-header h2 { color: rgba(255,255,255,0.9); font-size: 0.875rem; font-weight: 400; margin: 0; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 
 /* Form actions */
 .um-form-actions { display: flex; gap: 0.5rem; align-items: center; padding-top: 0.625rem; border-top: 1px solid #e5e7eb; margin-top: 0.75rem; flex-wrap: wrap; }
@@ -614,10 +642,12 @@ export default function UserManagementPage() {
 .um-loading { display: flex; justify-content: center; align-items: center; padding: 3rem; color: #6b7280; font-size: 1rem; background: white; border-radius: 0.5rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
 
 /* Table responsive */
-.um-table-responsive { overflow-x: auto; border-radius: 8px; border: 1px solid #e5e7eb; width: 100%; background: white; }
+.um-table-responsive { overflow-x: auto; border-radius: 0 0 12px 12px; width: 100%; background: white; }
 
 /* Container */
-.um-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 1.25rem 1.5rem; box-sizing: border-box; }
+.um-container { width: 100%; margin: 0; padding: 32px 32px 48px; box-sizing: border-box; }
+.um-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+@media (max-width: 1000px) { .um-stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
 
 /* Mobile card view toggle */
 .um-mobile-only { display: none !important; }
@@ -693,8 +723,17 @@ export default function UserManagementPage() {
       <div className="um-container">
         {/* Header */}
         <div className="um-header">
-          <h1><i className="fas fa-users-cog" style={{ marginRight: 10 }} />User Management</h1>
+          <h1><i className="fas fa-users-gear" style={{ marginRight: 10 }} />User Management</h1>
           <h2>Manage user accounts, roles, and permissions</h2>
+        </div>
+
+        {/* Stat widgets */}
+        <div className="um-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 20 }}>
+          <Stat label="Total users" value={stats.total} icon="fas fa-users" tint="#e0f2f5" color="#007890" />
+          <Stat label="Active" value={stats.active} icon="fas fa-circle-check" tint="#dcfce7" color="#16a34a" />
+          <Stat label="Inactive" value={stats.inactive} icon="fas fa-circle-xmark" tint="#fee2e2" color="#dc2626" />
+          <Stat label="Inspectors" value={stats.inspectors} icon="fas fa-user-shield" tint="#e0e7ff" color="#4338ca" />
+          <Stat label="Admins" value={stats.admins} icon="fas fa-user-gear" tint="#f3e8ff" color="#7c3aed" />
         </div>
 
         {/* Filter Card */}

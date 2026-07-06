@@ -32,6 +32,7 @@ from .views.core_views import (
     trigger_kpi_emails,
     delete_ticket, get_ticket_details, create_ticket_admin, assign_ticket,
 )
+from .views.kpi_report import api_kpi_report, api_sample_discrepancies, api_sample_discrepancy_rectify, api_toggle_group_discrepancy, api_open_discrepancy_groups
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
     api_inspections, api_clients,
@@ -255,6 +256,11 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/read/', mark_notification_read, name='mark_notification_read'),
     path('api/notifications/mark-all-read/', mark_all_notifications_read, name='mark_all_notifications_read'),
     path('api/notifications/<int:notification_id>/delete/', delete_notification, name='delete_notification'),
+    path('api/kpi-report/', api_kpi_report, name='api_kpi_report'),
+    path('api/sample-discrepancies/', api_sample_discrepancies, name='api_sample_discrepancies'),
+    path('api/sample-discrepancies/<int:pk>/rectify/', api_sample_discrepancy_rectify, name='api_sample_discrepancy_rectify'),
+    path('api/sample-discrepancies/toggle-group/', api_toggle_group_discrepancy, name='api_toggle_group_discrepancy'),
+    path('api/sample-discrepancies/open-groups/', api_open_discrepancy_groups, name='api_open_discrepancy_groups'),
 
     path('developer/compliance-documents/', compliance_documents, name='compliance_documents'),
     path('developer/onedrive-view/', onedrive_view, name='onedrive_view'),

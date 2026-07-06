@@ -267,6 +267,13 @@ export default function ExportSheetPage() {
   // ── Grand total ─────────────────────────────────────────────────────────────
   const grandTotal = useMemo(() => filteredItems.reduce((s, i) => s + (i.total || 0), 0), [filteredItems]);
 
+  // ── On-screen render cap ─────────────────────────────────────────────────────
+  // The table can hold thousands of line items; rendering them all blocks the main
+  // thread. Cap the *preview* to keep the page responsive — totals and the Excel/CSV
+  // exports still use the full filteredItems set, so nothing is lost.
+  const RENDER_CAP = 300;
+  const visibleItems = useMemo(() => filteredItems.slice(0, RENDER_CAP), [filteredItems]);
+
   // ── Clear filters ───────────────────────────────────────────────────────────
   const handleClear = () => {
     setClientFilter(""); setInspectorFilter([]); setGroupFilter(""); setMonthFilter("");
@@ -430,7 +437,7 @@ export default function ExportSheetPage() {
         {/* Header */}
         <div style={{ marginBottom: 20, textAlign: "center" }}>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "white", margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)", display: "inline-flex", alignItems: "center", gap: 10 }}>
-            <i className="fas fa-file-export" style={{ color: "#5ee8ff", fontSize: "1.2rem" }} />
+            <i className="fas fa-file-export" style={{ color: "#ffffff", fontSize: "1.2rem" }} />
             Food Safety Agency (Pty) Ltd
           </h1>
           <p style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.9)", margin: "4px 0 0", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>Export Sheet</p>
@@ -523,7 +530,6 @@ export default function ExportSheetPage() {
                       { icon: "fas fa-file-excel", label: "Export to Excel (.xlsx)", action: () => { setExportOpen(false); exportExcel(); } },
                       null,
                       { icon: "fas fa-file-csv", label: "Export as CSV", action: () => { setExportOpen(false); exportCSV(false); } },
-                      { icon: "fas fa-file-excel", label: "Export as Excel CSV", action: () => { setExportOpen(false); exportCSV(true); } },
                     ].map((item, i) =>
                       item === null ? <div key={i} style={{ height: 1, background: "#e5e7eb", margin: "4px 0" }} /> :
                       <button key={i} onClick={item.action}
@@ -573,7 +579,7 @@ export default function ExportSheetPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredItems.map((item, idx) => {
+                    {visibleItems.map((item, idx) => {
                       const even = idx % 2 === 0;
                       const isDone = !!item.invoice_number;
                       return (
@@ -604,6 +610,14 @@ export default function ExportSheetPage() {
                         </tr>
                       );
                     })}
+                    {filteredItems.length > RENDER_CAP && (
+                      <tr>
+                        <td colSpan={11} style={{ padding: "10px 6px", textAlign: "center", background: "#fffbeb", color: "#92400e", fontSize: "0.78rem", fontWeight: 500, borderTop: "1px solid #fcd34d" }}>
+                          <i className="fas fa-info-circle" style={{ marginRight: 6 }} />
+                          Showing the first {RENDER_CAP.toLocaleString()} of {filteredItems.length.toLocaleString()} line items for a fast preview. The Grand Total below and the Excel / CSV export include all {filteredItems.length.toLocaleString()} rows — refine the filters to narrow the preview.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                   <tfoot>
                     <tr>
