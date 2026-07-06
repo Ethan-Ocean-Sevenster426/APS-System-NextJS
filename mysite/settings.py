@@ -83,6 +83,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Enables static file serving in production
+    'main.middleware.ApiAuthJsonMiddleware',  # Convert /api login-redirects to JSON 401 (avoid proxy 502)
     'main.middleware.SecurityHeadersMiddleware',  # Custom security headers middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

@@ -32,6 +32,51 @@ class CurrentUserMiddleware:
             _thread_locals.user = None
 
 
+class ApiAuthJsonMiddleware:
+    """
+    For /api/ requests, convert a redirect to the login page into a clean JSON
+    401 response.
+
+    Django's @login_required (and other auth gates) respond to unauthenticated
+    requests with a 302 redirect to LOGIN_URL. That's correct for full-page
+    navigation, but the Next.js /api proxy does `res.json()` on the upstream
+    response — a 302 makes fetch follow the redirect to the HTML login page,
+    JSON parsing throws, and the proxy surfaces it to the browser as a 502 Bad
+    Gateway. Returning a JSON 401 instead lets the frontend detect the expired
+    session and handle it gracefully.
+
+    Only redirects to our OWN login path are rewritten; external OAuth redirects
+    (e.g. Xero, which are absolute https URLs) are left untouched.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        from django.conf import settings
+        login = getattr(settings, 'LOGIN_URL', '/login/')
+        if login and not str(login).startswith('/'):
+            try:
+                from django.urls import reverse
+                login = reverse(login)
+            except Exception:
+                login = '/' + str(login)
+        self.login_path = login or '/login/'
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if (request.path.startswith('/api/')
+                and getattr(response, 'status_code', 0) in (301, 302)):
+            location = response.headers.get('Location', '') or ''
+            # Relative redirect to our own login page only — never absolute
+            # external URLs (OAuth providers).
+            if location.startswith(self.login_path):
+                from django.http import JsonResponse
+                return JsonResponse(
+                    {'success': False, 'error': 'Authentication required'},
+                    status=401,
+                )
+        return response
+
+
 class SecurityHeadersMiddleware:
     """Middleware to add modern security headers to all responses"""
 
