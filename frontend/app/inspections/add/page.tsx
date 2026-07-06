@@ -243,6 +243,7 @@ export default function AddInspectionPage() {
       if (!dateOfInspection) m.push("Date of Inspection");
       if (!clientName.trim()) m.push("Client Name");
       if (!town.trim()) m.push("Town");
+      if (!primaryEmail.trim()) m.push("Client Email (Primary)");
       if (!corporateGroup.trim()) m.push("Business");
       if (!groupType.trim()) m.push("Store Type");
       if (!facilityType.trim()) m.push("Facility Type");
@@ -253,6 +254,9 @@ export default function AddInspectionPage() {
       const m: string[] = [];
       products.forEach((p, i) => {
         if (!p.product_name.trim()) m.push(`Product #${i + 1} name`);
+        if (p.is_sample_taken && !p.lab.trim()) {
+          m.push(`Product #${i + 1}: select a Lab (sample taken)`);
+        }
         if (p.is_sample_taken && !p.fat && !p.protein && !p.calcium && !p.dna) {
           m.push(`Product #${i + 1}: select at least one test (Fat/Protein/Calcium/DNA)`);
         }
@@ -964,7 +968,7 @@ export default function AddInspectionPage() {
             <Autocomplete label="Town" required options={options?.towns ?? []} value={town} onChange={setTown} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
-              <label className="form-label">Client Email (Primary)</label>
+              <label className="form-label">Client Email (Primary) <span style={{ color: "#ef4444" }}>*</span></label>
               <input type="email" className="form-control" value={primaryEmail}
                 onChange={e => setPrimaryEmail(e.target.value)} placeholder="primary@example.com" />
               <small style={{ color: "#6b7280", fontSize: 11 }}>Main client email. Documents will be sent to this address.</small>
@@ -1234,7 +1238,7 @@ export default function AddInspectionPage() {
                   onClick={() => document.getElementById("rfiFileInput")?.click()}
                   onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#007890"; e.currentTarget.style.background = "#e6f3f7"; }}
                   onDragLeave={e => { e.currentTarget.style.borderColor = rfiFile ? "#22c55e" : "#d1d5db"; e.currentTarget.style.background = rfiFile ? "#f0fdf4" : "#fafafa"; }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#22c55e"; e.currentTarget.style.background = "#f0fdf4"; if (e.dataTransfer.files[0]) setRfiFile(e.dataTransfer.files[0]); }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#22c55e"; e.currentTarget.style.background = "#f0fdf4"; const f = e.dataTransfer.files[0]; if (f && (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"))) setRfiFile(f); else if (f) setToast({ msg: "The RFI must be a PDF file.", ok: false }); }}
                 >
                   {rfiFile ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
@@ -1252,12 +1256,12 @@ export default function AddInspectionPage() {
                     <>
                       <i className="fas fa-cloud-upload-alt" style={{ fontSize: "2rem", color: "#9ca3af", display: "block", marginBottom: 6 }} />
                       <p style={{ margin: 0, fontWeight: 500, color: "#374151", fontSize: 14 }}>Click or drag to upload RFI document</p>
-                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>PDF, DOC, DOCX, JPG, PNG</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>PDF only</p>
                     </>
                   )}
                 </div>
-                <input type="file" id="rfiFileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" style={{ display: "none" }}
-                  onChange={e => { if (e.target.files?.[0]) setRfiFile(e.target.files[0]); }} />
+                <input type="file" id="rfiFileInput" accept=".pdf,application/pdf" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f && (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"))) setRfiFile(f); else if (f) setToast({ msg: "The RFI must be a PDF file.", ok: false }); }} />
               </div>
             )}
           </div>
