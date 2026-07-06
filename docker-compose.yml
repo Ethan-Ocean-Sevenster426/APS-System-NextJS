@@ -44,7 +44,7 @@ services:
     volumes:
       - media:/app/media
     ports:
-      - "8001:8000"   # host:container — Django admin/API also reachable directly
+      - "${BACKEND_PORT:-8001}:8000"   # override with BACKEND_PORT in .env to avoid clashes
 
   frontend:
     build:
@@ -57,7 +57,7 @@ services:
       # Server-side proxy target inside the compose network.
       DJANGO_API_URL: http://backend:8000
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"   # override with FRONTEND_PORT in .env to avoid clashes
 
 volumes:
   pgdata:
