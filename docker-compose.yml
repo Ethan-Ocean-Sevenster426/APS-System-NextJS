@@ -42,7 +42,9 @@ services:
       GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
       GRAPH_TENANT_ID: ${GRAPH_TENANT_ID:-}
     volumes:
-      - media:/app/media
+      # Bind-mount the existing on-disk media folder (uploaded documents) straight
+      # into the container — no copy, so it works even on a nearly-full disk.
+      - ./media:/app/media
     ports:
       - "${BACKEND_PORT:-8001}:8000"   # override with BACKEND_PORT in .env to avoid clashes
 
@@ -61,4 +63,3 @@ services:
 
 volumes:
   pgdata:
-  media:
