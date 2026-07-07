@@ -807,6 +807,12 @@ export default function InspectionsPage() {
       .catch(() => {});
   }, [canFlag]);
 
+  // Show toast notification
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
+
   const toggleSampleFlag = useCallback(async (s: Inspection) => {
     const gid = String(s.group_id || s.id);
     const wasFlagged = flaggedGroups.has(gid);
@@ -824,12 +830,6 @@ export default function InspectionsPage() {
       }
     } catch { /* revert on error */ setFlaggedGroups(prev => { const n = new Set(prev); wasFlagged ? n.add(gid) : n.delete(gid); return n; }); }
   }, [flaggedGroups, showToast]);
-
-  // Show toast notification
-  const showToast = useCallback((message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
-  }, []);
 
   // Core upload function
   const performUpload = useCallback(async (file: File, inspectionId: number, groupId: string, documentType: string, productId: number, complianceStatus?: string) => {
