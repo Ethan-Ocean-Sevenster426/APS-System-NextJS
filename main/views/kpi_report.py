@@ -595,6 +595,83 @@ def api_sample_discrepancy_rectify(request, pk):
     return _cors(JsonResponse({"success": True, "rectified": d.rectified}))
 
 
+def _find_inspector_email(inspector_name):
+    """Resolve an inspector's User email from their display name (first last / username)."""
+    from django.contrib.auth.models import User
+    name = (inspector_name or "").strip()
+    if not name:
+        return None, None
+    # Match on full name (first + last) first, then username — case-insensitive.
+    for u in User.objects.exclude(email="").filter(is_active=True):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full and full.lower() == name.lower():
+            return u.email, (u.first_name or full)
+    u = User.objects.filter(username__iexact=name, is_active=True).exclude(email="").first()
+    if u:
+        return u.email, (u.first_name or u.username)
+    return None, None
+
+
+def _notify_inspector_of_discrepancy(inspector_name, client_name, date_of_inspection, reported_by=None):
+    """
+    Email the inspector a friendly, positive, professional reminder that the
+    sampling information for a visit is missing or needs correcting.
+    Best-effort: never raises. Returns True if an email was sent.
+    """
+    try:
+        to_email, first_name = _find_inspector_email(inspector_name)
+        if not to_email:
+            return False
+        from django.core.mail import EmailMessage
+
+        when = ""
+        if date_of_inspection:
+            try:
+                d = date_of_inspection
+                if isinstance(d, str):
+                    d = datetime.datetime.strptime(d[:10], "%Y-%m-%d").date()
+                when = d.strftime("%d %b %Y")
+            except Exception:
+                when = str(date_of_inspection)
+        visit_bits = []
+        if client_name:
+            visit_bits.append(f"<b>{client_name}</b>")
+        if when:
+            visit_bits.append(f"on <b>{when}</b>")
+        visit = (" your visit to " + " ".join(visit_bits)) if visit_bits else " one of your recent visits"
+
+        greeting = f"Hi {first_name}," if first_name else "Hi there,"
+        subject = "Quick follow-up on your recent inspection — sampling details"
+        html = (
+            "<div style='font-family:Arial,sans-serif;color:#1f2937;font-size:14px;line-height:1.55;'>"
+            f"<p>{greeting}</p>"
+            "<p>Thank you for your continued work out in the field — it's genuinely appreciated.</p>"
+            f"<p>While reviewing the lab samples for{visit}, we noticed that some of the "
+            "sampling information appears to be missing or may need a small correction.</p>"
+            "<p>When you have a moment, could you please review this visit and update the "
+            "sampling details so our records stay accurate and complete? It really helps keep "
+            "everything running smoothly on the lab side.</p>"
+            "<p>If anything is unclear or you'd like a hand, just reply to this email and we'll "
+            "be glad to help.</p>"
+            "<p>Thanks so much,<br><strong>APS Inspection System</strong></p></div>"
+        )
+        reply_to = [getattr(reported_by, "email", "") or settings.DEFAULT_FROM_EMAIL]
+        msg = EmailMessage(
+            subject=subject, body=html,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[to_email], reply_to=reply_to,
+        )
+        msg.content_subtype = "html"
+        msg.send(fail_silently=False)
+        return True
+    except Exception as e:
+        try:
+            print(f"[DISCREPANCY EMAIL] failed to notify inspector '{inspector_name}': {e}")
+        except Exception:
+            pass
+        return False
+
+
 @csrf_exempt
 @login_required
 @role_required(["super_admin", "developer", "lab_technician"])
@@ -616,15 +693,25 @@ def api_toggle_group_discrepancy(request):
     if existing:
         existing.delete()
         return _cors(JsonResponse({"success": True, "flagged": False}))
+    _inspector_name = (body.get("inspector_name") or "").strip()
+    _client_name = (body.get("client_name") or "").strip()
+    _doi = (body.get("date_of_inspection") or None)
     SampleDiscrepancy.objects.create(
         inspection_group_id=group_id,
-        inspector_name=(body.get("inspector_name") or "").strip(),
-        client_name=(body.get("client_name") or "").strip(),
-        date_of_inspection=(body.get("date_of_inspection") or None),
+        inspector_name=_inspector_name,
+        client_name=_client_name,
+        date_of_inspection=_doi,
         note="Inspector did not add the correct sampling information for this visit.",
         reported_by=request.user if request.user.is_authenticated else None,
     )
-    return _cors(JsonResponse({"success": True, "flagged": True}))
+    # Send the inspector a friendly reminder to review/correct the sampling info.
+    reminder_sent = _notify_inspector_of_discrepancy(
+        inspector_name=_inspector_name,
+        client_name=_client_name,
+        date_of_inspection=_doi,
+        reported_by=request.user if request.user.is_authenticated else None,
+    )
+    return _cors(JsonResponse({"success": True, "flagged": True, "reminder_email_sent": reminder_sent}))
 
 
 @login_required

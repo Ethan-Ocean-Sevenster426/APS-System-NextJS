@@ -812,12 +812,18 @@ export default function InspectionsPage() {
     const wasFlagged = flaggedGroups.has(gid);
     setFlaggedGroups(prev => { const n = new Set(prev); wasFlagged ? n.delete(gid) : n.add(gid); return n; });
     try {
-      await fetch("/api/sample-discrepancies/toggle-group", {
+      const res = await fetch("/api/sample-discrepancies/toggle-group", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group_id: gid, inspector_name: s.inspector_name, client_name: s.client_name, date_of_inspection: s.date_of_inspection }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!wasFlagged && data?.flagged) {
+        showToast(data.reminder_email_sent
+          ? `Flagged — a friendly reminder was emailed to ${s.inspector_name || "the inspector"}.`
+          : "Flagged. No matching inspector email was found, so no reminder was sent.");
+      }
     } catch { /* revert on error */ setFlaggedGroups(prev => { const n = new Set(prev); wasFlagged ? n.add(gid) : n.delete(gid); return n; }); }
-  }, [flaggedGroups]);
+  }, [flaggedGroups, showToast]);
 
   // Show toast notification
   const showToast = useCallback((message: string) => {
