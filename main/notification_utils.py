@@ -198,7 +198,7 @@ def notify_data_sync_failure(sync_source, hours_since_last_sync, affected_record
         message=f"Data sync from {sync_source} has failed.{affected} not updated for {hours_since_last_sync} hours. Business operations may be affected.",
         notification_type='warning',
         priority='critical',
-        action_url='/settings/'
+        action_url='/settings'
     )
 
 
@@ -228,7 +228,7 @@ def notify_fee_rate_changed(changed_by, old_rate, new_rate, fee_type='Inspection
         message=f"{fee_type} {direction} from R{old_rate:.2f} to R{new_rate:.2f} ({abs(percentage_change):.1f}% change).{effective_msg} Changed by {changed_by}.",
         notification_type='info',
         priority='medium',
-        action_url='/export_sheet/'
+        action_url='/export-sheet'
     )
 
 
@@ -252,7 +252,7 @@ def notify_new_user_added(username, role, added_by):
         message=f"New user '{username}' added with role '{role}' by {added_by}.",
         notification_type='info',
         priority='low',
-        action_url='/user_management/'
+        action_url='/user-management'
     )
 
 
@@ -277,7 +277,7 @@ def notify_new_client_added(client_name, account_code, commodity_type, added_by)
         message=f"New client '{client_name}' (Code: {account_code}) added for {commodity_type} inspections by {added_by}.",
         notification_type='info',
         priority='low',
-        action_url='/client_allocation/'
+        action_url='/clients'
     )
 
 
@@ -309,7 +309,7 @@ def notify_monthly_inspection_summary(current_month, current_count, previous_mon
         message=f"{current_month}: {current_count} inspections completed - {abs(percentage_change):.1f}% {direction} than {previous_month} ({previous_count} inspections). {'Strong performance! 🎯' if percentage_change > 10 else 'Monitor trends closely.' if percentage_change < -10 else ''}",
         notification_type=notification_type,
         priority=priority,
-        action_url='/analytics_dashboard/'
+        action_url='/analytics'
     )
 
 

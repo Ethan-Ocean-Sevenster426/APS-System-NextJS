@@ -725,7 +725,7 @@ def api_kpi_report(request):
                 message=f"Inspector KPI Report ({data['period_label']}) emailed to {recipient}.",
                 notification_type="success",
                 priority="medium",
-                action_url="/kpi-report",
+                action_url="/notifications",
             )
             note = Notification.objects.filter(related_object_type=None, title="KPI Report sent").order_by("-created_at").first()
             if note:
