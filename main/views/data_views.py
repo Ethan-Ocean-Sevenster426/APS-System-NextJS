@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt as _csrf_exempt
 from django.db import transaction
 from django.utils.dateparse import parse_date
 from ..models import Shipment, Client
+from ..permissions import require_capability, user_can, capability_denied
 from .utils import apply_filters, clear_messages
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
@@ -1926,6 +1927,7 @@ def get_inspection_fees(request):
 
 @login_required
 @require_POST
+@require_capability('manage_fees')
 def update_inspection_fees(request):
     """
     Update inspection fees with versioning support.
@@ -2041,6 +2043,7 @@ def get_inspection_fee_history(request):
 # =============================================================================
 
 @_csrf_exempt
+@require_capability('manage_clients')
 def api_client_add(request):
     """API endpoint to add a new client allocation record. No login required."""
     from ..models import ClientAllocation
@@ -2148,6 +2151,7 @@ def api_client_add(request):
 
 
 @_csrf_exempt
+@require_capability('manage_clients')
 def api_client_edit(request):
     """API endpoint to edit an existing client allocation record. No login required."""
     from ..models import ClientAllocation
@@ -2211,6 +2215,7 @@ def api_client_edit(request):
 
 
 @_csrf_exempt
+@require_capability('manage_clients')
 def api_client_delete(request):
     """API endpoint to delete a client allocation record. No login required."""
     from ..models import ClientAllocation
@@ -2311,8 +2316,9 @@ def api_dropdown_options(request):
     return _cors(JsonResponse({'success': False, 'error': 'Invalid method'}, status=405))
 
 
+@require_capability('manage_clients')
 def api_dropdown_option_delete(request):
-    """API endpoint to delete a dropdown option. No login required."""
+    """API endpoint to delete a dropdown option."""
     from ..models import Client, ClientDropdownOption
     import json
 
@@ -3356,8 +3362,7 @@ def api_delete_file(request):
         return _cors(JsonResponse({'success': False, 'error': 'Not authenticated'}, status=401))
 
     # Inspectors may upload documents but must NOT be able to delete any of them.
-    user_role = getattr(request.user, 'role', '')
-    if user_role in ('inspector', 'inspector_manager'):
+    if not user_can(request.user, 'delete_documents'):
         return _cors(JsonResponse({
             'success': False,
             'error': 'Inspectors cannot delete documents. You can upload files, but only a manager or admin can delete them.',
@@ -3880,6 +3885,7 @@ def api_log_activity(request):
 #  API: System Logs
 # ---------------------------------------------------------------------------
 @_csrf_exempt
+@require_capability('view_system_logs')
 def api_system_logs(request):
     from ..models import SystemLog
 
@@ -4068,6 +4074,7 @@ def api_system_logs(request):
 #  API: Export Sheet
 # ---------------------------------------------------------------------------
 @_csrf_exempt
+@require_capability('view_financials')
 def api_export_sheet(request):
     from ..models import FoodSafetyAgencyInspection as _I
     from datetime import datetime as _dt, timedelta
@@ -4344,6 +4351,7 @@ def api_corporate_group_email_delete(request):
 #  API: Send Corporate Invoice email
 # ---------------------------------------------------------------------------
 @_csrf_exempt
+@require_capability('send_invoices')
 def api_send_corporate_invoice(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
@@ -4542,8 +4550,9 @@ def api_react_fees_get(request):
 
 
 @_csrf_exempt
+@require_capability('manage_fees')
 def api_react_fees_update(request):
-    """Update inspection fees — no auth required for Next.js (POST only)."""
+    """Update inspection fees (POST only)."""
     import json
     from ..models import InspectionFee, FeeHistory
     from datetime import date
@@ -4669,6 +4678,7 @@ def api_react_fees_history(request):
 #  API: Server View
 # ---------------------------------------------------------------------------
 @_csrf_exempt
+@require_capability('manage_system')
 def api_server_view(request):
     import os
     from django.conf import settings as _s
@@ -4759,6 +4769,11 @@ def api_settings(request):
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({'ok': True}))
 
+    # Reading the backup list reveals system internals; triggering a backup is
+    # an operator action. Both require the manage_system capability.
+    if not user_can(request.user, 'manage_system'):
+        return _cors(capability_denied())
+
     if request.method == 'POST':
         # Trigger a manual backup
         try:
@@ -4804,6 +4819,7 @@ def api_settings(request):
 
 
 @_csrf_exempt
+@require_capability('download_backups')
 def api_download_backup(request):
     """Stream a backup file to the browser."""
     import os
@@ -4873,10 +4889,10 @@ def api_submit_ticket(request):
             return _cors(JsonResponse({'success': False, 'error': 'Title, description, and issue type are required'}))
         from django.contrib.auth import get_user_model
         User = get_user_model()
+        # Tickets are assigned to the developer for triage; created_by is the
+        # real authenticated submitter (guaranteed by ApiLoginRequiredMiddleware).
         ethan = User.objects.filter(username='Ethan').first()
-        # Use ethan (or first admin) as created_by since API has no auth
-        created_by = ethan or User.objects.filter(is_staff=True).first()
-        ticket = Ticket.objects.create(title=title, description=description, issue_type=issue_type, priority=data.get('priority', 'medium'), browser_info=data.get('browser_info', ''), additional_notes=data.get('additional_notes', ''), assigned_to=ethan, created_by=created_by, status='open')
+        ticket = Ticket.objects.create(title=title, description=description, issue_type=issue_type, priority=data.get('priority', 'medium'), browser_info=data.get('browser_info', ''), additional_notes=data.get('additional_notes', ''), assigned_to=ethan, created_by=request.user, status='open')
         return _cors(JsonResponse({'success': True, 'message': f'Ticket #{ticket.id} created successfully', 'ticket_id': ticket.id}))
     except Exception as e:
         return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
@@ -4957,6 +4973,7 @@ def api_support_tickets(request):
 
 
 @_csrf_exempt
+@require_capability('manage_support_tickets')
 def api_support_update_status(request, ticket_id):
     import json as _json
     from ..models import Ticket
@@ -4985,6 +5002,7 @@ def api_support_update_status(request, ticket_id):
 
 
 @_csrf_exempt
+@require_capability('manage_support_tickets')
 def api_support_delete_ticket(request, ticket_id):
     from ..models import Ticket
 
@@ -5031,15 +5049,13 @@ def api_support_create_ticket(request):
         assigned_username = data.get('assigned_to', '').strip()
         if assigned_username:
             assigned_to = User.objects.filter(username=assigned_username).first()
-        ethan = User.objects.filter(username='Ethan').first()
-        created_by = ethan or User.objects.filter(is_staff=True).first()
         due_date = data.get('due_date') or None
         t = Ticket.objects.create(
             title=title, description=description,
             status=data.get('status', 'open'),
             priority=data.get('priority', 'medium'),
             issue_type=data.get('issue_type', ''),
-            assigned_to=assigned_to, created_by=created_by,
+            assigned_to=assigned_to, created_by=request.user,
             due_date=due_date,
         )
         return _cors(JsonResponse({'success': True, 'ticket_id': t.id}))
@@ -5051,6 +5067,7 @@ def api_support_create_ticket(request):
 #  API: Debtors
 # ---------------------------------------------------------------------------
 @_csrf_exempt
+@require_capability('view_financials')
 def api_debtors(request):
     from decimal import Decimal
     from datetime import date as _date
@@ -5260,6 +5277,12 @@ def api_inspector_salaries(request):
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({'ok': True}))
 
+    # Writing salaries is restricted to salary managers; reading the figures
+    # is restricted to finance/office. Field staff get neither.
+    required = 'manage_salaries' if request.method == 'POST' else 'view_financials'
+    if not user_can(request.user, required):
+        return _cors(capability_denied())
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -5304,6 +5327,11 @@ def api_quarterly_targets(request):
 
     if request.method == 'OPTIONS':
         return _cors(JsonResponse({'ok': True}))
+
+    # Anyone signed in may read targets (they drive inspector dashboards);
+    # only target managers may write them.
+    if request.method == 'POST' and not user_can(request.user, 'manage_targets'):
+        return _cors(capability_denied())
 
     if request.method == 'POST':
         try:
@@ -5455,6 +5483,7 @@ def api_get_inspection_group(request, pk):
 
 
 @_csrf_exempt
+@require_capability('manage_inspection_groups')
 def api_edit_inspection_group(request):
     """JSON POST endpoint to update an inspection group from the Next.js edit page."""
     from ..models import FoodSafetyAgencyInspection as _Insp, InspectionGroup as _Group, Client as _Client
@@ -5719,6 +5748,7 @@ def api_edit_inspection_group(request):
 
 
 @_csrf_exempt
+@require_capability('view_org_analytics')
 def api_admin_analytics(request):
     """Admin analytics dashboard — overview stats for the admin role."""
     from ..models import FoodSafetyAgencyInspection as _I, Client as _C, InspectionGroup as _G

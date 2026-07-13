@@ -106,6 +106,7 @@ from ..forms import LoginForm, RegisterForm, ClientForm, InspectionForm, Inspect
 from ..models import Client, Inspection, Shipment, Settings, FoodSafetyAgencyInspection, SystemLog, InspectorMapping, InspectorManagerAllocation
 from django.views.decorators.csrf import csrf_exempt
 from ..decorators import role_required, inspector_restricted, financial_only, scientist_only, inspector_only_inspections, no_inspector_scientist
+from ..permissions import require_capability, user_can
 @login_required
 @role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def save_manual_client_email(request):
@@ -11166,6 +11167,7 @@ def save_quarterly_target(request):
 
 
 @login_required
+@require_capability('view_financials')
 def get_inspector_salaries(request):
     """Return all inspector salaries as JSON."""
     from ..models import InspectorSalary
