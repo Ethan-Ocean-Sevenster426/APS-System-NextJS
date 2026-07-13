@@ -89,6 +89,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'main.middleware.ApiLoginRequiredMiddleware',  # All /api/ endpoints require a session (exempt: login, verify-otp)
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'main.middleware.SessionTimeoutMiddleware',  # Custom session timeout middleware

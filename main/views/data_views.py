@@ -3335,7 +3335,7 @@ def api_serve_file(request):
 
 @_csrf_exempt
 def api_delete_file(request):
-    """Delete an inspection file without login_required (for Next.js frontend)."""
+    """Delete an inspection file (for Next.js frontend). Requires an authenticated session."""
     from django.http import HttpResponse
     from django.conf import settings as _settings
     import os
@@ -3351,6 +3351,17 @@ def api_delete_file(request):
 
     if request.method not in ('POST', 'DELETE'):
         return _cors(JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405))
+
+    if not (getattr(request, 'user', None) and request.user.is_authenticated):
+        return _cors(JsonResponse({'success': False, 'error': 'Not authenticated'}, status=401))
+
+    # Inspectors may upload documents but must NOT be able to delete any of them.
+    user_role = getattr(request.user, 'role', '')
+    if user_role in ('inspector', 'inspector_manager'):
+        return _cors(JsonResponse({
+            'success': False,
+            'error': 'Inspectors cannot delete documents. You can upload files, but only a manager or admin can delete them.',
+        }, status=403))
 
     try:
         import json as _json
@@ -3371,15 +3382,25 @@ def api_delete_file(request):
     if not os.path.isfile(file_path):
         return _cors(JsonResponse({'success': False, 'error': 'File not found'}, status=404))
 
-    # Inspectors may upload documents but must NOT be able to delete any of them.
-    user_role = getattr(request.user, 'role', '') if getattr(request, 'user', None) and request.user.is_authenticated else ''
-    if user_role in ('inspector', 'inspector_manager'):
-        return _cors(JsonResponse({
-            'success': False,
-            'error': 'Inspectors cannot delete documents. You can upload files, but only a manager or admin can delete them.',
-        }, status=403))
-
     os.remove(file_path)
+
+    try:
+        from ..models import SystemLog
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+        SystemLog.log_activity(
+            user=request.user,
+            action='DELETE',
+            page='/api/delete-file/',
+            object_type='InspectionFile',
+            description=f'Deleted file: {safe_path}',
+            details={'file': safe_path},
+            ip_address=ip_address,
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+    except Exception:
+        pass  # Never fail the deletion response because logging failed
+
     return _cors(JsonResponse({'success': True, 'message': f'File deleted: {os.path.basename(file_path)}'}))
 
 
@@ -3495,28 +3516,12 @@ def api_upload_document(request):
     if request.method != 'POST':
         return _cors(JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405))
 
-    # Delegate to the existing upload_document view in core_views
-    # but bypass authentication check
+    # Delegate to the existing upload_document view in core_views.
+    # ApiLoginRequiredMiddleware guarantees an authenticated session here, so
+    # the upload is attributed to the real user (uploaded_by fields are accurate).
     from .core_views import upload_document as _core_upload
 
-    # Use a real user from the DB so FK constraints on uploaded_by fields are satisfied
-    from django.contrib.auth import get_user_model as _get_user_model
-    _User = _get_user_model()
-    _real_user = (
-        _User.objects.filter(is_superuser=True).first()
-        or _User.objects.filter(is_staff=True).first()
-        or _User.objects.first()
-    )
-
-    original_user = request.user
-    if _real_user:
-        request.user = _real_user
-
-    try:
-        response = _core_upload(request)
-    finally:
-        request.user = original_user
-
+    response = _core_upload(request)
     return _cors(response)
 
 

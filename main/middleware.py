@@ -77,6 +77,37 @@ class ApiAuthJsonMiddleware:
         return response
 
 
+class ApiLoginRequiredMiddleware:
+    """
+    Require an authenticated session for every /api/ endpoint.
+
+    The Next.js frontend forwards the browser's session cookie on its proxy
+    requests, so logged-in users pass through unchanged. Anyone without a
+    valid session gets a JSON 401 before reaching the view. Only the
+    endpoints a user needs BEFORE they have a session are exempt.
+    """
+
+    EXEMPT_PATHS = frozenset({
+        '/api/login',       # session creation
+        '/api/verify-otp',  # first-time password setup via emailed OTP
+    })
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (request.path.startswith('/api/')
+                and request.method != 'OPTIONS'  # CORS preflights carry no cookies
+                and request.path.rstrip('/') not in self.EXEMPT_PATHS
+                and not (getattr(request, 'user', None) and request.user.is_authenticated)):
+            from django.http import JsonResponse
+            return JsonResponse(
+                {'success': False, 'error': 'Authentication required'},
+                status=401,
+            )
+        return self.get_response(request)
+
+
 class SecurityHeadersMiddleware:
     """Middleware to add modern security headers to all responses"""
 
