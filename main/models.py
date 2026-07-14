@@ -849,7 +849,13 @@ class Settings(models.Model):
         ('weekly', 'Weekly'),
         ('monthly', 'Monthly')
     ], help_text="Backup frequency")
-    session_timeout = models.IntegerField(default=30, help_text="Session timeout in minutes")
+    # Idle timeout for a session. Field inspectors work across several devices
+    # (phone + laptop) with long gaps between capturing an inspection and
+    # uploading its documents, so a short idle window silently logs out the
+    # device they aren't actively touching and their next upload 401s. A full
+    # work-day idle window avoids that; SESSION_COOKIE_AGE (1 day) remains the
+    # hard absolute cap on session lifetime.
+    session_timeout = models.IntegerField(default=720, help_text="Session idle timeout in minutes (default 12h)")
     dark_mode = models.BooleanField(default=False, help_text="Enable dark mode theme")
     
     # Data Sync Settings
