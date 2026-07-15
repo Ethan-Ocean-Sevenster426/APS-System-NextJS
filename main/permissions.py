@@ -56,6 +56,9 @@ CAPABILITIES = {
     'view_org_analytics':      _OFFICE,
     'manage_clients':          _OFFICE | {INSPECTOR_MANAGER},
     'manage_inspection_groups': _OFFICE | {INSPECTOR_MANAGER},
+    # Field inspectors record and correct their own inspection data
+    # (km traveled, hours, travel times, comments) via the edit/save flow.
+    'edit_inspections':        _OFFICE | {INSPECTOR_MANAGER, INSPECTOR},
     'manage_support_tickets':  _OFFICE,
 
     # Documents & lab

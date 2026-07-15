@@ -5483,7 +5483,7 @@ def api_get_inspection_group(request, pk):
 
 
 @_csrf_exempt
-@require_capability('manage_inspection_groups')
+@require_capability('edit_inspections')
 def api_edit_inspection_group(request):
     """JSON POST endpoint to update an inspection group from the Next.js edit page."""
     from ..models import FoodSafetyAgencyInspection as _Insp, InspectionGroup as _Group, Client as _Client
