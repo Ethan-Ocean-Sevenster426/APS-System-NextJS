@@ -10,6 +10,8 @@ interface MultiSelectDropdownProps {
   placeholder?: string;
   /** Show a search input to filter options */
   searchable?: boolean;
+  /** Optional friendly display labels keyed by option value */
+  optionLabels?: Record<string, string>;
   /** Extra wrapper style */
   style?: React.CSSProperties;
 }
@@ -21,8 +23,10 @@ export default function MultiSelectDropdown({
   onChange,
   placeholder = "All",
   searchable = false,
+  optionLabels,
   style,
 }: MultiSelectDropdownProps) {
+  const labelOf = (v: string) => optionLabels?.[v] ?? v;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,7 +71,7 @@ export default function MultiSelectDropdown({
     selected.length === 0
       ? placeholder
       : selected.length === 1
-      ? selected[0]
+      ? labelOf(selected[0])
       : `${selected.length} selected`;
 
   return (
@@ -194,7 +198,7 @@ export default function MultiSelectDropdown({
                     onChange={() => toggle(opt)}
                     style={{ accentColor: "#007890", flexShrink: 0 }}
                   />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opt}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{labelOf(opt)}</span>
                 </label>
               ))
             )}

@@ -1180,11 +1180,32 @@ def api_inspections(request):
         # Late capture filter (LATE / ON_TIME) — captured outside the allowed lag window
         filter_late = request.GET.getlist('late_capture')
         if filter_late:
+            import datetime as _dtmod
+            from django.db.models import F as _F, Q as _Q
             from .late_capture_report import late_capture_q
-            if 'LATE' in filter_late and 'ON_TIME' not in filter_late:
-                groups_qs = groups_qs.filter(late_capture_q())
-            elif 'ON_TIME' in filter_late and 'LATE' not in filter_late:
-                groups_qs = groups_qs.exclude(late_capture_q())
+
+            def _lag_eq(n):
+                # groups captured exactly n days after the inspection date
+                return _Q(created_at__date=_F('date_of_inspection') + _dtmod.timedelta(days=n))
+
+            _late_map = {
+                'SAME_DAY': _lag_eq(0),
+                'NEXT_DAY': _lag_eq(1),
+                'AT_LIMIT': _lag_eq(2),
+                'LATE': late_capture_q(),
+                'ON_TIME': ~late_capture_q(),
+            }
+            _combined = _Q()
+            _matched = False
+            for _v in filter_late:
+                if _v in _late_map:
+                    _combined |= _late_map[_v]
+                    _matched = True
+            if _matched:
+                # only rows with both dates have a defined capture lag
+                groups_qs = groups_qs.filter(
+                    created_at__isnull=False, date_of_inspection__isnull=False
+                ).filter(_combined)
 
         # Compliance filter (COMPLIANT / NON_COMPLIANT / PENDING)
         filter_compliance = request.GET.getlist('compliance')

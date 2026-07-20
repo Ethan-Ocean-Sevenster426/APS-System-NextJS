@@ -181,11 +181,11 @@ const LAB_NAME_TO_CODE: Record<string, string> = {
   "ARC": "lab_f",
 };
 
-function IrMultiSelect({ label, options, selected, onChange, searchable }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void; searchable?: boolean }) {
+function IrMultiSelect({ label, options, selected, onChange, searchable, optionLabels }: { label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void; searchable?: boolean; optionLabels?: Record<string, string> }) {
   return (
     <div className="ir-filter-field">
       <label className="ir-form-label">{label}</label>
-      <MultiSelectDropdown label={label} options={options} selected={selected} onChange={onChange} searchable={searchable} />
+      <MultiSelectDropdown label={label} options={options} selected={selected} onChange={onChange} searchable={searchable} optionLabels={optionLabels} />
     </div>
   );
 }
@@ -1952,7 +1952,7 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
-                  <IrMultiSelect label="Late Capture" options={["LATE", "ON_TIME"]} selected={lateCaptureFilter} onChange={setLateCaptureFilter} />
+                  <IrMultiSelect label="Late Capture" options={["SAME_DAY", "NEXT_DAY", "AT_LIMIT", "LATE", "ON_TIME"]} optionLabels={{ SAME_DAY: "Same day", NEXT_DAY: "1 day — in time", AT_LIMIT: "2 days — at the limit", LATE: "Over 2 days — late", ON_TIME: "On time (≤ 2 days)" }} selected={lateCaptureFilter} onChange={setLateCaptureFilter} />
                   <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
                   <IrMultiSelect label="Has RFI" options={["HAS_RFI", "NO_RFI"]} selected={rfiFilter} onChange={setRfiFilter} />
