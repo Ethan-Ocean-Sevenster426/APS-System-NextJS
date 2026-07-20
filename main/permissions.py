@@ -54,6 +54,9 @@ CAPABILITIES = {
     # Back-office operations
     'view_system_logs':        _OFFICE,
     'view_org_analytics':      _OFFICE,
+    # Late-capture monitoring: everyone except field inspectors and lab
+    # technicians — managers/office/finance follow up on late capturers.
+    'view_late_capture_report': _FINANCE | {INSPECTOR_MANAGER},
     'manage_clients':          _OFFICE | {INSPECTOR_MANAGER},
     'manage_inspection_groups': _OFFICE | {INSPECTOR_MANAGER},
     # Field inspectors record and correct their own inspection data

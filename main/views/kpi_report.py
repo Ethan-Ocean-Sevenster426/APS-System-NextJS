@@ -95,10 +95,11 @@ def build_kpi_report_data(year, quarter):
             "is_meeting": is_meeting,
         })
 
-    # ── Late entries: captured 2 or more days after the inspection was done ──
+    # ── Late entries: captured outside the allowed lag window (see late_capture_report) ──
+    from .late_capture_report import LATE_CAPTURE_LAG_DAYS
     late_qs = (
         FoodSafetyAgencyInspection.objects
-        .filter(created_at__date__gt=F("date_of_inspection") + datetime.timedelta(days=1))
+        .filter(created_at__date__gt=F("date_of_inspection") + datetime.timedelta(days=LATE_CAPTURE_LAG_DAYS))
         .filter(date_of_inspection__gte=start, date_of_inspection__lte=end)
         .order_by("-created_at")
     )

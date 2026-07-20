@@ -924,6 +924,8 @@ def add_fsa_inspection(request):
                         client=temp_client,
                         client_name=form.cleaned_data.get('client_name'),
                         date_of_inspection=form.cleaned_data.get('date_of_inspection'),
+                        created_by=request.user if request.user.is_authenticated else None,
+                        created_by_name=(request.user.get_full_name() or request.user.username) if request.user.is_authenticated else '',
                         inspector_name=form.cleaned_data.get('inspector_name', ''),
                         town=form.cleaned_data.get('town', ''),
                         facility_type=form.cleaned_data.get('facility_type', ''),
@@ -3772,6 +3774,8 @@ def upload_document(request):
                     occurrence_group = InspectionGroup.objects.create(
                         client_name=request.POST.get('client_name', 'Unknown Client'),
                         date_of_inspection=inspection_date,
+                        created_by=request.user if request.user.is_authenticated else None,
+                        created_by_name=(request.user.get_full_name() or request.user.username) if request.user.is_authenticated else '',
                         inspector_name=inspector_name,
                         town=request.POST.get('town', ''),
                         facility_type=request.POST.get('facility_type', ''),
@@ -7648,9 +7652,9 @@ def generate_test_line_items(inspection_id, inspection, invoice_ref, rfi_ref, pr
 
     else:  # RAW products
         # Fat Test
-        # Use the visit-aggregated flag (like protein/dna/calcium below), not
-        # the first product's own fields - otherwise a fat sample taken on any
-        # RAW product other than raw[0] is dropped from the export.
+        # Use the visit-aggregated flag (like protein/dna/calcium below), not the
+        # first product's own fields — otherwise a fat sample taken on any RAW
+        # product other than raw[0] is dropped from the export. See PMP branch.
         if generate_fat:
             items.append({
                 'row_number': 9,

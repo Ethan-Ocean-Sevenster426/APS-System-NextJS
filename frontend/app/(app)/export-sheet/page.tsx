@@ -23,6 +23,15 @@ interface ExportItem {
   id?: number;
 }
 
+interface LateCaptureNotice {
+  client_name: string;
+  inspector_name: string;
+  date_of_inspection: string;
+  captured_at: string;
+  days_late: number;
+  captured_after_period: boolean;
+}
+
 interface Fee {
   id: number;
   fee_code: string;
@@ -80,6 +89,10 @@ export default function ExportSheetPage() {
   const [allItems, setAllItems] = useState<ExportItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [inspectionsProcessed, setInspectionsProcessed] = useState(0);
+  const [lateNotices, setLateNotices] = useState<LateCaptureNotice[]>([]);
+  const [lagDays, setLagDays] = useState(2);
+  const [showLateNotices, setShowLateNotices] = useState(false);
+  const [capturedAfterCount, setCapturedAfterCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,6 +159,9 @@ export default function ExportSheetPage() {
         setAllItems(data.items || []);
         setTotalItems(data.total_items || 0);
         setInspectionsProcessed(data.inspections_processed || 0);
+        setLateNotices(data.late_capture_notices || []);
+        setLagDays(data.late_capture_lag_days ?? 2);
+        setCapturedAfterCount(data.captured_after_period_count ?? 0);
       } else throw new Error(data.error || "API returned success=false");
     } catch (err: unknown) {
       if ((err as { name?: string }).name === "AbortError") {
@@ -543,6 +559,79 @@ export default function ExportSheetPage() {
                 )}
               </div>
             </div>
+
+            {/* Late-capture warning — explains why lines can be missing from earlier exports of this period */}
+            {!loading && !error && lateNotices.length > 0 && (
+              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderLeft: "4px solid #f59e0b", borderRadius: 8, padding: "12px 16px", marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: "0.82rem", color: "#92400e", fontWeight: 700 }}>
+                    <i className="fas fa-exclamation-triangle" style={{ marginRight: 6 }} />
+                    {lateNotices.length} inspection{lateNotices.length === 1 ? " was" : "s were"} captured late in this period
+                  </div>
+                  <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => setShowLateNotices(v => !v)}
+                      style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}>
+                      {showLateNotices ? "Hide details" : "Why lines may be missing"}
+                    </button>
+                    <a href={`/late-captures?date_from=${dateFrom}&date_to=${dateTo}`}
+                      title="Open the Late Captures report for this same date range"
+                      style={{ background: "#dc2626", color: "#fff", borderRadius: 6, padding: "4px 12px", fontSize: "0.72rem", fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      Open Late Captures report <i className="fas fa-arrow-right" style={{ fontSize: 9 }} />
+                    </a>
+                  </span>
+                </div>
+                <div style={{ fontSize: "0.74rem", color: "#92400e", marginTop: 4 }}>
+                  {capturedAfterCount > 0 && (
+                    <div style={{ fontWeight: 700, marginBottom: 3 }}>
+                      {capturedAfterCount} of these did not exist in APS until <u>after this period ended</u> — an export pulled at the
+                      close of this period could not have included them. They only show up on a re-pull like this one.
+                    </div>
+                  )}
+                  These inspections only entered APS <strong>after the {lagDays}-day capture window</strong>. Any export of this period
+                  generated <strong>before</strong> the capture date shown did <strong>not</strong> include them — they appear in the sheet only from their capture date onwards.
+                </div>
+                {showLateNotices && (
+                  <div style={{ marginTop: 10, overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.76rem", background: "#fff", borderRadius: 6 }}>
+                      <thead>
+                        <tr>
+                          {["Client", "Inspector", "Inspection Date", "Captured in APS", "Days Late", "Explanation"].map(h => (
+                            <th key={h} style={{ textAlign: "left", padding: "7px 10px", color: "#92400e", borderBottom: "1px solid #fde68a", whiteSpace: "nowrap", fontSize: "0.68rem", textTransform: "uppercase" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lateNotices.map((n, i) => {
+                          const doi = new Date(n.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                          const cap = new Date(n.captured_at + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                          return (
+                            <tr key={i}>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7", fontWeight: 600 }}>{n.client_name || "—"}</td>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7" }}>
+                                <a href={`/late-captures?inspector=${encodeURIComponent(n.inspector_name)}`} style={{ color: "#007890", fontWeight: 600 }}>{n.inspector_name || "—"}</a>
+                              </td>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7", whiteSpace: "nowrap" }}>{doi}</td>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7", whiteSpace: "nowrap", color: "#dc2626", fontWeight: 700 }}>{cap}</td>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7", color: "#dc2626", fontWeight: 700 }}>+{n.days_late}</td>
+                              <td style={{ padding: "7px 10px", borderBottom: "1px solid #fef3c7", color: "#78350f" }}>
+                                {n.captured_after_period && (
+                                  <span style={{ background: "#dc2626", color: "#fff", fontSize: "0.62rem", fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginRight: 6, whiteSpace: "nowrap" }}>
+                                    ADDED AFTER PERIOD
+                                  </span>
+                                )}
+                                {n.captured_after_period
+                                  ? <>Did not exist in APS until {cap} — this record was added after the selected period ended, so no export pulled during or at the close of this period could include it.</>
+                                  : <>Inspected {doi} but only captured on {cap} — any export generated before {cap} could not process this inspection.</>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Table */}
             {loading ? (

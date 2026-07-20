@@ -1018,6 +1018,7 @@ def api_inspections(request):
     """JSON API endpoint for Next.js frontend — returns inspection groups with their data."""
     from django.db.models import Exists, OuterRef, Subquery, F, Q, Count
     from ..models import InspectionGroup, FoodSafetyAgencyInspection
+    from .late_capture_report import LATE_CAPTURE_LAG_DAYS as _LATE_LAG_DAYS
 
     def json_response(data, status=200):
         response = JsonResponse(data, status=status, safe=False)
@@ -1175,6 +1176,15 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(first_sent__isnull=False)
             elif 'NOT_SENT' in filter_sent and 'SENT' not in filter_sent:
                 groups_qs = groups_qs.filter(first_sent__isnull=True)
+
+        # Late capture filter (LATE / ON_TIME) — captured outside the allowed lag window
+        filter_late = request.GET.getlist('late_capture')
+        if filter_late:
+            from .late_capture_report import late_capture_q
+            if 'LATE' in filter_late and 'ON_TIME' not in filter_late:
+                groups_qs = groups_qs.filter(late_capture_q())
+            elif 'ON_TIME' in filter_late and 'LATE' not in filter_late:
+                groups_qs = groups_qs.exclude(late_capture_q())
 
         # Compliance filter (COMPLIANT / NON_COMPLIANT / PENDING)
         filter_compliance = request.GET.getlist('compliance')
@@ -1675,6 +1685,11 @@ def api_inspections(request):
             date_str = g.date_of_inspection.strftime('%Y%m%d') if g.date_of_inspection else '00000000'
             fallback_group_id = f"{client_slug}_{date_str}_g{g.id}"
 
+            # Capture lag: days between the inspection and it being captured in APS
+            _capture_lag = None
+            if g.created_at and g.date_of_inspection:
+                _capture_lag = (g.created_at.date() - g.date_of_inspection).days
+
             results.append({
                 'id': g.id,
                 'group_id': fallback_group_id,
@@ -1709,6 +1724,8 @@ def api_inspections(request):
                 'inspection_compliance_status': _compliance_status,
                 'products': products,
                 'created_at': g.created_at.isoformat() if g.created_at else None,
+                'capture_lag_days': _capture_lag,
+                'late_capture': _capture_lag is not None and _capture_lag > _LATE_LAG_DAYS,
             })
 
         import math as _math
@@ -3653,6 +3670,8 @@ def api_add_inspection(request):
             if not data.get('facility_type', '').strip():
                 missing.append('Facility Type')
             # A client email is required so inspection documents can be sent.
+            # The frontend joins the primary + additional emails into
+            # `additional_email`; `client_email` is accepted as a fallback.
             if not (data.get('additional_email', '') or data.get('client_email', '')).strip():
                 missing.append('Client Email')
         if missing:
@@ -4118,8 +4137,38 @@ def api_export_sheet(request):
             'id', 'commodity', 'date_of_inspection', 'inspector_name', 'client_name',
             'town', 'product_name', 'product_class', 'hours', 'km_traveled',
             'is_sample_taken', 'bought_sample', 'fat', 'protein', 'calcium', 'dna',
-            'lab', 'invoice_number', 'corporate_group',
+            'lab', 'invoice_number', 'corporate_group', 'created_at',
         ).order_by('client_name', 'date_of_inspection', 'commodity')
+
+        # Late-capture notices: inspections in this period that were captured in
+        # APS well after they happened. Any export generated BEFORE the capture
+        # date could not have included them — this tells the admin why a line
+        # was missing from an earlier run of this period.
+        from .late_capture_report import LATE_CAPTURE_LAG_DAYS as _lag_days
+        late_notices = []
+        _seen_visits = set()
+        for insp in inspections:
+            if not (insp.created_at and insp.date_of_inspection):
+                continue
+            _lag = (insp.created_at.date() - insp.date_of_inspection).days
+            if _lag <= _lag_days:
+                continue
+            _vkey = (insp.inspector_name or '', insp.client_name or '', insp.date_of_inspection)
+            if _vkey in _seen_visits:
+                continue
+            _seen_visits.add(_vkey)
+            late_notices.append({
+                'client_name': insp.client_name or '',
+                'inspector_name': insp.inspector_name or '',
+                'date_of_inspection': insp.date_of_inspection.isoformat(),
+                'captured_at': insp.created_at.date().isoformat(),
+                'days_late': _lag,
+                # True = this record did not exist in APS until AFTER the selected
+                # period ended, so an export pulled at period close missed it entirely.
+                'captured_after_period': insp.created_at.date() > end_date,
+            })
+        late_notices.sort(key=lambda n: (not n['captured_after_period'], n['captured_at']), reverse=False)
+        captured_after_period_count = sum(1 for n in late_notices if n['captured_after_period'])
 
         visits = defaultdict(list)
         for insp in inspections:
@@ -4173,7 +4222,7 @@ def api_export_sheet(request):
                 _item['corporate_group'] = _cg
 
         invoice_items.sort(key=lambda x: (x.get('client_name', ''), x.get('invoice_date', ''), x.get('item_code', '')))
-        return _cors(JsonResponse({'success': True, 'items': invoice_items, 'total_items': len(invoice_items), 'inspections_processed': processed, 'date_from': start_date.strftime('%Y-%m-%d'), 'date_to': end_date.strftime('%Y-%m-%d')}))
+        return _cors(JsonResponse({'success': True, 'items': invoice_items, 'total_items': len(invoice_items), 'inspections_processed': processed, 'date_from': start_date.strftime('%Y-%m-%d'), 'date_to': end_date.strftime('%Y-%m-%d'), 'late_capture_notices': late_notices, 'late_capture_lag_days': _lag_days, 'captured_after_period_count': captured_after_period_count}))
     except Exception as e:
         import traceback; traceback.print_exc()
         return _cors(JsonResponse({'success': False, 'error': str(e)}, status=500))
@@ -5547,19 +5596,20 @@ def api_edit_inspection_group(request):
         _raw_email = data.get('additional_email', None)
         additional_email = _raw_email.strip() if _raw_email else ((group.additional_email if group else insp.additional_email) or '')
         client_email = data.get('client_email', '').strip()
-
-        # A client email is required on save so documents can be sent.
-        # Occurrence reports are exempt; additional_email falls back to the
-        # stored value, so this only blocks a save that would leave no email.
-        if not (insp and insp.is_occurrence_report):
-            if not (additional_email or client_email).strip():
-                return _insp_cors(request, JsonResponse({'success': False, 'error': 'Required fields missing: Client Email'}))
         comment = data.get('comment', '').strip()
         km_traveled = float(data.get('km_traveled', 0) or 0)
         hours = float(data.get('hours', 0) or 0)
         travel_start_time = data.get('travel_start_time', '') or ''
         travel_end_time = data.get('travel_end_time', '') or ''
         products_data = data.get('products', [])
+
+        # A client email is required on save so documents can be sent. Occurrence
+        # reports are exempt (as on the Add form). additional_email falls back to
+        # the record's stored value above, so this only blocks a save that would
+        # leave the inspection with no email at all.
+        if not (insp and insp.is_occurrence_report):
+            if not (additional_email or client_email).strip():
+                return _insp_cors(request, JsonResponse({'success': False, 'error': 'Required fields missing: Client Email'}))
 
         with transaction.atomic():
             # If client name changed, get or create a Client record and re-link

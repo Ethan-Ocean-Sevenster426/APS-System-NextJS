@@ -504,6 +504,17 @@ class InspectionGroup(models.Model):
     # Flags
     is_manual = models.BooleanField(default=True, help_text="Manually created (vs synced from server)")
 
+    # Who captured this group in APS (null for rows created before tracking / server syncs)
+    created_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, blank=True, null=True,
+        related_name='created_inspection_groups',
+        help_text="User who captured this inspection group in APS",
+    )
+    created_by_name = models.CharField(
+        max_length=150, blank=True, default='',
+        help_text="Name of the user who captured this group (persists after user deletion)",
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

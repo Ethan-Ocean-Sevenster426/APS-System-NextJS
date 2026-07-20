@@ -92,6 +92,8 @@ interface Inspection {
   comment?: string;
   has_lab_form?: boolean;
   created_at?: string;
+  capture_lag_days?: number | null;
+  late_capture?: boolean;
   products?: Product[];
 }
 
@@ -158,6 +160,16 @@ function ClientSearchInput({ value, onChange, options, onEnter }: { value: strin
       )}
     </div>
   );
+}
+
+// Capture-lag traffic light: blue = same day, green = 1 day (in time),
+// orange = 2 days (at the limit), red = over 2 days (late).
+function lagStyle(lag: number): { color: string; label: string } {
+  const label = `${lag} ${lag === 1 ? "day" : "days"}`;
+  if (lag > 2) return { color: "#dc2626", label };   // late — issue
+  if (lag === 2) return { color: "#ea580c", label }; // at the max — becoming an issue
+  if (lag === 1) return { color: "#15803d", label }; // captured next day — in time
+  return { color: "#2563eb", label };                // captured same day
 }
 
 const LAB_NAME_TO_CODE: Record<string, string> = {
@@ -288,6 +300,7 @@ export default function InspectionsPage() {
   const [emailFilter, setEmailFilter] = useState("");
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
+  const [lateCaptureFilter, setLateCaptureFilter] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
 
   // Missing-sample flags (super admins & lab technicians): group ids currently flagged
@@ -320,6 +333,7 @@ export default function InspectionsPage() {
     coaStatus: [] as string[],
     lab: [] as string[],
     testType: [] as string[],
+    lateCapture: [] as string[],
   });
 
   // Upload state
@@ -632,7 +646,7 @@ export default function InspectionsPage() {
     groupType?: string[]; occurrence?: string[]; sampled?: string[]; sentStatus?: string[];
     compliance?: string[]; approved?: string[]; email?: string;
     rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
-    retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[];
+    retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[]; lateCapture?: string[];
   }) => {
     setLoading(true);
     const p = new URLSearchParams();
@@ -660,6 +674,7 @@ export default function InspectionsPage() {
       if (filters.coaStatus?.length) filters.coaStatus.forEach(v => p.append("coa_uploaded", v));
       if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", LAB_NAME_TO_CODE[v] || v));
       if (filters.testType?.length) filters.testType.forEach(v => p.append("test_type", v));
+      if (filters.lateCapture?.length) filters.lateCapture.forEach(v => p.append("late_capture", v));
     }
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
@@ -739,20 +754,31 @@ export default function InspectionsPage() {
     const urlCoa = sp.getAll("has_coa");
     const urlRetest = sp.getAll("needs_retest");
     const urlSampled = sp.getAll("sampled");
-    if (urlCoa.length || urlRetest.length || urlSampled.length) {
+    const urlInspector = sp.getAll("inspector");
+    const urlLate = sp.getAll("late_capture");
+    const urlClientSearch = sp.get("client_search") || "";
+    if (urlClientSearch) {
+      setClientSearch(urlClientSearch);
+      setDebouncedSearch(urlClientSearch);
+    }
+    if (urlCoa.length || urlRetest.length || urlSampled.length || urlInspector.length || urlLate.length) {
       if (urlCoa.length) setCoaFileFilter(urlCoa);
       if (urlRetest.length) setRetestFilter(urlRetest);
       if (urlSampled.length) setSampledFilter(urlSampled);
+      if (urlInspector.length) setInspectorFilter(urlInspector);
+      if (urlLate.length) setLateCaptureFilter(urlLate);
       const af = {
         ...appliedFilters,
         coaFile: urlCoa,
         retest: urlRetest,
         sampled: urlSampled,
+        inspector: urlInspector,
+        lateCapture: urlLate,
       };
       setAppliedFilters(af);
-      fetchInspections(false, "", "", 1, "", af);
+      fetchInspections(false, "", "", 1, urlClientSearch, af);
     } else {
-      fetchInspections(false, "", "", 1, "");
+      fetchInspections(false, "", "", 1, urlClientSearch);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -795,6 +821,8 @@ export default function InspectionsPage() {
   const isLabTechRestricted = false; // Lab techs now see everything
   const isAdmin = role === "admin";
   const isInspector = role === "inspector" || role === "inspector_manager";
+  // Admin-level roles can upload every document type, regardless of commodity
+  const canUploadAll = role === "admin" || role === "super_admin" || role === "developer";
   // Super admins & lab technicians can flag a visit as "inspector didn't add the correct sampling info"
   const canFlag = role === "super_admin" || role === "developer" || role === "lab_technician";
 
@@ -1526,7 +1554,7 @@ export default function InspectionsPage() {
                               onClick={() => triggerUpload(product.id, s.group_id || '', 'composition', product.id)}
                             />
                           )}
-                          {!hidePoultryEggs && !isInspector && (
+                          {((!hidePoultryEggs && !isInspector) || canUploadAll) && (
                             <>
                               <UploadBtn
                                 label="COA/Lab"
@@ -1924,6 +1952,7 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
+                  <IrMultiSelect label="Late Capture" options={["LATE", "ON_TIME"]} selected={lateCaptureFilter} onChange={setLateCaptureFilter} />
                   <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
                   <IrMultiSelect label="Has RFI" options={["HAS_RFI", "NO_RFI"]} selected={rfiFilter} onChange={setRfiFilter} />
@@ -1944,8 +1973,8 @@ export default function InspectionsPage() {
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
-                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]);
-                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [] });
+                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]);
+                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [] });
                       setCurrentPage(1);
                       fetchInspections(showDuplicates, "", "", 1, "");
                     }}>
@@ -1961,6 +1990,7 @@ export default function InspectionsPage() {
                         coaFile: coaFileFilter, complianceFile: complianceFileFilter, otherFile: otherFileFilter,
                         email: emailFilter, retest: retestFilter,
                         coaStatus: coaStatusFilter, lab: labFilter, testType: testTypeFilter,
+                        lateCapture: lateCaptureFilter,
                       };
                       setAppliedFilters(af);
                       setCurrentPage(1);
@@ -2019,10 +2049,27 @@ export default function InspectionsPage() {
               <div className="ir-card-title"><i className="fas fa-clipboard-check" /> Inspections List</div>
             </div>
             <div className="ir-card-body">
-              <div className="ir-table-info">
-                {loading ? "Loading..." : filteredInspections.length < inspections.length
-                  ? `Showing ${filteredInspections.length} of ${total} inspections (filtered)`
-                  : `Showing ${(safeCurrentPage - 1) * PAGE_SIZE + 1}–${Math.min(safeCurrentPage * PAGE_SIZE, total)} of ${total} inspections`}
+              <div className="ir-table-info" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <span>
+                  {loading ? "Loading..." : filteredInspections.length < inspections.length
+                    ? `Showing ${filteredInspections.length} of ${total} inspections (filtered)`
+                    : `Showing ${(safeCurrentPage - 1) * PAGE_SIZE + 1}–${Math.min(safeCurrentPage * PAGE_SIZE, total)} of ${total} inspections`}
+                </span>
+                {/* Days Late colour legend */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 12, fontSize: 11, color: "#6b7280", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 600 }}>Days Late:</span>
+                  {[
+                    { color: "#2563eb", text: "Same day" },
+                    { color: "#15803d", text: "1 day — in time" },
+                    { color: "#ea580c", text: "2 days — at the limit" },
+                    { color: "#dc2626", text: "Over 2 days — late" },
+                  ].map(l => (
+                    <span key={l.text} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: l.color, display: "inline-block" }} />
+                      {l.text}
+                    </span>
+                  ))}
+                </span>
               </div>
 
               {/* Mobile Card Layout */}
@@ -2059,8 +2106,16 @@ export default function InspectionsPage() {
                         <span style={{ fontWeight: 500, fontSize: 11, color: "#007890" }}>{s.internal_account_code}</span>
                       </div>}
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ color: "#6b7280" }}>Captured:</span>
-                        <span style={{ fontWeight: 500 }}>{s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}</span>
+                        <span style={{ color: "#6b7280" }}>Date of Inspection Captured:</span>
+                        <span style={{ fontWeight: 500, color: s.late_capture ? "#dc2626" : undefined }} title={s.late_capture ? `Captured ${s.capture_lag_days} days after inspection (limit 2)` : undefined}>
+                          {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Days Late:</span>
+                        <span style={{ fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : undefined }}>
+                          {s.capture_lag_days != null ? <>{s.late_capture && <><i className="fas fa-exclamation-triangle" style={{ fontSize: 9 }} /> </>}{lagStyle(Math.max(0, s.capture_lag_days)).label}</> : "—"}
+                        </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Approved:</span>
@@ -2142,16 +2197,17 @@ export default function InspectionsPage() {
                 <table className="ir-table" id="shipmentsTable">
                   <thead>
                     <tr>
-                      <th>Facility</th>
+                      <th style={{ width: "1%", whiteSpace: "nowrap" }}>Facility</th>
                       <th className="center" style={{ width: 50 }}>Files</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>RFI</th>}
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Invoice</th>}
                       <th className="center" style={{ width: 60 }}>COA</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Compliance</th>}
-                      <th className="center" style={{ width: 180, whiteSpace: "nowrap" }}>Date</th>
-                      <th className="center" style={{ width: 130, whiteSpace: "nowrap" }}>Captured</th>
+                      <th className="center" style={{ width: 100, whiteSpace: "normal", lineHeight: 1.25 }}>Date of Inspection<br />Conducted</th>
+                      <th className="center" style={{ width: 100, whiteSpace: "normal", lineHeight: 1.25 }}>Date of Inspection<br />Captured</th>
+                      <th className="center" style={{ width: 55, whiteSpace: "normal", lineHeight: 1.25 }}>Days<br />Late</th>
                       <th className="center" style={{ width: 80 }}>Approved</th>
-                      {roleLoaded && !isLabTechRestricted && <th style={{ width: 160 }}>Email</th>}
+                      {roleLoaded && !isLabTechRestricted && <th style={{ width: "1%", whiteSpace: "nowrap" }}>Email</th>}
                       <th className="center" style={{ width: 80 }}>Sent</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 90 }}>Actions</th>}
                     </tr>
@@ -2159,13 +2215,13 @@ export default function InspectionsPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={13} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={13} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -2176,7 +2232,7 @@ export default function InspectionsPage() {
                             style={{ cursor: "pointer", background: "white" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
                             onMouseLeave={e => (e.currentTarget.style.background = "white")}>
-                            <td>
+                            <td style={{ whiteSpace: "nowrap" }}>
                               <span style={{ fontWeight: 600, color: "#007890", fontSize: "0.75rem" }}>{s.client_name || "-"}</span>
                               {s.town && <span style={{ fontSize: "0.65rem", color: "#9ca3af", marginLeft: 4 }}>({s.town})</span>}
                               <span style={{ fontSize: "0.65rem", color: "#6b7280", marginLeft: 8 }}>{s.inspector_name || ""}</span>
@@ -2216,15 +2272,20 @@ export default function InspectionsPage() {
                               </td>
                             )}
                             <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: "#6b7280" }}>
-                              {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "-"}
+                              {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                             </td>
-                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: "#6b7280" }}>
+                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: s.late_capture ? "#dc2626" : "#6b7280", fontWeight: s.late_capture ? 600 : undefined }}
+                              title={s.late_capture ? `Captured ${s.capture_lag_days} days after inspection (limit 2)` : undefined}>
                               {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                            </td>
+                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : "#6b7280" }}
+                              title={`Days between inspection and capture (limit 2)`}>
+                              {s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).label : "—"}
                             </td>
                             <td className="center">
                               {isAdmin ? (
                                 <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.approved_status === "APPROVED" ? "check" : "clock"}`} style={{ fontSize: 8 }} /> {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
+                                  {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
                                 </span>
                               ) : (
                                 <select className="ir-approved-select" onClick={e => e.stopPropagation()} value={s.approved_status || "PENDING"}
@@ -2248,13 +2309,12 @@ export default function InspectionsPage() {
                               )}
                             </td>
                             {roleLoaded && !isLabTechRestricted && (
-                              <td style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                              <td style={{ fontSize: "0.75rem", color: "#6b7280", whiteSpace: "nowrap" }}>
                                 {s.email ? s.email.split(/[;,]/).map((e, ei) => {
                                   const trimmed = e.trim();
                                   const isBounced = showUndeliverable && bouncedEmails.has(trimmed.toLowerCase());
                                   return (
-                                    <span key={ei}>
-                                      {ei > 0 && "; "}
+                                    <span key={ei} style={{ display: "block" }}>
                                       <span style={isBounced ? { color: "#dc2626", fontWeight: 700, background: "#fef2f2", padding: "0 3px", borderRadius: 3 } : undefined}>
                                         {trimmed}
                                         {isBounced && <i className="fas fa-exclamation-triangle" style={{ fontSize: 9, marginLeft: 3, color: "#dc2626" }} />}
@@ -2353,7 +2413,7 @@ export default function InspectionsPage() {
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={11} style={{ padding: 0 }}>
+                              <td colSpan={12} style={{ padding: 0 }}>
                                 {renderDetailRow(s)}
                               </td>
                             </tr>

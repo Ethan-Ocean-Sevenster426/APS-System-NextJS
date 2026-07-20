@@ -487,23 +487,6 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleSendKPIEmails = async () => {
-    const data = await postAction({ action: "send_kpi_emails" });
-    if (data.success) {
-      addMessage(data.message || "KPI emails sent successfully", "success");
-    } else {
-      addMessage(data.error || "Failed to send KPI emails", "error");
-    }
-  };
-
-  const handleTestKPIEmail = async () => {
-    const data = await postAction({ action: "send_kpi_emails", test_email: "ethansevenster5@gmail.com" });
-    if (data.success) {
-      addMessage(data.message || "Test KPI email sent to ethansevenster5@gmail.com", "success");
-    } else {
-      addMessage(data.error || "Failed to send test KPI email", "error");
-    }
-  };
 
   const openEditModal = (user: UserRecord) => {
     setEditUser(user);
@@ -573,6 +556,8 @@ export default function UserManagementPage() {
 .um-btn-info { background: #3b82f6; color: white; }
 .um-btn-purple { background: #7c3aed; color: white; }
 .um-btn-xs { padding: 4px 8px; font-size: 0.7rem; width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+.um-action-btn { padding: 4px 9px; font-size: 0.66rem; height: 26px; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; white-space: nowrap; }
+.um-action-btn i { font-size: 0.6rem; }
 
 /* Table styles */
 .um-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; background: white; }
@@ -628,9 +613,9 @@ export default function UserManagementPage() {
 .um-password-toggle { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b7280; padding: 0.25rem; }
 
 /* Header */
-.um-header { text-align: left; margin-bottom: 24px; }
-.um-header h1 { color: #fff; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; text-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-.um-header h2 { color: rgba(255,255,255,0.9); font-size: 0.875rem; font-weight: 400; margin: 0; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.um-header { text-align: center; margin-bottom: 20px; }
+.um-header h1 { color: #fff; font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; text-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+.um-header h2 { color: rgba(255,255,255,0.9); font-size: 0.75rem; font-weight: 400; margin: 0; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 
 /* Form actions */
 .um-form-actions { display: flex; gap: 0.5rem; align-items: center; padding-top: 0.625rem; border-top: 1px solid #e5e7eb; margin-top: 0.75rem; flex-wrap: wrap; }
@@ -736,65 +721,45 @@ export default function UserManagementPage() {
           <Stat label="Admins" value={stats.admins} icon="fas fa-user-gear" tint="#f3e8ff" color="#7c3aed" />
         </div>
 
-        {/* Filter Card */}
+        {/* Filter Card — single row, matches the Late Captures / Analytics style */}
         <div className="um-card">
-          <div className="um-card-header">
-            <div className="um-card-title">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              Filters
+          <div className="um-card-body" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", padding: "14px 18px" }}>
+            <div style={{ minWidth: 180 }}>
+              <label className="um-form-label">Role</label>
+              <MultiSelect
+                options={ROLE_OPTIONS}
+                selected={filterRoles}
+                onChange={setFilterRoles}
+                placeholder="All Roles"
+              />
             </div>
-          </div>
-          <div className="um-card-body">
-            <div className="um-form-group">
-              <div>
-                <label className="um-form-label">Role</label>
-                <MultiSelect
-                  options={ROLE_OPTIONS}
-                  selected={filterRoles}
-                  onChange={setFilterRoles}
-                  placeholder="All Roles"
-                />
-              </div>
-              <div>
-                <label className="um-form-label">Status</label>
-                <MultiSelect
-                  options={STATUS_OPTIONS}
-                  selected={filterStatuses}
-                  onChange={setFilterStatuses}
-                  placeholder="All Statuses"
-                />
-              </div>
-              <div>
-                <label className="um-form-label">Search</label>
-                <input
-                  type="text"
-                  className="um-form-control"
-                  placeholder="Search by name, email, username..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </div>
+            <div style={{ minWidth: 150 }}>
+              <label className="um-form-label">Status</label>
+              <MultiSelect
+                options={STATUS_OPTIONS}
+                selected={filterStatuses}
+                onChange={setFilterStatuses}
+                placeholder="All Statuses"
+              />
             </div>
-            <div className="um-form-actions">
-              <button
-                className="um-btn um-btn-primary"
-                onClick={handleApplyFilters}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                Apply
-              </button>
-              <button
-                className="um-btn um-btn-secondary"
-                onClick={handleClearFilters}
-              >
-                Clear
-              </button>
+            <div style={{ flex: "1 1 220px", maxWidth: 340 }}>
+              <label className="um-form-label">Search</label>
+              <input
+                type="text"
+                className="um-form-control"
+                style={{ padding: "0.4rem 0.55rem", fontSize: "0.75rem" }}
+                placeholder="Search by name, email, username..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleApplyFilters(); }}
+              />
             </div>
+            <button className="um-btn um-btn-primary" style={{ padding: "0.45rem 1rem" }} onClick={handleApplyFilters}>
+              <i className="fas fa-filter" /> Apply
+            </button>
+            <button className="um-btn um-btn-secondary" style={{ padding: "0.45rem 1rem" }} onClick={handleClearFilters}>
+              <i className="fas fa-times" /> Clear
+            </button>
           </div>
         </div>
 
@@ -824,20 +789,6 @@ export default function UserManagementPage() {
                 </span>
               </div>
               <div className="um-btn-group">
-                <button className="um-btn um-btn-purple" onClick={handleSendKPIEmails}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Send KPI Emails
-                </button>
-                <button className="um-btn" style={{ background: "#0f766e", color: "white" }} onClick={handleTestKPIEmail} title="Send a test KPI email to ethansevenster5@gmail.com">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Test KPI Email
-                </button>
                 <button
                   className="um-btn um-btn-success"
                   onClick={() => setShowAddModal(true)}
@@ -914,68 +865,47 @@ export default function UserManagementPage() {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: "flex", gap: "4px" }}>
+                          <div style={{ display: "flex", gap: "4px", flexWrap: "nowrap" }}>
                             <button
-                              className="um-btn um-btn-info um-btn-xs"
-                              title="Edit"
+                              className="um-btn um-btn-info um-action-btn"
+                              title="Change this user's name, email, or role"
                               onClick={() => openEditModal(user)}
                             >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
+                              <i className="fas fa-pen" /> Edit
                             </button>
                             <button
-                              className="um-btn um-btn-info um-btn-xs"
-                              title="Reset Password"
+                              className="um-btn um-btn-info um-action-btn"
+                              title="Set a new login password for this user"
                               onClick={() => openResetModal(user)}
                             >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0110 0v4" />
-                              </svg>
+                              <i className="fas fa-key" /> Password
                             </button>
                             <button
-                              className="um-btn um-btn-xs"
+                              className="um-btn um-action-btn"
                               style={{ backgroundColor: "#7c3aed", color: "white" }}
-                              title="Reset OTP (send setup email)"
+                              title="Email this user a link to set up their own password (resets their OTP)"
                               onClick={() => handleResetOTP(user)}
                             >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                <polyline points="22,6 12,13 2,6" />
-                              </svg>
+                              <i className="fas fa-envelope" /> Setup Email
                             </button>
                             <button
-                              className={`um-btn um-btn-xs ${
+                              className={`um-btn um-action-btn ${
                                 user.is_active ? "um-btn-warning" : "um-btn-success"
                               }`}
-                              title={user.is_active ? "Deactivate" : "Activate"}
+                              title={user.is_active
+                                ? "Disable this account — the user can no longer log in (reversible)"
+                                : "Re-enable this account so the user can log in again"}
                               onClick={() => handleToggleActive(user)}
                             >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                {user.is_active ? (
-                                  <>
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                                  </>
-                                ) : (
-                                  <>
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </>
-                                )}
-                              </svg>
+                              <i className={`fas fa-${user.is_active ? "ban" : "check"}`} /> {user.is_active ? "Deactivate" : "Activate"}
                             </button>
                             {user.role !== "developer" && (
                               <button
-                                className="um-btn um-btn-danger um-btn-xs"
-                                title="Delete"
+                                className="um-btn um-btn-danger um-action-btn"
+                                title="Remove this user — the account is deactivated and their historical data (inspections, logs) is preserved"
                                 onClick={() => handleDeleteUser(user)}
                               >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                </svg>
+                                <i className="fas fa-trash" /> Delete
                               </button>
                             )}
                           </div>

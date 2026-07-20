@@ -22,6 +22,7 @@ const ALL_SECTIONS: NavSection[] = [
       { href: "/admin-analytics", label: "Admin Analytics",     icon: "fas fa-chart-line"           },
       { href: "/lab-analytics",   label: "Lab Analytics",       icon: "fas fa-flask"                },
       { href: "/export-sheet",   label: "Export Sheet",         icon: "fas fa-file-download"        },
+      { href: "/late-captures",  label: "Late Captures",        icon: "fas fa-user-clock"           },
     ],
   },
   {
@@ -29,7 +30,6 @@ const ALL_SECTIONS: NavSection[] = [
     items: [
       { href: "/user-management", label: "User Management", icon: "fas fa-user-shield" },
       { href: "/system-logs",     label: "System Logs",     icon: "fas fa-history"     },
-      { href: "/server-view",     label: "Server View",     icon: "fas fa-database"    },
       { href: "/training",        label: "Training",         icon: "fas fa-video"       },
     ],
   },
@@ -37,7 +37,6 @@ const ALL_SECTIONS: NavSection[] = [
     label: "Account",
     items: [
       { href: "/notifications", label: "Notifications", icon: "fas fa-bell"      },
-      { href: "/settings",      label: "Settings",      icon: "fas fa-sliders-h" },
     ],
   },
 ];
@@ -49,7 +48,7 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
     "/training", "/inspector-settings",
   ]),
   inspector_manager: new Set([
-    "/", "/inspections", "/analytics",
+    "/", "/inspections", "/analytics", "/late-captures",
     "/training", "/inspector-settings",
   ]),
   lab_technician: new Set([
@@ -57,17 +56,17 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
     "/training",
   ]),
   admin: new Set([
-    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet",    "/training", "/settings",
+    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/late-captures",    "/training", "/settings",
   ]),
   financial: new Set([
-    "/", "/inspections", "/clients", "/export-sheet",    "/training",
+    "/", "/inspections", "/clients", "/export-sheet", "/late-captures",    "/training",
   ]),
   super_admin: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet",    "/user-management", "/system-logs", "/server-view",
+    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures",    "/user-management", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
   developer: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet",    "/user-management", "/system-logs", "/server-view",
+    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures",    "/user-management", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
 };
