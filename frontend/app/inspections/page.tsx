@@ -301,6 +301,7 @@ export default function InspectionsPage() {
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
   const [lateCaptureFilter, setLateCaptureFilter] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState("date_desc");
   const [role, setRole] = useState<string | null>(null);
 
   // Missing-sample flags (super admins & lab technicians): group ids currently flagged
@@ -334,6 +335,7 @@ export default function InspectionsPage() {
     lab: [] as string[],
     testType: [] as string[],
     lateCapture: [] as string[],
+    sort: "date_desc",
   });
 
   // Upload state
@@ -647,6 +649,7 @@ export default function InspectionsPage() {
     compliance?: string[]; approved?: string[]; email?: string;
     rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
     retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[]; lateCapture?: string[];
+    sort?: string;
   }) => {
     setLoading(true);
     const p = new URLSearchParams();
@@ -675,6 +678,7 @@ export default function InspectionsPage() {
       if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", LAB_NAME_TO_CODE[v] || v));
       if (filters.testType?.length) filters.testType.forEach(v => p.append("test_type", v));
       if (filters.lateCapture?.length) filters.lateCapture.forEach(v => p.append("late_capture", v));
+      if (filters.sort && filters.sort !== "date_desc") p.set("sort", filters.sort);
     }
     p.set("page", String(page ?? currentPage));
     p.set("page_size", String(PAGE_SIZE));
@@ -756,17 +760,19 @@ export default function InspectionsPage() {
     const urlSampled = sp.getAll("sampled");
     const urlInspector = sp.getAll("inspector");
     const urlLate = sp.getAll("late_capture");
+    const urlSort = sp.get("sort") || "";
     const urlClientSearch = sp.get("client_search") || "";
     if (urlClientSearch) {
       setClientSearch(urlClientSearch);
       setDebouncedSearch(urlClientSearch);
     }
-    if (urlCoa.length || urlRetest.length || urlSampled.length || urlInspector.length || urlLate.length) {
+    if (urlCoa.length || urlRetest.length || urlSampled.length || urlInspector.length || urlLate.length || urlSort) {
       if (urlCoa.length) setCoaFileFilter(urlCoa);
       if (urlRetest.length) setRetestFilter(urlRetest);
       if (urlSampled.length) setSampledFilter(urlSampled);
       if (urlInspector.length) setInspectorFilter(urlInspector);
       if (urlLate.length) setLateCaptureFilter(urlLate);
+      if (urlSort) setSortBy(urlSort);
       const af = {
         ...appliedFilters,
         coaFile: urlCoa,
@@ -774,6 +780,7 @@ export default function InspectionsPage() {
         sampled: urlSampled,
         inspector: urlInspector,
         lateCapture: urlLate,
+        sort: urlSort || "date_desc",
       };
       setAppliedFilters(af);
       fetchInspections(false, "", "", 1, urlClientSearch, af);
@@ -1946,6 +1953,18 @@ export default function InspectionsPage() {
 
                 {/* Dropdowns grid */}
                 <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  <div className="ir-filter-field">
+                    <label className="ir-form-label">Sort By</label>
+                    <select value={sortBy}
+                      onChange={e => { const v = e.target.value; setSortBy(v); const af = { ...appliedFilters, sort: v }; setAppliedFilters(af); setCurrentPage(1); fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, af); }}
+                      style={{ width: "100%", padding: "6px 10px", fontSize: "0.8rem", border: "1px solid #e5e7eb", borderRadius: 6, background: "white", color: "#1f2937", cursor: "pointer" }}>
+                      <option value="date_desc">Inspection date — newest</option>
+                      <option value="date_asc">Inspection date — oldest</option>
+                      <option value="late_desc">Most days late</option>
+                      <option value="late_asc">Least days late</option>
+                      <option value="captured_desc">Recently captured</option>
+                    </select>
+                  </div>
                   <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} searchable />
                   <IrMultiSelect label="Business" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} searchable />
                   <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} searchable />
@@ -1973,8 +1992,8 @@ export default function InspectionsPage() {
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
-                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]);
-                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [] });
+                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]); setSortBy("date_desc");
+                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [], sort: "date_desc" });
                       setCurrentPage(1);
                       fetchInspections(showDuplicates, "", "", 1, "");
                     }}>
@@ -1991,6 +2010,7 @@ export default function InspectionsPage() {
                         email: emailFilter, retest: retestFilter,
                         coaStatus: coaStatusFilter, lab: labFilter, testType: testTypeFilter,
                         lateCapture: lateCaptureFilter,
+                        sort: sortBy,
                       };
                       setAppliedFilters(af);
                       setCurrentPage(1);

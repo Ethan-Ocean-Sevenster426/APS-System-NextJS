@@ -1527,6 +1527,25 @@ def api_inspections(request):
             else:
                 groups_qs = groups_qs.none()
 
+        # Sorting (applied before pagination so the page slices are correct).
+        # Default (date_desc) keeps the newest-inspection-first order set above.
+        _sort = request.GET.get('sort', 'date_desc')
+        if not show_duplicates and _sort and _sort != 'date_desc':
+            if _sort == 'date_asc':
+                groups_qs = groups_qs.order_by('date_of_inspection', 'id')
+            elif _sort == 'captured_desc':
+                groups_qs = groups_qs.order_by('-created_at')
+            elif _sort == 'captured_asc':
+                groups_qs = groups_qs.order_by('created_at')
+            elif _sort in ('late_desc', 'late_asc'):
+                from django.db.models import ExpressionWrapper as _EW, DurationField as _DF, F as _F2
+                from django.db.models.functions import TruncDate as _TD
+                groups_qs = groups_qs.annotate(
+                    _cap_lag=_EW(_TD('created_at') - _F2('date_of_inspection'), output_field=_DF())
+                )
+                _o = _F2('_cap_lag').desc(nulls_last=True) if _sort == 'late_desc' else _F2('_cap_lag').asc(nulls_last=True)
+                groups_qs = groups_qs.order_by(_o, '-date_of_inspection')
+
         # Server-side pagination
         _total_count = groups_qs.count()
         _page = int(request.GET.get('page', '1'))
