@@ -1841,9 +1841,9 @@ export default function InspectionsPage() {
         .ir-form-control:focus { outline: none; border-color: #007890; box-shadow: 0 0 0 3px #e6f3f7; }
         .ir-table { min-width: 100%; border-collapse: collapse; }
         .ir-table thead { background: #f9fafb; }
-        .ir-table th { padding: 8px 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #374151; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
+        .ir-table th { padding: 11px 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #374151; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
         .ir-table th.center { text-align: center; }
-        .ir-table td { padding: 8px 12px; font-size: 0.75rem; border-bottom: 1px solid #e5e7eb; color: #1f2937; vertical-align: middle; }
+        .ir-table td { padding: 11px 12px; font-size: 0.75rem; border-bottom: 1px solid #e5e7eb; color: #1f2937; vertical-align: middle; }
         .ir-table td.center { text-align: center; }
         .ir-badge { font-size: 9px; padding: 2px 4px; border-radius: 4px; font-weight: 600; display: inline-block; white-space: nowrap; }
         .ir-badge-green { background: #dcfce7; color: #166534; }
@@ -2203,9 +2203,9 @@ export default function InspectionsPage() {
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Invoice</th>}
                       <th className="center" style={{ width: 60 }}>COA</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Compliance</th>}
-                      <th className="center" style={{ width: 100, whiteSpace: "normal", lineHeight: 1.25 }}>Date of Inspection<br />Conducted</th>
-                      <th className="center" style={{ width: 100, whiteSpace: "normal", lineHeight: 1.25 }}>Date of Inspection<br />Captured</th>
-                      <th className="center" style={{ width: 55, whiteSpace: "normal", lineHeight: 1.25 }}>Days<br />Late</th>
+                      <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Inspection<br />Date</th>
+                      <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Captured<br />Date</th>
+                      <th className="center" style={{ width: 64, whiteSpace: "normal", lineHeight: 1.3 }}>Days<br />Late</th>
                       <th className="center" style={{ width: 80 }}>Approved</th>
                       {roleLoaded && !isLabTechRestricted && <th style={{ width: "1%", whiteSpace: "nowrap" }}>Email</th>}
                       <th className="center" style={{ width: 80 }}>Sent</th>
@@ -2271,14 +2271,14 @@ export default function InspectionsPage() {
                                 </span>
                               </td>
                             )}
-                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: "#6b7280" }}>
+                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", color: "#6b7280" }}>
                               {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                             </td>
-                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", color: s.late_capture ? "#dc2626" : "#6b7280", fontWeight: s.late_capture ? 600 : undefined }}
+                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", color: s.late_capture ? "#dc2626" : "#6b7280", fontWeight: s.late_capture ? 600 : undefined }}
                               title={s.late_capture ? `Captured ${s.capture_lag_days} days after inspection (limit 2)` : undefined}>
                               {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                             </td>
-                            <td className="center" style={{ fontSize: "0.55rem", whiteSpace: "nowrap", fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : "#6b7280" }}
+                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : "#6b7280" }}
                               title={`Days between inspection and capture (limit 2)`}>
                               {s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).label : "—"}
                             </td>
