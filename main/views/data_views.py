@@ -3652,6 +3652,9 @@ def api_add_inspection(request):
                 missing.append('Group Type')
             if not data.get('facility_type', '').strip():
                 missing.append('Facility Type')
+            # A client email is required so inspection documents can be sent.
+            if not (data.get('additional_email', '') or data.get('client_email', '')).strip():
+                missing.append('Client Email')
         if missing:
             return _cors(JsonResponse({'success': False, 'error': f"Required fields missing: {', '.join(missing)}"}))
 
@@ -5544,6 +5547,13 @@ def api_edit_inspection_group(request):
         _raw_email = data.get('additional_email', None)
         additional_email = _raw_email.strip() if _raw_email else ((group.additional_email if group else insp.additional_email) or '')
         client_email = data.get('client_email', '').strip()
+
+        # A client email is required on save so documents can be sent.
+        # Occurrence reports are exempt; additional_email falls back to the
+        # stored value, so this only blocks a save that would leave no email.
+        if not (insp and insp.is_occurrence_report):
+            if not (additional_email or client_email).strip():
+                return _insp_cors(request, JsonResponse({'success': False, 'error': 'Required fields missing: Client Email'}))
         comment = data.get('comment', '').strip()
         km_traveled = float(data.get('km_traveled', 0) or 0)
         hours = float(data.get('hours', 0) or 0)

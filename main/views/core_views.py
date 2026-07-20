@@ -7648,7 +7648,10 @@ def generate_test_line_items(inspection_id, inspection, invoice_ref, rfi_ref, pr
 
     else:  # RAW products
         # Fat Test
-        if inspection.fat and inspection.is_sample_taken:
+        # Use the visit-aggregated flag (like protein/dna/calcium below), not
+        # the first product's own fields - otherwise a fat sample taken on any
+        # RAW product other than raw[0] is dropped from the export.
+        if generate_fat:
             items.append({
                 'row_number': 9,
                 'inspection_id': inspection_id,

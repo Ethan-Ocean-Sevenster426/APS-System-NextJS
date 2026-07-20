@@ -308,6 +308,7 @@ export default function EditInspectionPage() {
       if (!corporateGroup.trim()) missing.push("Business");
       if (!groupType.trim()) missing.push("Store Type");
       if (!facilityType.trim()) missing.push("Facility Type");
+      if (!isOccurrence && !primaryEmail.trim()) missing.push("Client Email (Primary)");
       return missing;
     }
     if (s === 2 && !isOccurrence) {
@@ -535,7 +536,7 @@ export default function EditInspectionPage() {
               value={town} onChange={v => { console.log(`[EditPage] Town onChange — new="${v}", old="${town}"`); setTown(v); }} placeholder="Start typing to search towns..." />
 
             <div className="form-group">
-              <label className="form-label">Client Email (Primary)</label>
+              <label className="form-label">Client Email (Primary){!isOccurrence && <span style={{ color: "#ef4444" }}> *</span>}</label>
               <input type="email" className="form-control" value={primaryEmail}
                 onChange={e => setPrimaryEmail(e.target.value)} placeholder="primary@example.com" />
               <small style={{ color: "#6b7280", fontSize: 11 }}>Main client email. Documents will be sent to this address.</small>
