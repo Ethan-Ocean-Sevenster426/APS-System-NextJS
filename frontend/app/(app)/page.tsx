@@ -114,7 +114,7 @@ export default function HomePage() {
       <div style={{ marginBottom: 20 }}>
         <Section title="Quick Access">
           <p style={{ color: F.muted, lineHeight: 1.5, margin: "0 0 14px", fontSize: "0.82rem" }}>
-            Welcome to the Food Safety Agency management system. Data syncs automatically every hour in the background.
+            Welcome to the Food Safety Agency management system.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12, minHeight: 64 }}>
             {quickLinks.map(link => (
