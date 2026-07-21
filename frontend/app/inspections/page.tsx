@@ -830,6 +830,8 @@ export default function InspectionsPage() {
   const isInspector = role === "inspector" || role === "inspector_manager";
   // Admin-level roles can upload every document type, regardless of commodity
   const canUploadAll = role === "admin" || role === "super_admin" || role === "developer";
+  // Only admin-level roles may delete inspection records
+  const canDelete = role === "admin" || role === "super_admin" || role === "developer";
   // Super admins & lab technicians can flag a visit as "inspector didn't add the correct sampling info"
   const canFlag = role === "super_admin" || role === "developer" || role === "lab_technician";
 
@@ -2175,7 +2177,7 @@ export default function InspectionsPage() {
                           onClick={e => e.stopPropagation()}>
                           <i className="fas fa-edit" /> Edit
                         </a>
-                        {!isInspector && (
+                        {canDelete && (
                           <button style={{ flex: 1, padding: "8px", background: "#ef4444", color: "white", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer" }}
                             onClick={async e => {
                               e.stopPropagation();
@@ -2396,7 +2398,7 @@ export default function InspectionsPage() {
                                     onClick={e => e.stopPropagation()} title="Edit">
                                     <i className="fas fa-edit" />
                                   </a>
-                                  {!isInspector && (
+                                  {canDelete && (
                                     <button style={{ padding: "3px 6px", background: "#ef4444", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
                                       title="Delete"
                                       onClick={async e => {

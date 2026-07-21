@@ -656,6 +656,7 @@ def edit_inspection(request, pk):
 
 
 @login_required(login_url='login')
+@role_required(['admin', 'super_admin', 'developer'])
 def delete_inspection(request, pk):
     """Delete an inspection."""
     clear_messages(request)
@@ -3570,6 +3571,7 @@ def edit_inspection(request, inspection_id):
         return redirect('shipment_list')
 
 @login_required(login_url='login')
+@role_required(['admin', 'super_admin', 'developer'])
 def delete_inspection(request, inspection_id):
     """Delete a Food Safety Agency inspection."""
     clear_messages(request)
