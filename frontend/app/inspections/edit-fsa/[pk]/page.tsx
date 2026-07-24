@@ -309,6 +309,7 @@ export default function EditInspectionPage() {
       if (!groupType.trim()) missing.push("Store Type");
       if (!facilityType.trim()) missing.push("Facility Type");
       if (!isOccurrence && !primaryEmail.trim()) missing.push("Client Email (Primary)");
+      if (dateOfInspection && dateOfInspection > new Date().toISOString().split("T")[0]) missing.push("Date of Inspection cannot be in the future");
       return missing;
     }
     if (s === 2 && !isOccurrence) {
@@ -510,7 +511,7 @@ export default function EditInspectionPage() {
 
             <div className="form-group">
               <label className="form-label">Date of Inspection</label>
-              <input type="date" className="form-control" value={dateOfInspection}
+              <input type="date" className="form-control" max={new Date().toISOString().split("T")[0]} value={dateOfInspection}
                 onChange={e => setDateOfInspection(e.target.value)} />
             </div>
 

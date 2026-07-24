@@ -3730,6 +3730,11 @@ def api_add_inspection(request):
         date_obj = _pd(data['date_of_inspection'])
         if not date_obj:
             return _cors(JsonResponse({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD'}))
+        # An inspection cannot have happened in the future — reject future dates so a
+        # mistyped date (e.g. wrong month) can never be captured before it occurred.
+        import datetime as _dt_today
+        if date_obj > _dt_today.date.today():
+            return _cors(JsonResponse({'success': False, 'error': 'The date of inspection cannot be in the future. Please check the date.'}))
 
         # Resolve inspector name: payload > authenticated user > fallback
         inspector_name = data.get('inspector_name', '').strip()
@@ -5625,6 +5630,9 @@ def api_edit_inspection_group(request):
             date_obj = _datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else insp.date_of_inspection
         except ValueError:
             date_obj = insp.date_of_inspection
+        # An inspection cannot have happened in the future — reject future dates.
+        if date_obj and date_obj > _datetime.now().date():
+            return _insp_cors(request, JsonResponse({'success': False, 'error': 'The date of inspection cannot be in the future. Please check the date.'}))
 
         # Common fields from POST
         client_name = data.get('client_name', insp.client_name or '').strip()

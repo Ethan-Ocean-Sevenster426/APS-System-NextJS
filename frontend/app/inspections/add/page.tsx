@@ -241,6 +241,7 @@ export default function AddInspectionPage() {
     if (s === 1) {
       const m: string[] = [];
       if (!dateOfInspection) m.push("Date of Inspection");
+      else if (dateOfInspection > new Date().toISOString().split("T")[0]) m.push("Date of Inspection cannot be in the future");
       if (!clientName.trim()) m.push("Client Name");
       if (!town.trim()) m.push("Town");
       if (!primaryEmail.trim()) m.push("Client Email (Primary)");
@@ -376,6 +377,7 @@ export default function AddInspectionPage() {
       if (!physicalAddress.trim()) m.push("Physical Address");
       if (!town.trim()) m.push("Town");
       if (!dateOfInspection) m.push("Date of Visit");
+      else if (dateOfInspection > new Date().toISOString().split("T")[0]) m.push("Date of Visit cannot be in the future");
       if (kmTraveled === undefined || kmTraveled === null) m.push("KM Traveled");
       if (hoursWorked === undefined || hoursWorked === null) m.push("Hours Worked");
       if (!travelStart.trim()) m.push("Travel Start");
@@ -598,7 +600,7 @@ export default function AddInspectionPage() {
                 <div className="product-fields-grid" style={{ marginBottom: 0 }}>
                   <div className="form-group">
                     <label className="form-label" style={{ color: "#92400e" }}>Date of Visit <span style={{ color: "#ef4444" }}>*</span></label>
-                    <input type="date" className="form-control occ-input" value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
+                    <input type="date" className="form-control occ-input" max={new Date().toISOString().split("T")[0]} value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label className="form-label" style={{ color: "#92400e" }}>Time of Visit</label>
@@ -948,7 +950,7 @@ export default function AddInspectionPage() {
 
             <div className="form-group">
               <label className="form-label">Date of Inspection <span style={{ color: "#ef4444" }}>*</span></label>
-              <input type="date" className="form-control" value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
+              <input type="date" className="form-control" max={new Date().toISOString().split("T")[0]} value={dateOfInspection} onChange={e => setDateOfInspection(e.target.value)} />
             </div>
 
             <Autocomplete label="Client" required options={options?.clients.map(c => c.name) ?? []} value={clientName}
