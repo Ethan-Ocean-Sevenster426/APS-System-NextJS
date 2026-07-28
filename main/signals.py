@@ -135,30 +135,41 @@ def capture_group_changes(sender, instance, **kwargs):
 
 @receiver(post_save, sender=User)
 def create_inspector_mapping(sender, instance, created, **kwargs):
-    """Automatically create inspector mapping when a new inspector user is created"""
-    if created and instance.role == 'inspector':
-        full_name = instance.get_full_name() or instance.username
-        
-        # Try to find this inspector in the actual inspection data
-        matching_inspector = FoodSafetyAgencyInspection.objects.filter(
-            inspector_name=full_name
-        ).first()
-        
-        if matching_inspector:
-            # Create mapping with correct ID from data
-            InspectorMapping.objects.get_or_create(
-                inspector_id=matching_inspector.inspector_id,
-                defaults={
-                    'inspector_name': full_name,
-                    'is_active': True
-                }
-            )
-        else:
-            # Create mapping with dummy ID (will need manual correction)
-            InspectorMapping.objects.get_or_create(
-                inspector_name=full_name,
-                defaults={
-                    'inspector_id': 9000 + instance.id,  # Use user ID to make it unique
-                    'is_active': True
-                }
-            )
+    """Ensure every inspector user has an inspector number (InspectorMapping).
+
+    Runs on every save, not just creation: user management sets the role AFTER
+    User.objects.create_user(), so at insert time every user briefly carries
+    the default 'inspector' role — a created-only hook both missed real
+    inspectors (role arrives one save later) and minted junk mappings for
+    admins/testers. Checking the current role on each save self-heals any
+    inspector who is somehow missing a number.
+    """
+    if getattr(instance, 'role', None) != 'inspector':
+        return
+    full_name = (instance.get_full_name() or instance.username).strip()
+    if not full_name:
+        return
+    try:
+        if InspectorMapping.objects.filter(inspector_name__iexact=full_name).exists():
+            return
+        # Prefer the number already on this inspector's records (remote-synced
+        # data carries the source system's ID) if no other mapping holds it.
+        inspector_id = (
+            FoodSafetyAgencyInspection.objects
+            .filter(inspector_name__iexact=full_name, inspector_id__isnull=False)
+            .values_list('inspector_id', flat=True)
+            .first()
+        )
+        if inspector_id is None or InspectorMapping.objects.filter(inspector_id=inspector_id).exists():
+            # Allocate the next free number in the local 9000+ range.
+            inspector_id = 9000 + instance.pk
+            while InspectorMapping.objects.filter(inspector_id=inspector_id).exists():
+                inspector_id += 1
+        InspectorMapping.objects.create(
+            inspector_id=inspector_id,
+            inspector_name=full_name,
+            is_active=True,
+        )
+    except Exception:
+        # Mapping allocation must never break a user save.
+        pass

@@ -18195,11 +18195,12 @@ def user_management(request):
                             email=email,
                             password=password1,
                             first_name=first_name,
-                            last_name=last_name
+                            last_name=last_name,
+                            # Role must be set at INSERT time: the model default is
+                            # 'inspector', and the post_save mapping signal reads the
+                            # role on the very first save.
+                            role=role,
                         )
-                        # Set role
-                        user.role = role
-                        user.save()
                         
                         # Create inspector mapping if inspector ID is provided
                         if inspector_id:
@@ -18233,11 +18234,11 @@ def user_management(request):
                         email=email,
                         password=password1,
                         first_name=first_name,
-                        last_name=last_name
+                        last_name=last_name,
+                        # Same as above: role at INSERT so the mapping signal
+                        # sees the real role, not the 'inspector' default.
+                        role=role,
                     )
-                    # Set role
-                    user.role = role
-                    user.save()
 
                     # Create salary record if provided
                     if monthly_salary:
@@ -19041,7 +19042,10 @@ def submit_ticket(request):
                 username='Ethan',
                 email='ethan.sevenster@moc-pty.com',
                 first_name='Ethan',
-                last_name='Sevenster'
+                last_name='Sevenster',
+                # Not an inspector — without this the default role minted a
+                # junk inspector number for the auto-created assignee.
+                role='developer',
             )
 
         # Create the ticket with all fields and auto-assign to Ethan
