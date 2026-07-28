@@ -3747,6 +3747,14 @@ def api_add_inspection(request):
                 inspector_name = 'API User'
         data['inspector_name'] = inspector_name
 
+        # Stamp the inspector's number from InspectorMapping. Remote-synced
+        # inspections carry inspector_id from the source system, but manual
+        # captures used to save NULL — leaving the inspector number blank on
+        # client-facing documents (e.g. "Boxer Lenasia 2 has no inspector number").
+        from ..models import InspectorMapping as _IMap
+        _imap = _IMap.objects.filter(inspector_name__iexact=inspector_name).first()
+        manual_inspector_id = _imap.inspector_id if _imap else None
+
         with transaction.atomic():
             # Get or create client
             client_name = data['client_name'].strip()
@@ -3819,6 +3827,7 @@ def api_add_inspection(request):
                     product_name='Occurrence Report',
                     product_class='',
                     inspector_name=data.get('inspector_name', 'API User'),
+                    inspector_id=manual_inspector_id,
                     town=data.get('town', ''),
                     is_sample_taken=False,
                     needs_retest='NO',
@@ -3854,6 +3863,7 @@ def api_add_inspection(request):
                         product_name=prod.get('product_name', ''),
                         product_class=prod.get('product_class', ''),
                         inspector_name=data.get('inspector_name', 'API User'),
+                        inspector_id=manual_inspector_id,
                         town=data.get('town', ''),
                         is_sample_taken=bool(prod.get('is_sample_taken', False)),
                         needs_retest=prod.get('needs_retest', 'NO'),
@@ -5788,6 +5798,9 @@ def api_edit_inspection_group(request):
                     rel.save()
 
                 # Create new products
+                from ..models import InspectorMapping as _IMap
+                _imap = _IMap.objects.filter(inspector_name__iexact=inspector_name).first()
+                _manual_inspector_id = _imap.inspector_id if _imap else None
                 for prod in to_create:
                     min_remote = _Insp.objects.filter(is_manual=True).aggregate(Min('remote_id'))['remote_id__min']
                     new_remote_id = -1 if (min_remote is None or min_remote >= 0) else min_remote - 1
@@ -5811,6 +5824,7 @@ def api_edit_inspection_group(request):
                         km_traveled=km_traveled,
                         hours=hours,
                         inspector_name=inspector_name,
+                        inspector_id=_manual_inspector_id,
                         town=town,
                         corporate_group=corporate_group,
                         group_type=group_type,
