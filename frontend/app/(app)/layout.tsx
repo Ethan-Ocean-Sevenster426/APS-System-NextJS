@@ -8,6 +8,8 @@ const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
   "/inspections": "Inspection Records",
   "/clients": "Client Allocation",
+  "/clients-approval": "Clients Approval",
+  "/clients-approval/report": "Client Entry Report",
   "/analytics": "Inspector Analytics",
   "/lab-analytics": "Lab Analytics",
   "/export-sheet": "Export Sheet",

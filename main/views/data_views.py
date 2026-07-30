@@ -1087,6 +1087,7 @@ def api_inspections(request):
             .annotate(
                 is_occurrence_report=Exists(insp.filter(is_occurrence_report=True)),
                 first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
+                first_approved_date=Subquery(insp.order_by('id').values('approved_date')[:1]),
                 first_sent=Subquery(insp.order_by('id').values('sent_date')[:1]),
                 first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('id').values('sent_by')[:1]),
                 first_sent_by_name=Subquery(insp.exclude(sent_by_name='').order_by('id').values('sent_by_name')[:1]),
@@ -1206,6 +1207,30 @@ def api_inspections(request):
                 groups_qs = groups_qs.filter(
                     created_at__isnull=False, date_of_inspection__isnull=False
                 ).filter(_combined)
+
+        # Late approval filter (LATE / ON_TIME) — approval must happen within the
+        # same 2-day window after capture; pending groups older than that are late too
+        filter_late_appr = request.GET.getlist('late_approval')
+        if filter_late_appr:
+            import datetime as _la_dt
+            from django.db.models import F as _laF, Q as _laQ
+            from django.db.models.functions import TruncDate as _laTrunc
+            _la_today = _la_dt.date.today()
+            _la_late = (
+                _laQ(first_approved='APPROVED', first_approved_date__isnull=False,
+                     first_approved_date__date__gt=_laTrunc(_laF('created_at')) + _la_dt.timedelta(days=2))
+                | (~_laQ(first_approved='APPROVED')
+                   & _laQ(created_at__date__lt=_la_today - _la_dt.timedelta(days=2)))
+            )
+            _la_map = {'LATE': _la_late, 'ON_TIME': ~_la_late}
+            _la_combined = _laQ()
+            _la_matched = False
+            for _v in filter_late_appr:
+                if _v in _la_map:
+                    _la_combined |= _la_map[_v]
+                    _la_matched = True
+            if _la_matched:
+                groups_qs = groups_qs.filter(created_at__isnull=False).filter(_la_combined)
 
         # Compliance filter (COMPLIANT / NON_COMPLIANT / PENDING)
         filter_compliance = request.GET.getlist('compliance')
@@ -1510,6 +1535,7 @@ def api_inspections(request):
                 .annotate(
                     is_occurrence_report=Exists(insp.filter(is_occurrence_report=True)),
                     first_approved=Subquery(insp.order_by('id').values('approved_status')[:1]),
+                    first_approved_date=Subquery(insp.order_by('id').values('approved_date')[:1]),
                     first_sent=Subquery(insp.filter(sent_date__isnull=False).order_by('-id').values('sent_date')[:1]),
                     first_sent_by_id=Subquery(insp.filter(sent_by__isnull=False).order_by('-id').values('sent_by')[:1]),
                     first_sent_by_name=Subquery(insp.exclude(sent_by_name='').order_by('-id').values('sent_by_name')[:1]),
@@ -1730,6 +1756,17 @@ def api_inspections(request):
             if g.created_at and g.date_of_inspection:
                 _capture_lag = (g.created_at.date() - g.date_of_inspection).days
 
+            # Approval lag: days from capture to approval (or to today while
+            # still pending) — approvals are expected within the same 2-day window
+            _appr_lag = None
+            if g.created_at:
+                if g.first_approved == 'APPROVED':
+                    if getattr(g, 'first_approved_date', None):
+                        _appr_lag = (g.first_approved_date.date() - g.created_at.date()).days
+                else:
+                    import datetime as _al_dt
+                    _appr_lag = (_al_dt.date.today() - g.created_at.date()).days
+
             results.append({
                 'id': g.id,
                 'group_id': fallback_group_id,
@@ -1766,6 +1803,8 @@ def api_inspections(request):
                 'created_at': g.created_at.isoformat() if g.created_at else None,
                 'capture_lag_days': _capture_lag,
                 'late_capture': _capture_lag is not None and _capture_lag > _LATE_LAG_DAYS,
+                'approval_lag_days': _appr_lag,
+                'late_approval': _appr_lag is not None and _appr_lag > _LATE_LAG_DAYS,
             })
 
         import math as _math
@@ -3717,6 +3756,26 @@ def api_add_inspection(request):
         if missing:
             return _cors(JsonResponse({'success': False, 'error': f"Required fields missing: {', '.join(missing)}"}))
 
+        # The email must actually BE an email — non-empty was previously the
+        # only check, which let typos like "not-an-email" through and broke
+        # document sending later. Accepts a comma/semicolon-separated list.
+        from django.core.validators import validate_email as _validate_email
+        from django.core.exceptions import ValidationError as _EmailVE
+        _bad_emails = []
+        for _field in ('additional_email', 'client_email'):
+            for _e in (data.get(_field, '') or '').replace(';', ',').split(','):
+                _e = _e.strip()
+                if _e:
+                    try:
+                        _validate_email(_e)
+                    except _EmailVE:
+                        _bad_emails.append(_e)
+        if _bad_emails:
+            return _cors(JsonResponse({
+                'success': False,
+                'error': f"Invalid email address: {', '.join(_bad_emails)}. Please enter a valid client email.",
+            }))
+
         products_data = data.get('products', [])
         if not is_occurrence:
             if not products_data:
@@ -3760,12 +3819,18 @@ def api_add_inspection(request):
             client_name = data['client_name'].strip()
             client = _Client.objects.filter(name__iexact=client_name).first()
             if not client:
+                # Every client auto-created during inspection capture goes to the
+                # Clients Approval queue (whoever captured it), so each genuinely
+                # new name is confirmed once and misspelled duplicates
+                # (e.g. "Pick and Pay" vs "Pick n Pay") get merged before they spread.
                 client = _Client.objects.create(
                     name=client_name,
                     town=data.get('town', ''),
                     corporate_group=data.get('corporate_group', ''),
                     group_type=data.get('group_type', ''),
                     facility_type=data.get('facility_type', ''),
+                    approval_status='pending',
+                    created_by=request.user if getattr(request.user, 'is_authenticated', False) else None,
                 )
 
             # Create parent InspectionGroup
@@ -5619,7 +5684,18 @@ def api_edit_inspection_group(request):
                 group = _Group.objects.get(pk=inspection_id)
             except _Group.DoesNotExist:
                 return _insp_cors(request, JsonResponse({'success': False, 'error': 'Group not found'}))
-            _Insp.objects.filter(inspection_group=group).update(approved_status=approved_only)
+            # Stamp who approved and when — the late-approval tracking needs the
+            # date, and this quick path used to leave it NULL.
+            from django.utils import timezone as _appr_tz
+            if approved_only == 'APPROVED':
+                _Insp.objects.filter(inspection_group=group).update(
+                    approved_status=approved_only, approved_date=_appr_tz.now(),
+                    approved_by=request.user if getattr(request.user, 'is_authenticated', False) else None,
+                )
+            else:
+                _Insp.objects.filter(inspection_group=group).update(
+                    approved_status=approved_only, approved_date=None, approved_by=None,
+                )
             return _insp_cors(request, JsonResponse({'success': True}))
 
         # Resolve as FoodSafetyAgencyInspection FIRST — the edit page keys by
@@ -5669,18 +5745,47 @@ def api_edit_inspection_group(request):
             if not (additional_email or client_email).strip():
                 return _insp_cors(request, JsonResponse({'success': False, 'error': 'Required fields missing: Client Email'}))
 
+        # Validate the FORMAT of any email being changed by this save. Emails
+        # left untouched (including legacy bad values) don't block unrelated
+        # edits — but new/edited values must be real addresses.
+        from django.core.validators import validate_email as _validate_email
+        from django.core.exceptions import ValidationError as _EmailVE
+        _stored_email = ((group.additional_email if group else insp.additional_email) or '').strip()
+        _bad_emails = []
+        for _value, _changed in (
+            (additional_email, additional_email.strip() != _stored_email),
+            (client_email, bool(client_email.strip())),
+        ):
+            if not _changed:
+                continue
+            for _e in (_value or '').replace(';', ',').split(','):
+                _e = _e.strip()
+                if _e:
+                    try:
+                        _validate_email(_e)
+                    except _EmailVE:
+                        _bad_emails.append(_e)
+        if _bad_emails:
+            return _insp_cors(request, JsonResponse({
+                'success': False,
+                'error': f"Invalid email address: {', '.join(_bad_emails)}. Please enter a valid client email.",
+            }))
+
         with transaction.atomic():
             # If client name changed, get or create a Client record and re-link
             old_client_name = (group.client_name if group else insp.client_name) or ''
             if client_name and client_name.lower() != old_client_name.lower():
                 new_client = _Client.objects.filter(name__iexact=client_name).first()
                 if not new_client:
+                    # Same rule as the Add flow: auto-created clients await approval
                     new_client = _Client.objects.create(
                         name=client_name,
                         town=town,
                         corporate_group=corporate_group,
                         group_type=group_type,
                         facility_type=facility_type,
+                        approval_status='pending',
+                        created_by=request.user if getattr(request.user, 'is_authenticated', False) else None,
                     )
                 if group:
                     group.client = new_client

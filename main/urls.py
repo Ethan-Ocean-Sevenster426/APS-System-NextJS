@@ -34,6 +34,9 @@ from .views.core_views import (
 )
 from .views.kpi_report import api_kpi_report, api_sample_discrepancies, api_sample_discrepancy_rectify, api_toggle_group_discrepancy, api_open_discrepancy_groups
 from .views.late_capture_report import api_late_capture_report
+from .views.client_approval import (
+    api_clients_approval, api_client_approve, api_client_merge, api_clients_approval_report,
+)
 from .views.data_views import (
     export_shipments, get_inspection_fees, update_inspection_fees, get_inspection_fee_history,
     api_inspections, api_clients,
@@ -146,6 +149,10 @@ urlpatterns = [
     path('api/clients/add/', api_client_add, name='api_client_add'),
     path('api/clients/edit/', api_client_edit, name='api_client_edit'),
     path('api/clients/delete/', api_client_delete, name='api_client_delete'),
+    path('api/clients-approval/', api_clients_approval, name='api_clients_approval'),
+    path('api/clients-approval/approve/', api_client_approve, name='api_client_approve'),
+    path('api/clients-approval/merge/', api_client_merge, name='api_client_merge'),
+    path('api/clients-approval/report/', api_clients_approval_report, name='api_clients_approval_report'),
     path('api/clients/dropdown-options/', api_dropdown_options, name='api_dropdown_options'),
     path('api/clients/dropdown-options/delete/', api_dropdown_option_delete, name='api_dropdown_option_delete'),
     path('api/users/', api_users, name='api_users'),

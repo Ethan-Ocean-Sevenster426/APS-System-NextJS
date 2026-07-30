@@ -22,7 +22,8 @@ const ALL_SECTIONS: NavSection[] = [
       { href: "/admin-analytics", label: "Admin Analytics",     icon: "fas fa-chart-line"           },
       { href: "/lab-analytics",   label: "Lab Analytics",       icon: "fas fa-flask"                },
       { href: "/export-sheet",   label: "Export Sheet",         icon: "fas fa-file-download"        },
-      { href: "/late-captures",  label: "Late Captures",        icon: "fas fa-user-clock"           },
+      { href: "/late-captures",  label: "Late Captures & Approvals", icon: "fas fa-user-clock"      },
+      { href: "/clients-approval/report", label: "Client Entry Report", icon: "fas fa-user-tag"     },
     ],
   },
   {
@@ -48,7 +49,7 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
     "/training", "/inspector-settings",
   ]),
   inspector_manager: new Set([
-    "/", "/inspections", "/analytics", "/late-captures",
+    "/", "/inspections", "/analytics", "/late-captures", "/clients-approval/report",
     "/training", "/inspector-settings",
   ]),
   lab_technician: new Set([
@@ -56,17 +57,17 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
     "/training",
   ]),
   admin: new Set([
-    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/late-captures",    "/training", "/settings",
+    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/training", "/settings",
   ]),
   financial: new Set([
     "/", "/inspections", "/clients", "/export-sheet", "/late-captures",    "/training",
   ]),
   super_admin: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures",    "/user-management", "/system-logs", "/server-view",
+    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
   developer: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures",    "/user-management", "/system-logs", "/server-view",
+    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
 };

@@ -315,6 +315,11 @@ class SystemSettings(models.Model):
 
 class Client(models.Model):
     """General clients table"""
+    APPROVAL_STATUS_CHOICES = [
+        ('approved', 'Approved'),
+        ('pending', 'Pending Approval'),
+    ]
+
     client_id = models.CharField(max_length=200, unique=True, db_index=True)
     name = models.CharField(max_length=200, db_index=True, verbose_name="Client Name")
     internal_account_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Internal Account Code", help_text="From Google Sheets Column H")
@@ -324,11 +329,21 @@ class Client(models.Model):
     corporate_group = models.CharField(max_length=200, blank=True, null=True, verbose_name="Corporate Group", help_text="e.g., Pick n Pay - Franchise")
     group_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Group Type", help_text="e.g., Corporate Store, Franchise Store")
     facility_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Facility Type", help_text="e.g., Retailer, Butchery, Re-Packer")
+    approval_status = models.CharField(
+        max_length=20, choices=APPROVAL_STATUS_CHOICES, default='approved', db_index=True,
+        verbose_name="Approval Status",
+        help_text="Clients auto-created by field inspectors start as 'pending' until back-office approves the name",
+    )
+    created_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='clients_created',
+        help_text="User whose inspection capture auto-created this client",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     objects = ClientManager()
-    
+
     class Meta:
         db_table = 'food_safety_agency_clients'
         ordering = ['name']
@@ -347,6 +362,51 @@ class Client(models.Model):
         if not self.client_id:
             self.client_id = Client.objects.get_next_client_id()
         super().save(*args, **kwargs)
+
+
+class ClientApprovalLog(models.Model):
+    """Audit trail of Clients Approval decisions.
+
+    One row per decision on an auto-created client: either it was accepted as a
+    genuinely new client, or it was merged into the existing client it
+    duplicated. Powers the "which inspectors capture incorrect clients" report
+    (the pending Client row itself is deleted on merge, so this log is the only
+    surviving record of the mistake).
+    """
+    OUTCOME_CHOICES = [
+        ('accepted', 'Accepted as new client'),
+        ('merged', 'Matched to existing client'),
+    ]
+
+    typed_name = models.CharField(max_length=200, help_text="Client name exactly as the inspector captured it")
+    final_name = models.CharField(max_length=200, help_text="Client name after the decision (target client's name for merges)")
+    outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES, db_index=True)
+    inspector = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='client_approval_entries', help_text="User whose capture created the client",
+    )
+    inspector_name = models.CharField(max_length=150, blank=True, default='')
+    decided_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='client_approval_decisions',
+    )
+    decided_by_name = models.CharField(max_length=150, blank=True, default='')
+    target_client = models.ForeignKey(
+        'Client', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='approval_merges', help_text="Existing client the entry was merged into (merges only)",
+    )
+    inspection_count = models.IntegerField(default=0, help_text="Inspections attached at decision time")
+    client_created_at = models.DateTimeField(null=True, blank=True, help_text="When the inspector created the client")
+    decided_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'client_approval_log'
+        ordering = ['-decided_at']
+        verbose_name = "Client Approval Log Entry"
+        verbose_name_plural = "Client Approval Log"
+
+    def __str__(self):
+        return f"{self.typed_name} -> {self.final_name} ({self.outcome})"
 
 
 class ClientEmail(models.Model):

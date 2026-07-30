@@ -94,6 +94,8 @@ interface Inspection {
   created_at?: string;
   capture_lag_days?: number | null;
   late_capture?: boolean;
+  approval_lag_days?: number | null;
+  late_approval?: boolean;
   products?: Product[];
 }
 
@@ -301,6 +303,7 @@ export default function InspectionsPage() {
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
   const [lateCaptureFilter, setLateCaptureFilter] = useState<string[]>([]);
+  const [lateApprovalFilter, setLateApprovalFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("date_desc");
   const [role, setRole] = useState<string | null>(null);
 
@@ -335,6 +338,7 @@ export default function InspectionsPage() {
     lab: [] as string[],
     testType: [] as string[],
     lateCapture: [] as string[],
+    lateApproval: [] as string[],
     sort: "date_desc",
   });
 
@@ -649,6 +653,7 @@ export default function InspectionsPage() {
     compliance?: string[]; approved?: string[]; email?: string;
     rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
     retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[]; lateCapture?: string[];
+    lateApproval?: string[];
     sort?: string;
   }) => {
     setLoading(true);
@@ -678,6 +683,7 @@ export default function InspectionsPage() {
       if (filters.lab?.length) filters.lab.forEach(v => p.append("lab", LAB_NAME_TO_CODE[v] || v));
       if (filters.testType?.length) filters.testType.forEach(v => p.append("test_type", v));
       if (filters.lateCapture?.length) filters.lateCapture.forEach(v => p.append("late_capture", v));
+      if (filters.lateApproval?.length) filters.lateApproval.forEach(v => p.append("late_approval", v));
       if (filters.sort && filters.sort !== "date_desc") p.set("sort", filters.sort);
     }
     p.set("page", String(page ?? currentPage));
@@ -760,18 +766,20 @@ export default function InspectionsPage() {
     const urlSampled = sp.getAll("sampled");
     const urlInspector = sp.getAll("inspector");
     const urlLate = sp.getAll("late_capture");
+    const urlLateApproval = sp.getAll("late_approval");
     const urlSort = sp.get("sort") || "";
     const urlClientSearch = sp.get("client_search") || "";
     if (urlClientSearch) {
       setClientSearch(urlClientSearch);
       setDebouncedSearch(urlClientSearch);
     }
-    if (urlCoa.length || urlRetest.length || urlSampled.length || urlInspector.length || urlLate.length || urlSort) {
+    if (urlCoa.length || urlRetest.length || urlSampled.length || urlInspector.length || urlLate.length || urlLateApproval.length || urlSort) {
       if (urlCoa.length) setCoaFileFilter(urlCoa);
       if (urlRetest.length) setRetestFilter(urlRetest);
       if (urlSampled.length) setSampledFilter(urlSampled);
       if (urlInspector.length) setInspectorFilter(urlInspector);
       if (urlLate.length) setLateCaptureFilter(urlLate);
+      if (urlLateApproval.length) setLateApprovalFilter(urlLateApproval);
       if (urlSort) setSortBy(urlSort);
       const af = {
         ...appliedFilters,
@@ -780,6 +788,7 @@ export default function InspectionsPage() {
         sampled: urlSampled,
         inspector: urlInspector,
         lateCapture: urlLate,
+        lateApproval: urlLateApproval,
         sort: urlSort || "date_desc",
       };
       setAppliedFilters(af);
@@ -834,6 +843,18 @@ export default function InspectionsPage() {
   const canDelete = role === "admin" || role === "super_admin" || role === "developer";
   // Super admins & lab technicians can flag a visit as "inspector didn't add the correct sampling info"
   const canFlag = role === "super_admin" || role === "developer" || role === "lab_technician";
+  // Back-office roles review clients auto-created by inspectors (Clients Approval page)
+  const canApproveClients = role === "admin" || role === "super_admin" || role === "developer" || role === "inspector_manager";
+
+  // Pending-approval count for the Clients Approval nav badge
+  const [pendingClientCount, setPendingClientCount] = useState(0);
+  useEffect(() => {
+    if (!canApproveClients) return;
+    fetch("/api/clients-approval?count_only=1", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (typeof d.count === "number") setPendingClientCount(d.count); })
+      .catch(() => {});
+  }, [canApproveClients]);
 
   // Load which groups already have an open missing-sample flag
   useEffect(() => {
@@ -1837,8 +1858,6 @@ export default function InspectionsPage() {
         .ir-btn-secondary:hover { background: #4b5563; }
         .ir-btn-green { background: #22c55e; color: white; }
         .ir-btn-green:hover { background: #16a34a; }
-        .ir-btn-purple { background: #7c3aed; color: white; }
-        .ir-btn-purple:hover { background: #6d28d9; }
         .ir-filter-form { display: flex; flex-direction: column; gap: 15px; }
         .ir-filter-row { display: flex; gap: 15px; flex-wrap: wrap; }
         .ir-filter-field { flex: 1; min-width: 150px; position: relative; }
@@ -1912,6 +1931,16 @@ export default function InspectionsPage() {
             <button type="button" className="ir-btn ir-btn-secondary" onClick={collapseAll}><i className="fas fa-compress-alt" /> Collapse All</button>
             {roleLoaded && !isLabTechRestricted && <a href="/inspections/add" className="ir-btn ir-btn-green"><i className="fas fa-plus" /> Add Inspection</a>}
             {roleLoaded && !isLabTechRestricted && <a href="/clients" className="ir-btn" style={{ background: "#007890", color: "white" }}><i className="fas fa-users-cog" /> Client Allocation Sheet</a>}
+            {roleLoaded && canApproveClients && (
+              <a href="/clients-approval" className="ir-btn ir-btn-primary">
+                <i className="fas fa-user-check" /> Clients Approval
+                {pendingClientCount > 0 && (
+                  <span style={{ background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 11, fontWeight: 700, marginLeft: 6 }}>
+                    {pendingClientCount}
+                  </span>
+                )}
+              </a>
+            )}
           </div>
 
           {/* Filter Card */}
@@ -1974,6 +2003,7 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
                   <IrMultiSelect label="Late Capture" options={["SAME_DAY", "NEXT_DAY", "AT_LIMIT", "LATE", "ON_TIME"]} optionLabels={{ SAME_DAY: "Same day", NEXT_DAY: "1 day — in time", AT_LIMIT: "2 days — at the limit", LATE: "Over 2 days — late", ON_TIME: "On time (≤ 2 days)" }} selected={lateCaptureFilter} onChange={setLateCaptureFilter} />
+                  <IrMultiSelect label="Late Approval" options={["LATE", "ON_TIME"]} optionLabels={{ LATE: "Over 2 days — late", ON_TIME: "On time (≤ 2 days)" }} selected={lateApprovalFilter} onChange={setLateApprovalFilter} />
                   <IrMultiSelect label="Compliance" options={["COMPLIANT", "NON_COMPLIANT", "PENDING"]} selected={complianceFilter} onChange={setComplianceFilter} />
                   <IrMultiSelect label="Approved" options={["APPROVED", "PENDING"]} selected={approvedFilter} onChange={setApprovedFilter} />
                   <IrMultiSelect label="Has RFI" options={["HAS_RFI", "NO_RFI"]} selected={rfiFilter} onChange={setRfiFilter} />
@@ -1994,8 +2024,8 @@ export default function InspectionsPage() {
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
-                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]); setSortBy("date_desc");
-                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [], sort: "date_desc" });
+                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]); setLateApprovalFilter([]); setSortBy("date_desc");
+                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [], lateApproval: [], sort: "date_desc" });
                       setCurrentPage(1);
                       fetchInspections(showDuplicates, "", "", 1, "");
                     }}>
@@ -2012,6 +2042,7 @@ export default function InspectionsPage() {
                         email: emailFilter, retest: retestFilter,
                         coaStatus: coaStatusFilter, lab: labFilter, testType: testTypeFilter,
                         lateCapture: lateCaptureFilter,
+                        lateApproval: lateApprovalFilter,
                         sort: sortBy,
                       };
                       setAppliedFilters(af);
@@ -2141,8 +2172,16 @@ export default function InspectionsPage() {
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Approved:</span>
-                        <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
-                          {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
+                        <span style={{ textAlign: "right" }}>
+                          <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
+                            {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
+                          </span>
+                          {s.late_approval && (
+                            <span style={{ display: "block", fontSize: "0.62rem", color: "#dc2626", fontWeight: 700, marginTop: 2 }}
+                              title={s.approved_status === "APPROVED" ? `Approved ${s.approval_lag_days} days after capture (limit 2)` : `Waiting ${s.approval_lag_days} days for approval (limit 2)`}>
+                              <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> +{s.approval_lag_days}d late
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -2328,6 +2367,12 @@ export default function InspectionsPage() {
                                   <option value="PENDING">Pending</option>
                                   <option value="APPROVED">Approved</option>
                                 </select>
+                              )}
+                              {s.late_approval && (
+                                <div style={{ fontSize: "0.62rem", color: "#dc2626", fontWeight: 700, marginTop: 2, whiteSpace: "nowrap" }}
+                                  title={s.approved_status === "APPROVED" ? `Approved ${s.approval_lag_days} days after capture (limit 2)` : `Waiting ${s.approval_lag_days} days for approval (limit 2)`}>
+                                  <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> +{s.approval_lag_days}d late
+                                </div>
                               )}
                             </td>
                             {roleLoaded && !isLabTechRestricted && (

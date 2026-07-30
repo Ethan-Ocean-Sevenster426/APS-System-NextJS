@@ -21,6 +21,41 @@ interface LateEntry {
   days_late: number;
 }
 interface MonthlyRow { month: string; total: number; late: number; }
+/* Back-office approval turnaround (from the Clients Approval log) */
+interface ReviewerRow {
+  reviewer: string;
+  total: number;
+  late: number;
+  late_pct: number;
+  avg_days: number;
+  max_days: number;
+}
+interface LateDecision {
+  typed_name: string;
+  final_name: string;
+  outcome: string;
+  inspector_name: string;
+  captured_at: string;
+  decided_at: string;
+  days_taken: number;
+  decided_by: string;
+}
+interface PendingRow {
+  name: string;
+  created_by: string;
+  created_at: string | null;
+  days_waiting: number;
+  overdue: boolean;
+}
+interface ApprovalReport {
+  success: boolean;
+  approval_lag_days: number;
+  reviewers: ReviewerRow[];
+  approval_monthly: MonthlyRow[];
+  late_decisions: LateDecision[];
+  pending: PendingRow[];
+  pending_overdue: number;
+}
 interface ReportResponse {
   success: boolean;
   lag_days: number;
@@ -150,7 +185,7 @@ function LateByMonthChart({ monthly }: { monthly: MonthlyRow[] }) {
 }
 
 /* How late — severity buckets */
-function SeverityChart({ entries, lagDays }: { entries: LateEntry[]; lagDays: number }) {
+function SeverityChart({ entries, lagDays }: { entries: { days_late: number }[]; lagDays: number }) {
   const buckets: { label: string; test: (d: number) => boolean }[] = [
     { label: `${lagDays + 1}–7 days`, test: d => d <= 7 },
     { label: "8–14 days", test: d => d >= 8 && d <= 14 },
@@ -186,10 +221,18 @@ export default function LateCapturesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [approval, setApproval] = useState<ApprovalReport | null>(null);
+  const [expandedReviewer, setExpandedReviewer] = useState<string | null>(null);
 
   const fetchReport = useCallback((from: string, to: string, insp: string, client = "", minDays = "") => {
     setLoading(true);
     setError(null);
+    // Back-office approval turnaround for the same date range (section hides
+    // itself for roles without access to the Clients Approval log)
+    fetch(`/api/clients-approval/report?date_from=${from}&date_to=${to}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then((d: ApprovalReport) => setApproval(d.success ? d : null))
+      .catch(() => setApproval(null));
     const params = new URLSearchParams({ date_from: from, date_to: to });
     if (insp) params.set("inspector", insp);
     if (client.trim()) params.set("client_search", client.trim());
@@ -248,7 +291,7 @@ export default function LateCapturesPage() {
         <div style={{ marginBottom: 20, textAlign: "center" }}>
           <h1 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#fff", margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
             <i className="fas fa-user-clock" style={{ color: "#5ee8ff", marginRight: 8 }} />
-            Late Capture Report
+            Late Capture &amp; Approval Report
           </h1>
           <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.9)", margin: "4px 0 0", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
             Inspectors who captured inspections late — inspections must be captured within {data?.lag_days ?? 2} days of the inspection date.
@@ -460,6 +503,188 @@ export default function LateCapturesPage() {
                 </table>
               )}
             </div>
+
+            {/* ── Late approvals — back office ─────────────────────────────── */}
+            {approval && (
+              <>
+                <div style={{ margin: "22px 0 12px", textAlign: "center" }}>
+                  <h1 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#fff", margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                    <i className="fas fa-stopwatch" style={{ color: "#5ee8ff", marginRight: 8 }} />
+                    Late Approvals — Back Office
+                  </h1>
+                  <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.9)", margin: "4px 0 0", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
+                    New clients added by inspectors must be approved or matched within {approval.approval_lag_days} days — longer than that is late.
+                  </p>
+                </div>
+
+                <div className="lc-grid">
+                  <SummaryCard icon="fas fa-hourglass-half" label="Pending right now" value={approval.pending.length} />
+                  <SummaryCard icon="fas fa-exclamation-triangle" label={`Overdue now (> ${approval.approval_lag_days} days waiting)`} value={approval.pending_overdue} color={approval.pending_overdue ? F.red : F.green} />
+                  <SummaryCard icon="fas fa-stopwatch" label={`Approved late in range (> ${approval.approval_lag_days} days)`} value={approval.late_decisions.length} color={approval.late_decisions.length ? F.red : F.green} />
+                </div>
+
+                {/* Visuals — same three charts as the capture section */}
+                {approval.reviewers.length > 0 && (
+                  <div className="lc-charts">
+                    <div style={card}>
+                      <h2 style={{ fontSize: 13, fontWeight: 700, color: F.heading, margin: "0 0 12px" }}>
+                        On time vs late — by back-office user
+                      </h2>
+                      <OnTimeVsLateChart inspectors={approval.reviewers.map(r => ({
+                        inspector_name: r.reviewer,
+                        total_inspections: r.total,
+                        late_count: r.late,
+                        late_pct: r.late_pct,
+                        avg_days_late: r.avg_days,
+                        max_days_late: r.max_days,
+                      }))} />
+                    </div>
+                    <div style={card}>
+                      <h2 style={{ fontSize: 13, fontWeight: 700, color: F.heading, margin: "0 0 12px" }}>
+                        Late approvals by month
+                      </h2>
+                      <LateByMonthChart monthly={approval.approval_monthly ?? []} />
+                    </div>
+                    <div style={card}>
+                      <h2 style={{ fontSize: 13, fontWeight: 700, color: F.heading, margin: "0 0 12px" }}>
+                        How late — severity
+                      </h2>
+                      <SeverityChart entries={approval.late_decisions.map(d => ({ days_late: d.days_taken }))} lagDays={approval.approval_lag_days} />
+                    </div>
+                  </div>
+                )}
+
+                {approval.pending.length > 0 && (
+                  <div style={{ ...card, overflowX: "auto", marginBottom: 16 }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: F.heading, margin: "0 0 4px" }}>
+                      Waiting for approval right now
+                    </h2>
+                    <p style={{ fontSize: 12, color: F.muted, margin: "0 0 12px" }}>
+                      Rows in red have been waiting longer than {approval.approval_lag_days} days.{" "}
+                      <a href="/clients-approval" style={{ color: F.primary, fontWeight: 600 }}>Go approve them</a>.
+                    </p>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={th}>Client</th>
+                          <th style={th}>Added By</th>
+                          <th style={th}>Added On</th>
+                          <th style={th}>Days Waiting</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {approval.pending.map((p, n) => (
+                          <tr key={n} className="lc-row" style={p.overdue ? { background: F.red50 } : undefined}>
+                            <td style={{ ...td, fontWeight: 600 }}>{p.name}</td>
+                            <td style={td}>{p.created_by || "—"}</td>
+                            <td style={td}>{p.created_at ? fmtDate(p.created_at) : "—"}</td>
+                            <td style={td}>
+                              <span style={{ background: p.overdue ? F.redLight : F.hair, color: p.overdue ? F.red : F.muted, fontWeight: 700, padding: "2px 10px", borderRadius: 99, fontSize: 12 }}>
+                                {p.days_waiting} day{p.days_waiting === 1 ? "" : "s"}{p.overdue ? " — LATE" : ""}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div style={{ ...card, overflowX: "auto" }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: F.heading, margin: "0 0 4px" }}>
+                    Approval turnaround by back-office user
+                  </h2>
+                  <p style={{ fontSize: 12, color: F.muted, margin: "0 0 12px" }}>
+                    How long each back-office user took to decide the new clients they handled in this period. Click <strong>Quick view</strong> to see their late decisions.
+                  </p>
+                  {approval.reviewers.length === 0 ? (
+                    <div style={{ color: F.muted, fontSize: 13, padding: "8px 0" }}>
+                      No approval decisions in this period.
+                    </div>
+                  ) : (
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={th}>Back-Office User</th>
+                          <th style={th}>Decisions</th>
+                          <th style={th}>Late (&gt; {approval.approval_lag_days} days)</th>
+                          <th style={th}>% Late</th>
+                          <th style={th}>Avg Days to Decide</th>
+                          <th style={th}>Worst</th>
+                          <th style={th}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {approval.reviewers.map(row => (
+                          <React.Fragment key={row.reviewer}>
+                            <tr className="lc-row">
+                              <td style={{ ...td, fontWeight: 700, color: F.primary }}>{row.reviewer}</td>
+                              <td style={td}>{row.total}</td>
+                              <td style={td}>
+                                <span style={{ background: row.late ? F.redLight : F.hair, color: row.late ? F.red : F.muted, fontWeight: 700, padding: "2px 10px", borderRadius: 99, fontSize: 12 }}>
+                                  {row.late}
+                                </span>
+                              </td>
+                              <td style={{ ...td, minWidth: 130 }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ width: 64, height: 8, background: F.hair, borderRadius: 4, overflow: "hidden", display: "inline-block" }}>
+                                    <span style={{ display: "block", width: `${Math.min(100, row.late_pct)}%`, height: "100%", background: F.red, borderRadius: 4 }} />
+                                  </span>
+                                  <span style={{ fontWeight: 700, color: row.late ? F.red : F.muted, fontSize: 12 }}>{row.late_pct}%</span>
+                                </span>
+                              </td>
+                              <td style={td}>{row.avg_days} days</td>
+                              <td style={{ ...td, fontWeight: 600 }}>{row.max_days} days</td>
+                              <td style={{ ...td, whiteSpace: "nowrap" }}>
+                                {row.late > 0 && (
+                                  <button type="button" style={btnSmall}
+                                    onClick={() => setExpandedReviewer(expandedReviewer === row.reviewer ? null : row.reviewer)}>
+                                    <i className={`fas fa-chevron-${expandedReviewer === row.reviewer ? "up" : "down"}`} style={{ marginRight: 5, fontSize: 10 }} />
+                                    {expandedReviewer === row.reviewer ? "Hide" : "Quick view"}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {expandedReviewer === row.reviewer && (
+                              <tr>
+                                <td colSpan={7} style={{ padding: 0, borderBottom: `1px solid ${F.hair}` }}>
+                                  <div style={{ background: F.red50, padding: "12px 16px", borderLeft: `3px solid ${F.red}` }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                      <thead>
+                                        <tr>
+                                          <th style={th}>Client</th>
+                                          <th style={th}>Added By</th>
+                                          <th style={th}>Added On</th>
+                                          <th style={th}>Decided On</th>
+                                          <th style={th}>Days Taken</th>
+                                          <th style={th}>Outcome</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {approval.late_decisions.filter(d => d.decided_by === row.reviewer).map((d, n) => (
+                                          <tr key={n}>
+                                            <td style={{ ...td, fontWeight: 600 }}>{d.typed_name}</td>
+                                            <td style={td}>{d.inspector_name}</td>
+                                            <td style={td}>{fmtDate(d.captured_at)}</td>
+                                            <td style={td}>{fmtDate(d.decided_at)}</td>
+                                            <td style={{ ...td, color: F.red, fontWeight: 700 }}>+{d.days_taken} days</td>
+                                            <td style={td}>{d.outcome === "merged" ? "Matched to existing" : "Accepted as new"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
+            )}
 
           </>
         )}
