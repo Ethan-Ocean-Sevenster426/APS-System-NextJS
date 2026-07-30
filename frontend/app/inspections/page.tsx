@@ -1296,6 +1296,12 @@ export default function InspectionsPage() {
             <div style={{ fontSize: 11, color: "#374151", fontWeight: 500 }}>
               {truncate(s.client_name || "", 22)}
             </div>
+            {s.inspector_name && (
+              <div style={{ fontSize: 8, color: "#6b7280", margin: "2px 0" }}>
+                <i className="fas fa-user" style={{ width: 10, color: "#007890" }} />
+                <span style={{ fontWeight: 600 }}>{s.inspector_name}</span>
+              </div>
+            )}
 
             {s.group_type && (
               <div style={{ fontSize: 8, color: "#6b7280", marginBottom: 2 }}>
@@ -2171,6 +2177,13 @@ export default function InspectionsPage() {
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: "#6b7280" }}>Approval Days:</span>
+                        <span style={{ fontWeight: 700, color: s.approval_lag_days != null ? lagStyle(Math.max(0, s.approval_lag_days)).color : undefined }}
+                          title={s.approved_status === "APPROVED" ? "Days from capture to approval (limit 2)" : "Days waiting for approval so far (limit 2)"}>
+                          {s.approval_lag_days != null ? <>{s.late_approval && <><i className="fas fa-exclamation-triangle" style={{ fontSize: 9 }} /> </>}{lagStyle(Math.max(0, s.approval_lag_days)).label}</> : "—"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span style={{ color: "#6b7280" }}>Approved:</span>
                         <span style={{ textAlign: "right" }}>
                           <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
@@ -2267,6 +2280,7 @@ export default function InspectionsPage() {
                       <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Inspection<br />Date</th>
                       <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Captured<br />Date</th>
                       <th className="center" style={{ width: 64, whiteSpace: "normal", lineHeight: 1.3 }}>Days<br />Late</th>
+                      <th className="center" style={{ width: 64, whiteSpace: "normal", lineHeight: 1.3 }}>Approval<br />Days</th>
                       <th className="center" style={{ width: 80 }}>Approved</th>
                       {roleLoaded && !isLabTechRestricted && <th style={{ width: "1%", whiteSpace: "nowrap" }}>Email</th>}
                       <th className="center" style={{ width: 80 }}>Sent</th>
@@ -2276,13 +2290,13 @@ export default function InspectionsPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={13} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={14} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={13} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={14} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -2342,6 +2356,10 @@ export default function InspectionsPage() {
                             <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : "#6b7280" }}
                               title={`Days between inspection and capture (limit 2)`}>
                               {s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).label : "—"}
+                            </td>
+                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", fontWeight: 700, color: s.approval_lag_days != null ? lagStyle(Math.max(0, s.approval_lag_days)).color : "#9ca3af" }}
+                              title={s.approved_status === "APPROVED" ? "Days from capture to approval (limit 2)" : "Days waiting for approval so far (limit 2)"}>
+                              {s.approval_lag_days != null ? <>{s.late_approval && <><i className="fas fa-exclamation-triangle" style={{ fontSize: 9 }} /> </>}{lagStyle(Math.max(0, s.approval_lag_days)).label}</> : "—"}
                             </td>
                             <td className="center">
                               {isAdmin ? (
@@ -2480,7 +2498,7 @@ export default function InspectionsPage() {
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={12} style={{ padding: 0 }}>
+                              <td colSpan={13} style={{ padding: 0 }}>
                                 {renderDetailRow(s)}
                               </td>
                             </tr>
