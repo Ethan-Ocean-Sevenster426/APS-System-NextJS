@@ -1222,7 +1222,19 @@ def api_inspections(request):
                 | (~_laQ(first_approved='APPROVED')
                    & _laQ(created_at__date__lt=_la_today - _la_dt.timedelta(days=2)))
             )
-            _la_map = {'LATE': _la_late, 'ON_TIME': ~_la_late}
+
+            def _la_lag_eq(n):
+                # approved exactly n days after being captured
+                return _laQ(first_approved='APPROVED', first_approved_date__isnull=False,
+                            first_approved_date__date=_laTrunc(_laF('created_at')) + _la_dt.timedelta(days=n))
+
+            _la_map = {
+                'SAME_DAY': _la_lag_eq(0),
+                'NEXT_DAY': _la_lag_eq(1),
+                'AT_LIMIT': _la_lag_eq(2),
+                'LATE': _la_late,
+                'ON_TIME': ~_la_late,
+            }
             _la_combined = _laQ()
             _la_matched = False
             for _v in filter_late_appr:
