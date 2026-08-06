@@ -2346,7 +2346,11 @@ export default function InspectionsPage() {
                                 <span style={{ display: "inline-block", background: st.bg, color: st.color, border: `1px solid ${st.color}33`, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, lineHeight: 1.5 }}>
                                   {st.label}
                                 </span>
-                                {st.key !== "complete" && <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 2 }}>{st.owner}</div>}
+                                {st.key !== "complete"
+                                  ? <div style={{ fontSize: 10, color: st.color, fontWeight: 600, marginTop: 3 }} title="Responsible for the next action">
+                                      <i className="fas fa-user-clock" style={{ fontSize: 9, marginRight: 3, opacity: 0.8 }} />{st.owner}
+                                    </div>
+                                  : <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3 }}>Nothing outstanding</div>}
                               </td>
                             ); })()}
                             <td className="center">
