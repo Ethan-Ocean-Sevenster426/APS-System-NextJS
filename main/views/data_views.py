@@ -17,6 +17,7 @@ import io
 
 _CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
+    'https://agricultural-production.fsa-pty.co.za',
     'https://v4-project.moc-pty.com',
     'https://portal.fsa-pty.co.za',
 ]
