@@ -99,6 +99,25 @@ interface Inspection {
   products?: Product[];
 }
 
+/* Where an inspection sits in the back-office process, from the fields the
+   list already returns — no extra request. Answers Nicole's "where is each
+   inspection, document or sample in the process, and who owns the next step".
+   The order mirrors the real flow: approve → send docs → COA (if sampled) →
+   invoice → done. A sample only blocks on COA when one was actually taken. */
+type Stage = { key: string; label: string; owner: string; color: string; bg: string };
+function processStage(s: Inspection): Stage {
+  const sampled = (s.products || []).some(p => p.is_sample_taken);
+  if (s.approved_status !== "APPROVED")
+    return { key: "approval", label: "Awaiting approval", owner: "Back office", color: "#7c3aed", bg: "#faf5ff" };
+  if (!s.sent_date)
+    return { key: "sent", label: "Not sent to client", owner: "Admin", color: "#d97706", bg: "#fffbeb" };
+  if (sampled && !s.has_lab)
+    return { key: "coa", label: "Awaiting COA", owner: "Laboratory", color: "#2563eb", bg: "#eff6ff" };
+  if (!s.has_invoice)
+    return { key: "invoice", label: "Awaiting invoice", owner: "Finance", color: "#0891b2", bg: "#ecfeff" };
+  return { key: "complete", label: "Complete", owner: "—", color: "#15803d", bg: "#f0fdf4" };
+}
+
 function ClientSearchInput({ value, onChange, options, onEnter }: { value: string; onChange: (v: string) => void; options: string[]; onEnter?: () => void }) {
   const [open, setOpen] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
@@ -2279,6 +2298,7 @@ export default function InspectionsPage() {
                   <thead>
                     <tr>
                       <th style={{ width: "1%", whiteSpace: "nowrap" }}>Facility</th>
+                      <th className="center" style={{ width: 120 }} title="Where this inspection is in the back-office process, and who has the next action">Stage</th>
                       <th className="center" style={{ width: 50 }}>Files</th>
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>RFI</th>}
                       {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Invoice</th>}
@@ -2297,13 +2317,13 @@ export default function InspectionsPage() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={14} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={15} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={14} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={15} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -2321,6 +2341,14 @@ export default function InspectionsPage() {
                               {s.is_occurrence_report && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6 }}>OCCURRENCE REPORT</span>}
                               {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
                             </td>
+                            {(() => { const st = processStage(s); return (
+                              <td className="center" style={{ whiteSpace: "nowrap" }} title={st.key === "complete" ? "Fully processed" : `Next action: ${st.owner}`}>
+                                <span style={{ display: "inline-block", background: st.bg, color: st.color, border: `1px solid ${st.color}33`, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, lineHeight: 1.5 }}>
+                                  {st.label}
+                                </span>
+                                {st.key !== "complete" && <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 2 }}>{st.owner}</div>}
+                              </td>
+                            ); })()}
                             <td className="center">
                               <button style={{ padding: "3px 6px", background: s.is_occurrence_report ? "#f97316" : "#007890", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
                                 onClick={e => { e.stopPropagation(); openFilesModal(s.group_id || String(s.id), s.client_name, s.date_of_inspection); }}>
@@ -2505,7 +2533,7 @@ export default function InspectionsPage() {
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={13} style={{ padding: 0 }}>
+                              <td colSpan={15} style={{ padding: 0 }}>
                                 {renderDetailRow(s)}
                               </td>
                             </tr>

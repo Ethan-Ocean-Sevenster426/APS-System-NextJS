@@ -63,6 +63,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://portal.fsa-pty.co.za',
     'https://agricultural-production.fsa-pty.co.za',
     'http://agricultural-production.fsa-pty.co.za',
+    'https://aps-demo.fsa-pty.co.za',
+    'http://aps-demo.fsa-pty.co.za',
     'https://v4-project.moc-pty.com',
     'http://v4-project.moc-pty.com',
     'https://portal-test.fsa-pty.co.za',

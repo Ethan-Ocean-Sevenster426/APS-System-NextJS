@@ -21,6 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from ..models import (
     Client,
     FoodSafetyAgencyInspection,
+    InspectionDocument,
     InspectionGroup,
     QuarterlyTarget,
 )
@@ -32,6 +33,92 @@ ADMIN_LAG_DAYS = 2
 SAMPLE_OVERDUE_DAYS = 7
 
 VIEW_ROLES = ('super_admin', 'developer', 'admin', 'inspector_manager', 'inspector')
+
+
+# Expected turnaround per stage, in days. Approval and COA reuse the standards
+# already applied elsewhere in this report; doc-send and invoice are a starting
+# point for the APS department to confirm.
+TURNAROUND_TARGETS = {'send_docs': 3, 'invoice': 5, 'sample_to_coa': 7, 'approval': ADMIN_LAG_DAYS}
+
+TURNAROUND_LABELS = {
+    'send_docs': 'Inspection to documents sent',
+    'invoice': 'Documents sent to invoice',
+    'sample_to_coa': 'Sample to COA uploaded',
+    'approval': 'Captured to approved',
+}
+
+
+def _as_date(value):
+    return value.date() if isinstance(value, datetime.datetime) else value
+
+
+def _turnaround(start, end):
+    """Average days for each back-office stage over inspections in [start, end].
+
+    Requested 2026-08-06: managers were seeing volumes but not how long work
+    sits between inspection, document dispatch, invoicing, COA and approval —
+    so bottlenecks and the department responsible were invisible.
+
+    Reads invoice TIMING only. No amount, rate or revenue column is selected,
+    keeping this report free of financial data like the rest of the file.
+    """
+    groups = list(
+        InspectionGroup.objects
+        .filter(date_of_inspection__gte=start, date_of_inspection__lte=end)
+        .values('id', 'date_of_inspection')
+    )
+    if not groups:
+        return {k: {'avg': None, 'count': 0} for k in TURNAROUND_TARGETS}
+    gids = [g['id'] for g in groups]
+    gdate = {g['id']: g['date_of_inspection'] for g in groups}
+
+    state = {}
+    for r in FoodSafetyAgencyInspection.objects.filter(
+        inspection_group_id__in=gids
+    ).values('inspection_group_id', 'approved_status', 'approved_date',
+             'sent_date', 'is_sample_taken', 'created_at'):
+        s = state.setdefault(r['inspection_group_id'],
+                             {'approved': None, 'sent': None, 'sampled': False, 'captured': None})
+        if r['approved_status'] == 'APPROVED' and r['approved_date']:
+            if s['approved'] is None or r['approved_date'] < s['approved']:
+                s['approved'] = r['approved_date']
+        if r['sent_date'] and (s['sent'] is None or r['sent_date'] < s['sent']):
+            s['sent'] = r['sent_date']
+        if r['is_sample_taken']:
+            s['sampled'] = True
+        if r['created_at'] and (s['captured'] is None or r['created_at'] < s['captured']):
+            s['captured'] = r['created_at']
+
+    docs = {}
+    for r in InspectionDocument.objects.filter(
+        inspection__inspection_group_id__in=gids, document_type__in=['invoice', 'coa'],
+    ).values('inspection__inspection_group_id', 'document_type', 'uploaded_date'):
+        gid, key = r['inspection__inspection_group_id'], r['document_type']
+        cur = docs.setdefault(gid, {}).get(key)
+        if cur is None or r['uploaded_date'] < cur:
+            docs[gid][key] = r['uploaded_date']
+
+    buckets = {k: [] for k in TURNAROUND_TARGETS}
+    for gid, inspected in gdate.items():
+        s, d = state.get(gid, {}), docs.get(gid, {})
+        pairs = {
+            'send_docs': (inspected, s.get('sent')),
+            'invoice': (s.get('sent'), d.get('invoice')),
+            'sample_to_coa': (inspected, d.get('coa')) if s.get('sampled') else (None, None),
+            'approval': (s.get('captured'), s.get('approved')),
+        }
+        for key, (a, b) in pairs.items():
+            a, b = _as_date(a), _as_date(b)
+            if a and b and (b - a).days >= 0:
+                buckets[key].append((b - a).days)
+
+    return {
+        key: {
+            'avg': round(sum(v) / len(v), 1) if v else None,
+            'count': len(v),
+        }
+        for key, v in buckets.items()
+    }
 
 
 def _non_inspector_names():
@@ -429,6 +516,11 @@ def api_weekly_report(request):
             ],
         }
 
+    # Back-office turnaround, this period against the last one, so the report
+    # shows whether the delays are shrinking rather than just how big they are.
+    _cur_turnaround = _turnaround(week_start, week_end)
+    _prev_turnaround = _turnaround(prev_start, prev_end)
+
     return JsonResponse({
         'success': True,
         'week_start': week_start.isoformat(),
@@ -450,6 +542,15 @@ def api_weekly_report(request):
             'prev_overall_compliance': prev_overall_rate,
             'total_km': round(sum(t['km'] for t in travel), 1),
             'total_hours': round(sum(t['hours'] for t in travel), 1),
+        },
+        'turnaround': {
+            key: {
+                **vals,
+                'prev_avg': _prev_turnaround[key]['avg'],
+                'target': TURNAROUND_TARGETS[key],
+                'label': TURNAROUND_LABELS[key],
+            }
+            for key, vals in _cur_turnaround.items()
         },
         'performance': performance,
         'inspection_trend': trend_weeks,
