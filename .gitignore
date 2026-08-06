@@ -260,3 +260,10 @@ main/Google Auth for spreadsheet.json
 
 # Playwright MCP browser artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/
+
+# The ad-hoc script patterns above (send_*.py, set_*.py, setup_*.py, reset_*.py,
+# remove_*.py) are meant for throwaway scripts in the repo root, but they apply
+# everywhere — they silently swallowed main/management/commands/send_weekly_report.py,
+# so the scheduled email had no command to run on the server. Django management
+# commands are real source and must never be ignored.
+!main/management/commands/*.py
