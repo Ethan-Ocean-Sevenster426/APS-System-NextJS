@@ -95,10 +95,21 @@ class ApiLoginRequiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    @staticmethod
+    def _internal_ok(request):
+        """Server-to-server access for the automatic Monday weekly-report
+        email (PDF generation) — key-protected, this one endpoint only."""
+        if request.path.rstrip('/') != '/api/weekly-report':
+            return False
+        from django.conf import settings
+        key = getattr(settings, 'WEEKLY_INTERNAL_KEY', '')
+        return bool(key) and request.headers.get('X-Internal-Key') == key
+
     def __call__(self, request):
         if (request.path.startswith('/api/')
                 and request.method != 'OPTIONS'  # CORS preflights carry no cookies
                 and request.path.rstrip('/') not in self.EXEMPT_PATHS
+                and not self._internal_ok(request)
                 and not (getattr(request, 'user', None) and request.user.is_authenticated)):
             from django.http import JsonResponse
             return JsonResponse(

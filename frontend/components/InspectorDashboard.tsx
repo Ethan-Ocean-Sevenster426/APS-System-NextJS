@@ -366,7 +366,9 @@ export default function InspectorDashboard() {
   if (!data) return null;
 
   const totalInsp = data.total_inspections || 0;
-  const nonCompRate = totalInsp > 0 ? Math.round((data.non_compliant_inspections / totalInsp) * 100) : 0;
+  // Same basis as the compliance rate: assessed records only (compliant + non-compliant)
+  const assessedInsp = (data.compliant_inspections || 0) + (data.non_compliant_inspections || 0);
+  const nonCompRate = assessedInsp > 0 ? Math.round((data.non_compliant_inspections / assessedInsp) * 100) : 0;
   const monthVsAvgPct = data.avg_monthly_inspections > 0
     ? Math.min(100, Math.round((data.this_month_inspections / data.avg_monthly_inspections) * 100))
     : 0;
@@ -434,7 +436,7 @@ export default function InspectorDashboard() {
               <div>
                 <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>
                   Compliance Rate
-                  <InfoTip tip="Out of all the places you inspected, the percentage that were following the food safety rules. A higher number is better -- 100% means every single place passed!" />
+                  <InfoTip tip="Of your inspections with a recorded compliance result, the percentage where the product was compliant. Matches the Compliance tab. A higher number is better -- 100% means every assessed product passed!" />
                 </p>
                 <p style={{ fontSize: "1.875rem", fontWeight: 700, color: complianceColor, marginTop: 4, marginBottom: 0, lineHeight: 1 }}>{data.compliance_rate || 0}%</p>
                 <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginBottom: 0 }}>
@@ -453,10 +455,10 @@ export default function InspectorDashboard() {
               <div>
                 <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>
                   Non-Compliant
-                  <InfoTip tip="Places that were NOT following the food safety rules when you visited. A direction (official notice to fix the problem) was issued. Lower is better -- zero means no issues found!" />
+                  <InfoTip tip="Inspections where the product was recorded as NOT compliant. Matches the Compliance tab. Lower is better -- zero means no issues found!" />
                 </p>
                 <p style={{ fontSize: "1.875rem", fontWeight: 700, color: "#dc2626", marginTop: 4, marginBottom: 0, lineHeight: 1 }}>{data.non_compliant_inspections || 0}</p>
-                <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginBottom: 0 }}>directions issued</p>
+                <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginBottom: 0 }}>non-compliant results</p>
               </div>
               <div style={{ width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem", flexShrink: 0, background: "#fef2f2", color: "#dc2626" }}>
                 <i className="fas fa-exclamation-triangle" />

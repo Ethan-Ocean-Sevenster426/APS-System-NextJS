@@ -34,6 +34,16 @@ from .views.core_views import (
 )
 from .views.kpi_report import api_kpi_report, api_sample_discrepancies, api_sample_discrepancy_rectify, api_toggle_group_discrepancy, api_open_discrepancy_groups
 from .views.late_capture_report import api_late_capture_report
+from .views.weekly_report import api_weekly_report
+from .views.weekly_email import (
+    api_weekly_email_settings,
+    api_weekly_email_recipient,
+    api_weekly_email_logs,
+    api_weekly_email_test,
+    api_weekly_email_users,
+    api_weekly_email_send_now,
+    api_weekly_email_attachment,
+)
 from .views.client_approval import (
     api_clients_approval, api_client_approve, api_client_merge, api_clients_approval_report,
 )
@@ -266,6 +276,14 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/delete/', delete_notification, name='delete_notification'),
     path('api/kpi-report/', api_kpi_report, name='api_kpi_report'),
     path('api/late-capture-report/', api_late_capture_report, name='api_late_capture_report'),
+    path('api/weekly-report/', api_weekly_report, name='api_weekly_report'),
+    path('api/weekly-email/settings/', api_weekly_email_settings, name='api_weekly_email_settings'),
+    path('api/weekly-email/recipient/', api_weekly_email_recipient, name='api_weekly_email_recipient'),
+    path('api/weekly-email/logs/', api_weekly_email_logs, name='api_weekly_email_logs'),
+    path('api/weekly-email/test/', api_weekly_email_test, name='api_weekly_email_test'),
+    path('api/weekly-email/users/', api_weekly_email_users, name='api_weekly_email_users'),
+    path('api/weekly-email/send-now/', api_weekly_email_send_now, name='api_weekly_email_send_now'),
+    path('api/weekly-email/attachment/', api_weekly_email_attachment, name='api_weekly_email_attachment'),
     path('api/sample-discrepancies/', api_sample_discrepancies, name='api_sample_discrepancies'),
     path('api/sample-discrepancies/<int:pk>/rectify/', api_sample_discrepancy_rectify, name='api_sample_discrepancy_rectify'),
     path('api/sample-discrepancies/toggle-group/', api_toggle_group_discrepancy, name='api_toggle_group_discrepancy'),

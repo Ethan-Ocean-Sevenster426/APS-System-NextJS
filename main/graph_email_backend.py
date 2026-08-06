@@ -149,7 +149,9 @@ class GraphEmailBackend(BaseEmailBackend):
         total_size = sum(len(c) for _, c, _ in attachments)
 
         if total_size >= LARGE_ATTACHMENT_THRESHOLD:
-            return self._send_via_draft(message, content_type, content, attachments)
+            # Draft path has no inline-image support — send them as normal attachments
+            extra = [(f, c, m) for _, f, c, m in getattr(message, 'graph_inline_images', [])]
+            return self._send_via_draft(message, content_type, content, attachments + extra)
         else:
             return self._send_inline(message, content_type, content, attachments)
 
@@ -160,7 +162,10 @@ class GraphEmailBackend(BaseEmailBackend):
             "saveToSentItems": "true"
         }
 
-        if attachments:
+        # Optional inline images (e.g. picture signatures): list of
+        # (content_id, filename, bytes, mimetype) tuples on the message.
+        inline_images = getattr(message, 'graph_inline_images', [])
+        if attachments or inline_images:
             email_data["message"]["attachments"] = [
                 {
                     "@odata.type": "#microsoft.graph.fileAttachment",
@@ -169,6 +174,16 @@ class GraphEmailBackend(BaseEmailBackend):
                     "contentBytes": base64.b64encode(file_content).decode('utf-8')
                 }
                 for filename, file_content, mimetype in attachments
+            ] + [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": filename,
+                    "contentType": mimetype,
+                    "isInline": True,
+                    "contentId": cid,
+                    "contentBytes": base64.b64encode(file_content).decode('utf-8')
+                }
+                for cid, filename, file_content, mimetype in inline_images
             ]
 
         graph_url = f"https://graph.microsoft.com/v1.0/users/{self.from_email}/sendMail"

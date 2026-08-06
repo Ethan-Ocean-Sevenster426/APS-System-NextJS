@@ -1662,3 +1662,107 @@ class SampleDiscrepancy(models.Model):
 
     def __str__(self):
         return f"Missing sample — {self.inspector_name} ({self.client_name})"
+
+
+class EmailAutomation(models.Model):
+    """One automatic email, e.g. 'Management weekly report'.
+
+    Each automation has its own on/off switch, subject, message, signature,
+    schedule (daily / weekly on a day / monthly on a date, at a chosen hour),
+    recipient list and optional extra attachment. Every send attaches the
+    latest completed week's Weekly Report PDF. Placeholders {week}
+    {inspections} {compliance} {samples} {km} are filled in at send time.
+    """
+    SCHEDULE_CHOICES = [
+        ("weekly", "Weekly on a day"),
+        ("daily", "Every day"),
+        ("monthly", "Monthly on a date"),
+    ]
+    name = models.CharField(max_length=120, help_text="What this email is for, e.g. 'Management weekly report'")
+    enabled = models.BooleanField(default=False, help_text="OFF means this email never sends")
+    per_inspector = models.BooleanField(
+        default=False,
+        help_text="Individual report: each recipient gets an email with ONLY their own numbers",
+    )
+    subject = models.CharField(max_length=255, default="Weekly Inspectorate Performance Report — {week}")
+    body = models.TextField(default=(
+        "Good day,\n\n"
+        "Please find attached the Weekly Inspectorate Performance Report for {week}.\n\n"
+        "Summary for the week:\n"
+        "- Inspections completed: {inspections}\n"
+        "- Overall compliance: {compliance}\n"
+        "- Samples taken: {samples}\n"
+        "- Kilometres travelled: {km}\n\n"
+        "This report contains no financial information.\n\n"
+        "Regards,\n"
+        "APS System"
+    ))
+    signature = models.TextField(blank=True, default="", help_text="Added to the end of every email from this automation")
+    signature_image = models.FileField(upload_to="email_automation_signatures/", blank=True, null=True,
+                                       help_text="Optional picture signature shown at the end of the email")
+    schedule_type = models.CharField(max_length=10, choices=SCHEDULE_CHOICES, default="weekly")
+    send_day_of_week = models.IntegerField(default=0, help_text="0=Monday ... 6=Sunday (weekly schedule)")
+    send_day_of_month = models.IntegerField(default=1, help_text="1-28 (monthly schedule)")
+    send_hour = models.IntegerField(default=12, help_text="Hour of the day 0-23")
+    attachment = models.FileField(upload_to="email_automation_attachments/", blank=True, null=True,
+                                  help_text="Optional extra file sent along with the report PDF")
+    updated_by = models.CharField(max_length=150, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "email_automations"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.name} ({'ON' if self.enabled else 'OFF'})"
+
+
+class WeeklyEmailRecipient(models.Model):
+    """Who receives a specific automation's email.
+
+    `active=False` keeps the person on the list but stops their emails —
+    so someone can be paused without being deleted.
+    """
+    automation = models.ForeignKey(EmailAutomation, on_delete=models.CASCADE, related_name="recipients", null=True)
+    email = models.EmailField()
+    name = models.CharField(max_length=150, blank=True, default="")
+    active = models.BooleanField(default=True, help_text="Off = stays on the list but gets no emails")
+    added_by = models.CharField(max_length=150, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "weekly_email_recipients"
+        ordering = ["email"]
+        unique_together = [("automation", "email")]
+
+    def __str__(self):
+        return f"{self.email} ({'active' if self.active else 'paused'})"
+
+
+class WeeklyEmailLog(models.Model):
+    """One row per send attempt so a failed or missed Monday is visible."""
+    STATUS_CHOICES = [
+        ("SENT", "Sent"),
+        ("FAILED", "Failed"),
+        ("SKIPPED_OFF", "Skipped — switch off"),
+        ("NO_RECIPIENTS", "Skipped — no active recipients"),
+        ("ALREADY_SENT", "Skipped — already sent for this week"),
+        ("TEST", "Test send"),
+    ]
+    automation = models.ForeignKey(EmailAutomation, on_delete=models.SET_NULL, related_name="logs", null=True, blank=True)
+    automation_name = models.CharField(max_length=120, blank=True, default="")
+    run_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    week_start = models.DateField()
+    week_end = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, db_index=True)
+    recipients = models.TextField(blank=True, default="")
+    error = models.TextField(blank=True, default="")
+    triggered_by = models.CharField(max_length=150, blank=True, default="schedule")
+
+    class Meta:
+        db_table = "weekly_email_log"
+        ordering = ["-run_at"]
+
+    def __str__(self):
+        return f"{self.run_at:%Y-%m-%d %H:%M} {self.status} ({self.week_start})"

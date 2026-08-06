@@ -23,6 +23,7 @@ const ALL_SECTIONS: NavSection[] = [
       { href: "/lab-analytics",   label: "Lab Analytics",       icon: "fas fa-flask"                },
       { href: "/export-sheet",   label: "Export Sheet",         icon: "fas fa-file-download"        },
       { href: "/late-captures",  label: "Late Captures & Approvals", icon: "fas fa-user-clock"      },
+      { href: "/weekly-report",  label: "Weekly Report",        icon: "fas fa-chart-line"           },
       { href: "/clients-approval/report", label: "Client Entry Report", icon: "fas fa-user-tag"     },
     ],
   },
@@ -30,6 +31,7 @@ const ALL_SECTIONS: NavSection[] = [
     label: "Management",
     items: [
       { href: "/user-management", label: "User Management", icon: "fas fa-user-shield" },
+      { href: "/email-automation", label: "Weekly Email Logs", icon: "fas fa-envelope-open-text" },
       { href: "/system-logs",     label: "System Logs",     icon: "fas fa-history"     },
       { href: "/training",        label: "Training",         icon: "fas fa-video"       },
     ],
@@ -45,11 +47,11 @@ const ALL_SECTIONS: NavSection[] = [
 // Which hrefs each role is allowed to see
 const ROLE_ALLOWED: Record<Role, Set<string>> = {
   inspector: new Set([
-    "/", "/inspections", "/analytics",
+    "/weekly-report", "/", "/inspections", "/analytics",
     "/training", "/inspector-settings",
   ]),
   inspector_manager: new Set([
-    "/", "/inspections", "/analytics", "/late-captures", "/clients-approval/report",
+    "/weekly-report", "/", "/inspections", "/analytics", "/late-captures", "/clients-approval/report",
     "/training", "/inspector-settings",
   ]),
   lab_technician: new Set([
@@ -57,17 +59,17 @@ const ROLE_ALLOWED: Record<Role, Set<string>> = {
     "/training",
   ]),
   admin: new Set([
-    "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/training", "/settings",
+    "/weekly-report", "/", "/inspections", "/clients", "/admin-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/email-automation", "/training", "/settings",
   ]),
   financial: new Set([
     "/", "/inspections", "/clients", "/export-sheet", "/late-captures",    "/training",
   ]),
   super_admin: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/system-logs", "/server-view",
+    "/weekly-report", "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/email-automation", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
   developer: new Set([
-    "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/system-logs", "/server-view",
+    "/weekly-report", "/", "/inspections", "/clients", "/analytics", "/lab-analytics", "/export-sheet", "/late-captures", "/clients-approval/report",    "/user-management", "/email-automation", "/system-logs", "/server-view",
     "/training", "/notifications", "/settings",
   ]),
 };

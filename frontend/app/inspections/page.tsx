@@ -837,6 +837,9 @@ export default function InspectionsPage() {
   const isLabTechRestricted = false; // Lab techs now see everything
   const isAdmin = role === "admin";
   const isInspector = role === "inspector" || role === "inspector_manager";
+  // Approval status may only be changed by management — inspectors must never
+  // be able to approve their own inspections (it feeds the lateness reports).
+  const canEditApproval = role === "super_admin" || role === "developer" || role === "inspector_manager";
   // Admin-level roles can upload every document type, regardless of commodity
   const canUploadAll = role === "admin" || role === "super_admin" || role === "developer";
   // Only admin-level roles may delete inspection records
@@ -2362,7 +2365,7 @@ export default function InspectionsPage() {
                               {s.approval_lag_days != null ? <>{s.late_approval && <><i className="fas fa-exclamation-triangle" style={{ fontSize: 9 }} /> </>}{lagStyle(Math.max(0, s.approval_lag_days)).label}</> : "—"}
                             </td>
                             <td className="center">
-                              {isAdmin ? (
+                              {!canEditApproval ? (
                                 <span className={`ir-badge ${s.approved_status === "APPROVED" ? "ir-badge-green" : "ir-badge-red"}`}>
                                   {s.approved_status === "APPROVED" ? "Approved" : "Pending"}
                                 </span>

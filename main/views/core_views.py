@@ -8961,17 +8961,14 @@ def inspector_dashboard_api(request):
         if mi.get('month'):
             mi['month'] = mi['month'].strftime('%Y-%m-%d')
 
-    compliant_inspections = inspector_inspections.filter(
-        is_direction_present_for_this_inspection=False
-    ).count()
-
-    non_compliant_inspections = inspector_inspections.filter(
-        is_direction_present_for_this_inspection=True
-    ).count()
-
-    compliance_rate = 0
-    if total_inspections > 0:
-        compliance_rate = (compliant_inspections / total_inspections) * 100
+    # Compliance — must match the analytics Compliance tab exactly:
+    # is_product_compliant True/False with unassessed (NULL) records excluded.
+    # The old version used "no direction issued" over ALL inspections as a
+    # proxy, which disagreed with the Compliance tab (reported for Cinga).
+    compliant_inspections = inspector_inspections.filter(is_product_compliant=True).count()
+    non_compliant_inspections = inspector_inspections.filter(is_product_compliant=False).count()
+    _assessed_count = compliant_inspections + non_compliant_inspections
+    compliance_rate = (compliant_inspections / _assessed_count) * 100 if _assessed_count > 0 else 0
 
     recent_inspections_list = list(inspector_inspections.order_by('-date_of_inspection')[:10].values(
         'id', 'client_name', 'date_of_inspection', 'commodity',
@@ -10585,12 +10582,16 @@ def analytics_dashboard_api(request):
         _daily_filtered.append(item)
     daily_compliance_trend = _daily_filtered
 
-    # Time allocation
+    # Time allocation. Sum('hours') yields Decimal, which JSON-serialises as a
+    # STRING — the frontend then string-concatenates instead of adding and the
+    # Total Hours tile shows NaN. Coerce to float here.
     time_allocation = list(qs.exclude(
         Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name='Unknown') | Q(inspector_name__in=non_inspector_names)
     ).exclude(Q(hours__isnull=True) | Q(hours=0)).values('inspector_name').annotate(
         total_hours=Sum('hours')
     ).order_by('-total_hours'))
+    for _t in time_allocation:
+        _t['total_hours'] = float(_t['total_hours'] or 0)
 
     # Inspections list — no limit, full filtered dataset for accurate reporting
     inspections_list = list(qs.order_by('-date_of_inspection').values(
@@ -10676,7 +10677,11 @@ def analytics_dashboard_api(request):
             approved=Count('id', filter=Q(approved_status='APPROVED')),
             pending=Count('id', filter=Q(approved_status='PENDING')),
         ).order_by('-total')),
-        'monthlyInspectorTrend': list(_inspector_trend_qs),
+        # Decimal sums must go out as numbers, not strings (same NaN issue)
+        'monthlyInspectorTrend': [
+            {**r, 'total_km': float(r['total_km'] or 0), 'total_hours': float(r['total_hours'] or 0)}
+            for r in _inspector_trend_qs
+        ],
     }
 
     # === FINANCIAL / REVENUE DATA (filtered) ===

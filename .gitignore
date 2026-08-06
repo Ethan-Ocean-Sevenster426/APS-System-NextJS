@@ -257,3 +257,6 @@ token.pickle
 token_drive.pickle
 tests/NUL
 main/Google Auth for spreadsheet.json
+
+# Playwright MCP browser artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/

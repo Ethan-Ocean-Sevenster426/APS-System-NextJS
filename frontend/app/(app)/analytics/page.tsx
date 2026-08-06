@@ -28,7 +28,7 @@ interface AnalyticsData {
   monthlyCommodityTrends: { month: string; commodity: string; count: number }[];
   monthlyComplianceTrend: { month: string; commodity: string; total: number; compliant: number; compliance_rate: number }[];
   weeklyComplianceTrend: { week: string; total: number; compliant: number; compliance_rate: number }[];
-  dailyComplianceTrend: { day: string; commodity: string; total: number; compliant: number; compliance_rate: number }[];
+  dailyComplianceTrend: { day: string; commodity: string; total: number; compliant: number; non_compliant?: number; compliance_rate: number }[];
   timeAllocation: { inspector_name: string; total_hours: number }[];
   inspectionsList: { date_of_inspection: string; inspector_name: string; client_name: string; commodity: string; facility_type: string; is_sample_taken: boolean; approved_status: string; town: string }[];
   inspectorPerformance: { inspector_name: string; total_inspections: number; compliant: number; non_compliant: number }[];
@@ -420,7 +420,8 @@ export default function AnalyticsPage() {
 
     const filteredCompliance = fc(rawData.complianceByCommodity ?? []);
     const totalCompliant = filteredCompliance.reduce((s, r) => s + r.compliant, 0);
-    const totalForRate = filteredCompliance.reduce((s, r) => s + r.total, 0);
+    // Rate basis is ASSESSED records (compliant + non-compliant), matching the API
+    const totalForRate = filteredCompliance.reduce((s, r) => s + r.compliant + r.non_compliant, 0);
     const filteredTravel = fi(rawData.travelPerInspector ?? []);
     const filteredTime = fi(rawData.timeAllocation ?? []);
     const filteredOcc = fi(rawData.occurrenceReports ?? []);
@@ -441,8 +442,9 @@ export default function AnalyticsPage() {
       totalInspections: (hasI || hasC) ? filteredList.length : rawData.totalInspections,
       complianceRate: (hasI || hasC) ? (totalForRate > 0 ? (totalCompliant / totalForRate) * 100 : 0) : rawData.complianceRate,
       activeInspectors: (hasI || hasC) ? new Set(filteredList.map(s => s.inspector_name)).size : rawData.activeInspectors,
-      totalHours: filteredTime.reduce((s, r) => s + r.total_hours, 0),
-      avgHours: filteredTime.length > 0 ? filteredTime.reduce((s, r) => s + r.total_hours, 0) / filteredTime.length : 0,
+      // Number() guards against Decimal sums arriving as strings (NaN protection)
+      totalHours: filteredTime.reduce((s, r) => s + (Number(r.total_hours) || 0), 0),
+      avgHours: filteredTime.length > 0 ? filteredTime.reduce((s, r) => s + (Number(r.total_hours) || 0), 0) / filteredTime.length : 0,
       totalOccurrenceReports: (hasI || hasC) ? filteredOcc.reduce((s, r) => s + r.count, 0) : rawData.totalOccurrenceReports,
       complianceByCommodity: filteredCompliance,
       commodityAnalysis: fc(rawData.commodityAnalysis ?? []),
@@ -969,7 +971,7 @@ export default function AnalyticsPage() {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(...GRAY_LIGHT);
-          doc.text(`(${item.compliant}/${item.total})`, barX + barMaxW + 22, y + barH / 2 + 1.5);
+          doc.text(`(${item.compliant}/${item.compliant + item.non_compliant} assessed)`, barX + barMaxW + 22, y + barH / 2 + 1.5);
 
           y += barSpacing;
         }
@@ -1109,7 +1111,7 @@ export default function AnalyticsPage() {
           head: [["Inspector", "Total Inspections", "Compliant", "Non-Compliant", "Compliance %"]],
           body: (data!.inspectorPerformance || []).map(p => [
             p.inspector_name, String(p.total_inspections), String(p.compliant), String(p.non_compliant),
-            p.total_inspections > 0 ? `${((p.compliant / p.total_inspections) * 100).toFixed(1)}%` : "0%",
+            (p.compliant + p.non_compliant) > 0 ? `${((p.compliant / (p.compliant + p.non_compliant)) * 100).toFixed(1)}%` : "0%",
           ]),
           margin: tableMargin,
           styles: baseStyles,
@@ -1807,7 +1809,7 @@ function OverviewPanel({ data, totalKm, avgDocSend, avgApproval, totalSamples, f
                   {(c.compliance_rate ?? 0) > 10 && <span className="text-[11px] font-bold" style={{ color: "#fff" }}>{Number(c.compliance_rate ?? 0).toFixed(1)}%</span>}
                 </div>
               </div>
-              <span className="text-xs text-gray-500 flex-shrink-0" style={{ minWidth: 70, textAlign: "right" }}>{Number(c.compliance_rate ?? 0).toFixed(1)}% ({c.compliant}/{c.total})</span>
+              <span className="text-xs text-gray-500 flex-shrink-0" style={{ minWidth: 70, textAlign: "right" }} title={`${c.compliant} compliant of ${c.compliant + c.non_compliant} assessed (${c.total} records total)`}>{Number(c.compliance_rate ?? 0).toFixed(1)}% ({c.compliant}/{c.compliant + c.non_compliant} assessed)</span>
             </div>
           ))}
         </div>
@@ -2201,7 +2203,8 @@ function CompliancePanel({ data }: { data: AnalyticsData }) {
         const key = weekStart.toISOString().split("T")[0];
         if (!weekMap[key]) weekMap[key] = {};
         if (!weekMap[key][d.commodity]) weekMap[key][d.commodity] = { total: 0, compliant: 0 };
-        weekMap[key][d.commodity].total += d.total;
+        // denominator = assessed records only, matching compliance_rate everywhere else
+        weekMap[key][d.commodity].total += d.compliant + (d.non_compliant ?? 0);
         weekMap[key][d.commodity].compliant += d.compliant;
       });
       const weeks = Object.keys(weekMap).sort();
@@ -2388,7 +2391,7 @@ function OperationsPanel({ data }: { data: AnalyticsData }) {
       const d = String(r.day || "").substring(0, 10);
       if (!d) return;
       km[d] = (km[d] || 0) + (r.total_km || 0);
-      hrs[d] = (hrs[d] || 0) + (r.total_hours || 0);
+      hrs[d] = (hrs[d] || 0) + (Number(r.total_hours) || 0);
     });
     return { km, hrs, days: Object.keys(km).sort() };
   })();

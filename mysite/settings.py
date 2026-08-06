@@ -23,6 +23,10 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-@=2jh*jwvj#7=oh+4+ae2)y9j4ixy@f4l^5sf-3iv$2elvp4y#')
 
+# Shared key for server-to-server calls between Django and the Next.js server
+# (used by the automatic Monday Weekly Report email to generate its PDF)
+WEEKLY_INTERNAL_KEY = env('WEEKLY_INTERNAL_KEY', default='aps-weekly-internal-2026')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=True)  # Set to True for demo
 
