@@ -5693,10 +5693,11 @@ def api_edit_inspection_group(request):
         # Quick update for approved_status only
         approved_only = data.get('approved_status')
         if approved_only and len(data) <= 2:  # Only inspection_id + approved_status
-            # Approval is a management action — inspectors must not approve
-            # their own work (approval lateness is tracked per back-office user).
+            # Inspectors may approve their own inspections (business rule,
+            # 2026-08-06). Approval lateness therefore measures the inspector's
+            # own turnaround, not a separate back-office review step.
             _role = getattr(request.user, 'role', '') if getattr(request.user, 'is_authenticated', False) else ''
-            if _role not in ('super_admin', 'developer', 'inspector_manager', 'admin'):
+            if _role not in ('super_admin', 'developer', 'inspector_manager', 'admin', 'inspector'):
                 return _insp_cors(request, JsonResponse(
                     {'success': False, 'error': 'You do not have permission to change approval status.'}, status=403))
             try:

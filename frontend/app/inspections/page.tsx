@@ -837,9 +837,12 @@ export default function InspectionsPage() {
   const isLabTechRestricted = false; // Lab techs now see everything
   const isAdmin = role === "admin";
   const isInspector = role === "inspector" || role === "inspector_manager";
-  // Approval status may only be changed by management — inspectors must never
-  // be able to approve their own inspections (it feeds the lateness reports).
-  const canEditApproval = role === "super_admin" || role === "developer" || role === "inspector_manager";
+  // Inspectors may approve their own inspections (business rule, 2026-08-06).
+  // Consequence to be aware of: approval lateness is now self-reported — the
+  // same person captures and approves, so "days to approval" measures the
+  // inspector's own turnaround rather than a separate back-office review.
+  const canEditApproval = role === "super_admin" || role === "developer"
+    || role === "inspector_manager" || role === "inspector";
   // Admin-level roles can upload every document type, regardless of commodity
   const canUploadAll = role === "admin" || role === "super_admin" || role === "developer";
   // Only admin-level roles may delete inspection records
