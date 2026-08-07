@@ -386,13 +386,13 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   [
     "This Week's Winners",
     "This Week's Watch-Outs",
-    "Turnaround Times",
     "Action Points This Week",
     "1. Inspection Performance",
     "2. Sample Tracking",
     "3. Approval versus Capturing",
     "4. Weekly Compliance",
     "5. Travel Activity",
+    "6. Turnaround Times",
   ].forEach((s, i) => {
     doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" });
   });
@@ -517,66 +517,6 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.text(w0.value, x + wc / 2, yy + 20, { align: "center" });
     });
     y += Math.ceil(Math.min(watchOuts.length, 6) / 3) * (wch2 + 5) + 10;
-  }
-
-  /* ══ TURNAROUND TIMES — how long work sits at each back-office stage, and
-     which direction it is moving. Managers previously saw volumes only, so a
-     growing delay between inspection and invoice was invisible. Timing only:
-     no invoice amounts appear anywhere in this report. ══ */
-  const TURN_ORDER = ["send_docs", "invoice", "sample_to_coa", "approval"];
-  const turnRows = TURN_ORDER
-    .map(k => ({ key: k, ...(data.turnaround || {})[k] }))
-    .filter(r => r.label && r.avg !== null && r.avg !== undefined);
-  if (turnRows.length > 0) {
-    needPage(20 + turnRows.length * 7);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(...DARK);
-    doc.text("Turnaround Times", ML, y);
-    doc.setDrawColor(...TEAL);
-    doc.setLineWidth(0.7);
-    doc.line(ML, y + 2.5, ML + 45, y + 2.5);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
-    doc.text(
-      "Average days each stage took this period. \"Change\" compares with the previous period — a negative number means the delay is shrinking.",
-      ML, y, { maxWidth: CW });
-    y += 7;
-    autoTable(doc, {
-      startY: y,
-      head: [["Stage", "Avg Days", "Target", "Jobs", "Change vs Previous"]],
-      body: turnRows.map(r => {
-        const change = r.prev_avg === null || r.prev_avg === undefined
-          ? "no previous data"
-          : (() => {
-              const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
-              if (diff === 0) return "no change";
-              return `${diff > 0 ? "+" : ""}${diff} days ${diff < 0 ? "(improving)" : "(slower)"}`;
-            })();
-        return [r.label as string, String(r.avg), `${r.target} days`, String(r.count), change];
-      }),
-      theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
-      margin: { left: ML, right: MR },
-      didParseCell: (d: any) => {
-        // Red when the stage is over its target, green when inside it.
-        if (d.section === "body" && d.column.index === 1) {
-          const row = turnRows[d.row.index];
-          d.cell.styles.textColor = (row.avg as number) > (row.target as number) ? RED : GREEN;
-          d.cell.styles.fontStyle = "bold";
-        }
-        if (d.section === "body" && d.column.index === 4) {
-          const t = String(d.cell.raw || "");
-          if (t.includes("improving")) d.cell.styles.textColor = GREEN;
-          else if (t.includes("slower")) d.cell.styles.textColor = RED;
-        }
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 10;
   }
 
   /* ══ ACTION POINTS — turned automatically from this week's numbers into
@@ -1028,6 +968,59 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     },
   });
   y = (doc as any).lastAutoTable.finalY + 8;
+
+  /* ══ 6. TURNAROUND TIMES — how long work sits at each back-office stage, and
+     which direction it is moving. Managers previously saw volumes only, so a
+     growing delay between inspection and invoice was invisible. Placed last, at
+     the bottom of the report. Timing only: no invoice amounts anywhere. ══ */
+  const TURN_ORDER = ["send_docs", "invoice", "sample_to_coa", "approval"];
+  const turnRows = TURN_ORDER
+    .map(k => ({ key: k, ...(data.turnaround || {})[k] }))
+    .filter(r => r.label && r.avg !== null && r.avg !== undefined);
+  if (turnRows.length > 0) {
+    sectionPage();
+    header("6. Turnaround Times");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(
+      "Average days each stage took this period. \"Change\" compares with the previous period — a negative number means the delay is shrinking.",
+      ML, y, { maxWidth: CW });
+    y += 6;
+    autoTable(doc, {
+      startY: y,
+      head: [["Stage", "Avg Days", "Target", "Jobs", "Change vs Previous"]],
+      body: turnRows.map(r => {
+        const change = r.prev_avg === null || r.prev_avg === undefined
+          ? "no previous data"
+          : (() => {
+              const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
+              if (diff === 0) return "no change";
+              return `${diff > 0 ? "+" : ""}${diff} days ${diff < 0 ? "(improving)" : "(slower)"}`;
+            })();
+        return [r.label as string, String(r.avg), `${r.target} days`, String(r.count), change];
+      }),
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        // Red when the stage is over its target, green when inside it.
+        if (d.section === "body" && d.column.index === 1) {
+          const row = turnRows[d.row.index];
+          d.cell.styles.textColor = (row.avg as number) > (row.target as number) ? RED : GREEN;
+          d.cell.styles.fontStyle = "bold";
+        }
+        if (d.section === "body" && d.column.index === 4) {
+          const t = String(d.cell.raw || "");
+          if (t.includes("improving")) d.cell.styles.textColor = GREEN;
+          else if (t.includes("slower")) d.cell.styles.textColor = RED;
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
 
   /* ── Footer on every page ── */
   const pages = doc.getNumberOfPages();
