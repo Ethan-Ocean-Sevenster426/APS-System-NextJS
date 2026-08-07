@@ -104,18 +104,25 @@ interface Inspection {
    inspection, document or sample in the process, and who owns the next step".
    The order mirrors the real flow: approve → send docs → COA (if sampled) →
    invoice → done. A sample only blocks on COA when one was actually taken. */
-type Stage = { key: string; label: string; owner: string; color: string; bg: string };
+type Stage = { key: string; label: string; owner: string; hint: string; color: string; bg: string };
 function processStage(s: Inspection): Stage {
   const sampled = (s.products || []).some(p => p.is_sample_taken);
+  // Inspectors approve their own inspections, so an unapproved one is waiting
+  // on the inspector — not any office/back-office role.
   if (s.approved_status !== "APPROVED")
-    return { key: "approval", label: "Awaiting approval", owner: "Back office", color: "#7c3aed", bg: "#faf5ff" };
+    return { key: "approval", label: "Needs approval", owner: "Inspector",
+             hint: "The inspector still needs to approve this inspection.", color: "#7c3aed", bg: "#faf5ff" };
   if (!s.sent_date)
-    return { key: "sent", label: "Not sent to client", owner: "Admin", color: "#d97706", bg: "#fffbeb" };
+    return { key: "sent", label: "Not sent to client", owner: "Office",
+             hint: "Approved, but the report has not been emailed to the client yet.", color: "#d97706", bg: "#fffbeb" };
   if (sampled && !s.has_lab)
-    return { key: "coa", label: "Awaiting COA", owner: "Laboratory", color: "#2563eb", bg: "#eff6ff" };
+    return { key: "coa", label: "Waiting for lab (COA)", owner: "Lab",
+             hint: "A sample was taken — waiting for the lab to upload the COA.", color: "#2563eb", bg: "#eff6ff" };
   if (!s.has_invoice)
-    return { key: "invoice", label: "Awaiting invoice", owner: "Finance", color: "#0891b2", bg: "#ecfeff" };
-  return { key: "complete", label: "Complete", owner: "—", color: "#15803d", bg: "#f0fdf4" };
+    return { key: "invoice", label: "Needs invoice", owner: "Finance",
+             hint: "Sent to the client, but no invoice has been uploaded yet.", color: "#0891b2", bg: "#ecfeff" };
+  return { key: "complete", label: "Done", owner: "—",
+           hint: "Approved, sent, and fully processed. Nothing outstanding.", color: "#15803d", bg: "#f0fdf4" };
 }
 
 function ClientSearchInput({ value, onChange, options, onEnter }: { value: string; onChange: (v: string) => void; options: string[]; onEnter?: () => void }) {
@@ -2342,13 +2349,13 @@ export default function InspectionsPage() {
                               {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
                             </td>
                             {(() => { const st = processStage(s); return (
-                              <td className="center" style={{ whiteSpace: "nowrap" }} title={st.key === "complete" ? "Fully processed" : `Next action: ${st.owner}`}>
+                              <td className="center" style={{ whiteSpace: "nowrap" }} title={st.hint}>
                                 <span style={{ display: "inline-block", background: st.bg, color: st.color, border: `1px solid ${st.color}33`, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, lineHeight: 1.5 }}>
                                   {st.label}
                                 </span>
                                 {st.key !== "complete"
-                                  ? <div style={{ fontSize: 10, color: st.color, fontWeight: 600, marginTop: 3 }} title="Responsible for the next action">
-                                      <i className="fas fa-user-clock" style={{ fontSize: 9, marginRight: 3, opacity: 0.8 }} />{st.owner}
+                                  ? <div style={{ fontSize: 10, color: st.color, fontWeight: 600, marginTop: 3 }} title={`Waiting on the ${st.owner} to act`}>
+                                      <i className="fas fa-user-clock" style={{ fontSize: 9, marginRight: 3, opacity: 0.8 }} />Waiting on: {st.owner}
                                     </div>
                                   : <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3 }}>Nothing outstanding</div>}
                               </td>

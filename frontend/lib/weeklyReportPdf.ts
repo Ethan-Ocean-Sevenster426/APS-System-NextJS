@@ -77,6 +77,14 @@ export interface ReportResponse {
     avg: number | null; count: number; prev_avg: number | null;
     target: number; label: string;
   }>;
+  /* Administration throughput this period vs last. Counts + timing only. */
+  throughput?: {
+    sent: { count: number; prev: number };
+    invoices_uploaded: { count: number; prev: number };
+    coas_uploaded: { count: number; prev: number };
+    invoice_time: { avg: number | null; prev_avg: number | null; count: number };
+    top_senders: { name: string; count: number }[];
+  };
   performance: PerformanceRow[];
   inspection_trend: TrendPoint[];
   samples: SampleRow[];
@@ -392,7 +400,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     "3. Approval versus Capturing",
     "4. Weekly Compliance",
     "5. Travel Activity",
-    "6. Turnaround Times",
+    "6. Administration & Throughput",
+    "7. Turnaround Times",
   ].forEach((s, i) => {
     doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" });
   });
@@ -969,36 +978,108 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   });
   y = (doc as any).lastAutoTable.finalY + 8;
 
-  /* ══ 6. TURNAROUND TIMES — how long work sits at each back-office stage, and
-     which direction it is moving. Managers previously saw volumes only, so a
-     growing delay between inspection and invoice was invisible. Placed last, at
-     the bottom of the report. Timing only: no invoice amounts anywhere. ══ */
+  /* ══ 6. ADMINISTRATION & THROUGHPUT — what the office actually got through
+     this period vs the previous one: reports sent, invoices and COAs uploaded,
+     who sent the most, and the average capture->invoice-upload time. Counted by
+     when each action happened. Timing only; no invoice amounts. ══ */
+  const tp = data.throughput;
+  if (tp) {
+    sectionPage();
+    header("6. Administration & Throughput");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(
+      "Counts of what the office got through this period (the last completed week) versus the week before it. \"Change\" is this week minus last week. Invoice-upload time is in the Turnaround Times section.",
+      ML, y, { maxWidth: CW });
+    y += 8;
+    const mvCount = (n: number) => n === 0 ? "no change" : `${n > 0 ? "+" : ""}${n} vs the week before`;
+    autoTable(doc, {
+      startY: y,
+      head: [["Measure", "This Week", "Week Before", "Change"]],
+      body: [
+        ["Reports sent to clients", String(tp.sent.count), String(tp.sent.prev), mvCount(tp.sent.count - tp.sent.prev)],
+        ["Invoices uploaded", String(tp.invoices_uploaded.count), String(tp.invoices_uploaded.prev), mvCount(tp.invoices_uploaded.count - tp.invoices_uploaded.prev)],
+        ["COAs uploaded", String(tp.coas_uploaded.count), String(tp.coas_uploaded.prev), mvCount(tp.coas_uploaded.count - tp.coas_uploaded.prev)],
+      ],
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        if (d.section === "body" && d.column.index === 3) {
+          const t = String(d.cell.raw || "");
+          if (t.startsWith("+")) d.cell.styles.textColor = GREEN;
+          else if (t.startsWith("-")) d.cell.styles.textColor = RED;
+          d.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    if (tp.top_senders && tp.top_senders.length > 0) {
+      needPage(16 + tp.top_senders.length * 6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...DARK);
+      doc.text("Who sent the most this period", ML, y);
+      y += 1;
+      autoTable(doc, {
+        startY: y + 1,
+        head: [["Rank", "Sent by", "Reports Sent"]],
+        body: tp.top_senders.map((s, i) => [String(i + 1), s.name, String(s.count)]),
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" } },
+        margin: { left: ML, right: MR },
+        didParseCell: (d: any) => {
+          if (d.section === "body" && d.column.index === 0) {
+            d.cell.styles.fontStyle = "bold"; d.cell.styles.textColor = TEAL;
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+  }
+
+  /* ══ 7. TURNAROUND TIMES — how long work sits at each back-office stage, and
+     which direction it is moving. Placed last. Timing only; no invoice amounts.
+     "Change" compares the last completed week with the week before it. Empty
+     cells are filled with a short reason rather than left blank. ══ */
   const TURN_ORDER = ["send_docs", "invoice", "sample_to_coa", "approval"];
   const turnRows = TURN_ORDER
     .map(k => ({ key: k, ...(data.turnaround || {})[k] }))
     .filter(r => r.label && r.avg !== null && r.avg !== undefined);
   if (turnRows.length > 0) {
     sectionPage();
-    header("6. Turnaround Times");
+    header("7. Turnaround Times");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text(
-      "Average days each stage took this period. \"Change\" compares with the previous period — a negative number means the delay is shrinking.",
+      "Average days each stage took in the last completed week. \"Change\" compares it with the week before — a negative number means the delay is shrinking.",
       ML, y, { maxWidth: CW });
-    y += 6;
+    y += 8;
+    let _anyNoTarget = false;
+    const change = (r: { avg?: number | null; prev_avg?: number | null; count?: number }) => {
+      if (r.prev_avg === null || r.prev_avg === undefined) {
+        // Explain WHY there is nothing to compare, rather than leaving it blank.
+        return r.count ? "no figure the week before" : "no data either week";
+      }
+      const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
+      if (diff === 0) return "no change vs the week before";
+      return `${diff > 0 ? "+" : ""}${diff} days ${diff < 0 ? "(improving)" : "(slower)"}`;
+    };
     autoTable(doc, {
       startY: y,
-      head: [["Stage", "Avg Days", "Target", "Jobs", "Change vs Previous"]],
+      head: [["Stage", "Avg Days", "Target", "Jobs", "Change vs the Week Before"]],
       body: turnRows.map(r => {
-        const change = r.prev_avg === null || r.prev_avg === undefined
-          ? "no previous data"
-          : (() => {
-              const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
-              if (diff === 0) return "no change";
-              return `${diff > 0 ? "+" : ""}${diff} days ${diff < 0 ? "(improving)" : "(slower)"}`;
-            })();
-        return [r.label as string, String(r.avg), `${r.target} days`, String(r.count), change];
+        let target: string;
+        if (r.target === null || r.target === undefined) { target = "not set"; _anyNoTarget = true; }
+        else target = `${r.target} days`;
+        return [r.label as string, String(r.avg), target, String(r.count), change(r)];
       }),
       theme: "grid",
       styles: { fontSize: 8, cellPadding: 2 },
@@ -1006,20 +1087,37 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
-        // Red when the stage is over its target, green when inside it.
+        // Colour the avg against its target: green within, red over. If no target
+        // is set for the stage, leave it neutral (can't judge without a target).
         if (d.section === "body" && d.column.index === 1) {
           const row = turnRows[d.row.index];
-          d.cell.styles.textColor = (row.avg as number) > (row.target as number) ? RED : GREEN;
+          if (row.target !== null && row.target !== undefined) {
+            d.cell.styles.textColor = (row.avg as number) > (row.target as number) ? RED : GREEN;
+          }
           d.cell.styles.fontStyle = "bold";
+        }
+        if (d.section === "body" && d.column.index === 2 && String(d.cell.raw) === "not set") {
+          d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
         }
         if (d.section === "body" && d.column.index === 4) {
           const t = String(d.cell.raw || "");
           if (t.includes("improving")) d.cell.styles.textColor = GREEN;
           else if (t.includes("slower")) d.cell.styles.textColor = RED;
+          else d.cell.styles.textColor = GRAY;
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 5;
+    if (_anyNoTarget) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY);
+      doc.text(
+        "\"not set\" = no target has been agreed for this stage yet. \"Capture to invoice uploaded\" is the average over invoices uploaded this week; a document-submission-to-invoice figure is not shown because invoices are usually uploaded before or without a recorded send date.",
+        ML, y, { maxWidth: CW });
+      doc.setFont("helvetica", "normal");
+      y = y + 10;
+    }
   }
 
   /* ── Footer on every page ── */

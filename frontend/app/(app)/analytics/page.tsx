@@ -56,6 +56,9 @@ interface AnalyticsData {
   monthlyApprovalTrend: { month: string; avg_days: number; count: number }[];
   weeklyApprovalTrend: { week: string; avg_days: number; count: number }[];
   dailyApprovalTrend: { day: string; avg_days: number; count: number }[];
+  outstandingByStage: { stage: string; responsible: string; count: number; parallel?: boolean }[];
+  outstandingTotal: number;
+  completedTotal: number;
   monthlyTravelHoursTrend: { month: string; total_hours: number }[];
   dailyTravelTrend: { day: string; total_km: number; total_hours: number }[];
   docSendTime: { name: string; avg_days: number; count: number }[];
@@ -496,6 +499,9 @@ export default function AnalyticsPage() {
       monthlyApprovalTrend: (rawData.monthlyApprovalTrend ?? []).filter(r => matchMonth(r.month)),
       weeklyApprovalTrend: rawData.weeklyApprovalTrend ?? [],
       monthlyTravelHoursTrend: (rawData.monthlyTravelHoursTrend ?? []).filter(r => matchMonth(r.month)),
+      outstandingByStage: rawData.outstandingByStage ?? [],
+      outstandingTotal: rawData.outstandingTotal ?? 0,
+      completedTotal: rawData.completedTotal ?? 0,
     };
   }, [rawData, filters, isAdmin, userFullName]);
 
@@ -2619,6 +2625,35 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
           </div>
         ))}
       </div>
+      {/* Outstanding / incomplete actions + who is responsible for the next step */}
+      {data.outstandingByStage && data.outstandingByStage.length > 0 && (
+        <div className="bg-white rounded-md border border-gray-200" style={{ padding: "1rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#111827", marginBottom: 2 }}>
+            <i className="fas fa-list-check" style={{ color: "#007890", marginRight: 6 }} />Outstanding actions — who owns the next step
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "#6b7280", marginBottom: 10 }}>
+            Where each inspection in the current filter still needs action, and who owns it.{" "}
+            <b style={{ color: "#dc2626" }}>{data.outstandingTotal}</b> outstanding · <b style={{ color: "#15803d" }}>{data.completedTotal}</b> complete.
+            The three office stages are the job&apos;s next office step (they don&apos;t overlap). <b>Waiting for COA</b> is the lab&apos;s
+            separate queue — every sampled job with no result yet — so it runs in parallel and is counted on its own.
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: "0.75rem" }}>
+            {data.outstandingByStage.map((s, i) => {
+              const c = ["#7c3aed", "#d97706", "#0891b2", "#2563eb"][i % 4];
+              return (
+                <div key={s.stage} style={{ borderTop: `3px solid ${c}`, border: "1px solid #e5e7eb", borderRadius: 8, padding: "0.75rem", textAlign: "center", background: s.parallel ? "#f8fafc" : "#fff" }}>
+                  <div style={{ fontSize: "1.6rem", fontWeight: 800, color: c, lineHeight: 1.1 }}>{s.count}</div>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111827", marginTop: 3 }}>{s.stage}</div>
+                  <div style={{ fontSize: "0.68rem", color: "#6b7280", marginTop: 4 }}>
+                    <i className="fas fa-user-clock" style={{ marginRight: 3, opacity: 0.7 }} />Responsible: {s.responsible}
+                  </div>
+                  {s.parallel && <div style={{ fontSize: "0.6rem", color: "#94a3b8", marginTop: 2, fontStyle: "italic" }}>runs in parallel</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {/* Weekly / Monthly toggle */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid #d1d5db" }}>

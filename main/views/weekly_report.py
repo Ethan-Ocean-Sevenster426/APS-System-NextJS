@@ -38,11 +38,20 @@ VIEW_ROLES = ('super_admin', 'developer', 'admin', 'inspector_manager', 'inspect
 # Expected turnaround per stage, in days. Approval and COA reuse the standards
 # already applied elsewhere in this report; doc-send and invoice are a starting
 # point for the APS department to confirm.
-TURNAROUND_TARGETS = {'send_docs': 3, 'invoice': 5, 'sample_to_coa': 7, 'approval': ADMIN_LAG_DAYS}
+# Turnaround stages, in the order of Nicole's requirement list. Targets are a
+# starting point for the APS department to confirm; None = no target agreed yet
+# (shown as "—" rather than an invented figure). Section 6 separately reports the
+# capture->invoice-UPLOAD activity metric; the 'invoice' stage here is the
+# document-submission -> invoicing time (sent -> invoice) from her list.
+TURNAROUND_TARGETS = {'send_docs': 3, 'invoice': None, 'sample_to_coa': 7, 'approval': ADMIN_LAG_DAYS}
 
 TURNAROUND_LABELS = {
     'send_docs': 'Inspection to documents sent',
-    'invoice': 'Documents sent to invoice',
+    # Capture -> invoice upload. True document-submission -> invoicing (sent ->
+    # invoice) can't be computed reliably here: invoices are usually uploaded
+    # before or without a recorded send date, so that gap is empty for almost
+    # every invoice. Capture -> invoice has full data both weeks.
+    'invoice': 'Capture to invoice uploaded',
     'sample_to_coa': 'Sample to COA uploaded',
     'approval': 'Captured to approved',
 }
@@ -67,8 +76,11 @@ def _turnaround(start, end):
         .filter(date_of_inspection__gte=start, date_of_inspection__lte=end)
         .values('id', 'date_of_inspection')
     )
+    # Invoice is handled separately (upload cohort) because this week's
+    # inspections are not invoiced yet — see _admin_throughput.
+    _cohort = ('send_docs', 'sample_to_coa', 'approval')
     if not groups:
-        return {k: {'avg': None, 'count': 0} for k in TURNAROUND_TARGETS}
+        return {k: {'avg': None, 'count': 0} for k in _cohort}
     gids = [g['id'] for g in groups]
     gdate = {g['id']: g['date_of_inspection'] for g in groups}
 
@@ -76,9 +88,9 @@ def _turnaround(start, end):
     for r in FoodSafetyAgencyInspection.objects.filter(
         inspection_group_id__in=gids
     ).values('inspection_group_id', 'approved_status', 'approved_date',
-             'sent_date', 'is_sample_taken', 'created_at'):
+             'sent_date', 'is_sample_taken', 'created_at', 'coa_uploaded_date'):
         s = state.setdefault(r['inspection_group_id'],
-                             {'approved': None, 'sent': None, 'sampled': False, 'captured': None})
+                             {'approved': None, 'sent': None, 'sampled': False, 'captured': None, 'coa': None})
         if r['approved_status'] == 'APPROVED' and r['approved_date']:
             if s['approved'] is None or r['approved_date'] < s['approved']:
                 s['approved'] = r['approved_date']
@@ -88,23 +100,17 @@ def _turnaround(start, end):
             s['sampled'] = True
         if r['created_at'] and (s['captured'] is None or r['created_at'] < s['captured']):
             s['captured'] = r['created_at']
+        # COA upload is recorded on the inspection (coa_uploaded_date), not as a
+        # 'coa' InspectionDocument — recent uploads use the 'lab' type instead.
+        if r['coa_uploaded_date'] and (s['coa'] is None or r['coa_uploaded_date'] < s['coa']):
+            s['coa'] = r['coa_uploaded_date']
 
-    docs = {}
-    for r in InspectionDocument.objects.filter(
-        inspection__inspection_group_id__in=gids, document_type__in=['invoice', 'coa'],
-    ).values('inspection__inspection_group_id', 'document_type', 'uploaded_date'):
-        gid, key = r['inspection__inspection_group_id'], r['document_type']
-        cur = docs.setdefault(gid, {}).get(key)
-        if cur is None or r['uploaded_date'] < cur:
-            docs[gid][key] = r['uploaded_date']
-
-    buckets = {k: [] for k in TURNAROUND_TARGETS}
+    buckets = {k: [] for k in _cohort}
     for gid, inspected in gdate.items():
-        s, d = state.get(gid, {}), docs.get(gid, {})
+        s = state.get(gid, {})
         pairs = {
             'send_docs': (inspected, s.get('sent')),
-            'invoice': (s.get('sent'), d.get('invoice')),
-            'sample_to_coa': (inspected, d.get('coa')) if s.get('sampled') else (None, None),
+            'sample_to_coa': (inspected, s.get('coa')) if s.get('sampled') else (None, None),
             'approval': (s.get('captured'), s.get('approved')),
         }
         for key, (a, b) in pairs.items():
@@ -118,6 +124,95 @@ def _turnaround(start, end):
             'count': len(v),
         }
         for key, v in buckets.items()
+    }
+
+
+def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
+    """Administration activity this period versus the previous one.
+
+    Requested 2026-08-07:
+      - how many reports were SENT this week vs last,
+      - how many INVOICES were uploaded this week vs last,
+      - how many COAs were uploaded this week vs last,
+      - who did the most sending, and
+      - the average CAPTURE -> INVOICE-UPLOAD time.
+
+    Everything is counted by WHEN THE ACTION HAPPENED (sent_date / uploaded_date),
+    so it measures what the office actually got through in the week — not the age
+    of the underlying inspections. Timing only; no invoice amounts are read.
+    """
+    from collections import Counter
+
+    def sends(a, b):
+        # One "send" = one inspection group dispatched. sent_date/sent_by live on
+        # the child records, so collapse to the group and keep its sender.
+        pairs = (FoodSafetyAgencyInspection.objects
+                 .filter(sent_date__date__gte=a, sent_date__date__lte=b)
+                 .values_list('inspection_group_id', 'sent_by_name'))
+        seen = {}
+        for gid, name in pairs:
+            if gid is not None and gid not in seen:
+                seen[gid] = (name or '').strip() or 'Unknown'
+        return seen
+
+    def invoices(a, b):
+        return (InspectionDocument.objects
+                .filter(document_type='invoice', uploaded_date__date__gte=a, uploaded_date__date__lte=b)
+                .count())
+
+    def coas(a, b):
+        # COA uploads are stamped on the inspection (coa_uploaded_date); the
+        # 'coa' document type is legacy and misses recent uploads.
+        return (FoodSafetyAgencyInspection.objects
+                .filter(coa_uploaded_date__date__gte=a, coa_uploaded_date__date__lte=b)
+                .count())
+
+    def invoice_gaps(a, b):
+        # For invoices uploaded in [a, b], the days from (i) the group's capture
+        # and (ii) the group's document submission (sent_date) to the upload.
+        # sent_date is resolved at the GROUP level, not the single record the
+        # invoice hangs off — otherwise most invoices miss their send date.
+        rows = list(InspectionDocument.objects
+                    .filter(document_type='invoice', uploaded_date__date__gte=a, uploaded_date__date__lte=b)
+                    .values_list('uploaded_date', 'inspection__inspection_group_id', 'inspection__created_at'))
+        gids = {g for _, g, _ in rows if g is not None}
+        sent_map = {}
+        for gid, sd in (FoodSafetyAgencyInspection.objects
+                        .filter(inspection_group_id__in=gids, sent_date__isnull=False)
+                        .values_list('inspection_group_id', 'sent_date')):
+            if gid is not None and (gid not in sent_map or sd < sent_map[gid]):
+                sent_map[gid] = sd
+        cap_days, sub_days = [], []
+        for up, gid, cap in rows:
+            if up and cap:
+                d = (up.date() - cap.date()).days
+                if d >= 0:
+                    cap_days.append(d)
+            sd = sent_map.get(gid)
+            if up and sd:
+                d = (up.date() - sd.date()).days
+                if d >= 0:
+                    sub_days.append(d)
+        _avg = lambda xs: round(sum(xs) / len(xs), 1) if xs else None
+        return (_avg(cap_days), len(cap_days)), (_avg(sub_days), len(sub_days))
+
+    cur_sent, prev_sent = sends(cur_start, cur_end), sends(prev_start, prev_end)
+    (cur_avg, cur_n), (cur_sub, cur_sub_n) = invoice_gaps(cur_start, cur_end)
+    (prev_avg, _pn), (prev_sub, _psn) = invoice_gaps(prev_start, prev_end)
+    top = Counter(cur_sent.values()).most_common(10)
+
+    return {
+        'sent': {'count': len(cur_sent), 'prev': len(prev_sent)},
+        'invoices_uploaded': {
+            'count': invoices(cur_start, cur_end),
+            'prev': invoices(prev_start, prev_end),
+        },
+        'coas_uploaded': {
+            'count': coas(cur_start, cur_end),
+            'prev': coas(prev_start, prev_end),
+        },
+        'invoice_time': {'avg': cur_avg, 'prev_avg': prev_avg, 'count': cur_n},
+        'top_senders': [{'name': n, 'count': c} for n, c in top],
     }
 
 
@@ -521,6 +616,32 @@ def api_weekly_report(request):
     _cur_turnaround = _turnaround(week_start, week_end)
     _prev_turnaround = _turnaround(prev_start, prev_end)
 
+    # Administration throughput — sends / invoices / COAs this period vs last,
+    # who sent the most, and the capture->invoice-upload time.
+    _throughput = _admin_throughput(week_start, week_end, prev_start, prev_end)
+
+    # Turnaround response: the three inspection-cohort stages, plus the invoice
+    # stage sourced from throughput (document submission -> invoicing, measured
+    # over invoices uploaded this period — this week's inspections aren't
+    # invoiced yet, so a cohort measure would always be empty).
+    _turnaround_response = {
+        key: {
+            **vals,
+            'prev_avg': _prev_turnaround.get(key, {}).get('avg'),
+            'target': TURNAROUND_TARGETS[key],
+            'label': TURNAROUND_LABELS[key],
+        }
+        for key, vals in _cur_turnaround.items()
+    }
+    _inv = _throughput.get('invoice_time', {})
+    _turnaround_response['invoice'] = {
+        'avg': _inv.get('avg'),
+        'count': _inv.get('count', 0),
+        'prev_avg': _inv.get('prev_avg'),
+        'target': TURNAROUND_TARGETS['invoice'],
+        'label': TURNAROUND_LABELS['invoice'],
+    }
+
     return JsonResponse({
         'success': True,
         'week_start': week_start.isoformat(),
@@ -543,15 +664,8 @@ def api_weekly_report(request):
             'total_km': round(sum(t['km'] for t in travel), 1),
             'total_hours': round(sum(t['hours'] for t in travel), 1),
         },
-        'turnaround': {
-            key: {
-                **vals,
-                'prev_avg': _prev_turnaround[key]['avg'],
-                'target': TURNAROUND_TARGETS[key],
-                'label': TURNAROUND_LABELS[key],
-            }
-            for key, vals in _cur_turnaround.items()
-        },
+        'turnaround': _turnaround_response,
+        'throughput': _throughput,
         'performance': performance,
         'inspection_trend': trend_weeks,
         'samples': samples,
