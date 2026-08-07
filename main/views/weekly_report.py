@@ -199,7 +199,8 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
     cur_sent, prev_sent = sends(cur_start, cur_end), sends(prev_start, prev_end)
     (cur_avg, cur_n), (cur_sub, cur_sub_n) = invoice_gaps(cur_start, cur_end)
     (prev_avg, _pn), (prev_sub, _psn) = invoice_gaps(prev_start, prev_end)
-    top = Counter(cur_sent.values()).most_common(10)
+    cur_counts = Counter(cur_sent.values())
+    prev_counts = Counter(prev_sent.values())
 
     return {
         'sent': {'count': len(cur_sent), 'prev': len(prev_sent)},
@@ -212,7 +213,10 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
             'prev': coas(prev_start, prev_end),
         },
         'invoice_time': {'avg': cur_avg, 'prev_avg': prev_avg, 'count': cur_n},
-        'top_senders': [{'name': n, 'count': c} for n, c in top],
+        'top_senders': [
+            {'name': n, 'count': c, 'prev': prev_counts.get(n, 0)}
+            for n, c in cur_counts.most_common(10)
+        ],
     }
 
 

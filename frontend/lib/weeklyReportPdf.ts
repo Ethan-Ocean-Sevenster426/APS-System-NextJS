@@ -83,7 +83,7 @@ export interface ReportResponse {
     invoices_uploaded: { count: number; prev: number };
     coas_uploaded: { count: number; prev: number };
     invoice_time: { avg: number | null; prev_avg: number | null; count: number };
-    top_senders: { name: string; count: number }[];
+    top_senders: { name: string; count: number; prev: number }[];
   };
   performance: PerformanceRow[];
   inspection_trend: TrendPoint[];
@@ -1027,16 +1027,26 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       y += 1;
       autoTable(doc, {
         startY: y + 1,
-        head: [["Rank", "Sent by", "Documents Sent"]],
-        body: tp.top_senders.map((s, i) => [String(i + 1), s.name, String(s.count)]),
+        head: [["Rank", "Sent by", "This Week", "Week Before", "Change vs the Week Before"]],
+        body: tp.top_senders.map((s, i) => {
+          const diff = s.count - s.prev;
+          const chg = diff === 0 ? "no change" : diff > 0 ? `${diff} more` : `${diff} fewer`;
+          return [String(i + 1), s.name, String(s.count), String(s.prev), chg];
+        }),
         theme: "grid",
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" } },
+        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" }, 3: { halign: "right" } },
         margin: { left: ML, right: MR },
         didParseCell: (d: any) => {
           if (d.section === "body" && d.column.index === 0) {
             d.cell.styles.fontStyle = "bold"; d.cell.styles.textColor = TEAL;
+          }
+          if (d.section === "body" && d.column.index === 4) {
+            const t = String(d.cell.raw || "");
+            if (t.includes("more")) d.cell.styles.textColor = GREEN;
+            else if (t.includes("fewer")) d.cell.styles.textColor = RED;
+            d.cell.styles.fontStyle = "bold";
           }
         },
       });
@@ -1087,23 +1097,26 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
-        // Colour the avg against its target: green within, red over. If no target
-        // is set for the stage, leave it neutral (can't judge without a target).
+        const GREEN_BG: [number, number, number] = [220, 252, 231];
+        const RED_BG: [number, number, number] = [254, 226, 226];
+        // Avg Days: shade the cell green when at/under target, red when over —
+        // a colour block reads faster than a number. Neutral if no target.
         if (d.section === "body" && d.column.index === 1) {
           const row = turnRows[d.row.index];
           if (row.target !== null && row.target !== undefined) {
-            d.cell.styles.textColor = (row.avg as number) > (row.target as number) ? RED : GREEN;
+            d.cell.styles.fillColor = (row.avg as number) > (row.target as number) ? RED_BG : GREEN_BG;
           }
           d.cell.styles.fontStyle = "bold";
         }
         if (d.section === "body" && d.column.index === 2 && String(d.cell.raw) === "not set") {
           d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
         }
+        // Change: shade green when the step got faster, red when slower.
         if (d.section === "body" && d.column.index === 4) {
           const t = String(d.cell.raw || "");
-          if (t.includes("faster")) d.cell.styles.textColor = GREEN;
-          else if (t.includes("slower")) d.cell.styles.textColor = RED;
-          else d.cell.styles.textColor = GRAY;
+          if (t.includes("faster")) d.cell.styles.fillColor = GREEN_BG;
+          else if (t.includes("slower")) d.cell.styles.fillColor = RED_BG;
+          d.cell.styles.fontStyle = "bold";
         }
       },
     });
