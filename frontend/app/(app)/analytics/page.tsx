@@ -2632,7 +2632,7 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
             <i className="fas fa-list-check" style={{ color: "#007890", marginRight: 6 }} />Outstanding actions — who owns the next step
           </div>
           <div style={{ fontSize: "0.72rem", color: "#6b7280", marginBottom: 10 }}>
-            Where each inspection in the current filter still needs action, and who owns it.{" "}
+            Where each job (site visit) still needs action, and who owns it — the whole current backlog across all work (not limited by the filters above). Counted per job, not per commodity record, and matches the weekly PDF and the Inspection Records list.{" "}
             <b style={{ color: "#dc2626" }}>{data.outstandingTotal}</b> outstanding · <b style={{ color: "#15803d" }}>{data.completedTotal}</b> complete.
             The three office stages are the job&apos;s next office step (they don&apos;t overlap). <b>Waiting for COA</b> is the lab&apos;s
             separate queue — every sampled job with no result yet — so it runs in parallel and is counted on its own.

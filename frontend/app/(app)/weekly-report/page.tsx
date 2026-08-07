@@ -753,11 +753,11 @@ export default function WeeklyReportPage() {
                     <div style={{ ...card, overflowX: "auto", marginBottom: 14 }}>
                       <h2 style={h2}>Compliance per commodity</h2>
                       <p style={{ fontSize: 12, color: F.muted, margin: "0 0 10px" }}>
-                        Each cell shows the % compliant for that commodity. &quot;0&quot; = no inspections of that commodity.{" "}
-                        &quot;no outcomes&quot; = the inspections were done, but no compliant / non-compliant outcome has been captured for them yet.{" "}
+                        Each cell shows the % of that commodity that passed. &quot;none&quot; = this inspector did no inspections of that commodity (not a 0% score).{" "}
+                        &quot;result not captured&quot; = the inspection was done, but nobody has recorded yet whether it passed (compliant) or failed, so it can&apos;t be scored.{" "}
                         <span style={{ color: F.green, fontWeight: 700 }}>Green</span> = 75% or better,{" "}
                         <span style={{ color: F.amber, fontWeight: 700 }}>orange</span> = 50% to 74.9%,{" "}
-                        <span style={{ color: F.red, fontWeight: 700 }}>red</span> = below 50%, or no outcomes captured yet.
+                        <span style={{ color: F.red, fontWeight: 700 }}>red</span> = below 50%, or the result has not been captured yet.
                       </p>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead><tr>
@@ -768,9 +768,9 @@ export default function WeeklyReportPage() {
                         <tbody>
                           {data.compliance.map(ci => {
                             const cellTd = (p: { inspections: number; compliant: number; non_compliant: number; rate: number } | null, key: string) => {
-                              if (!p || p.inspections === 0) return <td key={key} style={{ ...td, textAlign: "center", color: F.muted }}>0</td>;
+                              if (!p || p.inspections === 0) return <td key={key} style={{ ...td, textAlign: "center", color: F.muted }}>none</td>;
                               if (p.compliant === 0 && p.non_compliant === 0) {
-                                return <td key={key} style={{ ...td, textAlign: "center", color: F.red, background: "#fee2e2" }}>no outcomes</td>;
+                                return <td key={key} style={{ ...td, textAlign: "center", color: F.red, background: "#fee2e2" }}>result not captured</td>;
                               }
                               const band = p.rate >= 75
                                 ? { bg: "#dcfce7", col: F.green }

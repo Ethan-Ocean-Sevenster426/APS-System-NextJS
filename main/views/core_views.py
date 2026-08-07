@@ -10972,33 +10972,13 @@ def analytics_dashboard_api(request):
             buckets[_key]['total'] += delta
             buckets[_key]['count'] += 1
 
-    # Outstanding / incomplete actions by process stage (Nicole's requirement):
-    # where each job currently sits and who owns the next step. Counted over the
-    # same filtered set as the timeline trends, in the one loop below.
-    # A COA counts as received when a COA/lab document exists for the group — the
-    # coa_uploaded_date field is badly under-populated (a COA is often uploaded
-    # without it being set), so trusting it wrongly flags ~775 done jobs as
-    # "waiting". Group-level matches the inspection-list has_lab logic.
-    from main.models import InspectionDocument as _CoaDoc
-    _coa_groups = set(
-        _CoaDoc.objects.filter(document_type__in=['coa', 'lab'])
-        .exclude(inspection__inspection_group_id__isnull=True)
-        .values_list('inspection__inspection_group_id', flat=True).distinct()
-    )
-    # Office flow (approval -> send -> invoice) is a waterfall: each job counts
-    # once, at its NEXT office step. COA is a separate LAB queue that runs in
-    # parallel — a sample can be at the lab while the office work is still going
-    # — so "needs COA" is counted independently (all sampled jobs with no COA),
-    # not gated behind approval/sending. Otherwise the COA backlog looks like ~3
-    # when it is really every sampled job still missing a result.
-    _stage_counts = {'awaiting_approval': 0, 'not_sent': 0, 'awaiting_invoice': 0}
-    _needs_coa = 0
-    _fully_complete = 0
-    _total_processed = 0
+    # Timeline trends loop (per record). The outstanding backlog is computed
+    # separately below via the shared group-level helper, so it matches the PDF
+    # report and the Inspection Records list exactly.
     for _insp in qs.filter(date_of_inspection__isnull=False).only(
         'date_of_inspection', 'is_sent', 'sent_date', 'sent_by_id',
         'invoice_uploaded_date', 'invoice_uploaded_by_id',
-        'is_sample_taken', 'coa_uploaded_date', 'commodity', 'inspection_group_id',
+        'is_sample_taken', 'coa_uploaded_date', 'commodity',
         'approved_status', 'approved_date', 'updated_at', 'inspector_name'
     ):
         _doi = _insp.date_of_inspection
@@ -11025,25 +11005,6 @@ def analytics_dashboard_api(request):
                 if _d >= 0:
                     _tl_add('appr', _doi, _d)
 
-        _total_processed += 1
-        _coa_ok = (not _insp.is_sample_taken) or (_insp.inspection_group_id in _coa_groups)
-        # Lab queue (parallel): every sampled job with no COA result yet.
-        if _insp.is_sample_taken and _insp.inspection_group_id not in _coa_groups:
-            _needs_coa += 1
-        # Office waterfall: the next office action for this job.
-        _office_done = False
-        if _insp.approved_status != 'APPROVED':
-            _stage_counts['awaiting_approval'] += 1
-        elif not (_insp.is_sent and _insp.sent_date):
-            _stage_counts['not_sent'] += 1
-        elif not _insp.invoice_uploaded_date:
-            _stage_counts['awaiting_invoice'] += 1
-        else:
-            _office_done = True
-        # Fully complete = office finished AND the lab result is in (if sampled).
-        if _office_done and _coa_ok:
-            _fully_complete += 1
-
     def _tl_out(buckets):
         m, w, d = [], [], []
         for k, v in sorted(buckets.items()):
@@ -11063,19 +11024,19 @@ def analytics_dashboard_api(request):
         data[f'weekly{prefix}Trend'] = w
         data[f'daily{prefix}Trend'] = d
 
-    # Outstanding actions + who is responsible for each (Nicole's last two points).
-    # The three office stages are mutually exclusive (each job's next office step);
-    # "Waiting for COA" is the parallel lab queue and overlaps with them, so it is
-    # flagged and NOT part of outstandingTotal.
+    # Outstanding actions + who is responsible (Nicole's last two points). Uses
+    # the SAME shared, whole-backlog, group-level computation as the weekly PDF
+    # and the Inspection Records list, so every view shows identical numbers.
+    from .weekly_report import _outstanding_backlog as _ob_fn
+    _ob = _ob_fn()
     data['outstandingByStage'] = [
-        {'stage': 'Needs approval', 'responsible': 'Inspector', 'count': _stage_counts['awaiting_approval']},
-        {'stage': 'Not sent to client', 'responsible': 'Office', 'count': _stage_counts['not_sent']},
-        {'stage': 'Needs invoice', 'responsible': 'Finance', 'count': _stage_counts['awaiting_invoice']},
-        {'stage': 'Waiting for COA', 'responsible': 'Lab', 'count': _needs_coa, 'parallel': True},
+        {'stage': 'Needs approval', 'responsible': 'Inspector', 'count': _ob['needs_approval']},
+        {'stage': 'Not sent to client', 'responsible': 'Office', 'count': _ob['not_sent']},
+        {'stage': 'Needs invoice', 'responsible': 'Finance', 'count': _ob['needs_invoice']},
+        {'stage': 'Waiting for COA', 'responsible': 'Lab', 'count': _ob['needs_coa'], 'parallel': True},
     ]
-    # Outstanding = anything not fully complete (office finished + COA if sampled).
-    data['outstandingTotal'] = _total_processed - _fully_complete
-    data['completedTotal'] = _fully_complete
+    data['outstandingTotal'] = _ob['outstanding_total']
+    data['completedTotal'] = _ob['complete']
 
     # Monthly total travel hours (filtered)
     # Monthly travel hours (from InspectionGroup to avoid double-counting)

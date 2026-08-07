@@ -85,6 +85,11 @@ export interface ReportResponse {
     invoice_time: { avg: number | null; prev_avg: number | null; count: number };
     top_senders: { name: string; count: number; prev: number }[];
   };
+  /* Whole current backlog — every inspection not yet fully completed, by stage. */
+  outstanding_backlog?: {
+    needs_approval: number; not_sent: number; needs_invoice: number;
+    needs_coa: number; complete: number; outstanding_total: number; total: number;
+  };
   performance: PerformanceRow[];
   inspection_trend: TrendPoint[];
   samples: SampleRow[];
@@ -401,7 +406,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     "4. Weekly Compliance",
     "5. Travel Activity",
     "6. Administration & Throughput",
-    "7. Turnaround Times",
+    "7. How Long Each Step Takes",
+    "8. What's Still Outstanding",
   ].forEach((s, i) => {
     doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" });
   });
@@ -899,8 +905,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       return n > 0 ? { n, c, nc, rate: Math.round((c * 100 / n) * 10) / 10 } : null;
     };
     const cellText = (d: CellData) => {
-      if (!d || d.n === 0) return "0";
-      if (d.c === 0 && d.nc === 0) return "no outcomes";
+      if (!d || d.n === 0) return "none";
+      if (d.c === 0 && d.nc === 0) return "result not captured";
       return `${d.rate}%`;
     };
     const teamCombined = comms.reduce((t, c) => ({ n: t.n + c.inspections, c: t.c + c.compliant }), { n: 0, c: 0 });
@@ -910,9 +916,9 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.text("Compliance per commodity:", ML, y);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...GRAY); doc.setFontSize(7.5);
-    doc.text(`Each cell shows the % compliant for that commodity. "0" = no inspections of that commodity.`, ML, y + 4.5);
-    doc.text(`"no outcomes" = the inspections were done, but no compliant / non-compliant outcome has been captured for them yet.`, ML, y + 8.5);
-    doc.text(`Green = 75% or better. Orange = 50% to 74.9%. Red = below 50%, or no outcomes captured yet.`, ML, y + 12.5);
+    doc.text(`Each cell = % of that commodity that passed. "none" = this inspector did no inspections of that commodity (not a 0% score).`, ML, y + 4.5);
+    doc.text(`"result not captured" = the inspection was done, but nobody has recorded yet whether it passed (compliant) or failed, so it can't be scored.`, ML, y + 8.5);
+    doc.text(`Green = 75% or better. Orange = 50% to 74.9%. Red = below 50%, or the result has not been captured yet.`, ML, y + 12.5);
     y += 15;
     autoTable(doc, {
       startY: y + 1,
@@ -990,17 +996,18 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text(
-      "How much the office got done in the last completed week (Monday to Sunday), next to the week before it. \"Change\" is the difference between the two weeks. How long invoices take to upload is shown separately, in the Turnaround Times section.",
+      "How much the office got done in the last completed week (Monday to Sunday), next to the week before it. \"Change\" is the difference between the two weeks. How long invoices take to upload is shown separately, in the \"How Long Each Step Takes\" section.",
       ML, y, { maxWidth: CW });
     y += 9;
+    const nz = (v: unknown) => Number(v) || 0; // guard against missing fields → never "NaN"
     const mvCount = (n: number) => n === 0 ? "no change" : n > 0 ? `${n} more` : `${n} fewer`;
     autoTable(doc, {
       startY: y,
       head: [["Measure", "This Week", "Week Before", "Change vs the Week Before"]],
       body: [
-        ["Inspection documents sent to clients", String(tp.sent.count), String(tp.sent.prev), mvCount(tp.sent.count - tp.sent.prev)],
-        ["Invoices uploaded", String(tp.invoices_uploaded.count), String(tp.invoices_uploaded.prev), mvCount(tp.invoices_uploaded.count - tp.invoices_uploaded.prev)],
-        ["COAs uploaded", String(tp.coas_uploaded.count), String(tp.coas_uploaded.prev), mvCount(tp.coas_uploaded.count - tp.coas_uploaded.prev)],
+        ["Inspection documents sent to clients", String(nz(tp.sent.count)), String(nz(tp.sent.prev)), mvCount(nz(tp.sent.count) - nz(tp.sent.prev))],
+        ["Invoices uploaded", String(nz(tp.invoices_uploaded.count)), String(nz(tp.invoices_uploaded.prev)), mvCount(nz(tp.invoices_uploaded.count) - nz(tp.invoices_uploaded.prev))],
+        ["COAs uploaded", String(nz(tp.coas_uploaded.count)), String(nz(tp.coas_uploaded.prev)), mvCount(nz(tp.coas_uploaded.count) - nz(tp.coas_uploaded.prev))],
       ],
       theme: "grid",
       styles: { fontSize: 8, cellPadding: 2 },
@@ -1029,9 +1036,10 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         startY: y + 1,
         head: [["Rank", "Sent by", "This Week", "Week Before", "Change vs the Week Before"]],
         body: tp.top_senders.map((s, i) => {
-          const diff = s.count - s.prev;
+          const cur = nz(s.count), prev = nz(s.prev);
+          const diff = cur - prev;
           const chg = diff === 0 ? "no change" : diff > 0 ? `${diff} more` : `${diff} fewer`;
-          return [String(i + 1), s.name, String(s.count), String(s.prev), chg];
+          return [String(i + 1), s.name, String(cur), String(prev), chg];
         }),
         theme: "grid",
         styles: { fontSize: 8, cellPadding: 2 },
@@ -1064,7 +1072,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     .filter(r => r.label && r.avg !== null && r.avg !== undefined);
   if (turnRows.length > 0) {
     sectionPage();
-    header("7. Turnaround Times");
+    header("7. How Long Each Step Takes");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
@@ -1121,7 +1129,48 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 5;
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    /* ── Where the delays are — bottleneck callout, worked out from the stages
+       above: the step furthest over its target is the main hold-up, and any
+       step that got slower than the week before is flagged too. ── */
+    {
+      const withTarget = turnRows
+        .filter(r => r.target !== null && r.target !== undefined && r.avg !== null && r.avg !== undefined)
+        .map(r => ({ label: r.label as string, avg: r.avg as number, target: r.target as number, over: (r.avg as number) - (r.target as number) }));
+      const worst = withTarget.filter(r => r.over > 0).sort((a, b) => b.over - a.over)[0];
+      const slowing = turnRows
+        .filter(r => r.prev_avg !== null && r.prev_avg !== undefined && r.avg !== null && r.avg !== undefined && (r.avg as number) > (r.prev_avg as number))
+        .map(r => ({ label: r.label as string, diff: Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10 }))
+        .sort((a, b) => b.diff - a.diff)[0];
+
+      let msg: string;
+      if (worst) {
+        const overVal = Math.round(worst.over * 10) / 10;
+        msg = `The biggest hold-up is "${worst.label}" — averaging ${worst.avg} days against a ${worst.target}-day target (${overVal} ${overVal === 1 ? "day" : "days"} over).`;
+        if (slowing && slowing.label !== worst.label) {
+          msg += ` "${slowing.label}" also slowed this week (${slowing.diff} days slower than the week before).`;
+        }
+      } else if (slowing) {
+        msg = `Every step is within its target. The one to watch is "${slowing.label}", which slowed by ${slowing.diff} days versus the week before.`;
+      } else {
+        msg = "Every step is within its target and none slowed this week — no bottlenecks to flag.";
+      }
+
+      needPage(16);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...(worst ? RED : DARK));
+      doc.text("Where the delays are", ML, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...DARK);
+      const lines = doc.splitTextToSize(msg, CW) as string[];
+      doc.text(lines, ML, y);
+      y += lines.length * 4 + 4;
+    }
+
     if (_anyNoTarget) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7);
@@ -1132,6 +1181,47 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.setFont("helvetica", "normal");
       y = y + 10;
     }
+  }
+
+  /* ══ 8. WHAT'S STILL OUTSTANDING — the whole current backlog (not just this
+     week), by the stage each job is stuck at, so managers can see what remains
+     before the process is complete and who owns it. ══ */
+  const ob = data.outstanding_backlog;
+  if (ob) {
+    sectionPage();
+    header("8. What's Still Outstanding");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(
+      `Every job (site visit) not yet fully finished, across all work — not only last week. Counted per job, so a visit with several commodities is one item. ${ob.outstanding_total} jobs still outstanding, ${ob.complete} complete, out of ${ob.total} total. The first three are office steps and don't overlap; "Waiting for COA" is the lab's separate queue, counted on its own. Occurrence reports are excluded (no approval, sending or invoicing). Invoices apply only to PMP and RAW jobs, so poultry/eggs-only jobs and corporate-store jobs (invoiced centrally) are never counted as needing an invoice.`,
+      ML, y, { maxWidth: CW });
+    y += 11;
+    autoTable(doc, {
+      startY: y,
+      head: [["Stage", "Still Outstanding", "Responsible", "Queue"]],
+      body: [
+        ["Needs approval", String(ob.needs_approval), "Inspector", "Office"],
+        ["Not sent to client", String(ob.not_sent), "Office", "Office"],
+        ["Needs invoice", String(ob.needs_invoice), "Finance", "Office"],
+        ["Waiting for COA", String(ob.needs_coa), "Lab", "Lab (parallel)"],
+      ],
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2.2 },
+      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      columnStyles: { 1: { halign: "right" } },
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        if (d.section === "body" && d.column.index === 1) {
+          d.cell.styles.fontStyle = "bold";
+          d.cell.styles.textColor = Number(d.cell.raw) > 0 ? RED : GREEN;
+        }
+        if (d.section === "body" && d.column.index === 3 && String(d.cell.raw).includes("parallel")) {
+          d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
   }
 
   /* ── Footer on every page ── */

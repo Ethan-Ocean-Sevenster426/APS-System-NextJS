@@ -220,6 +220,72 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
     }
 
 
+def _outstanding_backlog():
+    """The whole current backlog — every inspection JOB not yet fully completed,
+    grouped by the stage it is stuck at. Not limited to the report week: this is
+    the operational to-do list across all jobs (requested 2026-08-07).
+
+    Counted per InspectionGroup (a job / site visit), NOT per commodity record.
+    Uses the SAME group-level signals as the Inspection Records list so the two
+    always agree: first_approved / first_sent (the job's status shown there),
+    has_invoice / has_coa (a document exists). Office flow (approval -> send ->
+    invoice) is a waterfall — each job counts once, at its next office step. COA
+    is the parallel lab queue (any sampled job with no result yet). Occurrence
+    reports are excluded (outside the flow); corporate-store jobs are invoiced
+    centrally so they never count as "needs invoice".
+    """
+    from django.db.models import Subquery, OuterRef, Exists
+    _insp = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=OuterRef('pk'))
+    _inv_doc = InspectionDocument.objects.filter(
+        inspection__inspection_group_id=OuterRef('pk'), document_type='invoice')
+    _coa_doc = InspectionDocument.objects.filter(
+        inspection__inspection_group_id=OuterRef('pk'), document_type__in=['coa', 'lab'])
+    groups = InspectionGroup.objects.annotate(
+        first_approved=Subquery(_insp.order_by('id').values('approved_status')[:1]),
+        first_sent=Subquery(_insp.order_by('id').values('sent_date')[:1]),
+        is_occ=Exists(_insp.filter(is_occurrence_report=True)),
+        is_sampled=Exists(_insp.filter(is_sample_taken=True)),
+        has_invoice=Exists(_inv_doc),
+        has_coa=Exists(_coa_doc),
+        # Only PMP and RAW commodities are invoiced/RFI'd. A job that is only
+        # poultry and/or eggs never needs an invoice.
+        is_billable=Exists(_insp.filter(commodity__in=['PMP', 'RAW'])),
+    ).values('group_type', 'first_approved', 'first_sent', 'is_occ',
+             'is_sampled', 'has_invoice', 'has_coa', 'is_billable')
+
+    counts = {'approval': 0, 'not_sent': 0, 'invoice': 0}
+    needs_coa = 0
+    fully = 0
+    total = 0
+    for g in groups:
+        if g['is_occ']:
+            continue  # occurrence reports are outside the approve->send->invoice flow
+        total += 1
+        corporate = g['group_type'] == 'Corporate Store'
+        coa_ok = (not g['is_sampled']) or g['has_coa']
+        # Invoice needed only for PMP/RAW jobs, and never for corporate (central).
+        invoice_ok = g['has_invoice'] or corporate or (not g['is_billable'])
+        if g['is_sampled'] and not g['has_coa']:
+            needs_coa += 1
+        if g['first_approved'] != 'APPROVED':
+            counts['approval'] += 1
+        elif not g['first_sent']:
+            counts['not_sent'] += 1
+        elif not invoice_ok:
+            counts['invoice'] += 1
+        elif coa_ok:
+            fully += 1
+    return {
+        'needs_approval': counts['approval'],
+        'not_sent': counts['not_sent'],
+        'needs_invoice': counts['invoice'],
+        'needs_coa': needs_coa,
+        'complete': fully,
+        'outstanding_total': total - fully,
+        'total': total,
+    }
+
+
 def _non_inspector_names():
     """Names belonging to non-inspector users plus known junk entries."""
     from django.contrib.auth import get_user_model
@@ -670,6 +736,7 @@ def api_weekly_report(request):
         },
         'turnaround': _turnaround_response,
         'throughput': _throughput,
+        'outstanding_backlog': _outstanding_backlog(),
         'performance': performance,
         'inspection_trend': trend_weeks,
         'samples': samples,
