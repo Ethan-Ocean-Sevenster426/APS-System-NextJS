@@ -998,7 +998,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       startY: y,
       head: [["Measure", "This Week", "Week Before", "Change vs the Week Before"]],
       body: [
-        ["Reports sent to clients", String(tp.sent.count), String(tp.sent.prev), mvCount(tp.sent.count - tp.sent.prev)],
+        ["Inspection documents sent to clients", String(tp.sent.count), String(tp.sent.prev), mvCount(tp.sent.count - tp.sent.prev)],
         ["Invoices uploaded", String(tp.invoices_uploaded.count), String(tp.invoices_uploaded.prev), mvCount(tp.invoices_uploaded.count - tp.invoices_uploaded.prev)],
         ["COAs uploaded", String(tp.coas_uploaded.count), String(tp.coas_uploaded.prev), mvCount(tp.coas_uploaded.count - tp.coas_uploaded.prev)],
       ],
@@ -1023,11 +1023,11 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(...DARK);
-      doc.text("Who sent the most reports (last completed week)", ML, y);
+      doc.text("Who sent the most documents to clients (last completed week)", ML, y);
       y += 1;
       autoTable(doc, {
         startY: y + 1,
-        head: [["Rank", "Sent by", "Reports Sent"]],
+        head: [["Rank", "Sent by", "Documents Sent"]],
         body: tp.top_senders.map((s, i) => [String(i + 1), s.name, String(s.count)]),
         theme: "grid",
         styles: { fontSize: 8, cellPadding: 2 },
