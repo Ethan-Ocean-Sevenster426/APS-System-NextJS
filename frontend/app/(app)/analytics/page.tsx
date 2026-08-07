@@ -2632,10 +2632,10 @@ function TimelinesPanel({ data }: { data: AnalyticsData }) {
             <i className="fas fa-list-check" style={{ color: "#007890", marginRight: 6 }} />Outstanding actions — who owns the next step
           </div>
           <div style={{ fontSize: "0.72rem", color: "#6b7280", marginBottom: 10 }}>
-            Where each job (site visit) still needs action, and who owns it — the whole current backlog across all work (not limited by the filters above). Counted per job, not per commodity record, and matches the weekly PDF and the Inspection Records list.{" "}
-            <b style={{ color: "#dc2626" }}>{data.outstandingTotal}</b> outstanding · <b style={{ color: "#15803d" }}>{data.completedTotal}</b> complete.
-            The three office stages are the job&apos;s next office step (they don&apos;t overlap). <b>Waiting for COA</b> is the lab&apos;s
-            separate queue — every sampled job with no result yet — so it runs in parallel and is counted on its own.
+            Jobs that still need something done, and who needs to do it. This is the whole backlog — the filters above don&apos;t change these numbers.{" "}
+            <b style={{ color: "#dc2626" }}>{data.outstandingTotal}</b> still to do · <b style={{ color: "#15803d" }}>{data.completedTotal}</b> done.
+            Each job appears under just one office step — approval, then sending, then invoicing — whichever comes next.{" "}
+            <b>Waiting for COA</b> is the lab&apos;s own queue (any sampled job with no result yet), so it&apos;s counted separately and a job can be here and in an office step at the same time.
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: "0.75rem" }}>
             {data.outstandingByStage.map((s, i) => {

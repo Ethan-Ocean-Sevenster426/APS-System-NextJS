@@ -1365,6 +1365,12 @@ export default function InspectionsPage() {
             <div style={{ fontSize: 11, color: "#374151", fontWeight: 500 }}>
               {truncate(s.client_name || "", 22)}
             </div>
+            {s.town && (
+              <div style={{ fontSize: 8, color: "#6b7280", margin: "2px 0" }}>
+                <i className="fas fa-map-marker-alt" style={{ width: 10, color: "#007890" }} />
+                <span style={{ fontWeight: 500 }}>{s.town}</span>
+              </div>
+            )}
             {s.inspector_name && (
               <div style={{ fontSize: 8, color: "#6b7280", margin: "2px 0" }}>
                 <i className="fas fa-user" style={{ width: 10, color: "#007890" }} />
@@ -1953,7 +1959,7 @@ export default function InspectionsPage() {
         .ir-badge-red { background: #fee2e2; color: #991b1b; }
         .ir-badge-grey { background: #e5e7eb; color: #9ca3af; }
         .ir-table-info { font-size: 0.875rem; color: #6b7280; margin-bottom: 12px; }
-        .ir-approved-select { width: 90px; display: block; margin: 0 auto; padding: 2px 18px 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.75rem; appearance: auto; -webkit-appearance: menulist; }
+        .ir-approved-select { width: 98px; display: block; margin: 0 auto; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.7rem; appearance: auto; -webkit-appearance: menulist; }
         .ir-detail-content { padding: 0; background: #f8fafc; border-top: 2px solid #e6f3f7; }
         @media (max-width: 768px) {
           .ir-header h1 { font-size: 1.1rem; }
@@ -2199,6 +2205,14 @@ export default function InspectionsPage() {
                       {l.text}
                     </span>
                   ))}
+                  <span style={{ width: 1, height: 12, background: "#d1d5db", display: "inline-block" }} />
+                  <span style={{ fontWeight: 600 }}>Files:</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <i className="fas fa-folder-open" style={{ color: "#007890" }} /> Normal inspection
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <i className="fas fa-folder-open" style={{ color: "#f97316" }} /> Occurrence report
+                  </span>
                 </span>
               </div>
 
@@ -2342,33 +2356,27 @@ export default function InspectionsPage() {
                 <table className="ir-table" id="shipmentsTable">
                   <thead>
                     <tr>
-                      <th style={{ width: "1%", whiteSpace: "nowrap" }}>Facility</th>
+                      <th style={{ width: "20%" }}>Facility</th>
                       <th className="center" style={{ width: 120 }} title="Where this inspection is in the back-office process, and who has the next action">Stage</th>
-                      <th className="center" style={{ width: 50 }}>Files</th>
-                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>RFI</th>}
-                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Invoice</th>}
-                      <th className="center" style={{ width: 60 }}>COA</th>
-                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 60 }}>Compliance</th>}
-                      <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Inspection<br />Date</th>
-                      <th className="center" style={{ width: 96, whiteSpace: "normal", lineHeight: 1.3 }}>Captured<br />Date</th>
-                      <th className="center" style={{ width: 64, whiteSpace: "normal", lineHeight: 1.3 }}>Days<br />Late</th>
-                      <th className="center" style={{ width: 64, whiteSpace: "normal", lineHeight: 1.3 }}>Approval<br />Days</th>
-                      <th className="center" style={{ width: 80 }}>Approved</th>
-                      {roleLoaded && !isLabTechRestricted && <th style={{ width: "1%", whiteSpace: "nowrap" }}>Email</th>}
-                      <th className="center" style={{ width: 80 }}>Sent</th>
-                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 90 }}>Actions</th>}
+                      <th className="center" style={{ width: 1, whiteSpace: "nowrap", paddingLeft: 6, paddingRight: 6 }} title="Open the job's files">Files</th>
+                      <th className="center" style={{ width: 118 }} title="RFI, Invoice, COA and Compliance on this job">Documents</th>
+                      <th className="center" style={{ width: 108, whiteSpace: "normal", lineHeight: 1.3 }} title="Inspection date, and capture date with days late (limit 2)">Dates</th>
+                      <th className="center" style={{ width: 92, whiteSpace: "normal", lineHeight: 1.3 }} title="Approval status and days taken to approve (limit 2)">Approval</th>
+                      {roleLoaded && !isLabTechRestricted && <th style={{ width: 150, paddingLeft: 6, paddingRight: 6 }}>Email</th>}
+                      <th className="center" style={{ width: 1, whiteSpace: "nowrap", paddingLeft: 6, paddingRight: 6 }}>Sent</th>
+                      {roleLoaded && !isLabTechRestricted && <th className="center" style={{ width: 1, whiteSpace: "nowrap", paddingLeft: 4, paddingRight: 4 }}>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={15} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
+                        <td colSpan={9} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>
                           <div style={{ display: "inline-block", width: 18, height: 18, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#007890", animation: "spin 0.8s linear infinite", verticalAlign: "middle", marginRight: 8 }} />Loading inspections...
                         </td>
                       </tr>
                     ) : paginatedInspections.length === 0 ? (
                       <tr>
-                        <td colSpan={15} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
+                        <td colSpan={9} style={{ textAlign: "center", padding: 32, color: "#6b7280" }}>No inspections match the current filters</td>
                       </tr>
                     ) : paginatedInspections.map(s => {
                       const gid = String(s.id);
@@ -2380,29 +2388,29 @@ export default function InspectionsPage() {
                             onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
                             onMouseLeave={e => (e.currentTarget.style.background = "white")}>
                             <td>
-                              <div style={{ whiteSpace: "nowrap" }}>
-                                <span style={{ fontWeight: 600, color: "#007890", fontSize: "0.75rem" }}>{s.client_name || "-"}</span>
-                                {s.town && <span style={{ fontSize: "0.65rem", color: "#9ca3af", marginLeft: 4 }}>({s.town})</span>}
-                                <span style={{ fontSize: "0.65rem", color: "#6b7280", marginLeft: 8 }}>{s.inspector_name || ""}</span>
-                                {s.is_occurrence_report && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6 }}>OCCURRENCE REPORT</span>}
-                                {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
+                              <div style={{ maxWidth: 230 }}>
+                                <div style={{ lineHeight: 1.45 }}>
+                                  <span style={{ fontWeight: 600, color: s.is_occurrence_report ? "#f97316" : "#007890", fontSize: "0.75rem" }} title={s.is_occurrence_report ? "Occurrence report" : "Normal inspection"}>{s.client_name || "-"}</span>
+                                  {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
+                                </div>
+                                {s.inspector_name && <div style={{ fontSize: "0.65rem", color: "#6b7280", marginTop: 4 }}>{s.inspector_name}</div>}
+                                {(() => {
+                                  const comms = groupCommodities(s);
+                                  if (comms.length === 0) return null;
+                                  return (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }} title="Commodities inspected on this visit">
+                                      {comms.map(cm => {
+                                        const col = COMMODITY_STYLE[cm.name] || { bg: "#f3f4f6", c: "#374151" };
+                                        return (
+                                          <span key={cm.name} style={{ background: col.bg, color: col.c, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, letterSpacing: 0.3 }}>
+                                            {cm.name}{cm.count > 1 ? ` ×${cm.count}` : ""}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
                               </div>
-                              {(() => {
-                                const comms = groupCommodities(s);
-                                if (comms.length === 0) return null;
-                                return (
-                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }} title="Commodities inspected on this visit">
-                                    {comms.map(cm => {
-                                      const col = COMMODITY_STYLE[cm.name] || { bg: "#f3f4f6", c: "#374151" };
-                                      return (
-                                        <span key={cm.name} style={{ background: col.bg, color: col.c, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, letterSpacing: 0.3 }}>
-                                          {cm.name}{cm.count > 1 ? ` ×${cm.count}` : ""}
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                );
-                              })()}
                             </td>
                             {(() => { const st = processStage(s); return (
                               <td className="center" style={{ whiteSpace: "nowrap" }} title={st.hint}>
@@ -2416,52 +2424,57 @@ export default function InspectionsPage() {
                                   : <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3 }}>{st.key === "occurrence" ? "No action needed" : "Nothing outstanding"}</div>}
                               </td>
                             ); })()}
-                            <td className="center">
-                              <button style={{ padding: "3px 6px", background: s.is_occurrence_report ? "#f97316" : "#007890", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
+                            <td className="center" style={{ paddingLeft: 6, paddingRight: 6 }}>
+                              <button style={{ padding: "3px 8px", background: s.is_occurrence_report ? "#f97316" : "#007890", color: "white", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
+                                title="Open files"
                                 onClick={e => { e.stopPropagation(); openFilesModal(s.group_id || String(s.id), s.client_name, s.date_of_inspection); }}>
                                 <i className="fas fa-folder-open" />
                               </button>
                             </td>
-                            {roleLoaded && !isLabTechRestricted && (
-                              <td className="center">
-                                <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : groupNeedsRfi(s) ? "ir-badge-red" : "ir-badge-grey"}`}>
-                                  <i className={`fas fa-${s.has_rfi ? "check" : groupNeedsRfi(s) ? "times" : "minus"}`} style={{ fontSize: 8 }} /> {s.has_rfi ? "File" : groupNeedsRfi(s) ? "No-File" : "N/R"}
-                                </span>
-                              </td>
-                            )}
-                            {roleLoaded && !isLabTechRestricted && (
-                              <td className="center">
-                                <span className={`ir-badge ${s.has_invoice ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.has_invoice ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_invoice ? "File" : "No-File"}
-                                </span>
-                              </td>
-                            )}
                             <td className="center">
-                              <span className={`ir-badge ${s.has_lab ? "ir-badge-green" : "ir-badge-red"}`}>
-                                <i className={`fas fa-${s.has_lab ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_lab ? "File" : "No-File"}
-                              </span>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, width: 116, textAlign: "center", margin: "0 auto" }}>
+                                  {roleLoaded && !isLabTechRestricted && (
+                                    <span className={`ir-badge ${s.has_rfi ? "ir-badge-green" : groupNeedsRfi(s) ? "ir-badge-red" : "ir-badge-grey"}`} title={s.has_rfi ? "RFI on file" : groupNeedsRfi(s) ? "RFI missing" : "RFI not required"}>
+                                      <i className={`fas fa-${s.has_rfi ? "check" : groupNeedsRfi(s) ? "times" : "minus"}`} style={{ fontSize: 8 }} /> RFI
+                                    </span>
+                                  )}
+                                  {roleLoaded && !isLabTechRestricted && (
+                                    <span className={`ir-badge ${s.has_invoice ? "ir-badge-green" : "ir-badge-red"}`} title={s.has_invoice ? "Invoice on file" : "Invoice missing"}>
+                                      <i className={`fas fa-${s.has_invoice ? "check" : "times"}`} style={{ fontSize: 8 }} /> INV
+                                    </span>
+                                  )}
+                                  <span className={`ir-badge ${s.has_lab ? "ir-badge-green" : "ir-badge-red"}`} title={s.has_lab ? "COA / lab result on file" : "No COA / lab result"}>
+                                    <i className={`fas fa-${s.has_lab ? "check" : "times"}`} style={{ fontSize: 8 }} /> COA
+                                  </span>
+                                  {roleLoaded && !isLabTechRestricted && (
+                                    <span className={`ir-badge ${s.has_compliance ? "ir-badge-green" : "ir-badge-red"}`} title={s.has_compliance ? "Compliance on file" : "Compliance missing"}>
+                                      <i className={`fas fa-${s.has_compliance ? "check" : "times"}`} style={{ fontSize: 8 }} /> CMP
+                                    </span>
+                                  )}
+                                </div>
                             </td>
-                            {roleLoaded && !isLabTechRestricted && (
-                              <td className="center">
-                                <span className={`ir-badge ${s.has_compliance ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.has_compliance ? "check" : "times"}`} style={{ fontSize: 8 }} /> {s.has_compliance ? "File" : "No-File"}
+                            <td style={{ fontSize: "0.65rem", whiteSpace: "nowrap" }}>
+                              <div title="When the inspection took place">
+                                <span style={{ color: "#9ca3af" }}>Inspection: </span>
+                                <span style={{ color: "#374151", fontWeight: 600 }}>
+                                  {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                                 </span>
-                              </td>
-                            )}
-                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", color: "#6b7280" }}>
-                              {s.date_of_inspection ? new Date(s.date_of_inspection + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
-                            </td>
-                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", color: s.late_capture ? "#dc2626" : "#6b7280", fontWeight: s.late_capture ? 600 : undefined }}
-                              title={s.late_capture ? `Captured ${s.capture_lag_days} days after inspection (limit 2)` : undefined}>
-                              {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
-                            </td>
-                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", fontWeight: 700, color: s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).color : "#6b7280" }}
-                              title={`Days between inspection and capture (limit 2)`}>
-                              {s.capture_lag_days != null ? lagStyle(Math.max(0, s.capture_lag_days)).label : "—"}
-                            </td>
-                            <td className="center" style={{ fontSize: "0.7rem", whiteSpace: "nowrap", fontWeight: 700, color: s.approval_lag_days != null ? lagStyle(Math.max(0, s.approval_lag_days)).color : "#9ca3af" }}
-                              title={s.approved_status === "APPROVED" ? "Days from capture to approval (limit 2)" : "Days waiting for approval so far (limit 2)"}>
-                              {s.approval_lag_days != null ? <>{s.late_approval && <><i className="fas fa-exclamation-triangle" style={{ fontSize: 9 }} /> </>}{lagStyle(Math.max(0, s.approval_lag_days)).label}</> : "—"}
+                              </div>
+                              <div style={{ marginTop: 3 }} title={s.late_capture ? `Captured ${s.capture_lag_days} days after inspection (limit 2)` : "When the inspection was captured"}>
+                                <span style={{ color: "#9ca3af" }}>Capture: </span>
+                                <span style={{ color: s.late_capture ? "#dc2626" : "#374151", fontWeight: 600 }}>
+                                  {s.created_at ? new Date(s.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
+                                </span>
+                              </div>
+                              {s.capture_lag_days != null && (() => {
+                                const n = Math.max(0, s.capture_lag_days);
+                                return (
+                                  <div style={{ marginTop: 3, textAlign: "center" }} title="Days between inspection and capture (limit 2)">
+                                    <span style={{ fontWeight: 700, color: lagStyle(n).color }}>{n}</span>
+                                    <span style={{ color: "#9ca3af" }}> {n === 1 ? "day late" : "days late"}</span>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="center">
                               {!canEditApproval ? (
@@ -2488,20 +2501,20 @@ export default function InspectionsPage() {
                                   <option value="APPROVED">Approved</option>
                                 </select>
                               )}
-                              {s.late_approval && (
-                                <div style={{ fontSize: "0.62rem", color: "#dc2626", fontWeight: 700, marginTop: 2, whiteSpace: "nowrap" }}
+                              {s.approval_lag_days != null && (
+                                <div style={{ fontSize: "0.62rem", fontWeight: 700, marginTop: 2, whiteSpace: "nowrap", color: lagStyle(Math.max(0, s.approval_lag_days)).color }}
                                   title={s.approved_status === "APPROVED" ? `Approved ${s.approval_lag_days} days after capture (limit 2)` : `Waiting ${s.approval_lag_days} days for approval (limit 2)`}>
-                                  <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> +{s.approval_lag_days}d late
+                                  {s.late_approval && <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> } {lagStyle(Math.max(0, s.approval_lag_days)).label}
                                 </div>
                               )}
                             </td>
                             {roleLoaded && !isLabTechRestricted && (
-                              <td style={{ fontSize: "0.75rem", color: "#6b7280", whiteSpace: "nowrap" }}>
+                              <td style={{ fontSize: "0.72rem", color: "#6b7280", paddingLeft: 6, paddingRight: 6, maxWidth: 150 }} title={s.email || undefined}>
                                 {s.email ? s.email.split(/[;,]/).map((e, ei) => {
                                   const trimmed = e.trim();
                                   const isBounced = showUndeliverable && bouncedEmails.has(trimmed.toLowerCase());
                                   return (
-                                    <span key={ei} style={{ display: "block" }}>
+                                    <span key={ei} style={{ display: "block", overflowWrap: "anywhere" }}>
                                       <span style={isBounced ? { color: "#dc2626", fontWeight: 700, background: "#fef2f2", padding: "0 3px", borderRadius: 3 } : undefined}>
                                         {trimmed}
                                         {isBounced && <i className="fas fa-exclamation-triangle" style={{ fontSize: 9, marginLeft: 3, color: "#dc2626" }} />}
@@ -2511,12 +2524,14 @@ export default function InspectionsPage() {
                                 }) : "-"}
                               </td>
                             )}
-                            <td className="center">
+                            <td className="center" style={{ paddingLeft: 6, paddingRight: 6 }}>
                               {isInspector ? (
-                                <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}>
-                                  <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} />
+                                <span className={`ir-badge ${s.sent_date ? "ir-badge-green" : "ir-badge-red"}`}
+                                  style={{ display: "inline-block", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "middle" }}
+                                  title={s.sent_date ? `Sent by ${s.sent_by_name || "Unknown"} at ${new Date(s.sent_date).toLocaleString("en-GB")}` : "Not sent"}>
+                                  <i className={`fas fa-${s.sent_date ? "check" : "times"}`} style={{ fontSize: 8 }} />{" "}
                                   {s.sent_date
-                                    ? `Sent: ${s.sent_by_name || "Unknown"} - ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${new Date(s.sent_date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                                    ? `${s.sent_by_name || "Unknown"} · ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
                                     : "Not Sent"}
                                 </span>
                               ) : (
@@ -2533,7 +2548,7 @@ export default function InspectionsPage() {
                                   disabled={sendingId === s.id}
                                   title={s.sent_date ? `Documents sent by ${s.sent_by_name || "Unknown"} at ${new Date(s.sent_date).toLocaleString("en-GB")}` : "Send documents to client"}
                                   style={{
-                                    padding: "4px 12px",
+                                    padding: "3px 8px",
                                     border: "none",
                                     borderRadius: 4,
                                     cursor: s.sent_date ? "default" : sendingId === s.id ? "wait" : "pointer",
@@ -2543,19 +2558,19 @@ export default function InspectionsPage() {
                                     background: s.sent_date ? "#10b981" : sendingId === s.id ? "#fbbf24" : "#e5e7eb",
                                     color: s.sent_date ? "white" : sendingId === s.id ? "white" : "#6b7280",
                                     opacity: sendingId === s.id ? 0.8 : 1,
-                                    maxWidth: s.sent_date ? 260 : undefined,
+                                    maxWidth: s.sent_date ? 150 : undefined,
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                   }}
                                 >
                                   {s.sent_date
-                                    ? `Sent: ${s.sent_by_name || "Unknown"} - ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${new Date(s.sent_date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+                                    ? `${s.sent_by_name || "Unknown"} · ${new Date(s.sent_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
                                     : sendingId === s.id ? "Sending..." : "Send"}
                                 </button>
                               )}
                             </td>
                             {roleLoaded && !isLabTechRestricted && (
-                              <td className="center">
+                              <td className="center" style={{ paddingLeft: 4, paddingRight: 4, whiteSpace: "nowrap" }}>
                                 <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
                                   <a
                                     href={s.products && s.products.length > 0 ? `/inspections/edit-fsa/${s.products[0].id}/` : "#"}
@@ -2600,7 +2615,7 @@ export default function InspectionsPage() {
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={15} style={{ padding: 0 }}>
+                              <td colSpan={9} style={{ padding: 0 }}>
                                 {renderDetailRow(s)}
                               </td>
                             </tr>
