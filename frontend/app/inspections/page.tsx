@@ -107,22 +107,55 @@ interface Inspection {
 type Stage = { key: string; label: string; owner: string; hint: string; color: string; bg: string };
 function processStage(s: Inspection): Stage {
   const sampled = (s.products || []).some(p => p.is_sample_taken);
-  // Inspectors approve their own inspections, so an unapproved one is waiting
-  // on the inspector — not any office/back-office role.
+  const corporate = s.group_type === "Corporate Store";
+  // Only PMP and RAW commodities are invoiced/RFI'd — a poultry/eggs-only job
+  // never needs an invoice.
+  const billable = (s.products || []).some(p => ["PMP", "RAW"].includes((p.commodity || "").toUpperCase()));
+  // Occurrence reports are recorded for information only — they don't go through
+  // approval, sending or invoicing, so they're never "outstanding".
+  if (s.is_occurrence_report)
+    return { key: "occurrence", label: "Occurrence report", owner: "—",
+             hint: "Occurrence reports are recorded for information — no approval, sending or invoicing needed.", color: "#6b7280", bg: "#f3f4f6" };
+  // Inspectors approve their own inspections, so an unapproved one is waiting on
+  // the specific inspector who did it — show their name, not a generic role.
   if (s.approved_status !== "APPROVED")
-    return { key: "approval", label: "Needs approval", owner: "Inspector",
-             hint: "The inspector still needs to approve this inspection.", color: "#7c3aed", bg: "#faf5ff" };
+    return { key: "approval", label: "Needs approval", owner: s.inspector_name || "Inspector",
+             hint: `${s.inspector_name || "The inspector"} still needs to approve this inspection.`, color: "#7c3aed", bg: "#faf5ff" };
   if (!s.sent_date)
     return { key: "sent", label: "Not sent to client", owner: "Office",
              hint: "Approved, but the report has not been emailed to the client yet.", color: "#d97706", bg: "#fffbeb" };
   if (sampled && !s.has_lab)
     return { key: "coa", label: "Waiting for lab (COA)", owner: "Lab",
              hint: "A sample was taken — waiting for the lab to upload the COA.", color: "#2563eb", bg: "#eff6ff" };
-  if (!s.has_invoice)
+  // Invoice needed only for PMP/RAW jobs, and never for corporate stores
+  // (invoiced centrally) or poultry/eggs-only jobs (not invoiced at all).
+  if (!s.has_invoice && !corporate && billable)
     return { key: "invoice", label: "Needs invoice", owner: "Finance",
              hint: "Sent to the client, but no invoice has been uploaded yet.", color: "#0891b2", bg: "#ecfeff" };
   return { key: "complete", label: "Done", owner: "—",
            hint: "Approved, sent, and fully processed. Nothing outstanding.", color: "#15803d", bg: "#f0fdf4" };
+}
+
+/* Colour per commodity for the little chips shown on each group row, so the
+   commodities in a visit are visible without expanding it. */
+const COMMODITY_STYLE: Record<string, { bg: string; c: string }> = {
+  POULTRY: { bg: "#fef3c7", c: "#92400e" },
+  EGGS:    { bg: "#fef9c3", c: "#854d0e" },
+  PMP:     { bg: "#e0e7ff", c: "#3730a3" },
+  RAW:     { bg: "#fee2e2", c: "#991b1b" },
+};
+/* Distinct commodities in a group, each with how many products it covers. */
+function groupCommodities(s: Inspection): { name: string; count: number }[] {
+  const counts: Record<string, number> = {};
+  for (const p of s.products || []) {
+    const cm = (p.commodity || "").toUpperCase();
+    if (cm) counts[cm] = (counts[cm] || 0) + 1;
+  }
+  const order = ["POULTRY", "EGGS", "PMP", "RAW"];
+  const rank = (n: string) => { const i = order.indexOf(n); return i < 0 ? 99 : i; };
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => rank(a.name) - rank(b.name));
 }
 
 function ClientSearchInput({ value, onChange, options, onEnter }: { value: string; onChange: (v: string) => void; options: string[]; onEnter?: () => void }) {
@@ -328,6 +361,7 @@ export default function InspectionsPage() {
   const [emailFilter, setEmailFilter] = useState("");
   const [occurrenceFilter, setOccurrenceFilter] = useState<string[]>([]);
   const [sampledFilter, setSampledFilter] = useState<string[]>([]);
+  const [commodityFilter, setCommodityFilter] = useState<string[]>([]);
   const [lateCaptureFilter, setLateCaptureFilter] = useState<string[]>([]);
   const [lateApprovalFilter, setLateApprovalFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("date_desc");
@@ -349,6 +383,7 @@ export default function InspectionsPage() {
     groupType: [] as string[],
     occurrence: [] as string[],
     sampled: [] as string[],
+    commodity: [] as string[],
     sentStatus: [] as string[],
     compliance: [] as string[],
     approved: [] as string[],
@@ -675,7 +710,7 @@ export default function InspectionsPage() {
 
   const fetchInspections = useCallback((duplicates?: boolean, from?: string, to?: string, page?: number, search?: string, filters?: {
     inspector?: string[]; corporateGroup?: string[];
-    groupType?: string[]; occurrence?: string[]; sampled?: string[]; sentStatus?: string[];
+    groupType?: string[]; occurrence?: string[]; sampled?: string[]; commodity?: string[]; sentStatus?: string[];
     compliance?: string[]; approved?: string[]; email?: string;
     rfi?: string[]; invoice?: string[]; coaFile?: string[]; complianceFile?: string[]; otherFile?: string[];
     retest?: string[]; coaStatus?: string[]; lab?: string[]; testType?: string[]; lateCapture?: string[];
@@ -695,6 +730,7 @@ export default function InspectionsPage() {
       if (filters.groupType?.length) filters.groupType.forEach(v => p.append("group_type", v));
       if (filters.occurrence?.length) filters.occurrence.forEach(v => p.append("occurrence", v));
       if (filters.sampled?.length) filters.sampled.forEach(v => p.append("sampled", v));
+      if (filters.commodity?.length) filters.commodity.forEach(v => p.append("commodity", v));
       if (filters.sentStatus?.length) filters.sentStatus.forEach(v => p.append("sent_status", v));
       if (filters.compliance?.length) filters.compliance.forEach(v => p.append("compliance", v));
       if (filters.approved?.length) filters.approved.forEach(v => p.append("approved", v));
@@ -2040,6 +2076,7 @@ export default function InspectionsPage() {
                   <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} searchable />
                   <IrMultiSelect label="Occurrence" options={["OCCURRENCE", "INSPECTION"]} selected={occurrenceFilter} onChange={setOccurrenceFilter} />
                   <IrMultiSelect label="Sampled" options={["SAMPLED", "NOT_SAMPLED"]} selected={sampledFilter} onChange={setSampledFilter} />
+                  <IrMultiSelect label="Commodity" options={["POULTRY", "EGGS", "PMP", "RAW"]} selected={commodityFilter} onChange={setCommodityFilter} />
                   <IrMultiSelect label="Sent Status" options={["SENT", "NOT_SENT"]} selected={sentStatusFilter} onChange={setSentStatusFilter} />
                   <IrMultiSelect label="Late Capture" options={["SAME_DAY", "NEXT_DAY", "AT_LIMIT", "LATE", "ON_TIME"]} optionLabels={{ SAME_DAY: "Same day", NEXT_DAY: "1 day — in time", AT_LIMIT: "2 days — at the limit", LATE: "Over 2 days — late", ON_TIME: "On time (≤ 2 days)" }} selected={lateCaptureFilter} onChange={setLateCaptureFilter} />
                   <IrMultiSelect label="Late Approval" options={["SAME_DAY", "NEXT_DAY", "AT_LIMIT", "LATE", "ON_TIME"]} optionLabels={{ SAME_DAY: "Approved same day", NEXT_DAY: "Approved in 1 day", AT_LIMIT: "Approved at 2 days — the limit", LATE: "Over 2 days — late", ON_TIME: "On time (≤ 2 days)" }} selected={lateApprovalFilter} onChange={setLateApprovalFilter} />
@@ -2063,8 +2100,8 @@ export default function InspectionsPage() {
                 <div className="ir-filter-actions">
                   <button type="button" className="ir-btn ir-btn-secondary" style={{ padding: "8px 16px", fontSize: 14 }}
                     onClick={() => {
-                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setLateCaptureFilter([]); setLateApprovalFilter([]); setSortBy("date_desc");
-                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [], lateApproval: [], sort: "date_desc" });
+                      setClientSearch(""); setDateFrom(""); setDateTo(""); setInspectorFilter([]); setCorpGroupFilter([]); setGroupTypeFilter([]); setSentStatusFilter([]); setComplianceFilter([]); setApprovedFilter([]); setFileStatusFilter([]); setRfiFilter([]); setInvoiceFilter([]); setCoaFileFilter([]); setComplianceFileFilter([]); setOtherFileFilter([]); setEmailFilter(""); setRetestFilter([]); setCoaStatusFilter([]); setLabFilter([]); setTestTypeFilter([]); setOccurrenceFilter([]); setSampledFilter([]); setCommodityFilter([]); setLateCaptureFilter([]); setLateApprovalFilter([]); setSortBy("date_desc");
+                      setAppliedFilters({ inspector: [], corporateGroup: [], groupType: [], occurrence: [], sampled: [], commodity: [], sentStatus: [], compliance: [], approved: [], fileStatus: [], rfi: [], invoice: [], coaFile: [], complianceFile: [], otherFile: [], email: "", retest: [], coaStatus: [], lab: [], testType: [], lateCapture: [], lateApproval: [], sort: "date_desc" });
                       setCurrentPage(1);
                       fetchInspections(showDuplicates, "", "", 1, "");
                     }}>
@@ -2075,6 +2112,7 @@ export default function InspectionsPage() {
                       const af = {
                         inspector: inspectorFilter, corporateGroup: corpGroupFilter,
                         groupType: groupTypeFilter, occurrence: occurrenceFilter, sampled: sampledFilter,
+                        commodity: commodityFilter,
                         sentStatus: sentStatusFilter, compliance: complianceFilter, approved: approvedFilter,
                         fileStatus: fileStatusFilter, rfi: rfiFilter, invoice: invoiceFilter,
                         coaFile: coaFileFilter, complianceFile: complianceFileFilter, otherFile: otherFileFilter,
@@ -2341,23 +2379,41 @@ export default function InspectionsPage() {
                             style={{ cursor: "pointer", background: "white" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
                             onMouseLeave={e => (e.currentTarget.style.background = "white")}>
-                            <td style={{ whiteSpace: "nowrap" }}>
-                              <span style={{ fontWeight: 600, color: "#007890", fontSize: "0.75rem" }}>{s.client_name || "-"}</span>
-                              {s.town && <span style={{ fontSize: "0.65rem", color: "#9ca3af", marginLeft: 4 }}>({s.town})</span>}
-                              <span style={{ fontSize: "0.65rem", color: "#6b7280", marginLeft: 8 }}>{s.inspector_name || ""}</span>
-                              {s.is_occurrence_report && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6 }}>OCCURRENCE REPORT</span>}
-                              {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
+                            <td>
+                              <div style={{ whiteSpace: "nowrap" }}>
+                                <span style={{ fontWeight: 600, color: "#007890", fontSize: "0.75rem" }}>{s.client_name || "-"}</span>
+                                {s.town && <span style={{ fontSize: "0.65rem", color: "#9ca3af", marginLeft: 4 }}>({s.town})</span>}
+                                <span style={{ fontSize: "0.65rem", color: "#6b7280", marginLeft: 8 }}>{s.inspector_name || ""}</span>
+                                {s.is_occurrence_report && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6 }}>OCCURRENCE REPORT</span>}
+                                {showDuplicates && <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, marginLeft: 6, verticalAlign: "middle", display: "inline-block" }}>DUPLICATE</span>}
+                              </div>
+                              {(() => {
+                                const comms = groupCommodities(s);
+                                if (comms.length === 0) return null;
+                                return (
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }} title="Commodities inspected on this visit">
+                                    {comms.map(cm => {
+                                      const col = COMMODITY_STYLE[cm.name] || { bg: "#f3f4f6", c: "#374151" };
+                                      return (
+                                        <span key={cm.name} style={{ background: col.bg, color: col.c, fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, letterSpacing: 0.3 }}>
+                                          {cm.name}{cm.count > 1 ? ` ×${cm.count}` : ""}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             {(() => { const st = processStage(s); return (
                               <td className="center" style={{ whiteSpace: "nowrap" }} title={st.hint}>
                                 <span style={{ display: "inline-block", background: st.bg, color: st.color, border: `1px solid ${st.color}33`, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, lineHeight: 1.5 }}>
                                   {st.label}
                                 </span>
-                                {st.key !== "complete"
+                                {st.owner !== "—"
                                   ? <div style={{ fontSize: 10, color: st.color, fontWeight: 600, marginTop: 3 }} title={`Waiting on the ${st.owner} to act`}>
                                       <i className="fas fa-user-clock" style={{ fontSize: 9, marginRight: 3, opacity: 0.8 }} />Waiting on: {st.owner}
                                     </div>
-                                  : <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3 }}>Nothing outstanding</div>}
+                                  : <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 3 }}>{st.key === "occurrence" ? "No action needed" : "Nothing outstanding"}</div>}
                               </td>
                             ); })()}
                             <td className="center">

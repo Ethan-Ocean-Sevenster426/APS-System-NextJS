@@ -1172,6 +1172,12 @@ def api_inspections(request):
             elif 'NOT_SAMPLED' in filter_sampled and 'SAMPLED' not in filter_sampled:
                 groups_qs = groups_qs.exclude(Exists(insp.filter(_has_tests)))
 
+        # Commodity filter (POULTRY / EGGS / PMP / RAW) — a group shows if it has
+        # at least one inspection of any selected commodity (multi-select).
+        filter_commodity = [c for c in request.GET.getlist('commodity') if c]
+        if filter_commodity:
+            groups_qs = groups_qs.filter(Exists(insp.filter(commodity__in=filter_commodity)))
+
         # Sent status filter (SENT / NOT_SENT)
         filter_sent = request.GET.getlist('sent_status')
         if filter_sent:
@@ -1294,6 +1300,12 @@ def api_inspections(request):
         filter_approved = request.GET.getlist('approved')
         if filter_approved:
             groups_qs = groups_qs.filter(first_approved__in=filter_approved)
+            # Occurrence reports don't go through approval, so they are never
+            # "pending approval" — exclude them from the PENDING filter so the
+            # count matches the outstanding backlog and the Stage column (which
+            # shows them as "no action needed").
+            if 'PENDING' in filter_approved and 'APPROVED' not in filter_approved:
+                groups_qs = groups_qs.exclude(is_occurrence_report=True)
 
         # Email search
         filter_email = request.GET.get('email', '').strip()
