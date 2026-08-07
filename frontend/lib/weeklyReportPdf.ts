@@ -1084,22 +1084,23 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     };
     autoTable(doc, {
       startY: y,
-      head: [["Stage", "Avg Days", "Target", "Jobs", "Change vs the Week Before"]],
+      head: [["Stage", "This Week (avg days)", "Week Before (avg days)", "Target", "Jobs", "Change vs the Week Before"]],
       body: turnRows.map(r => {
         let target: string;
         if (r.target === null || r.target === undefined) { target = "not set"; _anyNoTarget = true; }
         else target = `${r.target} days`;
-        return [r.label as string, String(r.avg), target, String(r.count), change(r)];
+        const prev = (r.prev_avg === null || r.prev_avg === undefined) ? "no data" : String(r.prev_avg);
+        return [r.label as string, String(r.avg), prev, target, String(r.count), change(r)];
       }),
       theme: "grid",
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
         const GREEN_BG: [number, number, number] = [220, 252, 231];
         const RED_BG: [number, number, number] = [254, 226, 226];
-        // Avg Days: shade the cell green when at/under target, red when over —
+        // This Week avg: shade green when at/under target, red when over —
         // a colour block reads faster than a number. Neutral if no target.
         if (d.section === "body" && d.column.index === 1) {
           const row = turnRows[d.row.index];
@@ -1108,11 +1109,11 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
           }
           d.cell.styles.fontStyle = "bold";
         }
-        if (d.section === "body" && d.column.index === 2 && String(d.cell.raw) === "not set") {
+        if (d.section === "body" && d.column.index === 3 && String(d.cell.raw) === "not set") {
           d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
         }
         // Change: shade green when the step got faster, red when slower.
-        if (d.section === "body" && d.column.index === 4) {
+        if (d.section === "body" && d.column.index === 5) {
           const t = String(d.cell.raw || "");
           if (t.includes("faster")) d.cell.styles.fillColor = GREEN_BG;
           else if (t.includes("slower")) d.cell.styles.fillColor = RED_BG;
