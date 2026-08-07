@@ -990,13 +990,13 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text(
-      "Counts of what the office got through this period (the last completed week) versus the week before it. \"Change\" is this week minus last week. Invoice-upload time is in the Turnaround Times section.",
+      "How much the office got done in the last completed week (Monday to Sunday), next to the week before it. \"Change\" is the difference between the two weeks. How long invoices take to upload is shown separately, in the Turnaround Times section.",
       ML, y, { maxWidth: CW });
-    y += 8;
-    const mvCount = (n: number) => n === 0 ? "no change" : `${n > 0 ? "+" : ""}${n} vs the week before`;
+    y += 9;
+    const mvCount = (n: number) => n === 0 ? "no change" : n > 0 ? `${n} more` : `${n} fewer`;
     autoTable(doc, {
       startY: y,
-      head: [["Measure", "This Week", "Week Before", "Change"]],
+      head: [["Measure", "This Week", "Week Before", "Change vs the Week Before"]],
       body: [
         ["Reports sent to clients", String(tp.sent.count), String(tp.sent.prev), mvCount(tp.sent.count - tp.sent.prev)],
         ["Invoices uploaded", String(tp.invoices_uploaded.count), String(tp.invoices_uploaded.prev), mvCount(tp.invoices_uploaded.count - tp.invoices_uploaded.prev)],
@@ -1010,8 +1010,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       didParseCell: (d: any) => {
         if (d.section === "body" && d.column.index === 3) {
           const t = String(d.cell.raw || "");
-          if (t.startsWith("+")) d.cell.styles.textColor = GREEN;
-          else if (t.startsWith("-")) d.cell.styles.textColor = RED;
+          if (t.includes("more")) d.cell.styles.textColor = GREEN;
+          else if (t.includes("fewer")) d.cell.styles.textColor = RED;
           d.cell.styles.fontStyle = "bold";
         }
       },
@@ -1023,7 +1023,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(...DARK);
-      doc.text("Who sent the most this period", ML, y);
+      doc.text("Who sent the most reports (last completed week)", ML, y);
       y += 1;
       autoTable(doc, {
         startY: y + 1,
@@ -1059,9 +1059,9 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text(
-      "Average days each stage took in the last completed week. \"Change\" compares it with the week before — a negative number means the delay is shrinking.",
+      "The average number of days each step took for last week's inspections. \"Change\" compares that with the week before: fewer days (green) means the step is getting faster; more days (red) means it is slowing down.",
       ML, y, { maxWidth: CW });
-    y += 8;
+    y += 9;
     let _anyNoTarget = false;
     const change = (r: { avg?: number | null; prev_avg?: number | null; count?: number }) => {
       if (r.prev_avg === null || r.prev_avg === undefined) {
@@ -1069,8 +1069,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         return r.count ? "no figure the week before" : "no data either week";
       }
       const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
-      if (diff === 0) return "no change vs the week before";
-      return `${diff > 0 ? "+" : ""}${diff} days ${diff < 0 ? "(improving)" : "(slower)"}`;
+      if (diff === 0) return "no change";
+      return diff < 0 ? `${Math.abs(diff)} days faster` : `${diff} days slower`;
     };
     autoTable(doc, {
       startY: y,
@@ -1101,7 +1101,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         }
         if (d.section === "body" && d.column.index === 4) {
           const t = String(d.cell.raw || "");
-          if (t.includes("improving")) d.cell.styles.textColor = GREEN;
+          if (t.includes("faster")) d.cell.styles.textColor = GREEN;
           else if (t.includes("slower")) d.cell.styles.textColor = RED;
           else d.cell.styles.textColor = GRAY;
         }
@@ -1113,7 +1113,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.setFontSize(7);
       doc.setTextColor(...GRAY);
       doc.text(
-        "\"not set\" = no target has been agreed for this stage yet. \"Capture to invoice uploaded\" is the average over invoices uploaded this week; a document-submission-to-invoice figure is not shown because invoices are usually uploaded before or without a recorded send date.",
+        "\"not set\" means no target has been agreed for that step yet. \"Capture to invoice uploaded\" is the average for invoices uploaded during the week. We don't show a separate \"documents sent to invoice\" time because invoices are usually uploaded before, or without, a recorded send date — so that figure would be empty.",
         ML, y, { maxWidth: CW });
       doc.setFont("helvetica", "normal");
       y = y + 10;
