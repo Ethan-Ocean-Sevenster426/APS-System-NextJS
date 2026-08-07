@@ -2501,12 +2501,15 @@ export default function InspectionsPage() {
                                   <option value="APPROVED">Approved</option>
                                 </select>
                               )}
-                              {s.approval_lag_days != null && (
-                                <div style={{ fontSize: "0.62rem", fontWeight: 700, marginTop: 2, whiteSpace: "nowrap", color: lagStyle(Math.max(0, s.approval_lag_days)).color }}
-                                  title={s.approved_status === "APPROVED" ? `Approved ${s.approval_lag_days} days after capture (limit 2)` : `Waiting ${s.approval_lag_days} days for approval (limit 2)`}>
-                                  {s.late_approval && <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> } {lagStyle(Math.max(0, s.approval_lag_days)).label}
-                                </div>
-                              )}
+                              {s.approval_lag_days != null && (() => {
+                                const n = Math.max(0, s.approval_lag_days);
+                                return (
+                                  <div style={{ fontSize: "0.62rem", fontWeight: 700, marginTop: 2, lineHeight: 1.25, color: lagStyle(n).color }}
+                                    title={s.approved_status === "APPROVED" ? `Approved ${s.approval_lag_days} days after capture (limit 2)` : `Waiting ${s.approval_lag_days} days for approval (limit 2)`}>
+                                    {s.late_approval && <i className="fas fa-exclamation-triangle" style={{ fontSize: 8 }} /> }{n} {n === 1 ? "day" : "days"} late for approval
+                                  </div>
+                                );
+                              })()}
                             </td>
                             {roleLoaded && !isLabTechRestricted && (
                               <td style={{ fontSize: "0.72rem", color: "#6b7280", paddingLeft: 6, paddingRight: 6, maxWidth: 150 }} title={s.email || undefined}>
