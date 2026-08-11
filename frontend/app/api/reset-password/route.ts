@@ -14,12 +14,20 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
+    const body = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === "string") {
+        body.append(key, value);
+      }
+    }
 
     const res = await fetch(
       `${DJANGO_API_URL}/reset-password/${uidb64}/${token}/`,
       {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
       }
     );
 

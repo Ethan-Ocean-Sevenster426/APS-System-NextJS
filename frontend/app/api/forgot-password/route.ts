@@ -4,10 +4,15 @@ import { DJANGO_API_URL } from "@/lib/config";
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
+    const email = formData.get("email")?.toString().trim() || "";
+
+    const body = new URLSearchParams();
+    if (email) body.append("email", email);
 
     const res = await fetch(`${DJANGO_API_URL}/forgot-password/`, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
     });
 
     const text = await res.text();

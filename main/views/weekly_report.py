@@ -51,9 +51,9 @@ TURNAROUND_LABELS = {
     # invoice) can't be computed reliably here: invoices are usually uploaded
     # before or without a recorded send date, so that gap is empty for almost
     # every invoice. Capture -> invoice has full data both weeks.
-    'invoice': 'Capture to invoice uploaded',
-    'sample_to_coa': 'Sample to COA uploaded',
-    'approval': 'Captured to approved',
+    'invoice': 'Inspection to invoice uploaded',
+    'sample_to_coa': 'Sample to COA received',
+    'approval': 'Capture to approval',
 }
 
 
@@ -74,10 +74,11 @@ def _turnaround(start, end):
     groups = list(
         InspectionGroup.objects
         .filter(date_of_inspection__gte=start, date_of_inspection__lte=end)
+        .exclude(group_type='Corporate Store')  # corporate handled centrally
         .values('id', 'date_of_inspection')
     )
-    # Invoice is handled separately (upload cohort) because this week's
-    # inspections are not invoiced yet — see _admin_throughput.
+    # Invoicing is a monthly batch (see _admin_throughput for the invoice COUNT),
+    # so it isn't a per-inspection "days" step and is left out of this table.
     _cohort = ('send_docs', 'sample_to_coa', 'approval')
     if not groups:
         return {k: {'avg': None, 'count': 0} for k in _cohort}
@@ -148,6 +149,7 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
         # the child records, so collapse to the group and keep its sender.
         pairs = (FoodSafetyAgencyInspection.objects
                  .filter(sent_date__date__gte=a, sent_date__date__lte=b)
+                 .exclude(inspection_group__group_type='Corporate Store')
                  .values_list('inspection_group_id', 'sent_by_name'))
         seen = {}
         for gid, name in pairs:
@@ -156,15 +158,27 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
         return seen
 
     def invoices(a, b):
-        return (InspectionDocument.objects
-                .filter(document_type='invoice', uploaded_date__date__gte=a, uploaded_date__date__lte=b)
+        # Invoice uploads are stamped on the inspection (invoice_uploaded_date);
+        # the 'invoice' document type is legacy and misses recent uploads — the
+        # same situation as COAs (coa_uploaded_date).
+        return (FoodSafetyAgencyInspection.objects
+                .filter(invoice_uploaded_date__date__gte=a, invoice_uploaded_date__date__lte=b)
+                .exclude(inspection_group__group_type='Corporate Store')
                 .count())
+
+    def approvals(a, b):
+        # Jobs approved in the period, by approval date (one count per group).
+        return (FoodSafetyAgencyInspection.objects
+                .filter(approved_status='APPROVED', approved_date__date__gte=a, approved_date__date__lte=b)
+                .exclude(inspection_group__group_type='Corporate Store')
+                .values('inspection_group_id').distinct().count())
 
     def coas(a, b):
         # COA uploads are stamped on the inspection (coa_uploaded_date); the
         # 'coa' document type is legacy and misses recent uploads.
         return (FoodSafetyAgencyInspection.objects
                 .filter(coa_uploaded_date__date__gte=a, coa_uploaded_date__date__lte=b)
+                .exclude(inspection_group__group_type='Corporate Store')
                 .count())
 
     def invoice_gaps(a, b):
@@ -172,9 +186,10 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
         # and (ii) the group's document submission (sent_date) to the upload.
         # sent_date is resolved at the GROUP level, not the single record the
         # invoice hangs off — otherwise most invoices miss their send date.
-        rows = list(InspectionDocument.objects
-                    .filter(document_type='invoice', uploaded_date__date__gte=a, uploaded_date__date__lte=b)
-                    .values_list('uploaded_date', 'inspection__inspection_group_id', 'inspection__created_at'))
+        rows = list(FoodSafetyAgencyInspection.objects
+                    .filter(invoice_uploaded_date__date__gte=a, invoice_uploaded_date__date__lte=b)
+                    .exclude(inspection_group__group_type='Corporate Store')
+                    .values_list('invoice_uploaded_date', 'inspection_group_id', 'created_at'))
         gids = {g for _, g, _ in rows if g is not None}
         sent_map = {}
         for gid, sd in (FoodSafetyAgencyInspection.objects
@@ -212,10 +227,18 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
             'count': coas(cur_start, cur_end),
             'prev': coas(prev_start, prev_end),
         },
+        'approvals_done': {
+            'count': approvals(cur_start, cur_end),
+            'prev': approvals(prev_start, prev_end),
+        },
         'invoice_time': {'avg': cur_avg, 'prev_avg': prev_avg, 'count': cur_n},
+        # Everyone who sent in EITHER week, so someone who dropped to 0 last week
+        # (e.g. sent 36 the week before) is still visible. Sorted by last week,
+        # then the week before.
         'top_senders': [
-            {'name': n, 'count': c, 'prev': prev_counts.get(n, 0)}
-            for n, c in cur_counts.most_common(10)
+            {'name': n, 'count': cur_counts.get(n, 0), 'prev': prev_counts.get(n, 0)}
+            for n in sorted(set(cur_counts) | set(prev_counts),
+                            key=lambda n: (-cur_counts.get(n, 0), -prev_counts.get(n, 0), n))[:10]
         ],
     }
 
@@ -231,8 +254,8 @@ def _outstanding_backlog():
     has_invoice / has_coa (a document exists). Office flow (approval -> send ->
     invoice) is a waterfall — each job counts once, at its next office step. COA
     is the parallel lab queue (any sampled job with no result yet). Occurrence
-    reports are excluded (outside the flow); corporate-store jobs are invoiced
-    centrally so they never count as "needs invoice".
+    reports and corporate-store jobs are excluded from this backlog (occurrences
+    are outside the flow; corporate stores are handled/invoiced centrally).
     """
     from django.db.models import Subquery, OuterRef, Exists
     _insp = FoodSafetyAgencyInspection.objects.filter(inspection_group_id=OuterRef('pk'))
@@ -258,13 +281,12 @@ def _outstanding_backlog():
     fully = 0
     total = 0
     for g in groups:
-        if g['is_occ']:
-            continue  # occurrence reports are outside the approve->send->invoice flow
+        if g['is_occ'] or g['group_type'] == 'Corporate Store':
+            continue  # occurrence reports and corporate-store jobs are outside this backlog
         total += 1
-        corporate = g['group_type'] == 'Corporate Store'
         coa_ok = (not g['is_sampled']) or g['has_coa']
-        # Invoice needed only for PMP/RAW jobs, and never for corporate (central).
-        invoice_ok = g['has_invoice'] or corporate or (not g['is_billable'])
+        # Invoice needed only for PMP/RAW jobs.
+        invoice_ok = g['has_invoice'] or (not g['is_billable'])
         if g['is_sampled'] and not g['has_coa']:
             needs_coa += 1
         if g['first_approved'] != 'APPROVED':
@@ -539,7 +561,7 @@ def api_weekly_report(request):
             'compliant': a['c'],
             'non_compliant': a['nc'],
             'not_assessed': a['n'] - a['c'] - a['nc'],
-            'rate': round(a['c'] * 100 / a['n'], 1) if a['n'] else 0,
+            'rate': round(a['c'] * 100 / (a['c'] + a['nc']), 1) if (a['c'] + a['nc']) else None,
             'inspectors': sorted(
                 [
                     {
@@ -548,11 +570,11 @@ def api_weekly_report(request):
                         'compliant': p['c'],
                         'non_compliant': p['nc'],
                         'not_assessed': p['n'] - p['c'] - p['nc'],
-                        'rate': round(p['c'] * 100 / p['n'], 1) if p['n'] else 0,
+                        'rate': round(p['c'] * 100 / (p['c'] + p['nc']), 1) if (p['c'] + p['nc']) else None,
                     }
                     for name, p in a['by_inspector'].items()
                 ],
-                key=lambda x: (-x['rate'], -x['inspections'], x['inspector_name'].lower()),
+                key=lambda x: (x['rate'] is None, -(x['rate'] or 0), -x['inspections'], x['inspector_name'].lower()),
             ),
         }
         for key, a in sorted(comm_agg.items(), key=lambda kv: -kv[1]['n'])
@@ -564,28 +586,34 @@ def api_weekly_report(request):
         if total == 0:
             continue
         prev_r = prev.get(name)
-        prev_total = prev_r['inspections'] if prev_r else 0
-        # Exact rate to one decimal (91.2 style) — no coarse rounding
-        prev_rate = round(prev_r['compliant'] * 100 / prev_total, 1) if prev_total else None
-        rate = round(r['compliant'] * 100 / total, 1)
+        # Pass rate is measured ONLY over inspections that have a recorded result
+        # (compliant or non-compliant). Records with no outcome yet are set aside —
+        # they are not counted as compliant and not counted as non-compliant, so
+        # they neither raise nor lower the rate (requested 2026-08-10).
+        assessed = r['compliant'] + r['non_compliant']
+        prev_assessed = (prev_r['compliant'] + prev_r['non_compliant']) if prev_r else 0
+        prev_rate = round(prev_r['compliant'] * 100 / prev_assessed, 1) if prev_assessed else None
+        rate = round(r['compliant'] * 100 / assessed, 1) if assessed else None
         compliance.append({
             'inspector_name': name,
             'inspections': total,
             'compliant': r['compliant'],
             'non_compliant': r['non_compliant'],
             'not_assessed': total - r['compliant'] - r['non_compliant'],
+            'assessed': assessed,
             'rate': rate,
             'prev_rate': prev_rate,
-            'change': round(rate - prev_rate, 1) if prev_rate is not None else None,
+            'change': round(rate - prev_rate, 1) if (rate is not None and prev_rate is not None) else None,
         })
-    compliance.sort(key=lambda x: (-x['rate'], -x['inspections'], x['inspector_name'].lower()))
+    # Rank by pass rate; inspectors with no assessed results yet sort to the bottom.
+    compliance.sort(key=lambda x: (x['rate'] is None, -(x['rate'] or 0), -x['inspections'], x['inspector_name'].lower()))
     for i, row in enumerate(compliance):
         row['rank'] = i + 1
 
     def _overall_rate(stats):
         c = sum(r['compliant'] for r in stats.values())
-        n = sum(r['inspections'] for r in stats.values())
-        return round(c * 100 / n, 1) if n else None
+        nc = sum(r['non_compliant'] for r in stats.values())
+        return round(c * 100 / (c + nc), 1) if (c + nc) else None
 
     overall_rate = _overall_rate(cur)
     prev_overall_rate = _overall_rate(prev)
@@ -596,11 +624,11 @@ def api_weekly_report(request):
         we = ws + datetime.timedelta(days=6)
         agg = _week_qs(ws, we, excl).aggregate(
             c=Count('id', filter=Q(is_product_compliant=True)),
-            n=Count('id'),
+            nc=Count('id', filter=Q(is_product_compliant=False)),
         )
         compliance_trend.append({
             'week': ws.isoformat(),
-            'rate': round(agg['c'] * 100 / agg['n'], 1) if agg['n'] else None,
+            'rate': round(agg['c'] * 100 / (agg['c'] + agg['nc']), 1) if (agg['c'] + agg['nc']) else None,
         })
 
     # ── 6. Travel activity (rank basis: kilometres travelled) ──
@@ -690,10 +718,10 @@ def api_weekly_report(request):
     # who sent the most, and the capture->invoice-upload time.
     _throughput = _admin_throughput(week_start, week_end, prev_start, prev_end)
 
-    # Turnaround response: the three inspection-cohort stages, plus the invoice
-    # stage sourced from throughput (document submission -> invoicing, measured
-    # over invoices uploaded this period — this week's inspections aren't
-    # invoiced yet, so a cohort measure would always be empty).
+    # Turnaround response: every stage (including invoice) measured over the same
+    # cohort — the inspections done in the week — so "invoice" is how long the
+    # week's own inspections took to be invoiced (current weeks show 0, as
+    # invoices are uploaded at month-end).
     _turnaround_response = {
         key: {
             **vals,
@@ -702,14 +730,6 @@ def api_weekly_report(request):
             'label': TURNAROUND_LABELS[key],
         }
         for key, vals in _cur_turnaround.items()
-    }
-    _inv = _throughput.get('invoice_time', {})
-    _turnaround_response['invoice'] = {
-        'avg': _inv.get('avg'),
-        'count': _inv.get('count', 0),
-        'prev_avg': _inv.get('prev_avg'),
-        'target': TURNAROUND_TARGETS['invoice'],
-        'label': TURNAROUND_LABELS['invoice'],
     }
 
     return JsonResponse({

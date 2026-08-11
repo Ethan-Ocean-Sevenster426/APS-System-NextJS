@@ -332,8 +332,8 @@ export default function WeeklyReportPage() {
                   if (topPerf && topPerf.weekly_inspections > 0) winners.push({ label: "Most Inspections", name: topPerf.inspector_name, value: `${topPerf.weekly_inspections} inspections` });
                   const topAppr = [...data.approvals].sort((a, b) => b.approved - a.approved)[0];
                   if (topAppr && topAppr.approved > 0) winners.push({ label: "Most Approved", name: topAppr.inspector_name, value: `${topAppr.approved} approved` });
-                  const topComp = [...data.compliance].filter(c => c.compliant + c.non_compliant > 0).sort((a, b) => b.rate - a.rate || (b.inspections ?? 0) - (a.inspections ?? 0))[0];
-                  if (topComp) winners.push({ label: "Best Compliance", name: topComp.inspector_name, value: `${topComp.rate}% of ${topComp.inspections} inspections` });
+                  const topComp = [...data.compliance].filter(c => c.compliant + c.non_compliant > 0).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0) || (b.inspections ?? 0) - (a.inspections ?? 0))[0];
+                  if (topComp) winners.push({ label: "Best Compliance", name: topComp.inspector_name, value: `${topComp.rate}% of ${topComp.compliant + topComp.non_compliant} assessed` });
                   if (winners.length === 0) return null;
                   return (
                     <div style={{ ...card, marginBottom: 14 }}>
@@ -697,8 +697,9 @@ export default function WeeklyReportPage() {
                 <div style={{ ...card, overflowX: "auto", marginBottom: 14 }}>
                   <h2 style={h2}>Compliance per inspector</h2>
                   <p style={{ fontSize: 12, color: F.muted, margin: "0 0 10px" }}>
-                    % Compliant counts <b>every</b> inspection the inspector did — all commodities. An inspection with no recorded
-                    outcome cannot count as compliant, so missing outcomes pull the percentage down. Exact to one decimal.
+                    % Compliant is the pass rate among inspections that <b>have a recorded result</b> (compliant or non-compliant).
+                    Inspections with no outcome recorded yet are set aside — not counted as compliant and not counted as non-compliant,
+                    so they neither raise nor lower the rate. &quot;No Outcome Recorded&quot; shows how many are still waiting.
                   </p>
                   {data.compliance.length === 0 ? <div style={{ color: F.muted, fontSize: 13 }}>No inspections in this period.</div> : (
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -708,7 +709,7 @@ export default function WeeklyReportPage() {
                         <th style={th} title="Results where the product met the rules">Compliant</th>
                         <th style={th} title="Results where the product did not meet the rules">Non-Compliant</th>
                         <th style={th} title="Inspections where no compliant/non-compliant outcome was captured">No Outcome Recorded</th>
-                        <th style={th} title="Compliant results as a percentage of ALL inspections, exact to one decimal">% Compliant</th>
+                        <th style={th} title="Compliant results as a percentage of inspections with a recorded result (unassessed set aside), exact to one decimal">% Compliant</th>
                       </tr></thead>
                       <tbody>
                         {data.compliance.map(c => {
@@ -721,7 +722,7 @@ export default function WeeklyReportPage() {
                               <td style={{ ...td, color: c.compliant ? F.green : F.muted, fontWeight: 600 }}>{c.compliant}</td>
                               <td style={{ ...td, color: c.non_compliant ? F.red : F.muted, fontWeight: 600 }}>{c.non_compliant}</td>
                               <td style={{ ...td, color: (c.not_assessed ?? 0) > 0 ? F.amber : F.muted, fontWeight: 700 }}>{c.not_assessed ?? 0}</td>
-                              <td style={{ ...td, fontWeight: 800 }}>{c.rate}%</td>
+                              <td style={{ ...td, fontWeight: 800 }}>{c.rate === null ? "n/a" : `${c.rate}%`}</td>
                             </tr>
                           );
                         })}
@@ -729,7 +730,7 @@ export default function WeeklyReportPage() {
                           const t = data.compliance.reduce(
                             (acc, c) => ({ insp: acc.insp + (c.inspections ?? 0), c: acc.c + c.compliant, nc: acc.nc + c.non_compliant, na: acc.na + (c.not_assessed ?? 0) }),
                             { insp: 0, c: 0, nc: 0, na: 0 });
-                          const rate = t.insp > 0 ? Math.round((t.c * 100 / t.insp) * 10) / 10 : 0;
+                          const rate = (t.c + t.nc) > 0 ? Math.round((t.c * 100 / (t.c + t.nc)) * 10) / 10 : null;
                           return (
                             <tr style={{ background: "#111827" }}>
                               <td style={{ ...td, color: "#fff" }} />
@@ -738,7 +739,7 @@ export default function WeeklyReportPage() {
                               <td style={{ ...td, color: "#4ade80", fontWeight: 700 }}>{t.c}</td>
                               <td style={{ ...td, color: "#f87171", fontWeight: 700 }}>{t.nc}</td>
                               <td style={{ ...td, color: "#fbbf24", fontWeight: 700 }}>{t.na}</td>
-                              <td style={{ ...td, color: "#fff", fontWeight: 800 }}>{rate}%</td>
+                              <td style={{ ...td, color: "#fff", fontWeight: 800 }}>{rate === null ? "n/a" : `${rate}%`}</td>
                             </tr>
                           );
                         })()}
@@ -753,11 +754,11 @@ export default function WeeklyReportPage() {
                     <div style={{ ...card, overflowX: "auto", marginBottom: 14 }}>
                       <h2 style={h2}>Compliance per commodity</h2>
                       <p style={{ fontSize: 12, color: F.muted, margin: "0 0 10px" }}>
-                        Each cell shows the % of that commodity that passed. &quot;none&quot; = this inspector did no inspections of that commodity (not a 0% score).{" "}
-                        &quot;result not captured&quot; = the inspection was done, but nobody has recorded yet whether it passed (compliant) or failed, so it can&apos;t be scored.{" "}
+                        Each cell shows the pass rate for that commodity, among inspections with a recorded result. &quot;none&quot; = this inspector did no inspections of that commodity.{" "}
+                        &quot;not assessed yet&quot; = the inspection was done but no result is recorded, so it is set aside — not scored as a pass or a fail.{" "}
                         <span style={{ color: F.green, fontWeight: 700 }}>Green</span> = 75% or better,{" "}
                         <span style={{ color: F.amber, fontWeight: 700 }}>orange</span> = 50% to 74.9%,{" "}
-                        <span style={{ color: F.red, fontWeight: 700 }}>red</span> = below 50%, or the result has not been captured yet.
+                        <span style={{ color: F.red, fontWeight: 700 }}>red</span> = below 50%. Grey = not assessed yet.
                       </p>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead><tr>
@@ -767,10 +768,10 @@ export default function WeeklyReportPage() {
                         </tr></thead>
                         <tbody>
                           {data.compliance.map(ci => {
-                            const cellTd = (p: { inspections: number; compliant: number; non_compliant: number; rate: number } | null, key: string) => {
+                            const cellTd = (p: { inspections: number; compliant: number; non_compliant: number; rate: number | null } | null, key: string) => {
                               if (!p || p.inspections === 0) return <td key={key} style={{ ...td, textAlign: "center", color: F.muted }}>none</td>;
-                              if (p.compliant === 0 && p.non_compliant === 0) {
-                                return <td key={key} style={{ ...td, textAlign: "center", color: F.red, background: "#fee2e2" }}>result not captured</td>;
+                              if (p.rate === null || (p.compliant === 0 && p.non_compliant === 0)) {
+                                return <td key={key} style={{ ...td, textAlign: "center", color: F.muted, background: "#f3f4f6" }}>not assessed yet</td>;
                               }
                               const band = p.rate >= 75
                                 ? { bg: "#dcfce7", col: F.green }
@@ -785,8 +786,9 @@ export default function WeeklyReportPage() {
                               const p = (c.inspectors ?? []).find(x => x.inspector_name === ci.inspector_name);
                               return p ? { inspections: t.inspections + p.inspections, compliant: t.compliant + p.compliant, non_compliant: t.non_compliant + p.non_compliant } : t;
                             }, { inspections: 0, compliant: 0, non_compliant: 0 });
+                            const combinedAssessed = combined.compliant + combined.non_compliant;
                             const combinedCell = combined.inspections > 0
-                              ? { ...combined, rate: Math.round((combined.compliant * 100 / combined.inspections) * 10) / 10 }
+                              ? { ...combined, rate: combinedAssessed > 0 ? Math.round((combined.compliant * 100 / combinedAssessed) * 10) / 10 : null }
                               : null;
                             return (
                               <tr key={ci.inspector_name} className="wr-row">
@@ -798,11 +800,11 @@ export default function WeeklyReportPage() {
                           })}
                           <tr style={{ background: "#111827" }}>
                             <td style={{ ...td, color: "#fff", fontWeight: 700 }}>Whole team</td>
-                            {comms.map(c => <td key={c.commodity} style={{ ...td, color: "#fff", textAlign: "center", fontWeight: 700 }}>{c.rate}%</td>)}
+                            {comms.map(c => <td key={c.commodity} style={{ ...td, color: "#fff", textAlign: "center", fontWeight: 700 }}>{c.rate === null ? "n/a" : `${c.rate}%`}</td>)}
                             {(() => {
-                              const t = comms.reduce((a, c) => ({ n: a.n + c.inspections, c: a.c + c.compliant }), { n: 0, c: 0 });
-                              const rate = t.n > 0 ? Math.round((t.c * 100 / t.n) * 10) / 10 : 0;
-                              return <td style={{ ...td, color: "#fff", textAlign: "center", fontWeight: 700 }}>{rate}%</td>;
+                              const t = comms.reduce((a, c) => ({ c: a.c + c.compliant, nc: a.nc + c.non_compliant }), { c: 0, nc: 0 });
+                              const rate = (t.c + t.nc) > 0 ? Math.round((t.c * 100 / (t.c + t.nc)) * 10) / 10 : null;
+                              return <td style={{ ...td, color: "#fff", textAlign: "center", fontWeight: 700 }}>{rate === null ? "n/a" : `${rate}%`}</td>;
                             })()}
                           </tr>
                         </tbody>

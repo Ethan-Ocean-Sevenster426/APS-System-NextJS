@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh moc-drop*)",
+      "Bash(ssh -i ~/.ssh/id_ed25519_digitalocean*)",
+      "Bash(scp -i ~/.ssh/id_ed25519_digitalocean*)",
+      "Bash(python 'C:\\\\Users\\\\ethan\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ethan-OneDrive-Desktop-Eclick-Software-Source-Code-APS-System-NextJS-dev\\\\9e2d0d81-b202-4160-bb91-6de508a1d1f4\\\\scratchpad\\\\ssh_run.py' 'echo '\\\\''=== user-agents on Kutlwano IPs today \\(401 + login events\\):'\\\\''; for ip in 105.245.230.170 105.245.226.85 197.185.146.255; do echo \"--- $ip:\"; grep -h \"^$ip\" /var/log/nginx/access.log 2>/dev/null | grep -E '\\\\''upload-document|/api/login'\\\\'' | grep -oE '\\\\''\"Mozilla[^\"]*\"'\\\\'' | sort -u | head -3; done')"
+    ]
+  }
+}

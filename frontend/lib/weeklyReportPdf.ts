@@ -37,15 +37,15 @@ export interface OccurrenceDetail {
 }
 export interface ComplianceRow {
   inspector_name: string; inspections: number; compliant: number; non_compliant: number;
-  not_assessed: number; rate: number; prev_rate: number | null; change: number | null; rank: number;
+  not_assessed: number; assessed?: number; rate: number | null; prev_rate: number | null; change: number | null; rank: number;
 }
 export interface CommodityInspectorRow {
   inspector_name: string; inspections: number; compliant: number; non_compliant: number;
-  not_assessed: number; rate: number;
+  not_assessed: number; rate: number | null;
 }
 export interface CommodityComplianceRow {
   commodity: string; inspections: number; compliant: number; non_compliant: number;
-  not_assessed: number; rate: number; inspectors?: CommodityInspectorRow[];
+  not_assessed: number; rate: number | null; inspectors?: CommodityInspectorRow[];
 }
 export interface TravelRow {
   inspector_name: string; km: number; hours: number; inspections: number;
@@ -82,6 +82,7 @@ export interface ReportResponse {
     sent: { count: number; prev: number };
     invoices_uploaded: { count: number; prev: number };
     coas_uploaded: { count: number; prev: number };
+    approvals_done?: { count: number; prev: number };
     invoice_time: { avg: number | null; prev_avg: number | null; count: number };
     top_senders: { name: string; count: number; prev: number }[];
   };
@@ -397,16 +398,16 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   doc.setFontSize(9.5);
   doc.setTextColor(...GRAY_LIGHT);
   [
-    "This Week's Winners",
-    "This Week's Watch-Outs",
-    "Action Points This Week",
+    "Last Week's Winners",
+    "Last Week's Watch-Outs",
+    "Action Points for Last Week",
     "1. Inspection Performance",
     "2. Sample Tracking",
     "3. Approval versus Capturing",
     "4. Weekly Compliance",
     "5. Travel Activity",
     "6. Administration & Throughput",
-    "7. How Long Each Step Takes",
+    "7. How Much Was Done Each Week",
     "8. What's Still Outstanding",
   ].forEach((s, i) => {
     doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" });
@@ -463,13 +464,13 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   if (topPerf && topPerf.weekly_inspections > 0) winners.push({ label: "Most Inspections", name: topPerf.inspector_name, value: `${topPerf.weekly_inspections} inspections` });
   const topAppr = [...data.approvals].sort((a, b) => b.approved - a.approved)[0];
   if (topAppr && topAppr.approved > 0) winners.push({ label: "Most Approved", name: topAppr.inspector_name, value: `${topAppr.approved} approved` });
-  const topComp = [...data.compliance].filter(c => c.compliant + c.non_compliant > 0).sort((a, b) => b.rate - a.rate || (b.inspections ?? 0) - (a.inspections ?? 0))[0];
-  if (topComp) winners.push({ label: "Best Compliance", name: topComp.inspector_name, value: `${topComp.rate}% of ${topComp.inspections} inspections` });
+  const topComp = [...data.compliance].filter(c => c.compliant + c.non_compliant > 0).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0) || (b.inspections ?? 0) - (a.inspections ?? 0))[0];
+  if (topComp) winners.push({ label: "Best Compliance", name: topComp.inspector_name, value: `${topComp.rate}% of ${topComp.compliant + topComp.non_compliant} assessed` });
   if (winners.length > 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...DARK);
-    doc.text("This Week's Winners", ML, y);
+    doc.text("Last Week's Winners", ML, y);
     doc.setDrawColor(...AMBER0);
     doc.setLineWidth(0.7);
     doc.line(ML, y + 2.5, ML + 60, y + 2.5);
@@ -510,7 +511,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...DARK);
-    doc.text("This Week's Watch-Outs", ML, y);
+    doc.text("Last Week's Watch-Outs", ML, y);
     doc.setDrawColor(...RED);
     doc.setLineWidth(0.7);
     doc.line(ML, y + 2.5, ML + 60, y + 2.5);
@@ -555,7 +556,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       text: `Chase late capturing: ${lateCap.map(a => `${a.inspector_name} captured only ${a.capture_rate}% of inspections within ${data.admin_lag_days} days`).join("; ")}. Remind them to capture on the day of the inspection.`,
     });
   }
-  const lowComp = data.compliance.filter(c => c.rate < 50 && (c.compliant + c.non_compliant) >= 10);
+  const lowComp = data.compliance.filter(c => (c.compliant + c.non_compliant) >= 10 && c.rate !== null && c.rate < 50);
   if (lowComp.length > 0) {
     actions.push({
       sev: "red",
@@ -568,7 +569,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       .map(c => `${c.inspector_name} (${c.not_assessed})`).join(", ");
     actions.push({
       sev: "red",
-      text: `Get outcomes recorded: ${noOutcome} of this week's inspections have no compliant / non-compliant outcome recorded, so nobody knows whether those clients are safe. Most outcomes missing: ${worstNo}. An inspection without an outcome cannot count as compliant.`,
+      text: `Get outcomes recorded: ${noOutcome} of last week's inspections have no compliant / non-compliant outcome recorded, so nobody knows whether those clients are safe. Most outcomes missing: ${worstNo}. An inspection without an outcome cannot count as compliant.`,
     });
   }
   if (data.sample_status.overdue > 0) {
@@ -588,7 +589,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   if (dropPct <= -15) {
     actions.push({
       sev: "amber",
-      text: `Inspections dropped ${Math.abs(dropPct)}% (${t2.prev_inspections} last week to ${t2.inspections} this week). Check leave, planning and routes for the coming week so the volume recovers.`,
+      text: `Inspections dropped ${Math.abs(dropPct)}% (${t2.prev_inspections} the week before to ${t2.inspections} last week). Check leave, planning and routes so the volume recovers.`,
     });
   }
 
@@ -596,20 +597,20 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(...DARK);
-  doc.text("Action Points This Week", ML, y);
+  doc.text("Action Points for Last Week", ML, y);
   doc.setDrawColor(...TEAL);
   doc.setLineWidth(0.7);
   doc.line(ML, y + 2.5, ML + 70, y + 2.5);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.setTextColor(...GRAY);
-  doc.text("Created automatically from this week's numbers. Red = act now, amber = needs attention.", ML, y + 9);
+  doc.setTextColor(...DARK);
+  doc.text("Created automatically from last week's numbers. Red = act now, amber = needs attention.", ML, y + 9);
   y += 17;
   if (actions.length === 0) {
     doc.setFillColor(...GREEN);
     doc.circle(ML + 2, y + 1.5, 2.1, "F");
     doc.setTextColor(...DARK); doc.setFontSize(10.5);
-    doc.text("Nothing needs urgent attention this week — all measures are within limits.", ML + 8, y + 3);
+    doc.text("Nothing needed urgent attention last week — all measures are within limits.", ML + 8, y + 3);
   } else {
     doc.setFontSize(10);
     actions.forEach((a, i) => {
@@ -639,7 +640,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   };
   autoTable(doc, {
     startY: y + 1,
-    head: [["Rank", "Inspector", "Quarterly Target", data.is_single_week ? "This Week" : "This Period", "Approved", "Waiting Approval", "vs Last Week", "Quarter So Far", "% of Target", "Rank Change"]],
+    head: [["Rank", "Inspector", "Quarterly Target", data.is_single_week ? "Last Week" : "This Period", "Approved", "Waiting Approval", "vs Week Before", "Quarter So Far", "% of Target", "Rank Change"]],
     body: data.performance.map(p => [p.rank, p.inspector_name, p.quarter_target || "No target set", p.weekly_inspections, apprOf(p.inspector_name)?.approved ?? 0, apprOf(p.inspector_name)?.pending ?? 0, mv(p.weekly_inspections - (p.prev_inspections ?? 0)), p.cumulative_inspections, p.target_pct === null ? "-" : `${p.target_pct}%`, mv(p.rank_change)]),
     foot: [["", "Whole team — grand total", "", perfTotals.week, perfTotals.approved, perfTotals.pending, "", perfTotals.cum, "", ""]],
     margin: { left: ML, right: MR },
@@ -679,8 +680,8 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     },
   });
   y = (doc as any).lastAutoTable.finalY + 3;
-  doc.setTextColor(...GRAY); doc.setFontSize(7.5);
-  doc.text(`Approved + Waiting Approval = this week's inspections. "Quarter So Far" = all inspections this quarter (${data.quarter}) up to the end of this reporting week.`, ML, y + 2);
+  doc.setTextColor(...DARK); doc.setFontSize(7.5);
+  doc.text(`"Approved" plus "Waiting Approval" add up to last week's inspections. "Quarter So Far" is every inspection this quarter (${data.quarter}) up to the end of last week.`, ML, y + 2);
   y += 8;
   drawStackedBars(
     `Inspections this ${data.is_single_week ? "week" : "period"} — normal inspections vs occurrence reports`,
@@ -740,10 +741,10 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     { label: "Waiting for results", value: data.sample_status.waiting, color: AMBER },
     { label: `Overdue (> ${data.sample_overdue_days} days)`, value: data.sample_status.overdue, color: RED },
   ]);
-  doc.setTextColor(...GRAY); doc.setFontSize(7.5);
-  doc.text(`"Result Back" — the laboratory certificate (COA) has been received and uploaded for the sample.`, ML, y);
-  doc.text(`"Still Waiting" — the sample is on its way to the laboratory or is still being tested.`, ML, y + 4);
-  doc.text(`"No Sample Taken" — the inspection was completed without collecting a sample.`, ML, y + 8);
+  doc.setTextColor(...DARK); doc.setFontSize(7.5);
+  doc.text(`"Result Back" — the lab result (called a COA) has come back and been added to the file.`, ML, y);
+  doc.text(`"Still Waiting" — the sample is still on its way to the lab, or the lab is still testing it.`, ML, y + 4);
+  doc.text(`"No Sample Taken" — the inspection was done without taking a sample.`, ML, y + 8);
   y += 11;
   autoTable(doc, {
     startY: y + 1,
@@ -786,7 +787,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     doc.setTextColor(...DARK); doc.setFontSize(9); doc.setFont("helvetica", "bold");
     doc.text("Samples awaiting laboratory results", ML, y);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...GRAY); doc.setFontSize(7.5);
+    doc.setTextColor(...DARK); doc.setFontSize(7.5);
     doc.text(`A sample normally waits a few days while it travels to the laboratory and is tested. A row in red has a sample waiting longer than ${data.sample_overdue_days} days.`, ML, y + 4.5);
     y += 6.5;
     autoTable(doc, {
@@ -815,9 +816,9 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
 
   /* ── 3. Approvals ── */
   sectionPage();
-  header("3. Approval versus Capturing");
-  doc.setTextColor(...GRAY); doc.setFontSize(7.5);
-  doc.text(`Green = approved, or captured within ${data.admin_lag_days} days of the inspection. Red = still waiting for office approval, or captured later than ${data.admin_lag_days} days.`, ML, y);
+  header("3. Approvals & Capture Time");
+  doc.setTextColor(...DARK); doc.setFontSize(7.5);
+  doc.text(`"Captured" = the inspection was entered into the system. Green = approved, or entered within ${data.admin_lag_days} days of the inspection. Red = still waiting for approval, or entered more than ${data.admin_lag_days} days after it.`, ML, y);
   y += 4;
   autoTable(doc, {
     startY: y + 1,
@@ -850,19 +851,20 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   sectionPage();
   header("4. Weekly Compliance");
   doc.setTextColor(...DARK); doc.setFontSize(8.5);
-  doc.text("% Compliant counts EVERY inspection the inspector did this week — all commodities. An inspection with no recorded", ML, y + 1);
-  doc.text("outcome cannot count as compliant, so missing outcomes pull the percentage down. Exact to one decimal.", ML, y + 5.5);
-  y += 10;
+  doc.text("% Compliant = out of the inspections that have a result, how many passed (a pass is \"compliant\", a fail is \"non-compliant\").", ML, y + 1);
+  doc.text("Inspections with no result recorded yet are left out — not counted as a pass and not counted as a fail — so they don't", ML, y + 5);
+  doc.text("change the score. \"No Outcome Recorded\" shows how many are still waiting for a result.", ML, y + 9);
+  y += 14;
   const compTotals = data.compliance.reduce(
     (t, c) => ({ insp: t.insp + (c.inspections ?? 0), c: t.c + c.compliant, nc: t.nc + c.non_compliant, na: t.na + (c.not_assessed ?? 0) }),
     { insp: 0, c: 0, nc: 0, na: 0 },
   );
-  const compTotalRate = compTotals.insp > 0 ? Math.round((compTotals.c * 100 / compTotals.insp) * 10) / 10 : 0;
+  const compTotalRate = (compTotals.c + compTotals.nc) > 0 ? Math.round((compTotals.c * 100 / (compTotals.c + compTotals.nc)) * 10) / 10 : null;
   autoTable(doc, {
     startY: y + 1,
     head: [["Rank", "Inspector", "Inspections", "Compliant", "Non-Compliant", "No Outcome Recorded", "% Compliant"]],
-    body: data.compliance.map(c => [c.rank, c.inspector_name, c.inspections ?? (c.compliant + c.non_compliant), c.compliant, c.non_compliant, c.not_assessed ?? 0, `${c.rate}%`]),
-    foot: [["", "Whole team — grand total", compTotals.insp, compTotals.c, compTotals.nc, compTotals.na, `${compTotalRate}%`]],
+    body: data.compliance.map(c => [c.rank, c.inspector_name, c.inspections ?? (c.compliant + c.non_compliant), c.compliant, c.non_compliant, c.not_assessed ?? 0, c.rate === null ? "n/a" : `${c.rate}%`]),
+    foot: [["", "Whole team — grand total", compTotals.insp, compTotals.c, compTotals.nc, compTotals.na, compTotalRate === null ? "n/a" : `${compTotalRate}%`]],
     margin: { left: ML, right: MR },
     styles: { fontSize: 7.5, cellPadding: 2.2, textColor: DARK },
     headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: "bold" },
@@ -891,35 +893,36 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
      column per commodity, each cell = % compliant (compliant / inspections) */
   const comms = (data.commodity_compliance ?? []).filter(c => (c.inspectors ?? []).length > 0);
   if (comms.length > 0) {
-    type CellData = { n: number; c: number; nc: number; rate: number } | null;
+    type CellData = { n: number; c: number; nc: number; rate: number | null } | null;
+    const rateOf = (c: number, nc: number) => (c + nc) > 0 ? Math.round((c * 100 / (c + nc)) * 10) / 10 : null;
     const dataFor = (name: string, colIdx: number): CellData => {
       if (colIdx < comms.length) {
         const p = (comms[colIdx].inspectors ?? []).find(x => x.inspector_name === name);
-        return p ? { n: p.inspections, c: p.compliant, nc: p.non_compliant, rate: p.rate } : null;
+        return p ? { n: p.inspections, c: p.compliant, nc: p.non_compliant, rate: rateOf(p.compliant, p.non_compliant) } : null;
       }
       let n = 0, c = 0, nc = 0;
       comms.forEach(cm => {
         const p = (cm.inspectors ?? []).find(x => x.inspector_name === name);
         if (p) { n += p.inspections; c += p.compliant; nc += p.non_compliant; }
       });
-      return n > 0 ? { n, c, nc, rate: Math.round((c * 100 / n) * 10) / 10 } : null;
+      return n > 0 ? { n, c, nc, rate: rateOf(c, nc) } : null;
     };
     const cellText = (d: CellData) => {
       if (!d || d.n === 0) return "none";
-      if (d.c === 0 && d.nc === 0) return "result not captured";
+      if (d.c === 0 && d.nc === 0) return "not assessed yet";
       return `${d.rate}%`;
     };
-    const teamCombined = comms.reduce((t, c) => ({ n: t.n + c.inspections, c: t.c + c.compliant }), { n: 0, c: 0 });
-    const teamCombinedRate = teamCombined.n > 0 ? Math.round((teamCombined.c * 100 / teamCombined.n) * 10) / 10 : 0;
+    const teamCombined = comms.reduce((t, c) => ({ c: t.c + c.compliant, nc: t.nc + c.non_compliant }), { c: 0, nc: 0 });
+    const teamCombinedRate = rateOf(teamCombined.c, teamCombined.nc);
     needPage(50);
     doc.setTextColor(...DARK); doc.setFontSize(9); doc.setFont("helvetica", "bold");
     doc.text("Compliance per commodity:", ML, y);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...GRAY); doc.setFontSize(7.5);
-    doc.text(`Each cell = % of that commodity that passed. "none" = this inspector did no inspections of that commodity (not a 0% score).`, ML, y + 4.5);
-    doc.text(`"result not captured" = the inspection was done, but nobody has recorded yet whether it passed (compliant) or failed, so it can't be scored.`, ML, y + 8.5);
-    doc.text(`Green = 75% or better. Orange = 50% to 74.9%. Red = below 50%, or the result has not been captured yet.`, ML, y + 12.5);
-    y += 15;
+    doc.setTextColor(...DARK); doc.setFontSize(7.5);
+    doc.text(`Each box shows how many of that commodity passed, out of the ones that have a result. "none" = this inspector did no inspections of that commodity.`, ML, y + 5);
+    doc.text(`"not assessed yet" = the inspection was done but no result is recorded, so it is set aside — not scored as a pass or a fail.`, ML, y + 10);
+    doc.text(`Green = 75% or better. Orange = 50% to 74.9%. Red = below 50%. Grey = not assessed yet.`, ML, y + 15);
+    y += 19;
     autoTable(doc, {
       startY: y + 1,
       head: [["Inspector", ...comms.map(c => c.commodity), "All Commodities Combined"]],
@@ -928,12 +931,12 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         ...comms.map((c, i) => cellText(dataFor(ci.inspector_name, i))),
         cellText(dataFor(ci.inspector_name, comms.length)),
       ]),
-      foot: [["Whole team", ...comms.map(c => `${c.rate}%`), `${teamCombinedRate}%`]],
+      foot: [["Whole team", ...comms.map(c => c.rate === null ? "n/a" : `${c.rate}%`), teamCombinedRate === null ? "n/a" : `${teamCombinedRate}%`]],
       rowPageBreak: "avoid",
       margin: { left: ML, right: MR },
-      styles: { fontSize: 7, cellPadding: 2, textColor: DARK },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontSize: 7, fontStyle: "bold" },
-      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 7, fontStyle: "bold" },
+      styles: { fontSize: 7.5, cellPadding: 3.6, valign: "middle", textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: "bold" },
+      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       didParseCell: (h: any) => {
         if (h.column.index !== 0) h.cell.styles.halign = "center";
@@ -943,7 +946,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         if (!ci) return;
         const d = dataFor(ci.inspector_name, h.column.index - 1);
         if (!d || d.n === 0) { h.cell.styles.textColor = GRAY; return; }
-        if (d.c === 0 && d.nc === 0) { h.cell.styles.fillColor = [254, 226, 226]; h.cell.styles.textColor = RED; return; }
+        if (d.rate === null) { h.cell.styles.fillColor = [243, 244, 246]; h.cell.styles.textColor = GRAY; return; }
         h.cell.styles.fontStyle = "bold";
         if (d.rate >= 75) { h.cell.styles.fillColor = [220, 252, 231]; h.cell.styles.textColor = GREEN; }
         else if (d.rate >= 50) { h.cell.styles.fillColor = [254, 243, 199]; h.cell.styles.textColor = AMBER; }
@@ -994,27 +997,42 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     header("6. Administration & Throughput");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
+    doc.setTextColor(...DARK);
+    const _fmtDM = (dt: Date) => `${dt.getDate()} ${dt.toLocaleDateString("en-GB", { month: "short" })}`;
+    const _ws = new Date(data.week_start + "T12:00:00");
+    const _we = new Date(data.week_end + "T12:00:00");
+    const _pe = new Date(_ws.getTime() - 86400000);           // day before last week
+    const _ps = new Date(_ws.getTime() - 7 * 86400000);       // start of the week before
+    const lastWkRange = `${_fmtDM(_ws)}–${_fmtDM(_we)}`;
+    const weekBeforeRange = `${_fmtDM(_ps)}–${_fmtDM(_pe)}`;
     doc.text(
-      "How much the office got done in the last completed week (Monday to Sunday), next to the week before it. \"Change\" is the difference between the two weeks. How long invoices take to upload is shown separately, in the \"How Long Each Step Takes\" section.",
+      `How much the office got done last week (Mon ${lastWkRange}), next to the week before (Mon ${weekBeforeRange}). "Change" is the difference between the two weeks. Corporate-store jobs are not counted (they are handled centrally).`,
       ML, y, { maxWidth: CW });
-    y += 9;
+    y += 12;
     const nz = (v: unknown) => Number(v) || 0; // guard against missing fields → never "NaN"
     const mvCount = (n: number) => n === 0 ? "no change" : n > 0 ? `${n} more` : `${n} fewer`;
     autoTable(doc, {
       startY: y,
-      head: [["Measure", "This Week", "Week Before", "Change vs the Week Before"]],
+      head: [["Measure", `Last Week\n(${lastWkRange})`, `Week Before\n(${weekBeforeRange})`, "Change vs the Week Before"]],
       body: [
         ["Inspection documents sent to clients", String(nz(tp.sent.count)), String(nz(tp.sent.prev)), mvCount(nz(tp.sent.count) - nz(tp.sent.prev))],
         ["Invoices uploaded", String(nz(tp.invoices_uploaded.count)), String(nz(tp.invoices_uploaded.prev)), mvCount(nz(tp.invoices_uploaded.count) - nz(tp.invoices_uploaded.prev))],
         ["COAs uploaded", String(nz(tp.coas_uploaded.count)), String(nz(tp.coas_uploaded.prev)), mvCount(nz(tp.coas_uploaded.count) - nz(tp.coas_uploaded.prev))],
       ],
+      foot: [(() => {
+        const tc = nz(tp.sent.count) + nz(tp.invoices_uploaded.count) + nz(tp.coas_uploaded.count);
+        const tpv = nz(tp.sent.prev) + nz(tp.invoices_uploaded.prev) + nz(tp.coas_uploaded.prev);
+        return ["Total items processed", String(tc), String(tpv), mvCount(tc - tpv)];
+      })()],
       theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
       headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
+        if (d.section === "foot") { d.cell.styles.textColor = [255, 255, 255]; return; }
         if (d.section === "body" && d.column.index === 3) {
           const t = String(d.cell.raw || "");
           if (t.includes("more")) d.cell.styles.textColor = GREEN;
@@ -1030,23 +1048,32 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(...DARK);
-      doc.text("Who sent the most documents to clients (last completed week)", ML, y);
+      doc.text("Documents sent to clients, by person (last week vs the week before)", ML, y);
       y += 1;
       autoTable(doc, {
         startY: y + 1,
-        head: [["Rank", "Sent by", "This Week", "Week Before", "Change vs the Week Before"]],
+        head: [["Rank", "Sent by", `Last Week\n(${lastWkRange})`, `Week Before\n(${weekBeforeRange})`, "Change vs the Week Before"]],
         body: tp.top_senders.map((s, i) => {
           const cur = nz(s.count), prev = nz(s.prev);
           const diff = cur - prev;
           const chg = diff === 0 ? "no change" : diff > 0 ? `${diff} more` : `${diff} fewer`;
           return [String(i + 1), s.name, String(cur), String(prev), chg];
         }),
+        foot: [(() => {
+          const tc = tp.top_senders.reduce((a, s) => a + nz(s.count), 0);
+          const tpv = tp.top_senders.reduce((a, s) => a + nz(s.prev), 0);
+          const d = tc - tpv;
+          return ["", "Total sent", String(tc), String(tpv), d === 0 ? "no change" : d > 0 ? `${d} more` : `${d} fewer`];
+        })()],
         theme: "grid",
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
         headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" }, 3: { halign: "right" } },
+        footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
         margin: { left: ML, right: MR },
         didParseCell: (d: any) => {
+          if (d.section === "foot") { d.cell.styles.textColor = [255, 255, 255]; return; }
           if (d.section === "body" && d.column.index === 0) {
             d.cell.styles.fontStyle = "bold"; d.cell.styles.textColor = TEAL;
           }
@@ -1062,125 +1089,78 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     }
   }
 
-  /* ══ 7. TURNAROUND TIMES — how long work sits at each back-office stage, and
-     which direction it is moving. Placed last. Timing only; no invoice amounts.
-     "Change" compares the last completed week with the week before it. Empty
-     cells are filled with a short reason rather than left blank. ══ */
-  const TURN_ORDER = ["send_docs", "invoice", "sample_to_coa", "approval"];
-  const turnRows = TURN_ORDER
-    .map(k => ({ key: k, ...(data.turnaround || {})[k] }))
-    .filter(r => r.label && r.avg !== null && r.avg !== undefined);
-  if (turnRows.length > 0) {
+  /* ══ 7. HOW MUCH WAS DONE — the actual number of each step completed last week
+     vs the week before, with a trading-style up/down change. ══ */
+  const tp7 = data.throughput;
+  if (tp7) {
     sectionPage();
-    header("7. How Long Each Step Takes");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
-    doc.text(
-      "The average number of days each step took for last week's inspections. \"Change\" compares that with the week before: fewer days (green) means the step is getting faster; more days (red) means it is slowing down.",
-      ML, y, { maxWidth: CW });
-    y += 9;
-    let _anyNoTarget = false;
-    const change = (r: { avg?: number | null; prev_avg?: number | null; count?: number }) => {
-      if (r.prev_avg === null || r.prev_avg === undefined) {
-        // Explain WHY there is nothing to compare, rather than leaving it blank.
-        return r.count ? "no figure the week before" : "no data either week";
-      }
-      const diff = Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10;
-      if (diff === 0) return "no change";
-      return diff < 0 ? `${Math.abs(diff)} days faster` : `${diff} days slower`;
+    header("7. How Much Was Done Each Week");
+    const n = (v: unknown) => Number(v) || 0;
+    const chg = (cur: number, prev: number) => {
+      const d = cur - prev;
+      if (d === 0) return "no change";
+      const amt = `${d > 0 ? "+" : ""}${d}`;
+      const pct = prev > 0 ? `${d > 0 ? "+" : ""}${Math.round(d * 100 / prev)}%` : "n/a";
+      return `Amount: ${amt}\nPercentage: ${pct}`;
     };
+    const step7 = [
+      { label: "Documents sent to clients", cur: n(tp7.sent?.count), prev: n(tp7.sent?.prev) },
+      { label: "Inspections approved", cur: n(tp7.approvals_done?.count), prev: n(tp7.approvals_done?.prev) },
+      { label: "COAs received (lab results)", cur: n(tp7.coas_uploaded?.count), prev: n(tp7.coas_uploaded?.prev) },
+    ];
+    const fmtDM7 = (dt: Date) => `${dt.getDate()} ${dt.toLocaleDateString("en-GB", { month: "short" })}`;
+    const ws7 = new Date(data.week_start + "T12:00:00");
+    const we7 = new Date(data.week_end + "T12:00:00");
+    const lastRange7 = `${fmtDM7(ws7)}–${fmtDM7(we7)}`;
+    const beforeRange7 = `${fmtDM7(new Date(ws7.getTime() - 7 * 86400000))}–${fmtDM7(new Date(ws7.getTime() - 86400000))}`;
+    const totLast7 = step7.reduce((a, s) => a + s.cur, 0);
+    const totPrev7 = step7.reduce((a, s) => a + s.prev, 0);
     autoTable(doc, {
       startY: y,
-      head: [["Stage", "This Week (avg days)", "Week Before (avg days)", "Target", "Jobs", "Change vs the Week Before"]],
-      body: turnRows.map(r => {
-        let target: string;
-        if (r.target === null || r.target === undefined) { target = "not set"; _anyNoTarget = true; }
-        else target = `${r.target} days`;
-        const prev = (r.prev_avg === null || r.prev_avg === undefined) ? "no data" : String(r.prev_avg);
-        return [r.label as string, String(r.avg), prev, target, String(r.count), change(r)];
-      }),
+      head: [["Step", `Last Week\n(${lastRange7})`, `Week Before\n(${beforeRange7})`, "Change vs the week before"]],
+      body: step7.map(s => [s.label, String(s.cur), String(s.prev), chg(s.cur, s.prev)]),
+      foot: [["Total steps completed", String(totLast7), String(totPrev7), ""]],
       theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
+      styles: { fontSize: 7.5, cellPadding: 2.2, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, halign: "center" },
+      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { fontStyle: "bold", textColor: DARK },
+        1: { halign: "right", fontStyle: "bold", textColor: TEAL },
+        2: { halign: "right", textColor: GRAY },
+        3: { halign: "right", cellPadding: { top: 2.2, bottom: 2.2, left: 10, right: 2.2 } },
+      },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
-        const GREEN_BG: [number, number, number] = [220, 252, 231];
-        const RED_BG: [number, number, number] = [254, 226, 226];
-        // This Week avg: shade green when at/under target, red when over —
-        // a colour block reads faster than a number. Neutral if no target.
-        if (d.section === "body" && d.column.index === 1) {
-          const row = turnRows[d.row.index];
-          if (row.target !== null && row.target !== undefined) {
-            d.cell.styles.fillColor = (row.avg as number) > (row.target as number) ? RED_BG : GREEN_BG;
-          }
-          d.cell.styles.fontStyle = "bold";
+        if (d.section === "head" && d.column.index !== 0) d.cell.styles.halign = "center";
+        if (d.section === "foot") {
+          d.cell.styles.textColor = [255, 255, 255];
+          if (d.column.index !== 0) d.cell.styles.halign = "right";
+          return;
         }
-        if (d.section === "body" && d.column.index === 3 && String(d.cell.raw) === "not set") {
-          d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
-        }
-        // Change: shade green when the step got faster, red when slower.
-        if (d.section === "body" && d.column.index === 5) {
+        if (d.section === "body" && d.column.index === 3) {
           const t = String(d.cell.raw || "");
-          if (t.includes("faster")) d.cell.styles.fillColor = GREEN_BG;
-          else if (t.includes("slower")) d.cell.styles.fillColor = RED_BG;
           d.cell.styles.fontStyle = "bold";
+          if (t.includes("Amount: +")) { d.cell.styles.fillColor = [220, 252, 231]; d.cell.styles.textColor = GREEN; }
+          else if (t.includes("Amount: -")) { d.cell.styles.fillColor = [254, 226, 226]; d.cell.styles.textColor = RED; }
+          else d.cell.styles.textColor = GRAY;
         }
       },
+      // Trading-style arrow drawn to the left of the change value (body + total row).
+      didDrawCell: (d: any) => {
+        if ((d.section !== "body" && d.section !== "foot") || d.column.index !== 3) return;
+        const t = String(d.cell.raw || "");
+        if (!t.includes("Amount: +") && !t.includes("Amount: -")) return;
+        const up = t.includes("Amount: +");
+        const cx = d.cell.x + 5.5;
+        const cy = d.cell.y + d.cell.height / 2;
+        const s = 1.7;
+        if (up) { doc.setFillColor(...GREEN); doc.triangle(cx - s, cy + s, cx + s, cy + s, cx, cy - s, "F"); }
+        else { doc.setFillColor(...RED); doc.triangle(cx - s, cy - s, cx + s, cy - s, cx, cy + s, "F"); }
+      },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
-
-    /* ── Where the delays are — bottleneck callout, worked out from the stages
-       above: the step furthest over its target is the main hold-up, and any
-       step that got slower than the week before is flagged too. ── */
-    {
-      const withTarget = turnRows
-        .filter(r => r.target !== null && r.target !== undefined && r.avg !== null && r.avg !== undefined)
-        .map(r => ({ label: r.label as string, avg: r.avg as number, target: r.target as number, over: (r.avg as number) - (r.target as number) }));
-      const worst = withTarget.filter(r => r.over > 0).sort((a, b) => b.over - a.over)[0];
-      const slowing = turnRows
-        .filter(r => r.prev_avg !== null && r.prev_avg !== undefined && r.avg !== null && r.avg !== undefined && (r.avg as number) > (r.prev_avg as number))
-        .map(r => ({ label: r.label as string, diff: Math.round(((r.avg as number) - (r.prev_avg as number)) * 10) / 10 }))
-        .sort((a, b) => b.diff - a.diff)[0];
-
-      let msg: string;
-      if (worst) {
-        const overVal = Math.round(worst.over * 10) / 10;
-        msg = `The biggest hold-up is "${worst.label}" — averaging ${worst.avg} days against a ${worst.target}-day target (${overVal} ${overVal === 1 ? "day" : "days"} over).`;
-        if (slowing && slowing.label !== worst.label) {
-          msg += ` "${slowing.label}" also slowed this week (${slowing.diff} days slower than the week before).`;
-        }
-      } else if (slowing) {
-        msg = `Every step is within its target. The one to watch is "${slowing.label}", which slowed by ${slowing.diff} days versus the week before.`;
-      } else {
-        msg = "Every step is within its target and none slowed this week — no bottlenecks to flag.";
-      }
-
-      needPage(16);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...(worst ? RED : DARK));
-      doc.text("Where the delays are", ML, y);
-      y += 5;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...DARK);
-      const lines = doc.splitTextToSize(msg, CW) as string[];
-      doc.text(lines, ML, y);
-      y += lines.length * 4 + 4;
-    }
-
-    if (_anyNoTarget) {
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(7);
-      doc.setTextColor(...GRAY);
-      doc.text(
-        "\"not set\" means no target has been agreed for that step yet. \"Capture to invoice uploaded\" is the average for invoices uploaded during the week. We don't show a separate \"documents sent to invoice\" time because invoices are usually uploaded before, or without, a recorded send date — so that figure would be empty.",
-        ML, y, { maxWidth: CW });
-      doc.setFont("helvetica", "normal");
-      y = y + 10;
-    }
+    y = (doc as any).lastAutoTable.finalY + 8;
   }
 
   /* ══ 8. WHAT'S STILL OUTSTANDING — the whole current backlog (not just this
@@ -1192,9 +1172,9 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     header("8. What's Still Outstanding");
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
+    doc.setTextColor(...DARK);
     doc.text(
-      `Every job (site visit) not yet fully finished, across all work — not only last week. Counted per job, so a visit with several commodities is one item. ${ob.outstanding_total} jobs still outstanding, ${ob.complete} complete, out of ${ob.total} total. The first three are office steps and don't overlap; "Waiting for COA" is the lab's separate queue, counted on its own. Occurrence reports are excluded (no approval, sending or invoicing). Invoices apply only to PMP and RAW jobs, so poultry/eggs-only jobs and corporate-store jobs (invoiced centrally) are never counted as needing an invoice.`,
+      `Every unfinished job across all work (not just last week), counted once per site visit — ${ob.outstanding_total} outstanding, ${ob.complete} complete, of ${ob.total} total. Office steps run in order; "Waiting for COA" is the lab's separate queue. Occurrence reports and corporate-store jobs are excluded, and only PMP/RAW jobs need an invoice.`,
       ML, y, { maxWidth: CW });
     y += 11;
     autoTable(doc, {
@@ -1204,20 +1184,18 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
         ["Needs approval", String(ob.needs_approval), "Inspector", "Office"],
         ["Not sent to client", String(ob.not_sent), "Office", "Office"],
         ["Needs invoice", String(ob.needs_invoice), "Finance", "Office"],
-        ["Waiting for COA", String(ob.needs_coa), "Lab", "Lab (parallel)"],
+        ["Waiting for COA", String(ob.needs_coa), "Lab technician", "Lab / delivery"],
       ],
       theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2.2 },
+      styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
       headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: { 1: { halign: "right" } },
       margin: { left: ML, right: MR },
       didParseCell: (d: any) => {
         if (d.section === "body" && d.column.index === 1) {
           d.cell.styles.fontStyle = "bold";
           d.cell.styles.textColor = Number(d.cell.raw) > 0 ? RED : GREEN;
-        }
-        if (d.section === "body" && d.column.index === 3 && String(d.cell.raw).includes("parallel")) {
-          d.cell.styles.textColor = GRAY; d.cell.styles.fontStyle = "italic";
         }
       },
     });
@@ -1355,10 +1333,10 @@ export async function buildInspectorReportPdf(data: ReportResponse, inspectorNam
     doc.text(doc.splitTextToSize(label.toUpperCase(), w - 5), x + w / 2, cy + h / 2 + 8, { align: "center" });
   };
   const gap = 5, w3 = (CW - 2 * gap) / 3, cardH = 28;
-  const compColor: [number, number, number] = comp ? (comp.rate >= 70 ? GREEN : AMBER) : GRAY;
+  const compColor: [number, number, number] = comp && comp.rate !== null ? (comp.rate >= 70 ? GREEN : AMBER) : GRAY;
   card(ML, y, w3, cardH, "Inspections this week", String(perf?.weekly_inspections ?? 0), TEAL);
   card(ML + w3 + gap, y, w3, cardH, `Your rank (of ${data.performance.length} inspectors)`, perf ? `#${perf.rank}` : "—", BLUE);
-  card(ML + 2 * (w3 + gap), y, w3, cardH, "Compliance rate", comp ? `${comp.rate}%` : "—", compColor);
+  card(ML + 2 * (w3 + gap), y, w3, cardH, "Compliance rate", comp && comp.rate !== null ? `${comp.rate}%` : "—", compColor);
   y += cardH + gap;
   card(ML, y, w3, cardH, "Samples taken", String(samp?.taken ?? 0), AMBER);
   card(ML + w3 + gap, y, w3, cardH, "Kilometres travelled", trav ? trav.km.toLocaleString("en-ZA") : "0", TEAL);
@@ -1500,8 +1478,8 @@ export async function buildInspectorReportPdf(data: ReportResponse, inspectorNam
   factRows([
     ["Products that passed (compliant)", String(comp?.compliant ?? 0)],
     ["Products that failed (non-compliant)", String(comp?.non_compliant ?? 0)],
-    ["Inspections with no outcome recorded yet", String(comp?.not_assessed ?? 0)],
-    ["Your pass rate — out of ALL your inspections", comp ? `${comp.rate}%` : "No recorded results this week"],
+    ["Inspections with no outcome recorded yet (not scored)", String(comp?.not_assessed ?? 0)],
+    ["Your pass rate — of inspections with a recorded result", comp && comp.rate !== null ? `${comp.rate}%` : "No recorded results this week"],
     ["Compared to last week", comp?.change === null || !comp ? "—" : `${comp.change > 0 ? `${comp.change}pt better` : `${Math.abs(comp.change)}pt worse`}`],
   ]);
 

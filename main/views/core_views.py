@@ -107,6 +107,18 @@ from ..models import Client, Inspection, Shipment, Settings, FoodSafetyAgencyIns
 from django.views.decorators.csrf import csrf_exempt
 from ..decorators import role_required, inspector_restricted, financial_only, scientist_only, inspector_only_inspections, no_inspector_scientist
 from ..permissions import require_capability, user_can
+
+
+def build_password_reset_link(request, uid, token):
+    """Build a password-reset link that points at the frontend reset page."""
+    from django.conf import settings
+
+    site_url = getattr(settings, 'SITE_URL', None) or getattr(settings, 'FRONTEND_URL', None)
+    if site_url:
+        return f"{site_url.rstrip('/')}/reset-password/{uid}/{token}/"
+    return request.build_absolute_uri(f'/reset-password/{uid}/{token}/')
+
+
 @login_required
 @role_required(['admin', 'super_admin', 'developer', 'inspector'])
 def save_manual_client_email(request):
@@ -20609,9 +20621,7 @@ def send_password_reset_email(request):
         uid = urlsafe_base64_encode(force_bytes(target_user.pk))
 
         # Build password reset URL
-        reset_url = request.build_absolute_uri(
-            f'/password-reset/{uid}/{token}/'
-        )
+        reset_url = build_password_reset_link(request, uid, token)
 
         # Email content
         subject = 'Password Reset Request - Food Safety Agency'
@@ -20693,6 +20703,7 @@ Food Safety Agency Team
 # Password Reset Views (For Login Page)
 # =============================
 
+@csrf_exempt
 def forgot_password(request):
     """
     Handle forgot password requests - ONLY for developer account (ethansevenster5@gmail.com)
@@ -20730,9 +20741,7 @@ def forgot_password(request):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
             # Build reset link
-            reset_link = request.build_absolute_uri(
-                f'/reset-password/{uid}/{token}/'
-            )
+            reset_link = build_password_reset_link(request, uid, token)
 
             # Prepare email context
             context = {
@@ -20766,6 +20775,7 @@ def forgot_password(request):
     return render(request, 'main/forgot_password.html')
 
 
+@csrf_exempt
 def reset_password_confirm(request, uidb64, token):
     """
     Handle password reset confirmation (when user clicks link in email)

@@ -365,6 +365,7 @@ export default function InspectionsPage() {
   const [lateCaptureFilter, setLateCaptureFilter] = useState<string[]>([]);
   const [lateApprovalFilter, setLateApprovalFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("date_desc");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
   // Missing-sample flags (super admins & lab technicians): group ids currently flagged
@@ -2063,9 +2064,9 @@ export default function InspectionsPage() {
                   </div>
                 </div>
 
-                {/* Dropdowns grid */}
-                <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
-                  <div className="ir-filter-field">
+                {/* Sort + More filters toggle (always visible) */}
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 14 }}>
+                  <div className="ir-filter-field" style={{ minWidth: 220 }}>
                     <label className="ir-form-label">Sort By</label>
                     <select value={sortBy}
                       onChange={e => { const v = e.target.value; setSortBy(v); const af = { ...appliedFilters, sort: v }; setAppliedFilters(af); setCurrentPage(1); fetchInspections(showDuplicates, dateFrom, dateTo, 1, debouncedSearch, af); }}
@@ -2077,6 +2078,19 @@ export default function InspectionsPage() {
                       <option value="captured_desc">Recently captured</option>
                     </select>
                   </div>
+                  <button type="button" onClick={() => setShowMoreFilters(v => !v)}
+                    title={showMoreFilters ? "Hide the extra filters" : "Show all the extra filters"}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 14px", height: 34, fontSize: "0.8rem", fontWeight: 600, border: "1px solid #e5e7eb", borderRadius: 6, background: showMoreFilters ? "#e0f2fe" : "white", color: "#007890", cursor: "pointer" }}>
+                    <i className="fas fa-sliders-h" />
+                    {showMoreFilters ? "Fewer filters" : "More filters"}
+                    <i className={`fas fa-chevron-${showMoreFilters ? "up" : "down"}`} style={{ fontSize: 10 }} />
+                    {(() => { const c = [inspectorFilter, corpGroupFilter, groupTypeFilter, occurrenceFilter, sampledFilter, commodityFilter, sentStatusFilter, lateCaptureFilter, lateApprovalFilter, complianceFilter, approvedFilter, rfiFilter, invoiceFilter, coaFileFilter, complianceFileFilter, otherFileFilter, labFilter, testTypeFilter, retestFilter].filter(a => a && a.length > 0).length; return c > 0 ? <span style={{ background: "#007890", color: "white", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>{c}</span> : null; })()}
+                  </button>
+                </div>
+
+                {/* Collapsible advanced filters */}
+                {showMoreFilters && (
+                <div className="ir-filter-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
                   <IrMultiSelect label="Inspector" options={inspectorOptions} selected={inspectorFilter} onChange={setInspectorFilter} searchable />
                   <IrMultiSelect label="Business" options={corpGroupOptions} selected={corpGroupFilter} onChange={setCorpGroupFilter} searchable />
                   <IrMultiSelect label="Store Type" options={groupTypeOptions} selected={groupTypeFilter} onChange={setGroupTypeFilter} searchable />
@@ -2101,6 +2115,7 @@ export default function InspectionsPage() {
                     </>
                   )}
                 </div>
+                )}
 
                 {/* Filter Actions */}
                 <div className="ir-filter-actions">
