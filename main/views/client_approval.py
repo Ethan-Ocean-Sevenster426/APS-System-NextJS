@@ -38,7 +38,13 @@ def _norm(name):
 
 
 def _similar_clients(pending, approved):
-    """Top approved clients whose name resembles the pending client's."""
+    """Top approved clients whose name resembles the pending client's.
+
+    Currently unused by the list endpoint (the UI matches duplicates via the
+    ?target_search box). Kept for reuse if fuzzy suggestions return to the UI;
+    do NOT call it per-page-load over all approved clients — it's ~O(pending x
+    approved) SequenceMatcher work and was the cause of a ~2s page load.
+    """
     target = _norm(pending.name)
     scored = []
     for c in approved:
@@ -121,19 +127,20 @@ def api_clients_approval(request):
         page_size = 20
     offset = (page - 1) * page_size
 
-    approved = list(
-        Client.objects.filter(approval_status='approved')
-        .values('id', 'client_id', 'name', 'town')
+    # Inspection count comes from a single grouped query instead of a COUNT per
+    # row (was N+1). The list UI matches duplicates via the ?target_search box,
+    # so the old per-row fuzzy `similar` suggestions and `recent_groups` — which
+    # loaded all ~5.8k approved clients and ran ~90k SequenceMatcher comparisons
+    # (≈2s) on every page load — are dropped here; nothing in the UI read them.
+    from django.db.models import Count as _Count
+    page_qs = list(
+        pending_qs.select_related('created_by')
+        .annotate(insp_count=_Count('inspection_groups'))
+        .order_by('-created_at')[offset:offset + page_size]
     )
 
     items = []
-    page_qs = pending_qs.select_related('created_by').order_by('-created_at')[offset:offset + page_size]
     for client in page_qs:
-        groups = list(
-            InspectionGroup.objects.filter(client=client)
-            .order_by('-date_of_inspection')
-            .values('id', 'date_of_inspection', 'inspector_name')[:10]
-        )
         items.append({
             'id': client.id,
             'client_id': client.client_id,
@@ -144,16 +151,7 @@ def api_clients_approval(request):
             'facility_type': client.facility_type or '',
             'created_at': client.created_at.isoformat() if client.created_at else None,
             'created_by': _created_by_label(client),
-            'inspection_count': InspectionGroup.objects.filter(client=client).count(),
-            'recent_groups': [
-                {
-                    'id': g['id'],
-                    'date_of_inspection': g['date_of_inspection'].isoformat() if g['date_of_inspection'] else None,
-                    'inspector_name': g['inspector_name'] or '',
-                }
-                for g in groups
-            ],
-            'similar': _similar_clients(client, approved),
+            'inspection_count': client.insp_count,
         })
 
     return JsonResponse({
