@@ -644,7 +644,6 @@ export default function AnalyticsPage() {
           Inspections: r.total_inspections,
           "Billable Hrs": r.total_hours,
           KM: r.total_km,
-          "R/km": Math.round(r.total_km * kmRate),
           "On-Site Hrs": r.inspection_time,
           "Rev (Hours)": Math.round(r.revenue_hours),
           "Rev (KM)": Math.round(r.revenue_km),
@@ -2712,7 +2711,6 @@ interface FinancialPanelProps {
 }
 
 function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, xeroPage, setXeroPage, xeroSyncing, onXeroSync, onXeroConnect, onXeroDisconnect, onOpenSalaryModal, onOpenExpenseModal, userRole, userFullName }: FinancialPanelProps) {
-  const kmRate = data.financialSummary?.km_rate ?? 4.5;
   const isInspectorRole = userRole === "inspector";
   const isAdminRole = userRole === "admin";
 
@@ -2951,7 +2949,6 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <th style={thStyle} title="Total number of inspections completed">Insp</th>
                 <th style={thStyle} title="Total billable hours">Bill Hrs</th>
                 <th style={thStyle} title="Total kilometers traveled">KM</th>
-                <th style={thStyle} title="Revenue from KM">R/km</th>
                 <th style={thStyle} title="On-site hours at facility">Site Hrs</th>
                 <th style={thStyle} title="Revenue from hours">Rev(Hrs)</th>
                 <th style={thStyle} title="Revenue from KM">Rev(KM)</th>
@@ -2974,7 +2971,6 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                   <td style={tdStyle}>{r.total_inspections}</td>
                   <td style={tdStyle}>{r.total_hours > 0 ? r.total_hours.toFixed(1) : "-"}</td>
                   <td style={tdStyle}>{r.total_km > 0 ? r.total_km.toLocaleString("en-ZA") : "-"}</td>
-                  <td style={tdStyle}>{r.total_km > 0 ? fmtRInt(Math.round(r.total_km * kmRate)) : "—"}</td>
                   <td style={tdStyle}>{r.inspection_time > 0 ? r.inspection_time.toFixed(1) : "-"}</td>
                   <td style={tdStyle}>{fmtRInt(Math.round(r.revenue_hours))}</td>
                   <td style={tdStyle}>{fmtRInt(Math.round(r.revenue_km))}</td>
@@ -2997,7 +2993,6 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
                 <td style={totalStyle}>{totals.inspections}</td>
                 <td style={totalStyle}>{totals.hours.toFixed(1)}</td>
                 <td style={totalStyle}>{totals.km.toLocaleString("en-ZA")}</td>
-                <td style={totalStyle}>{fmtRInt(Math.round(totals.km * kmRate))}</td>
                 <td style={totalStyle}>{totals.inspection_time.toFixed(1)}</td>
                 <td style={totalStyle}>{fmtRInt(Math.round(totals.revenue_hours))}</td>
                 <td style={totalStyle}>{fmtRInt(Math.round(totals.revenue_km))}</td>
