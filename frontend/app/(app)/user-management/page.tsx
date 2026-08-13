@@ -83,29 +83,6 @@ function Stat({ label, value, icon, tint, color }: { label: string; value: React
 }
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-function generateRandomPassword(): string {
-  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lower = "abcdefghijklmnopqrstuvwxyz";
-  const digits = "0123456789";
-  const special = "!@#$%^&*";
-  const all = upper + lower + digits + special;
-  let pw =
-    upper[Math.floor(Math.random() * upper.length)] +
-    lower[Math.floor(Math.random() * lower.length)] +
-    digits[Math.floor(Math.random() * digits.length)] +
-    special[Math.floor(Math.random() * special.length)];
-  for (let i = 4; i < 10; i++) {
-    pw += all[Math.floor(Math.random() * all.length)];
-  }
-  return pw
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
-}
-
-/* ------------------------------------------------------------------ */
 /*  Multi-Select Component                                             */
 /* ------------------------------------------------------------------ */
 function MultiSelect({
@@ -202,7 +179,7 @@ export default function UserManagementPage() {
   const [reassignUser, setReassignUser] = useState<UserRecord | null>(null);
   const [reassignTo, setReassignTo] = useState("");
   const [editUser, setEditUser] = useState<UserRecord | null>(null);
-  const [resetUser, setResetUser] = useState<{ id: number; username: string } | null>(null);
+  const [resetUser, setResetUser] = useState<{ id: number; username: string; email: string } | null>(null);
 
   // Add form
   const [addForm, setAddForm] = useState({
@@ -222,15 +199,6 @@ export default function UserManagementPage() {
     role: "",
     allocated_inspectors: [] as number[],
   });
-
-  // Reset password form
-  const [resetForm, setResetForm] = useState({
-    new_password: "",
-    confirm_password: "",
-    generated: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Context menu
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -398,26 +366,15 @@ export default function UserManagementPage() {
 
   const handleResetPassword = async () => {
     if (!resetUser) return;
-    const pw = resetForm.generated || resetForm.new_password;
-    if (!resetForm.generated && resetForm.new_password !== resetForm.confirm_password) {
-      addMessage("Passwords do not match", "error");
-      return;
-    }
-    if (!pw) {
-      addMessage("Please enter a password or generate one", "error");
-      return;
-    }
     const data = await postAction({
-      action: "reset_password",
+      action: "send_reset_email",
       user_id: resetUser.id,
-      new_password: pw,
     });
     if (data.success) {
-      addMessage(data.message || "Password reset successfully", "success");
+      addMessage(data.message || "Password reset link sent", "success");
       setShowResetPasswordModal(false);
-      setResetForm({ new_password: "", confirm_password: "", generated: "" });
     } else {
-      addMessage(data.error || "Failed to reset password", "error");
+      addMessage(data.error || "Failed to send password reset link", "error");
     }
   };
 
@@ -501,10 +458,7 @@ export default function UserManagementPage() {
   };
 
   const openResetModal = (user: UserRecord) => {
-    setResetUser({ id: user.id, username: user.username });
-    setResetForm({ new_password: "", confirm_password: "", generated: "" });
-    setShowPassword(false);
-    setShowConfirmPassword(false);
+    setResetUser({ id: user.id, username: user.username, email: user.email });
     setShowResetPasswordModal(true);
   };
 
@@ -1299,115 +1253,8 @@ export default function UserManagementPage() {
             <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "1rem" }}>
               Resetting password for <strong>{resetUser.username}</strong>
             </p>
-
-            {/* Generate random */}
-            <div className="um-password-generate">
-              <button
-                className="um-btn um-btn-primary"
-                style={{ width: "100%", marginBottom: resetForm.generated ? "0.75rem" : 0 }}
-                onClick={() => {
-                  const pw = generateRandomPassword();
-                  setResetForm({ new_password: "", confirm_password: "", generated: pw });
-                }}
-              >
-                Generate Random Password
-              </button>
-              {resetForm.generated && (
-                <div
-                  style={{
-                    background: "#d1fae5",
-                    border: "1px solid #10b981",
-                    borderRadius: 4,
-                    padding: "0.75rem",
-                    fontFamily: "monospace",
-                    fontSize: "0.875rem",
-                    wordBreak: "break-all",
-                    color: "#065f46",
-                  }}
-                >
-                  {resetForm.generated}
-                </div>
-              )}
-            </div>
-
-            <div className="um-password-divider">OR</div>
-
-            {/* Manual entry */}
-            <div>
-              <div style={{ marginBottom: "0.75rem" }}>
-                <label className="um-form-label">New Password</label>
-                <div className="um-password-input-wrapper">
-                  <input
-                    className="um-form-control"
-                    type={showPassword ? "text" : "password"}
-                    value={resetForm.new_password}
-                    onChange={(e) =>
-                      setResetForm({
-                        ...resetForm,
-                        new_password: e.target.value,
-                        generated: "",
-                      })
-                    }
-                  />
-                  <button
-                    className="um-password-toggle"
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      {showPassword ? (
-                        <>
-                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </>
-                      ) : (
-                        <>
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="um-form-label">Confirm Password</label>
-                <div className="um-password-input-wrapper">
-                  <input
-                    className="um-form-control"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={resetForm.confirm_password}
-                    onChange={(e) =>
-                      setResetForm({
-                        ...resetForm,
-                        confirm_password: e.target.value,
-                        generated: "",
-                      })
-                    }
-                  />
-                  <button
-                    className="um-password-toggle"
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      {showConfirmPassword ? (
-                        <>
-                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </>
-                      ) : (
-                        <>
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
+            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, color: "#1e3a8a", fontSize: "0.875rem", lineHeight: 1.5, padding: "0.875rem", marginBottom: "1rem" }}>
+              A secure password-reset link will be emailed to <strong>{resetUser.email || "this user's email address"}</strong>. Their current password will remain active until they choose a new one.
             </div>
 
             <div className="um-modal-actions">
@@ -1418,7 +1265,7 @@ export default function UserManagementPage() {
                 Cancel
               </button>
               <button className="um-btn um-btn-primary" onClick={handleResetPassword}>
-                Reset Password
+                <i className="fas fa-paper-plane" /> Send Reset Link
               </button>
             </div>
           </div>

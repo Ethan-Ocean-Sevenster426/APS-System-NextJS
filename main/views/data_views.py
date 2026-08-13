@@ -2932,16 +2932,35 @@ def api_users(request):
                     from django.utils.encoding import force_bytes
                     from django.core.mail import send_mail
                     from django.conf import settings as _settings
+                    from django.template.loader import render_to_string
+                    from datetime import datetime
+                    from .core_views import build_password_reset_link
+                    from ..models import SystemLog
+
                     uid = urlsafe_base64_encode(force_bytes(user.pk))
                     token = default_token_generator.make_token(user)
-                    origin = request.META.get('HTTP_ORIGIN', 'https://v4-project.moc-pty.com')
-                    reset_url = f'{origin}/reset-password/{uid}/{token}/'
-                    # TEST MODE: redirect all emails to dev address
+                    reset_url = build_password_reset_link(request, uid, token)
+                    html_message = render_to_string('main/password_reset_email.html', {
+                        'user': user,
+                        'reset_link': reset_url,
+                        'current_year': datetime.now().year,
+                    })
+
                     send_mail(
-                        subject='Password Reset Request',
-                        message=f'Hi {user.first_name or user.username},\n\nClick the link below to reset your password:\n{reset_url}\n\nIf you did not request this, please ignore this email.',
+                        subject='Food Safety Agency – Password Reset Instructions',
+                        message=f'Hello {user.username},\n\nClick the link below to reset your password:\n\n{reset_url}\n\nIf you did not request this, please ignore this email.',
                         from_email=getattr(_settings, 'DEFAULT_FROM_EMAIL', ''),
-                        recipient_list=['ethansevenster5@gmail.com'],
+                        recipient_list=[user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                    SystemLog.log_activity(
+                        user=request.user if request.user.is_authenticated else None,
+                        action='PASSWORD_RESET',
+                        page='user-management',
+                        object_type='user',
+                        object_id=str(user.id),
+                        description=f'Password reset link sent to {user.username}.',
                     )
                     return _cors(JsonResponse({'success': True, 'message': f'Password reset email sent to {user.email}.'}))
                 except Exception as e:
