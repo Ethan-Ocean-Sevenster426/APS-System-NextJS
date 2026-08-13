@@ -2749,7 +2749,7 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
     // Scale fin proportionally based on filtered inspection count
     return fin.map(r => {
       const filtered = inspectorCounts[r.inspector_name];
-      if (!filtered) return { ...r, total_inspections: 0, total_hours: 0, total_km: 0, total_samples: 0, inspection_time: 0, revenue_hours: 0, revenue_km: 0, revenue_samples: 0, total_revenue: 0 };
+      if (!filtered) return { ...r, total_inspections: 0, total_hours: 0, total_km: 0, total_samples: 0, inspection_time: 0, revenue_hours: 0, revenue_km: 0, revenue_samples: 0, total_revenue: 0, months_active: 0 };
       const ratio = r.total_inspections > 0 ? filtered.inspections / r.total_inspections : 0;
       return {
         ...r,
@@ -2762,6 +2762,9 @@ function FinancialPanel({ data, salaries, expenseLog, xeroStatus, xeroInvoices, 
         revenue_km: Math.round(r.revenue_km * ratio),
         revenue_samples: Math.round(r.revenue_samples * ratio),
         total_revenue: Math.round(r.total_revenue * ratio),
+        // Scale salary period the same way as revenue so cost covers the same
+        // slice of work — otherwise profit is overstated on any filter but "All Time".
+        months_active: (r.months_active || 1) * ratio,
       };
     }).filter(r => r.total_inspections > 0);
   }, [fin, finPeriod, data.inspectionsList]);
