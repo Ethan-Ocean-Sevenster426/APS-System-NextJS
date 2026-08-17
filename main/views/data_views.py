@@ -3878,6 +3878,22 @@ def api_add_inspection(request):
                     created_by=request.user if getattr(request.user, 'is_authenticated', False) else None,
                 )
 
+            # Parse optional travel times (HH:MM). The Add form sends these as
+            # required fields, but this endpoint used to drop them silently —
+            # so every captured inspection was saved with blank travel start/end
+            # even though the inspector entered them. Save them on the group.
+            from datetime import time as _time
+
+            def _parse_hhmm(v):
+                try:
+                    parts = str(v).split(':')
+                    return _time(int(parts[0]), int(parts[1]))
+                except Exception:
+                    return None
+
+            _travel_start = _parse_hhmm(data.get('travel_start_time')) if data.get('travel_start_time') else None
+            _travel_end = _parse_hhmm(data.get('travel_end_time')) if data.get('travel_end_time') else None
+
             # Create parent InspectionGroup
             parent_group = _Group.objects.create(
                 client=client,
@@ -3892,6 +3908,8 @@ def api_add_inspection(request):
                 comment=data.get('comment', ''),
                 km_traveled=float(data.get('km_traveled', 0) or 0),
                 hours=float(data.get('hours', 0) or 0),
+                travel_start_time=_travel_start,
+                travel_end_time=_travel_end,
                 is_manual=True,
             )
 
