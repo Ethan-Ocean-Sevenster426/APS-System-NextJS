@@ -1,4 +1,4 @@
-/* Weekly Inspectorate Performance Report — PDF builder.
+/* Weekly Inspector Management Report — PDF builder.
  *
  * One source of truth for the PDF design. Used in two places:
  *  - the Export PDF button on the weekly report page (browser)
@@ -13,6 +13,7 @@ export interface PerformanceRow {
   quarter_target: number;
   weekly_inspections: number;
   prev_inspections: number;
+  month_inspections?: number;
   cumulative_inspections: number;
   cumulative_approved: number;
   cumulative_pending: number;
@@ -21,6 +22,20 @@ export interface PerformanceRow {
   rank_change: number | null;
 }
 export interface TrendPoint { week: string; inspections?: number; rate?: number | null; }
+export interface MonthlyTrendRow {
+  month: string; label: string; inspections: number;
+  compliant: number; non_compliant: number; rate: number | null; partial: boolean;
+  prev_inspections?: number; prev_rate?: number | null; prev_label?: string;
+}
+export interface MonthlyFinancialsRow {
+  inspector_name: string; inspections: number; hours: number;
+  revenue: number; cost: number; profit: number; rev_per_hr: number;
+}
+export interface MonthlyFinancials {
+  rows: MonthlyFinancialsRow[];
+  month?: string; month_label?: string; partial?: boolean;
+  total_revenue: number; total_cost: number; total_profit: number;
+}
 export interface SampleRow { inspector_name: string; inspections: number; taken: number; no_sample: number; completed: number; waiting: number; overdue: number; outstanding: number; rank: number; }
 export interface OutstandingSample {
   inspector_name: string; client_name: string; commodity: string;
@@ -46,6 +61,11 @@ export interface CommodityInspectorRow {
 export interface CommodityComplianceRow {
   commodity: string; inspections: number; compliant: number; non_compliant: number;
   not_assessed: number; rate: number | null; inspectors?: CommodityInspectorRow[];
+}
+export interface KpiCommodityRow {
+  inspector_name: string;
+  commodities: { commodity: string; target: number; done: number; pct: number | null }[];
+  total_target: number; total_done: number; total_pct: number | null;
 }
 export interface TravelRow {
   inspector_name: string; km: number; hours: number; inspections: number;
@@ -83,6 +103,12 @@ export interface ReportResponse {
     invoices_uploaded: { count: number; prev: number };
     coas_uploaded: { count: number; prev: number };
     approvals_done?: { count: number; prev: number };
+    lab_results?: { cur: { needed: number; back: number }; prev: { needed: number; back: number } };
+    invoice_completion?: {
+      cur: { needed: number; done: number; todo?: { client: string; date: string | null; age: number | null }[] };
+      prev: { needed: number; done: number; todo?: { client: string; date: string | null; age: number | null }[] };
+    };
+    samples_at_lab?: number;
     invoice_time: { avg: number | null; prev_avg: number | null; count: number };
     top_senders: { name: string; count: number; prev: number }[];
   };
@@ -92,6 +118,7 @@ export interface ReportResponse {
     needs_coa: number; complete: number; outstanding_total: number; total: number;
   };
   performance: PerformanceRow[];
+  kpi_commodity?: KpiCommodityRow[];
   inspection_trend: TrendPoint[];
   samples: SampleRow[];
   sample_status: { completed: number; waiting: number; overdue: number };
@@ -102,6 +129,20 @@ export interface ReportResponse {
   compliance: ComplianceRow[];
   commodity_compliance?: CommodityComplianceRow[];
   compliance_trend: TrendPoint[];
+  monthly_trend?: MonthlyTrendRow[];
+  admin_monthly?: { month: string; label: string; invoices: number; sent: number; partial: boolean;
+    prev_invoices?: number; prev_sent?: number; prev_label?: string }[];
+  admin_people?: { name: string; invoices: number; sent: number; avg_days: number | null; days_count: number }[];
+  commodity_week?: { commodity: string; count: number; prev: number }[];
+  billing_backlog?: {
+    total: number;
+    buckets: { d0_7: number; d8_30: number; d31_60: number; d60_plus: number };
+    top_clients: { client: string; jobs: number; oldest: number }[];
+    oldest_days: number;
+  };
+  roster?: string[];
+  monthly_financials?: MonthlyFinancials;
+  monthly_financials_series?: MonthlyFinancials[];
   travel: TravelRow[];
   error?: string;
 }
@@ -378,7 +419,7 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(14);
   doc.setTextColor(...TEAL);
-  doc.text("Weekly Inspectorate Performance Report", W / 2, logoBottom + 11, { align: "center" });
+  doc.text("Weekly Inspector Management Report", W / 2, logoBottom + 11, { align: "center" });
   // Decorative teal bar
   doc.setFillColor(...TEAL);
   doc.rect(W / 2 - 30, logoBottom + 16.5, 60, 1.2, "F");
@@ -406,9 +447,6 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
     "3. Approval versus Capturing",
     "4. Weekly Compliance",
     "5. Travel Activity",
-    "6. Administration & Throughput",
-    "7. How Much Was Done Each Week",
-    "8. What's Still Outstanding",
   ].forEach((s, i) => {
     doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" });
   });
@@ -462,8 +500,18 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   const winners: { label: string; name: string; value: string }[] = [];
   const topPerf = data.performance[0];
   if (topPerf && topPerf.weekly_inspections > 0) winners.push({ label: "Most Inspections", name: topPerf.inspector_name, value: `${topPerf.weekly_inspections} inspections` });
-  const topAppr = [...data.approvals].sort((a, b) => b.approved - a.approved)[0];
-  if (topAppr && topAppr.approved > 0) winners.push({ label: "Most Approved", name: topAppr.inspector_name, value: `${topAppr.approved} approved` });
+  // Fastest to approve = highest share of their own inspections already
+  // approved (approved ÷ total), so someone who cleared their whole queue wins
+  // over someone who merely approved a big raw count. Volume breaks ties.
+  const topAppr = [...data.approvals]
+    .filter(a => a.total_records > 0 && a.approved > 0)
+    .sort((a, b) =>
+      (b.approved / b.total_records) - (a.approved / a.total_records)
+      || b.approved - a.approved)[0];
+  if (topAppr) {
+    const pct = Math.round(topAppr.approved * 100 / topAppr.total_records);
+    winners.push({ label: "Fastest to Approve", name: topAppr.inspector_name, value: `${pct}% approved (${topAppr.approved} of ${topAppr.total_records})` });
+  }
   const topComp = [...data.compliance].filter(c => c.compliant + c.non_compliant > 0).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0) || (b.inspections ?? 0) - (a.inspections ?? 0))[0];
   if (topComp) winners.push({ label: "Best Compliance", name: topComp.inspector_name, value: `${topComp.rate}% of ${topComp.compliant + topComp.non_compliant} assessed` });
   if (winners.length > 0) {
@@ -987,227 +1035,12 @@ export async function buildWeeklyReportPdf(data: ReportResponse, logo: string | 
   });
   y = (doc as any).lastAutoTable.finalY + 8;
 
-  /* ══ 6. ADMINISTRATION & THROUGHPUT — what the office actually got through
-     this period vs the previous one: reports sent, invoices and COAs uploaded,
-     who sent the most, and the average capture->invoice-upload time. Counted by
-     when each action happened. Timing only; no invoice amounts. ══ */
-  const tp = data.throughput;
-  if (tp) {
-    sectionPage();
-    header("6. Administration & Throughput");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...DARK);
-    const _fmtDM = (dt: Date) => `${dt.getDate()} ${dt.toLocaleDateString("en-GB", { month: "short" })}`;
-    const _ws = new Date(data.week_start + "T12:00:00");
-    const _we = new Date(data.week_end + "T12:00:00");
-    const _pe = new Date(_ws.getTime() - 86400000);           // day before last week
-    const _ps = new Date(_ws.getTime() - 7 * 86400000);       // start of the week before
-    const lastWkRange = `${_fmtDM(_ws)}–${_fmtDM(_we)}`;
-    const weekBeforeRange = `${_fmtDM(_ps)}–${_fmtDM(_pe)}`;
-    doc.text(
-      `How much the office got done last week (Mon ${lastWkRange}), next to the week before (Mon ${weekBeforeRange}). "Change" is the difference between the two weeks. Corporate-store jobs are not counted (they are handled centrally).`,
-      ML, y, { maxWidth: CW });
-    y += 12;
-    const nz = (v: unknown) => Number(v) || 0; // guard against missing fields → never "NaN"
-    const mvCount = (n: number) => n === 0 ? "no change" : n > 0 ? `${n} more` : `${n} fewer`;
-    autoTable(doc, {
-      startY: y,
-      head: [["Measure", `Last Week\n(${lastWkRange})`, `Week Before\n(${weekBeforeRange})`, "Change vs the Week Before"]],
-      body: [
-        ["Inspection documents sent to clients", String(nz(tp.sent.count)), String(nz(tp.sent.prev)), mvCount(nz(tp.sent.count) - nz(tp.sent.prev))],
-        ["Invoices uploaded", String(nz(tp.invoices_uploaded.count)), String(nz(tp.invoices_uploaded.prev)), mvCount(nz(tp.invoices_uploaded.count) - nz(tp.invoices_uploaded.prev))],
-        ["COAs uploaded", String(nz(tp.coas_uploaded.count)), String(nz(tp.coas_uploaded.prev)), mvCount(nz(tp.coas_uploaded.count) - nz(tp.coas_uploaded.prev))],
-      ],
-      foot: [(() => {
-        const tc = nz(tp.sent.count) + nz(tp.invoices_uploaded.count) + nz(tp.coas_uploaded.count);
-        const tpv = nz(tp.sent.prev) + nz(tp.invoices_uploaded.prev) + nz(tp.coas_uploaded.prev);
-        return ["Total items processed", String(tc), String(tpv), mvCount(tc - tpv)];
-      })()],
-      theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
-      margin: { left: ML, right: MR },
-      didParseCell: (d: any) => {
-        if (d.section === "foot") { d.cell.styles.textColor = [255, 255, 255]; return; }
-        if (d.section === "body" && d.column.index === 3) {
-          const t = String(d.cell.raw || "");
-          if (t.includes("more")) d.cell.styles.textColor = GREEN;
-          else if (t.includes("fewer")) d.cell.styles.textColor = RED;
-          d.cell.styles.fontStyle = "bold";
-        }
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-
-    if (tp.top_senders && tp.top_senders.length > 0) {
-      needPage(16 + tp.top_senders.length * 6);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(...DARK);
-      doc.text("Documents sent to clients, by person (last week vs the week before)", ML, y);
-      y += 1;
-      autoTable(doc, {
-        startY: y + 1,
-        head: [["Rank", "Sent by", `Last Week\n(${lastWkRange})`, `Week Before\n(${weekBeforeRange})`, "Change vs the Week Before"]],
-        body: tp.top_senders.map((s, i) => {
-          const cur = nz(s.count), prev = nz(s.prev);
-          const diff = cur - prev;
-          const chg = diff === 0 ? "no change" : diff > 0 ? `${diff} more` : `${diff} fewer`;
-          return [String(i + 1), s.name, String(cur), String(prev), chg];
-        }),
-        foot: [(() => {
-          const tc = tp.top_senders.reduce((a, s) => a + nz(s.count), 0);
-          const tpv = tp.top_senders.reduce((a, s) => a + nz(s.prev), 0);
-          const d = tc - tpv;
-          return ["", "Total sent", String(tc), String(tpv), d === 0 ? "no change" : d > 0 ? `${d} more` : `${d} fewer`];
-        })()],
-        theme: "grid",
-        styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
-        headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        columnStyles: { 0: { halign: "center", cellWidth: 16 }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
-        margin: { left: ML, right: MR },
-        didParseCell: (d: any) => {
-          if (d.section === "foot") { d.cell.styles.textColor = [255, 255, 255]; return; }
-          if (d.section === "body" && d.column.index === 0) {
-            d.cell.styles.fontStyle = "bold"; d.cell.styles.textColor = TEAL;
-          }
-          if (d.section === "body" && d.column.index === 4) {
-            const t = String(d.cell.raw || "");
-            if (t.includes("more")) d.cell.styles.textColor = GREEN;
-            else if (t.includes("fewer")) d.cell.styles.textColor = RED;
-            d.cell.styles.fontStyle = "bold";
-          }
-        },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-    }
-  }
-
-  /* ══ 7. HOW MUCH WAS DONE — the actual number of each step completed last week
-     vs the week before, with a trading-style up/down change. ══ */
-  const tp7 = data.throughput;
-  if (tp7) {
-    sectionPage();
-    header("7. How Much Was Done Each Week");
-    const n = (v: unknown) => Number(v) || 0;
-    const chg = (cur: number, prev: number) => {
-      const d = cur - prev;
-      if (d === 0) return "no change";
-      const amt = `${d > 0 ? "+" : ""}${d}`;
-      const pct = prev > 0 ? `${d > 0 ? "+" : ""}${Math.round(d * 100 / prev)}%` : "n/a";
-      return `Amount: ${amt}\nPercentage: ${pct}`;
-    };
-    const step7 = [
-      { label: "Documents sent to clients", cur: n(tp7.sent?.count), prev: n(tp7.sent?.prev) },
-      { label: "Inspections approved", cur: n(tp7.approvals_done?.count), prev: n(tp7.approvals_done?.prev) },
-      { label: "COAs received (lab results)", cur: n(tp7.coas_uploaded?.count), prev: n(tp7.coas_uploaded?.prev) },
-    ];
-    const fmtDM7 = (dt: Date) => `${dt.getDate()} ${dt.toLocaleDateString("en-GB", { month: "short" })}`;
-    const ws7 = new Date(data.week_start + "T12:00:00");
-    const we7 = new Date(data.week_end + "T12:00:00");
-    const lastRange7 = `${fmtDM7(ws7)}–${fmtDM7(we7)}`;
-    const beforeRange7 = `${fmtDM7(new Date(ws7.getTime() - 7 * 86400000))}–${fmtDM7(new Date(ws7.getTime() - 86400000))}`;
-    const totLast7 = step7.reduce((a, s) => a + s.cur, 0);
-    const totPrev7 = step7.reduce((a, s) => a + s.prev, 0);
-    autoTable(doc, {
-      startY: y,
-      head: [["Step", `Last Week\n(${lastRange7})`, `Week Before\n(${beforeRange7})`, "Change vs the week before"]],
-      body: step7.map(s => [s.label, String(s.cur), String(s.prev), chg(s.cur, s.prev)]),
-      foot: [["Total steps completed", String(totLast7), String(totPrev7), ""]],
-      theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 2.2, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, halign: "center" },
-      footStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: {
-        0: { fontStyle: "bold", textColor: DARK },
-        1: { halign: "right", fontStyle: "bold", textColor: TEAL },
-        2: { halign: "right", textColor: GRAY },
-        3: { halign: "right", cellPadding: { top: 2.2, bottom: 2.2, left: 10, right: 2.2 } },
-      },
-      margin: { left: ML, right: MR },
-      didParseCell: (d: any) => {
-        if (d.section === "head" && d.column.index !== 0) d.cell.styles.halign = "center";
-        if (d.section === "foot") {
-          d.cell.styles.textColor = [255, 255, 255];
-          if (d.column.index !== 0) d.cell.styles.halign = "right";
-          return;
-        }
-        if (d.section === "body" && d.column.index === 3) {
-          const t = String(d.cell.raw || "");
-          d.cell.styles.fontStyle = "bold";
-          if (t.includes("Amount: +")) { d.cell.styles.fillColor = [220, 252, 231]; d.cell.styles.textColor = GREEN; }
-          else if (t.includes("Amount: -")) { d.cell.styles.fillColor = [254, 226, 226]; d.cell.styles.textColor = RED; }
-          else d.cell.styles.textColor = GRAY;
-        }
-      },
-      // Trading-style arrow drawn to the left of the change value (body + total row).
-      didDrawCell: (d: any) => {
-        if ((d.section !== "body" && d.section !== "foot") || d.column.index !== 3) return;
-        const t = String(d.cell.raw || "");
-        if (!t.includes("Amount: +") && !t.includes("Amount: -")) return;
-        const up = t.includes("Amount: +");
-        const cx = d.cell.x + 5.5;
-        const cy = d.cell.y + d.cell.height / 2;
-        const s = 1.7;
-        if (up) { doc.setFillColor(...GREEN); doc.triangle(cx - s, cy + s, cx + s, cy + s, cx, cy - s, "F"); }
-        else { doc.setFillColor(...RED); doc.triangle(cx - s, cy - s, cx + s, cy - s, cx, cy + s, "F"); }
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-  }
-
-  /* ══ 8. WHAT'S STILL OUTSTANDING — the whole current backlog (not just this
-     week), by the stage each job is stuck at, so managers can see what remains
-     before the process is complete and who owns it. ══ */
-  const ob = data.outstanding_backlog;
-  if (ob) {
-    sectionPage();
-    header("8. What's Still Outstanding");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...DARK);
-    doc.text(
-      `Every unfinished job across all work (not just last week), counted once per site visit — ${ob.outstanding_total} outstanding, ${ob.complete} complete, of ${ob.total} total. Office steps run in order; "Waiting for COA" is the lab's separate queue. Occurrence reports and corporate-store jobs are excluded, and only PMP/RAW jobs need an invoice.`,
-      ML, y, { maxWidth: CW });
-    y += 11;
-    autoTable(doc, {
-      startY: y,
-      head: [["Stage", "Still Outstanding", "Responsible", "Queue"]],
-      body: [
-        ["Needs approval", String(ob.needs_approval), "Inspector", "Office"],
-        ["Not sent to client", String(ob.not_sent), "Office", "Office"],
-        ["Needs invoice", String(ob.needs_invoice), "Finance", "Office"],
-        ["Waiting for COA", String(ob.needs_coa), "Lab technician", "Lab / delivery"],
-      ],
-      theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
-      headStyles: { fillColor: TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 1: { halign: "right" } },
-      margin: { left: ML, right: MR },
-      didParseCell: (d: any) => {
-        if (d.section === "body" && d.column.index === 1) {
-          d.cell.styles.fontStyle = "bold";
-          d.cell.styles.textColor = Number(d.cell.raw) > 0 ? RED : GREEN;
-        }
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-  }
-
   /* ── Footer on every page ── */
   const pages = doc.getNumberOfPages();
   for (let i = 2; i <= pages; i++) { // cover page stays clean
     doc.setPage(i);
     doc.setTextColor(...GRAY); doc.setFontSize(7);
-    doc.text(`Food Safety Agency — Weekly Inspectorate Performance Report · ${periodLabel}`, ML, 292);
+    doc.text(`Food Safety Agency — Weekly Inspector Management Report · ${periodLabel}`, ML, 292);
     doc.text(`Page ${i - 1} of ${pages - 1}`, W - MR, 292, { align: "right" });
   }
 
@@ -1548,6 +1381,1260 @@ export async function buildInspectorReportPdf(data: ReportResponse, inspectorNam
     doc.setPage(i);
     doc.setTextColor(...GRAY); doc.setFontSize(7);
     doc.text(`Food Safety Agency — Weekly Performance Report · ${inspectorName} · ${periodLabel}`, ML, 292);
+    doc.text(`Page ${i - 1} of ${pages - 1}`, W - MR, 292, { align: "right" });
+  }
+
+  return doc;
+}
+
+/* ── Manager Report — operations-focused, NO per-inspector ranking tables and
+   NO financial data. A short "how is the operation running and what needs my
+   attention" document for managers, built from the same report payload.
+   First draft — expect to iterate on wording/sections. ───────────────────── */
+export async function buildManagerReportPdf(data: ReportResponse, logo: string | null): Promise<any> {
+  const jsPDFModule: any = await import("jspdf");
+  const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
+  const autoTableModule: any = await import("jspdf-autotable");
+  const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297, ML = 14, MR = 14, CW = W - ML - MR;
+  const TEAL: [number, number, number] = [0, 120, 144];
+  const DARK: [number, number, number] = [17, 24, 39];
+  const GRAY: [number, number, number] = [107, 114, 128];
+  const GRAY_LIGHT: [number, number, number] = [156, 163, 175];
+  const GREEN: [number, number, number] = [21, 128, 61];
+  const RED: [number, number, number] = [220, 38, 38];
+  const AMBER: [number, number, number] = [217, 119, 6];
+  const BLUE: [number, number, number] = [37, 99, 235];
+  const WHITE: [number, number, number] = [255, 255, 255];
+  const HAIR: [number, number, number] = [243, 244, 246];
+
+  const t = data.totals;
+  const ob = data.outstanding_backlog;
+  const ss = data.sample_status;
+  const periodLabel = data.is_single_week
+    ? `Monday ${fmtDate(data.week_start)} — Sunday ${fmtDate(data.week_end)}`
+    : `${fmtDate(data.week_start)} — ${fmtDate(data.week_end)}`;
+  const mv = (n: number | null, suffix = "") =>
+    n === null || n === undefined ? "new" : n === 0 ? "no change" : `${n > 0 ? "+" : ""}${n}${suffix}`;
+
+  let y = 0;
+  const header = (title: string) => {
+    if (y > 250) { doc.addPage(); y = 16; }
+    doc.setFillColor(...TEAL);
+    doc.rect(ML, y, CW, 9, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text(title, ML + 3, y + 6);
+    doc.setFont("helvetica", "normal");
+    y += 13;
+  };
+  const intro = (txt: string) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...DARK);
+    const lines = doc.splitTextToSize(txt, CW);
+    doc.text(lines, ML, y);
+    y += lines.length * 4 + 3;
+  };
+  const needPage = (space: number) => { if (y + space > 283) { doc.addPage(); y = 16; } };
+
+  /* ══ PAGE 1: COVER ══ */
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, W, H, "F");
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.8);
+  doc.line(ML, 42, W - MR, 42);
+  doc.line(ML, H - 62, W - MR, H - 62);
+  if (logo) { try { doc.addImage(logo, "PNG", W / 2 - 18, 58, 36, 32); } catch { /* skip */ } }
+  const logoBottom = logo ? 102 : 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...WHITE);
+  doc.text("FOOD SAFETY AGENCY (PTY) LTD", W / 2, logoBottom, { align: "center" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(14); doc.setTextColor(...TEAL);
+  doc.text("Weekly Manager Report", W / 2, logoBottom + 11, { align: "center" });
+  doc.setFillColor(...TEAL);
+  doc.rect(W / 2 - 30, logoBottom + 16.5, 60, 1.2, "F");
+  doc.setFontSize(11); doc.setTextColor(...GRAY_LIGHT);
+  doc.text(`Reporting period: ${periodLabel}`, W / 2, logoBottom + 27, { align: "center" });
+  doc.setFontSize(10);
+  doc.text(data.quarter, W / 2, logoBottom + 34, { align: "center" });
+  doc.setFontSize(9); doc.setTextColor(...GRAY);
+  doc.text("A manager's view of the team — who's doing well and where the delays are.", W / 2, logoBottom + 43, { align: "center" });
+  doc.setFontSize(9); doc.setTextColor(...TEAL);
+  doc.text("IN THIS REPORT", W / 2, logoBottom + 58, { align: "center" });
+  doc.setFontSize(9.5); doc.setTextColor(...GRAY_LIGHT);
+  [
+    "The Week at a Glance",
+    "Standing Out",
+    "Falling Behind",
+    "1. Where the Delays Are",
+    "2. Team Progress",
+    "3. KPIs — Target Progress",
+    "4. Sample Pipeline",
+    "5. Office & Admin",
+    "6. Month by Month",
+    "7. Profit by Month",
+  ].forEach((s, i) => doc.text(s, W / 2, logoBottom + 66 + i * 7, { align: "center" }));
+  doc.setFontSize(8);
+  doc.text("CONFIDENTIAL — For authorized personnel only", W / 2, H - 42, { align: "center" });
+
+  /* ══ PAGE 2: THE WEEK AT A GLANCE — KPI cards ══ */
+  doc.addPage();
+  const drawKpiCard = (x: number, cy: number, w: number, h: number, label: string, value: string, color: [number, number, number]) => {
+    doc.setFillColor(246, 248, 250);
+    doc.roundedRect(x, cy, w, h, 2, 2, "F");
+    doc.setFillColor(...color);
+    doc.rect(x, cy, w, 2.5, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(...color);
+    doc.text(value, x + w / 2, cy + h / 2, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRAY);
+    doc.text(doc.splitTextToSize(label.toUpperCase(), w - 6), x + w / 2, cy + h / 2 + 9, { align: "center" });
+  };
+  y = 24;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...DARK);
+  doc.text("The Week at a Glance", ML, y);
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.7);
+  doc.line(ML, y + 2.5, ML + 62, y + 2.5);
+  y += 12;
+  const compColor: [number, number, number] = t.overall_compliance !== null && t.overall_compliance >= 70 ? GREEN : AMBER;
+  const cardH = 38, gap = 5;
+  const w3 = (CW - 2 * gap) / 3;
+  drawKpiCard(ML, y, w3, cardH, `Inspections (${mv(t.inspections - t.prev_inspections)} vs previous)`, String(t.inspections), TEAL);
+  drawKpiCard(ML + w3 + gap, y, w3, cardH, "Active inspectors", String(t.active_inspectors), BLUE);
+  drawKpiCard(ML + 2 * (w3 + gap), y, w3, cardH, "Samples taken", String(t.samples), AMBER);
+  y += cardH + gap;
+  // Second row: compliance, backlog, and (if present) profit this month.
+  const fin0 = data.monthly_financials;
+  const randShort = (n: number) => {
+    const neg = n < 0; const a = Math.abs(n);
+    const s = a >= 1000 ? `R${Math.round(a / 1000)}k` : `R${Math.round(a)}`;
+    return neg ? `-${s}` : s;
+  };
+  if (fin0) {
+    drawKpiCard(ML, y, w3, cardH,
+      `Overall compliance (${t.overall_compliance !== null && t.prev_overall_compliance !== null ? mv(Math.round((t.overall_compliance - t.prev_overall_compliance) * 10) / 10, "pt") : "n/a"} vs previous)`,
+      t.overall_compliance === null ? "-" : `${t.overall_compliance}%`, compColor);
+    drawKpiCard(ML + w3 + gap, y, w3, cardH, `Backlog outstanding (of ${ob ? ob.total : "-"} total)`, ob ? String(ob.outstanding_total) : "-", ob && ob.outstanding_total > 0 ? RED : GREEN);
+    drawKpiCard(ML + 2 * (w3 + gap), y, w3, cardH, "Team profit this month", randShort(fin0.total_profit), fin0.total_profit >= 0 ? GREEN : RED);
+  } else {
+    const w2 = (CW - gap) / 2;
+    drawKpiCard(ML, y, w2, cardH,
+      `Overall compliance (${t.overall_compliance !== null && t.prev_overall_compliance !== null ? mv(Math.round((t.overall_compliance - t.prev_overall_compliance) * 10) / 10, "pt") : "n/a"} vs previous)`,
+      t.overall_compliance === null ? "-" : `${t.overall_compliance}%`, compColor);
+    drawKpiCard(ML + w2 + gap, y, w2, cardH, `Backlog outstanding (of ${ob ? ob.total : "-"} total)`, ob ? String(ob.outstanding_total) : "-", ob && ob.outstanding_total > 0 ? RED : GREEN);
+  }
+  y += cardH + 14;
+
+  /* ══ STANDING OUT + FALLING BEHIND — a plain-language read on who's doing
+     well and who's slipping, so a manager gets the picture without reading the
+     full ranking tables. Built from the same performance/approval/compliance
+     data as the inspector report, just summarised. ══ */
+  const perf = [...data.performance];
+  const apprByName: Record<string, ApprovalRow> = {};
+  data.approvals.forEach(a => { apprByName[a.inspector_name] = a; });
+  const compByName: Record<string, ComplianceRow> = {};
+  data.compliance.forEach(c => { compByName[c.inspector_name] = c; });
+
+  // Standing out: who is doing the inspections. Volume leads; keeping your own
+  // work clean (approved + assessed) and compliance break ties.
+  const standouts = perf
+    .filter(p => p.weekly_inspections > 0)
+    .map(p => {
+      const a = apprByName[p.inspector_name];
+      const c = compByName[p.inspector_name];
+      const approvedShare = a && a.total_records > 0 ? a.approved / a.total_records : 0;
+      const assessedShare = c && c.inspections > 0 ? (c.inspections - c.not_assessed) / c.inspections : 0;
+      return { p, a, c, approvedShare, assessedShare };
+    })
+    .sort((x, y2) =>
+      y2.p.weekly_inspections - x.p.weekly_inspections
+      || (y2.approvedShare + y2.assessedShare) - (x.approvedShare + x.assessedShare)
+      || (y2.c?.rate ?? 0) - (x.c?.rate ?? 0))
+    .slice(0, 3);
+
+  // Falling behind: biggest hold-ups on their own work (unapproved + unassessed).
+  const laggards = perf
+    .filter(p => p.weekly_inspections > 0)
+    .map(p => {
+      const a = apprByName[p.inspector_name];
+      const c = compByName[p.inspector_name];
+      const pending = a ? a.pending : 0;
+      const noOutcome = c ? c.not_assessed : 0;
+      return { p, a, c, pending, noOutcome, drag: pending + noOutcome };
+    })
+    .filter(r => r.drag > 0)
+    .sort((x, y2) => y2.drag - x.drag || y2.p.weekly_inspections - x.p.weekly_inspections)
+    .slice(0, 3);
+
+  const highlightBlock = (title: string, accent: [number, number, number], lines: string[]) => {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...DARK);
+    doc.text(title, ML, y);
+    doc.setDrawColor(...accent); doc.setLineWidth(0.7);
+    doc.line(ML, y + 2.5, ML + doc.getTextWidth(title) + 6, y + 2.5);
+    y += 8;
+    if (lines.length === 0) {
+      doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(...GRAY);
+      doc.text("Nothing to show this week.", ML + 5, y + 1);
+      doc.setFont("helvetica", "normal");
+      y += 8;
+      return;
+    }
+    lines.forEach(txt => {
+      const wrapped = doc.splitTextToSize(txt, CW - 6);
+      needPage(wrapped.length * 4 + 5);
+      doc.setFillColor(...accent);
+      doc.rect(ML, y - 2.6, 2, wrapped.length * 4 + 1.5, "F");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...DARK);
+      doc.text(wrapped, ML + 5, y + 1);
+      y += wrapped.length * 4 + 4;
+    });
+    y += 4;
+  };
+
+  const standoutLines = standouts.map(s => {
+    const rateTxt = s.c && s.c.rate !== null ? `, ${s.c.rate}% compliant` : "";
+    const cleanBits: string[] = [];
+    if (s.approvedShare >= 1) cleanBits.push("all approved");
+    if (s.assessedShare >= 1) cleanBits.push("all outcomes recorded");
+    const clean = cleanBits.length ? ` — ${cleanBits.join(", ")}` : "";
+    return `${s.p.inspector_name}: ${s.p.weekly_inspections} inspection${s.p.weekly_inspections === 1 ? "" : "s"}${rateTxt}${clean}.`;
+  });
+  // Money highlights (this month so far) — top earner + most profitable.
+  const finS = data.monthly_financials;
+  if (finS && finS.rows.length) {
+    const randS = (n: number) => `R${Math.round(n).toLocaleString("en-ZA").replace(/,/g, " ")}`;
+    const topRev = [...finS.rows].sort((a, b) => b.revenue - a.revenue)[0];
+    const topProfit = [...finS.rows].sort((a, b) => b.profit - a.profit)[0];
+    if (topRev && topRev.revenue > 0) standoutLines.push(`Most revenue this month: ${topRev.inspector_name} — ${randS(topRev.revenue)} billed.`);
+    if (topProfit && topProfit.profit > 0) standoutLines.push(`Most profitable this month: ${topProfit.inspector_name} — ${randS(topProfit.profit)} profit.`);
+  }
+  highlightBlock("Standing Out", GREEN, standoutLines);
+
+  highlightBlock("Falling Behind", RED, laggards.map(l => {
+    const bits: string[] = [];
+    if (l.pending > 0) bits.push(`${l.pending} still not approved`);
+    if (l.noOutcome > 0) bits.push(`${l.noOutcome} with no outcome recorded`);
+    return `${l.p.inspector_name}: ${l.p.weekly_inspections} inspection${l.p.weekly_inspections === 1 ? "" : "s"}, but ${bits.join(" and ")}.`;
+  }));
+
+  /* ══ 1. WHERE THE DELAYS ARE — one proper table: a row per inspector, a
+     column per hold-up, so a manager sees the whole overview of what's stuck
+     (e.g. everything not yet approved) and who owns it, at a glance. ══ */
+  // The whole table is ~13 rows; keep it together on one page (don't let it
+  // split and leave a half-empty page before Team Progress). Start fresh if it
+  // wouldn't fully fit below the winners.
+  if (y > 150) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+  header("1. Where the Delays Are");
+
+  const overdueByName = (n: string) => { const s = data.samples.find(x => x.inspector_name === n); return s ? s.overdue : 0; };
+  const delayRowsAll = perf.map(p => {
+    const wait = apprByName[p.inspector_name] ? apprByName[p.inspector_name].pending : 0;
+    const overdue = overdueByName(p.inspector_name);
+    const noRes = compByName[p.inspector_name] ? compByName[p.inspector_name].not_assessed : 0;
+    return { name: p.inspector_name, wait, overdue, noRes, total: wait + overdue + noRes };
+  })
+    .filter(r => r.total > 0)
+    .sort((a, b) => b.total - a.total || b.wait - a.wait);
+
+  const tWait = delayRowsAll.reduce((s, r) => s + r.wait, 0);
+  const tOverdue = delayRowsAll.reduce((s, r) => s + r.overdue, 0);
+  const tNoRes = delayRowsAll.reduce((s, r) => s + r.noRes, 0);
+  const tAll = tWait + tOverdue + tNoRes;
+
+  autoTable(doc, {
+    startY: y,
+    head: [[
+      "Inspector",
+      "Waiting for\napproval",
+      `Samples overdue\n(over ${data.sample_overdue_days} days)`,
+      "No result\nrecorded yet",
+      "Total\nstuck",
+    ]],
+    body: delayRowsAll.map(r => [
+      r.name,
+      String(r.wait),
+      String(r.overdue),
+      String(r.noRes),
+      String(r.total),
+    ]),
+    foot: [["Whole team", String(tWait), String(tOverdue), String(tNoRes), String(tAll)]],
+    theme: "grid",
+    rowPageBreak: "avoid",
+    styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", halign: "center", lineColor: [226, 232, 240], textColor: DARK },
+    headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 7.8, halign: "center", valign: "middle" },
+    footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 46, halign: "left", fontStyle: "bold" },
+      1: { cellWidth: 34 }, 2: { cellWidth: 42 }, 3: { cellWidth: 34 },
+      4: { cellWidth: 26, fontStyle: "bold" },
+    },
+    margin: { left: ML, right: MR },
+    didParseCell: (d: any) => {
+      if (d.section === "body") {
+        // red the actual counts so a manager's eye lands on the problems; a 0 is
+        // greyed so "nothing stuck" doesn't shout for attention.
+        if (d.column.index >= 1 && d.column.index <= 3) {
+          if (Number(d.cell.raw) === 0) d.cell.styles.textColor = GRAY;
+          else { d.cell.styles.textColor = RED; d.cell.styles.fontStyle = "bold"; }
+        }
+      }
+    },
+  });
+  y = (doc as any).lastAutoTable.finalY + 6;
+  doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+  doc.text('All from last week\'s inspections. Each number is how many of that inspector\'s inspections are stuck at that step; 0 means nothing stuck there.', ML, y, { maxWidth: CW });
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...DARK);
+  y += 9;
+
+  /* ══ 2. TEAM PROGRESS — one table, one header. Per inspector: how many
+     inspections last week / this week / this month, split into normal vs
+     occurrence reports, and how many are approved vs still waiting. ══ */
+  if (perf.length) {
+    // Keep the whole roster (incl. zero-week inspectors) together: it needs
+    // roughly the lower two-thirds of a page, so only push to a fresh page when
+    // there isn't room for it here — otherwise flow on and avoid a blank gap.
+    if (y > 120) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+    header("2. Team Progress");
+
+    const occByName: Record<string, number> = {};
+    data.occurrences.forEach(o => { occByName[o.inspector_name] = o.count; });
+
+    // Include EVERY inspector on the roster, even those who did zero work last
+    // week — a blank week is exactly what a manager needs to see, not hide.
+    // Anyone in the roster with no performance row is added with all-zero stats.
+    const perfByName: Record<string, PerformanceRow> = {};
+    perf.forEach(p => { perfByName[p.inspector_name.trim().toLowerCase()] = p; });
+    const zeroRow = (name: string): PerformanceRow => ({
+      inspector_name: name, quarter_target: 0, weekly_inspections: 0, prev_inspections: 0,
+      month_inspections: 0, cumulative_inspections: 0, cumulative_approved: 0,
+      cumulative_pending: 0, target_pct: null, rank: 999, rank_change: null,
+    });
+    const allPerf: PerformanceRow[] = [...perf];
+    (data.roster ?? []).forEach(name => {
+      if (!perfByName[name.trim().toLowerCase()]) allPerf.push(zeroRow(name));
+    });
+
+    // Busiest first; the zero-week inspectors sink to the bottom, then by name.
+    const rowsP = allPerf.sort((a, b) =>
+      b.weekly_inspections - a.weekly_inspections
+      || a.inspector_name.localeCompare(b.inspector_name));
+    const body = rowsP.map(p => {
+      const a = apprByName[p.inspector_name];
+      const occ = occByName[p.inspector_name] || 0;
+      const normal = Math.max(p.weekly_inspections - occ, 0);
+      const approved = a ? a.approved : 0;
+      const waiting = a ? a.pending : 0;
+      return [
+        p.inspector_name,
+        String(p.prev_inspections),
+        String(p.weekly_inspections),
+        String(p.month_inspections ?? p.cumulative_inspections),
+        String(normal),
+        String(occ),
+        String(approved),
+        String(waiting),
+      ];
+    });
+    const sum = (f: (p: PerformanceRow) => number) => perf.reduce((s, p) => s + f(p), 0);
+    const teamOcc = perf.reduce((s, p) => s + (occByName[p.inspector_name] || 0), 0);
+    const teamNormal = perf.reduce((s, p) => s + Math.max(p.weekly_inspections - (occByName[p.inspector_name] || 0), 0), 0);
+    const teamApproved = perf.reduce((s, p) => s + (apprByName[p.inspector_name]?.approved || 0), 0);
+    const teamWaiting = perf.reduce((s, p) => s + (apprByName[p.inspector_name]?.pending || 0), 0);
+
+    autoTable(doc, {
+      startY: y,
+      // Two header rows: a grouping band, then fully-spelled-out column names —
+      // so every number says exactly what it counts (no cryptic "Last Week").
+      head: [
+        [
+          { content: "Inspector", rowSpan: 2, styles: { valign: "middle", halign: "left" } },
+          { content: "Inspections completed", colSpan: 3, styles: { halign: "center" } },
+          { content: "This week's inspections, split by type", colSpan: 2, styles: { halign: "center" } },
+          { content: "This week's approval status", colSpan: 2, styles: { halign: "center" } },
+        ],
+        [
+          "Last week", "This week", "This month",
+          "Routine\ninspections", "Occurrence\nreports",
+          "Approved", "Waiting for\napproval",
+        ],
+      ],
+      body,
+      foot: [[
+        "Whole team",
+        String(sum(p => p.prev_inspections)),
+        String(sum(p => p.weekly_inspections)),
+        String(sum(p => p.month_inspections ?? p.cumulative_inspections)),
+        String(teamNormal), String(teamOcc),
+        String(teamApproved), String(teamWaiting),
+      ]],
+      theme: "grid",
+      // Header shows once; if the roster spills to a second page the rows just
+      // continue with no repeated grouping band.
+      showHead: "firstPage",
+      styles: { fontSize: 8, cellPadding: 2.1, valign: "middle", halign: "center", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "center", valign: "middle", lineColor: [255, 255, 255], lineWidth: 0.3 },
+      footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 40, halign: "left", fontStyle: "bold" },
+        1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 },
+        4: { cellWidth: 22 }, 5: { cellWidth: 22 },
+        6: { cellWidth: 18 }, 7: { cellWidth: 22 },
+      },
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        // Tint the grouping band a touch darker so the two header rows read as
+        // a hierarchy, not one blurry block.
+        if (d.section === "head" && d.row.index === 0 && d.column.index > 0) {
+          d.cell.styles.fillColor = [0, 95, 114];
+        }
+        if (d.section === "body") {
+          if (d.column.index === 2) {
+            d.cell.styles.fontStyle = "bold"; // This week = headline
+            // Zero inspections this week is a flag, not a blank — show it in red.
+            if (Number(d.cell.raw) === 0) d.cell.styles.textColor = RED;
+          }
+          if (d.column.index === 6 && Number(d.cell.raw) > 0) { d.cell.styles.textColor = GREEN; d.cell.styles.fontStyle = "bold"; }
+          if (d.column.index === 7 && Number(d.cell.raw) > 0) { d.cell.styles.textColor = RED; d.cell.styles.fontStyle = "bold"; }
+          if (d.column.index === 5 && Number(d.cell.raw) > 0) { d.cell.styles.textColor = AMBER; d.cell.styles.fontStyle = "bold"; }
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+    doc.text('Busiest first. Routine + Occurrence = this week\'s inspections. Approved + Waiting = this week\'s inspections. "This month" is the calendar month up to the end of the reporting week.', ML, y, { maxWidth: CW });
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...DARK);
+    y += 9;
+  }
+
+  /* ══ 3. KPIs — TARGET PROGRESS PER COMMODITY — each inspector against their
+     manager-set quarterly targets, broken down by commodity. Target vs done
+     this quarter, with % achieved, plus a Total row per inspector. ══ */
+  const kpiC = data.kpi_commodity ?? [];
+  if (kpiC.length) {
+    if (y > 165) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+    header(`3. KPIs — Target Progress by Commodity (${data.quarter})`);
+    intro(`Each inspector against the quarterly targets set for them, per commodity. "Done" is inspections completed in ${data.quarter} so far; "% of target" is how far through that commodity's target they are. Green = on track (75%+), amber = behind (50–74%), red = well behind (under 50%).`);
+
+    // One wide table: a column per commodity, cell = "done/target". The % (used
+    // only for the green/amber/red colour) is looked up from the same data.
+    const COMMS = ["Poultry", "Raw meat", "PMP", "Eggs"];
+    const cellFor = (insp: KpiCommodityRow, name: string) => {
+      const c = insp.commodities.find(x => x.commodity === name);
+      if (!c || (c.target === 0 && c.done === 0)) return { text: "—", pct: null as number | null };
+      return { text: `${c.done}/${c.target}`, pct: c.pct };
+    };
+    autoTable(doc, {
+      startY: y,
+      head: [["Inspector", ...COMMS, "Total"]],
+      body: kpiC.map(insp => [
+        insp.inspector_name,
+        ...COMMS.map(cm => cellFor(insp, cm).text),
+        `${insp.total_done}/${insp.total_target}`,
+      ]),
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", halign: "center", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "center" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      columnStyles: {
+        0: { cellWidth: 44, halign: "left", fontStyle: "bold" },
+        1: { cellWidth: 27 }, 2: { cellWidth: 27 }, 3: { cellWidth: 27 }, 4: { cellWidth: 27 },
+        5: { cellWidth: 27, fontStyle: "bold" },
+      },
+      didParseCell: (d: any) => {
+        if (d.section !== "body") return;
+        const insp = kpiC[d.row.index];
+        if (!insp) return;
+        // Commodity columns 1..4 → colour by that commodity's %; Total col 5 → total %.
+        if (d.column.index >= 1 && d.column.index <= 4) {
+          const pct = cellFor(insp, COMMS[d.column.index - 1]).pct;
+          if (pct !== null) d.cell.styles.textColor = pct >= 75 ? GREEN : pct >= 50 ? AMBER : RED;
+          else d.cell.styles.textColor = GRAY;
+        } else if (d.column.index === 5 && insp.total_pct !== null) {
+          d.cell.styles.textColor = insp.total_pct >= 75 ? GREEN : insp.total_pct >= 50 ? AMBER : RED;
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+    doc.text('Each cell is "done / target" for the quarter. Green = 75%+ of target, amber = 50–74%, red = under 50%. "—" means no target for that commodity.', ML, y, { maxWidth: CW });
+    doc.setFont("helvetica", "normal"); y += 9;
+  }
+
+  /* ══ 4. SAMPLE PIPELINE — lab health at a glance: three status cards with a
+     shared share-bar underneath, so a manager instantly sees how many samples
+     are back, still at the lab, or overdue. ══ */
+  if (ss) {
+    if (y > 170) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+    header("4. Sample Pipeline");
+    const totalS = ss.completed + ss.waiting + ss.overdue;
+    const pct = (n: number) => totalS ? Math.round(n * 100 / totalS) : 0;
+    // A soft tint of each status colour for the card face
+    const tint = (c: [number, number, number]): [number, number, number] =>
+      [Math.round(c[0] + (255 - c[0]) * 0.92), Math.round(c[1] + (255 - c[1]) * 0.92), Math.round(c[2] + (255 - c[2]) * 0.92)];
+
+    const cardData: { label: string; value: number; color: [number, number, number] }[] = [
+      { label: "Result back", value: ss.completed, color: GREEN },
+      { label: "Still at the lab", value: ss.waiting, color: BLUE },
+      { label: `Overdue (over ${data.sample_overdue_days} days)`, value: ss.overdue, color: RED },
+    ];
+
+    // ── Three compact status cards: big number on the left, label under it,
+    //    share % on the right — all on one tight line. ──
+    const gapC = 6, cardW = (CW - 2 * gapC) / 3, cardH = 16;
+    cardData.forEach((c, i) => {
+      const x = ML + i * (cardW + gapC);
+      doc.setFillColor(...tint(c.color));
+      doc.roundedRect(x, y, cardW, cardH, 2, 2, "F");
+      doc.setDrawColor(...c.color); doc.setLineWidth(0.3);
+      doc.roundedRect(x, y, cardW, cardH, 2, 2, "S");
+      // Number
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...c.color);
+      doc.text(String(c.value), x + 6, y + 10.5);
+      // Label to the right of the number
+      const numW = doc.getTextWidth(String(c.value));
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(...DARK);
+      doc.text(doc.splitTextToSize(c.label, cardW - numW - 26), x + 6 + numW + 3, y + 9);
+      // Share %, right-aligned
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...c.color);
+      doc.text(`${pct(c.value)}%`, x + cardW - 5, y + 10.5, { align: "right" });
+    });
+    y += cardH + 8;
+
+    // ── Which jobs are waiting for a COA — the exact inspections, not just a
+    //    count. Overdue (oldest first) at the top so a manager can chase the
+    //    specific client/inspector/sample today. ──
+    const waitingJobs = (data.outstanding_samples ?? [])
+      .slice()
+      .sort((a, b) => (Number(b.overdue) - Number(a.overdue)) || (b.age_days - a.age_days)
+        || a.inspector_name.localeCompare(b.inspector_name));
+    if (waitingJobs.length) {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(...DARK);
+      doc.text("Which jobs are waiting for a COA", ML, y);
+      y += 2;
+      autoTable(doc, {
+        startY: y,
+        head: [["Inspector", "Client", "Commodity", "Sample taken", "Days waiting"]],
+        body: waitingJobs.map(s => [
+          s.inspector_name,
+          s.client_name,
+          s.commodity,
+          fmtDate(s.sample_date),
+          String(s.age_days),
+        ]),
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2.2, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+        headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8, halign: "left", valign: "middle" },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 38, fontStyle: "bold" },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 24, halign: "center" },
+          3: { cellWidth: 30, halign: "center" },
+          4: { cellWidth: 25, halign: "center", fontStyle: "bold" },
+        },
+        margin: { left: ML, right: MR },
+        didParseCell: (d: any) => {
+          // Highlight the wait in red when it's past the overdue window.
+          if (d.section === "body" && d.column.index === 4) {
+            const row = waitingJobs[d.row.index];
+            if (row && row.overdue) { d.cell.styles.textColor = RED; }
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+      doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+      doc.text(`Every job with a sample still at the lab and no result back. "Days waiting" in red is over ${data.sample_overdue_days} days — chase these first. Each needs its COA before the job can close.`, ML, y, { maxWidth: CW });
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...DARK);
+      y += 8;
+    }
+  }
+
+  /* ══ 4. OFFICE & ADMIN — what the back office got through this week vs the week
+     before: documents sent, invoices added, lab results (COAs) received; plus
+     how many samples are still out at the lab right now. ══ */
+  const tpA = data.throughput;
+  if (tpA) {
+    if (y > 210) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+    header("5. Office & Admin");
+    intro('What the back office got through — this week next to the week before. "Documents sent" and "Invoices added" are files handled this week. "Lab results back" shows, of the samples TAKEN that week (each one needs a result), how many are back — so the target changes with sample volume (some weeks only 10 are needed, some 50). "Jobs waiting for lab results" below is a live count of every job (site visit) with a sample still at the lab and no result back yet — the whole backlog to date, not just this week.');
+    const nzA = (v: unknown) => Number(v) || 0;
+    const moreFewerA = (n: number) => n === 0 ? "no change" : n > 0 ? `${n} more` : `${Math.abs(n)} fewer`;
+    // Lab results: "X of Y (%)" — of the samples TAKEN that week, how many are back.
+    const lr = tpA.lab_results;
+    const lrCell = (p?: { needed: number; back: number }) =>
+      p && p.needed > 0 ? `${p.back} of ${p.needed} (${Math.round(p.back * 100 / p.needed)}%)`
+        : p && p.needed === 0 ? "no samples" : "-";
+    const lrChange = (() => {
+      if (!lr || lr.cur.needed === 0 || lr.prev.needed === 0) return "";
+      const cp = Math.round(lr.cur.back * 100 / lr.cur.needed);
+      const pp = Math.round(lr.prev.back * 100 / lr.prev.needed);
+      const d = cp - pp;
+      return d === 0 ? "no change" : `${d > 0 ? "+" : ""}${d}pt`;
+    })();
+    autoTable(doc, {
+      startY: y,
+      head: [["What the office did", "This week", "Week before", "Change"]],
+      body: [
+        ["Documents sent to clients", String(nzA(tpA.sent.count)), String(nzA(tpA.sent.prev)), moreFewerA(nzA(tpA.sent.count) - nzA(tpA.sent.prev))],
+        ["Invoices added", String(nzA(tpA.invoices_uploaded.count)), String(nzA(tpA.invoices_uploaded.prev)), moreFewerA(nzA(tpA.invoices_uploaded.count) - nzA(tpA.invoices_uploaded.prev))],
+        ["Lab results back (of samples taken)", lrCell(lr?.cur), lrCell(lr?.prev), lrChange],
+      ],
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        if (d.section === "body" && d.column.index === 3) {
+          const s = String(d.cell.raw || "");
+          if (s.includes("more") || s.startsWith("+")) d.cell.styles.textColor = GREEN;
+          else if (s.includes("fewer") || s.startsWith("-")) d.cell.styles.textColor = RED;
+          else d.cell.styles.textColor = GRAY;
+          d.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Live "samples waiting at the lab" callout
+    if (tpA.samples_at_lab !== undefined) {
+      const n = tpA.samples_at_lab;
+      const tintA = (c: [number, number, number]): [number, number, number] =>
+        [Math.round(c[0] + (255 - c[0]) * 0.9), Math.round(c[1] + (255 - c[1]) * 0.9), Math.round(c[2] + (255 - c[2]) * 0.9)];
+      const stripH = 11;
+      doc.setFillColor(...tintA(n > 0 ? AMBER : GREEN)); doc.roundedRect(ML, y, CW, stripH, 2, 2, "F");
+      doc.setFillColor(...(n > 0 ? AMBER : GREEN)); doc.rect(ML, y, 2, stripH, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...(n > 0 ? AMBER : GREEN));
+      doc.text(String(n), ML + 6, y + 7.6);
+      const nW = doc.getTextWidth(String(n));
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...DARK);
+      doc.text("job" + (n === 1 ? "" : "s") + " still waiting for lab results", ML + 6 + nW + 3, y + 6);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRAY);
+      doc.text("(every job with a sample still at the lab, no result back yet — the whole backlog to date, counted once per job)", ML + 6 + nW + 3, y + 9.6);
+      doc.setTextColor(...DARK);
+      y += stripH + 8;
+    }
+  }
+
+  /* ══ 5. MONTH-BY-MONTH — inspections done and compliance, one row per month,
+     each with the change on the month before, so a manager sees the direction
+     of travel in tables (not charts). ══ */
+  const months = data.monthly_trend ?? [];
+  if (months.length) {
+    if (y > 175) { doc.addPage(); y = 16; }
+    header("6. Month by Month");
+
+    // Blend a colour toward white: t=0 → white, t=1 → full colour. Used to shade
+    // each row by size/score so the good/big months stand out at a glance.
+    const shade = (c: [number, number, number], t: number): [number, number, number] => {
+      const k = Math.max(0, Math.min(1, t));
+      return [Math.round(255 + (c[0] - 255) * k), Math.round(255 + (c[1] - 255) * k), Math.round(255 + (c[2] - 255) * k)];
+    };
+
+    // ── Table A: inspections done per month (rows shaded teal by volume) ──
+    const inspMax = Math.max(...months.map(m => m.inspections), 1);
+    intro('How many inspections were completed each calendar month, oldest at the top. Rows are shaded by size — the busier the month, the darker the teal. Each "Change" compares that month with the month before it (named in the cell). The current month is only counted up to the end of the reporting week, so it is still building.');
+    autoTable(doc, {
+      startY: y,
+      head: [["Month", "Inspections", "Change vs the Month Before"]],
+      body: months.map((m) => {
+        // Compare to the month before it — for the first visible row that's the
+        // hidden earlier month (prev_inspections/prev_label), so it still shows a change.
+        const prevN = m.prev_inspections;
+        const prevLbl = m.prev_label;
+        const diff = (prevN === undefined) ? null : m.inspections - prevN;
+        const pct = (prevN && prevN > 0 && diff !== null) ? ` (${diff > 0 ? "+" : ""}${Math.round(diff * 100 / prevN)}%)` : "";
+        const change = diff === null ? "—"
+          : `${diff === 0 ? "no change" : `${diff > 0 ? "+" : ""}${diff}${pct}`}${prevLbl ? ` vs ${prevLbl}` : ""}`;
+        return [m.label + (m.partial ? " (so far)" : ""), String(m.inspections), change];
+      }),
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      margin: { left: ML, right: MR },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" } },
+      didParseCell: (d: any) => {
+        if (d.section === "body") {
+          // Row heatmap: darker teal = more inspections (0.08..0.55 of full teal)
+          const m = months[d.row.index];
+          const t = 0.08 + (m.inspections / inspMax) * 0.47;
+          d.cell.styles.fillColor = shade(TEAL, t);
+          if (d.column.index === 2) {
+            const s = String(d.cell.raw || "");
+            if (s.startsWith("+")) d.cell.styles.textColor = GREEN;
+            else if (s.startsWith("-")) d.cell.styles.textColor = RED;
+            else d.cell.styles.textColor = DARK;
+            d.cell.styles.fontStyle = "bold";
+          }
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // ── Table B: compliance per month (rows tinted green/amber/red by score) ──
+    if (y > 205) { doc.addPage(); y = 16; }
+    intro('Overall compliance each month — ALL commodities combined, not one product. Rows are colour-coded: green is a good month (75%+), amber is middling (50–74%), red is poor (below 50%). Of the inspections that had a pass/fail result, this is the share that passed; inspections with no result yet are left out. Each "Change" is in percentage points against the month before it (named in the cell).');
+    autoTable(doc, {
+      startY: y,
+      head: [["Month", "Overall Compliance\n(all commodities)", "Assessed", "Change vs the Month Before"]],
+      body: months.map((m) => {
+        const prevRate = m.prev_rate ?? null;
+        const prevLbl = m.prev_label;
+        const diff = (m.rate !== null && prevRate !== null) ? Math.round((m.rate - prevRate) * 10) / 10 : null;
+        const change = diff === null ? "—"
+          : `${diff === 0 ? "no change" : `${diff > 0 ? "+" : ""}${diff}pt`}${prevLbl ? ` vs ${prevLbl}` : ""}`;
+        const assessed = m.compliant + m.non_compliant;
+        return [m.label + (m.partial ? " (so far)" : ""), m.rate === null ? "n/a" : `${m.rate}%`, String(assessed), change];
+      }),
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      margin: { left: ML, right: MR },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      didParseCell: (d: any) => {
+        if (d.section === "body") {
+          const m = months[d.row.index];
+          // Row heatmap by compliance band: green >=75, amber 50-74, red <50.
+          if (m.rate !== null) {
+            const band: [number, number, number] = m.rate >= 75 ? GREEN : m.rate >= 50 ? AMBER : RED;
+            d.cell.styles.fillColor = shade(band, 0.22);
+          } else {
+            d.cell.styles.fillColor = [248, 250, 252];
+          }
+          if (d.column.index === 1 && m.rate !== null) {
+            d.cell.styles.textColor = m.rate >= 75 ? GREEN : m.rate >= 50 ? AMBER : RED;
+          }
+          if (d.column.index === 3) {
+            const s = String(d.cell.raw || "");
+            if (s.startsWith("+")) d.cell.styles.textColor = GREEN;
+            else if (s.startsWith("-")) d.cell.styles.textColor = RED;
+            else d.cell.styles.textColor = DARK;
+            d.cell.styles.fontStyle = "bold";
+          }
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  /* ══ 5. PROFIT BY MONTH (management-only) — one grid: inspectors down the
+     side, months across the top, each cell that inspector's profit for the
+     month (green = profit, red = loss). Profit = revenue (billed hrs/km/samples)
+     − cost (full month salary + 20% fee). ══ */
+  const finSeriesRaw = (data.monthly_financials_series ?? []).filter(m => m.rows);
+  if (finSeriesRaw.length) {
+    if (y > 150) { doc.addPage(); y = 16; } else if (y > 20) { y += 4; }
+    header("7. Profit by Month");
+    intro('Each inspector\'s profit for every month, so you can see who is consistently making money for us. Profit = revenue billed (hours, kilometres, samples) minus their full cost for the month (salary and related deductions, plus a 20% management fee). A GREEN figure is real profit the inspector made for the business; a RED figure is a loss. The current month (marked with *) is negative simply because we are still early in it — a whole month\'s salary is already charged, but only a part-month of revenue has come in — so it corrects itself as the month fills up.');
+
+    // Oldest → newest across the page (series comes newest-first)
+    const months = [...finSeriesRaw].reverse();
+    // Short month header e.g. "Mar", "Aug*" (* = still in progress)
+    const mHead = (m: MonthlyFinancials) => {
+      const short = (m.month_label || "").split(" ")[0].slice(0, 3);
+      return short + (m.partial ? "*" : "");
+    };
+    // Compact rand for narrow cells: "R31k" / "-R22k" / "R0"
+    const randK = (n: number) => {
+      const neg = n < 0; const a = Math.abs(n);
+      const body = a >= 1000 ? `R${Math.round(a / 1000)}k` : `R${Math.round(a)}`;
+      return `${neg ? "-" : ""}${body}`;
+    };
+
+    // Profit lookup: inspector name -> { monthIndex -> profit }
+    const nameSet = new Set<string>();
+    months.forEach(m => m.rows.forEach(r => nameSet.add(r.inspector_name)));
+    const profitByName: Record<string, Record<number, number | undefined>> = {};
+    months.forEach((m, mi) => m.rows.forEach(r => {
+      (profitByName[r.inspector_name] ??= {})[mi] = r.profit;
+    }));
+    // Rank inspectors by their most recent full month's profit (fallback: latest)
+    const rankIdx = months.length - 1;
+    const names = [...nameSet].sort((a, b) =>
+      (profitByName[b]?.[rankIdx] ?? -Infinity) - (profitByName[a]?.[rankIdx] ?? -Infinity)
+      || a.localeCompare(b));
+
+    const head = ["Inspector", ...months.map(mHead)];
+    const NO_WORK = "no inspections done this month";
+    const body = names.map(n => [n, ...months.map((_, mi) => {
+      const p = profitByName[n]?.[mi];
+      return p === undefined ? NO_WORK : randK(p);
+    })]);
+    const teamRow = ["Whole team", ...months.map(m => randK(m.total_profit))];
+
+    const monthColW = (CW - 44) / months.length;
+    autoTable(doc, {
+      startY: y,
+      head: [head],
+      body,
+      foot: [teamRow],
+      theme: "grid",
+      rowPageBreak: "avoid",
+      styles: { fontSize: 7.5, cellPadding: 2.1, valign: "middle", halign: "right", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "right", valign: "middle" },
+      footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 7.5, halign: "right" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: (() => {
+        const cs: Record<number, any> = { 0: { cellWidth: 44, halign: "left", fontStyle: "bold" } };
+        for (let i = 1; i <= months.length; i++) cs[i] = { cellWidth: monthColW };
+        return cs;
+      })(),
+      margin: { left: ML, right: MR },
+      didParseCell: (d: any) => {
+        if (d.section === "head" && d.column.index > 0) d.cell.styles.halign = "center";
+        // Colour every profit cell green/red by its numeric value
+        if (d.section === "body" && d.column.index > 0) {
+          const p = profitByName[names[d.row.index]]?.[d.column.index - 1];
+          if (p === undefined) {
+            // "no inspections done this month" — grey, smaller, centred so the
+            // phrase wraps neatly inside the narrow column.
+            d.cell.styles.textColor = GRAY;
+            d.cell.styles.fontStyle = "italic";
+            d.cell.styles.fontSize = 5.6;
+            d.cell.styles.halign = "center";
+          } else {
+            d.cell.styles.textColor = p >= 0 ? GREEN : RED;
+          }
+        }
+        if (d.section === "foot" && d.column.index > 0) {
+          const raw = String(d.cell.raw || "");
+          d.cell.styles.textColor = raw.startsWith("-") ? [255, 180, 180] : [190, 240, 200];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+    doc.text('Amounts in thousands of rand (e.g. R31k). "No inspections done this month" means exactly that — the inspector logged no work that month (not started yet, left, or none captured) — it is not missing data. A month with * is still in progress. Management-confidential.', ML, y, { maxWidth: CW });
+    doc.setFont("helvetica", "normal");
+    y += 9;
+  }
+
+  /* ── Footer on every page ── */
+  const pages = doc.getNumberOfPages();
+  for (let i = 2; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setTextColor(...GRAY); doc.setFontSize(7);
+    doc.text(`Food Safety Agency — Weekly Manager Report · ${periodLabel}`, ML, 292);
+    doc.text(`Page ${i - 1} of ${pages - 1}`, W - MR, 292, { align: "right" });
+  }
+
+  return doc;
+}
+
+/* ── Finance Report — for the finance team. Invoicing + documents sent, how
+   fast, who's doing it, and whether it's rising or dropping. Volume/timing
+   only: actual rand amounts aren't in the system (Xero not synced). ───────── */
+export async function buildFinanceReportPdf(data: ReportResponse, logo: string | null): Promise<any> {
+  const jsPDFModule: any = await import("jspdf");
+  const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
+  const autoTableModule: any = await import("jspdf-autotable");
+  const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297, ML = 14, MR = 14, CW = W - ML - MR;
+  const TEAL: [number, number, number] = [0, 120, 144];
+  const DARK: [number, number, number] = [17, 24, 39];
+  const GRAY: [number, number, number] = [107, 114, 128];
+  const GRAY_LIGHT: [number, number, number] = [156, 163, 175];
+  const GREEN: [number, number, number] = [21, 128, 61];
+  const RED: [number, number, number] = [220, 38, 38];
+  const AMBER: [number, number, number] = [217, 119, 6];
+  const BLUE: [number, number, number] = [37, 99, 235];
+  const WHITE: [number, number, number] = [255, 255, 255];
+
+  const tp = data.throughput;
+  const am = data.admin_monthly ?? [];
+  const periodLabel = data.is_single_week
+    ? `Monday ${fmtDate(data.week_start)} — Sunday ${fmtDate(data.week_end)}`
+    : `${fmtDate(data.week_start)} — ${fmtDate(data.week_end)}`;
+  const nz = (v: unknown) => Number(v) || 0;
+
+  let y = 0;
+  const header = (title: string) => {
+    if (y > 255) { doc.addPage(); y = 16; }
+    doc.setFillColor(...TEAL); doc.rect(ML, y, CW, 9, "F");
+    doc.setTextColor(...WHITE); doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text(title, ML + 3, y + 6); doc.setFont("helvetica", "normal"); y += 13;
+  };
+  const intro = (txt: string) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...DARK);
+    const lines = doc.splitTextToSize(txt, CW); doc.text(lines, ML, y); y += lines.length * 4 + 3;
+  };
+
+  /* ══ COVER ══ */
+  doc.setFillColor(...DARK); doc.rect(0, 0, W, H, "F");
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.8);
+  doc.line(ML, 42, W - MR, 42); doc.line(ML, H - 62, W - MR, H - 62);
+  if (logo) { try { doc.addImage(logo, "PNG", W / 2 - 18, 58, 36, 32); } catch { /* skip */ } }
+  const lb = logo ? 102 : 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...WHITE);
+  doc.text("FOOD SAFETY AGENCY (PTY) LTD", W / 2, lb, { align: "center" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(14); doc.setTextColor(...TEAL);
+  doc.text("Weekly Finance Report", W / 2, lb + 11, { align: "center" });
+  doc.setFillColor(...TEAL); doc.rect(W / 2 - 30, lb + 16.5, 60, 1.2, "F");
+  doc.setFontSize(11); doc.setTextColor(...GRAY_LIGHT);
+  doc.text(`Reporting period: ${periodLabel}`, W / 2, lb + 27, { align: "center" });
+  doc.setFontSize(10); doc.text(data.quarter, W / 2, lb + 34, { align: "center" });
+  doc.setFontSize(9); doc.setTextColor(...GRAY);
+  doc.text("Invoicing and documents sent — volume, speed and trend.", W / 2, lb + 43, { align: "center" });
+  doc.setFontSize(9); doc.setTextColor(...TEAL);
+  doc.text("IN THIS REPORT", W / 2, lb + 58, { align: "center" });
+  doc.setFontSize(9.5); doc.setTextColor(...GRAY_LIGHT);
+  ["The Week at a Glance", "Action Points", "1. Unbilled Invoices — Act On These", "2. Invoicing & Documents", "3. Invoices Done vs Needed", "4. Who's Doing the Work", "5. Commodities Inspected"]
+    .forEach((s, i) => doc.text(s, W / 2, lb + 66 + i * 7, { align: "center" }));
+  doc.setFontSize(8); doc.text("CONFIDENTIAL — For the finance team", W / 2, H - 42, { align: "center" });
+
+  /* ══ PAGE 2: THE WEEK AT A GLANCE ══ */
+  doc.addPage();
+  const drawKpi = (x: number, cy: number, w: number, h: number, label: string, value: string, sub: string, color: [number, number, number]) => {
+    doc.setFillColor(246, 248, 250); doc.roundedRect(x, cy, w, h, 2, 2, "F");
+    doc.setFillColor(...color); doc.rect(x, cy, w, 2.5, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(...color);
+    doc.text(value, x + w / 2, cy + h / 2 - 1, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...GRAY);
+    doc.text(doc.splitTextToSize(label.toUpperCase(), w - 6), x + w / 2, cy + h / 2 + 6, { align: "center" });
+    if (sub) { doc.setFontSize(6.8); doc.setTextColor(...(sub.startsWith("+") ? GREEN : sub.startsWith("-") ? RED : GRAY)); doc.text(sub, x + w / 2, cy + h - 4, { align: "center" }); }
+  };
+  y = 24;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...DARK);
+  doc.text("The Week at a Glance", ML, y);
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.7); doc.line(ML, y + 2.5, ML + 62, y + 2.5);
+  y += 12;
+  const chg = (c: number, p: number) => { const d = c - p; return d === 0 ? "no change" : `${d > 0 ? "+" : ""}${d} vs last week`; };
+  const gap = 5, w3 = (CW - 2 * gap) / 3, cardH = 40;
+  if (tp) {
+    drawKpi(ML, y, w3, cardH, "Invoices uploaded this week", String(nz(tp.invoices_uploaded.count)), chg(nz(tp.invoices_uploaded.count), nz(tp.invoices_uploaded.prev)), TEAL);
+    drawKpi(ML + w3 + gap, y, w3, cardH, "Documents sent this week", String(nz(tp.sent.count)), chg(nz(tp.sent.count), nz(tp.sent.prev)), BLUE);
+    // Completion %: of this week's jobs that need an invoice, how many are done.
+    const ic0 = tp.invoice_completion;
+    if (ic0 && ic0.cur.needed > 0) {
+      const pc = Math.round(ic0.cur.done * 100 / ic0.cur.needed);
+      drawKpi(ML + 2 * (w3 + gap), y, w3, cardH, "This week's inspections invoiced", `${pc}%`, `${ic0.cur.done} of ${ic0.cur.needed} done`, pc >= 90 ? GREEN : pc >= 70 ? AMBER : RED);
+    } else {
+      drawKpi(ML + 2 * (w3 + gap), y, w3, cardH, "This week's inspections invoiced", "—", "no jobs needing an invoice", GRAY);
+    }
+  }
+  y += cardH + 12;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+  doc.text("Note: invoice values (rand amounts) are not available in the system yet — this report covers volume, speed and trend. Corporate-store jobs are handled centrally and excluded.", ML, y, { maxWidth: CW });
+  doc.setTextColor(...DARK); y += 10;
+
+  /* ══ ACTION POINTS — what the finance manager should do this week, generated
+     straight from the numbers. Red = urgent, amber = attention. ══ */
+  const bl = data.billing_backlog;
+  const actions: { sev: "red" | "amber"; text: string }[] = [];
+  if (bl && bl.total > 0) {
+    const over60 = bl.buckets.d60_plus;
+    if (over60 > 0) actions.push({ sev: "red", text: `Invoice the ${over60} job${over60 === 1 ? "" : "s"} that have been waiting over 60 days to be billed. The oldest has been waiting ${bl.oldest_days} days. Do these first.` });
+    actions.push({ sev: bl.total > 200 ? "red" : "amber", text: `In total, ${bl.total} completed job${bl.total === 1 ? " has" : "s have"} not been invoiced. Each one is money the agency has earned but not yet billed.` });
+    const c = bl.top_clients[0];
+    if (c) actions.push({ sev: "amber", text: `Start with ${c.client}: they have ${c.jobs} completed job${c.jobs === 1 ? "" : "s"} waiting to be invoiced — the most of any client.` });
+  }
+  const _ic = tp?.invoice_completion;
+  if (_ic && _ic.cur.needed > 0) {
+    const still = _ic.cur.needed - _ic.cur.done;
+    if (still > 0) actions.push({ sev: "amber", text: `${still} of this week's ${_ic.cur.needed} inspections that need an invoice still have not been billed. Finish these so the week is fully invoiced.` });
+  }
+  if (actions.length) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...DARK);
+    doc.text("Action Points", ML, y);
+    doc.setDrawColor(...RED); doc.setLineWidth(0.7); doc.line(ML, y + 2.5, ML + 42, y + 2.5);
+    y += 6;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+    doc.text("What to do this week, in order. A red bar means do it now; an amber bar means keep an eye on it.", ML, y + 3);
+    y += 8;
+    actions.slice(0, 6).forEach((a, i) => {
+      const lines = doc.splitTextToSize(`${i + 1}. ${a.text}`, CW - 6);
+      if (y + lines.length * 4 + 6 > 283) { doc.addPage(); y = 16; }
+      doc.setFillColor(...(a.sev === "red" ? RED : AMBER));
+      doc.rect(ML, y - 2.6, 2, lines.length * 4 + 1.5, "F");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...DARK);
+      doc.text(lines, ML + 5, y + 1);
+      y += lines.length * 4 + 4;
+    });
+    y += 6;
+  }
+
+  /* ══ 1. UNBILLED INVOICES — the action list: jobs sent but not invoiced,
+     aged, plus the clients to bill first. This is what to act on. ══ */
+  if (bl && bl.total > 0) {
+    if (y > 200) { doc.addPage(); y = 16; }
+    header("1. Unbilled Invoices — Act On These");
+    intro('Raw meat and PMP jobs that were completed and sent to the client but still have no invoice uploaded — billable work we have not billed for yet. (Poultry and eggs are not billed, so they are not counted.) Aged from the inspection date. Clear the oldest first.');
+    autoTable(doc, {
+      startY: y,
+      head: [["How long waiting", "Jobs not yet invoiced"]],
+      body: [
+        ["0–7 days", String(bl.buckets.d0_7)],
+        ["8–30 days", String(bl.buckets.d8_30)],
+        ["31–60 days", String(bl.buckets.d31_60)],
+        ["Over 60 days (urgent)", String(bl.buckets.d60_plus)],
+      ],
+      foot: [["Total unbilled jobs", String(bl.total)]],
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" } },
+      didParseCell: (d: any) => {
+        if (d.section === "body" && d.column.index === 1) {
+          const n = Number(d.cell.raw);
+          // urgent (60+) row is red; older buckets amber; recent grey/dark
+          if (d.row.index === 3 && n > 0) d.cell.styles.textColor = RED;
+          else if (d.row.index === 2 && n > 0) d.cell.styles.textColor = AMBER;
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // Clients to bill first
+    if (bl.top_clients.length) {
+      if (y > 215) { doc.addPage(); y = 16; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...DARK);
+      doc.text("Clients to bill first (most jobs waiting)", ML, y + 2);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [["Client", "Jobs not invoiced", "Oldest (days)"]],
+        body: bl.top_clients.map(c => [c.client, String(c.jobs), String(c.oldest)]),
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+        headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: ML, right: MR },
+        columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" } },
+        didParseCell: (d: any) => {
+          if (d.section === "body" && d.column.index === 2 && Number(d.cell.raw) > 60) {
+            d.cell.styles.textColor = RED; d.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+  }
+
+  /* ══ 2. INVOICING & DOCUMENTS — month by month. Just the counts, with a small
+     up/down arrow next to each showing the direction vs the month above. ══ */
+  if (am.length) {
+    header("2. Invoicing & Documents Each Month");
+    intro('How many invoices were uploaded and how many documents were sent each month, both counted per job. A green arrow means more than the month above; a red arrow means fewer. The current month is only counted up to the end of the reporting week, so it is still building.');
+    autoTable(doc, {
+      startY: y,
+      head: [["Month", "Invoices uploaded", "Documents sent"]],
+      body: am.map((m) => [
+        m.label + (m.partial ? " (so far)" : ""),
+        String(m.invoices),
+        String(m.sent),
+      ]),
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 3.2, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      // number columns wide, right-aligned, with left padding so the drawn arrow
+      // sits to the left of the number without overlapping.
+      columnStyles: {
+        0: { cellWidth: 46, fontStyle: "bold" },
+        1: { halign: "right", fontStyle: "bold", cellPadding: { top: 3.2, bottom: 3.2, left: 10, right: 8 } },
+        2: { halign: "right", fontStyle: "bold", cellPadding: { top: 3.2, bottom: 3.2, left: 10, right: 8 } },
+      },
+      didDrawCell: (d: any) => {
+        if (d.section !== "body" || (d.column.index !== 1 && d.column.index !== 2)) return;
+        const m = am[d.row.index];
+        const cur = d.column.index === 1 ? m.invoices : m.sent;
+        const prev = d.column.index === 1 ? m.prev_invoices : m.prev_sent;
+        if (prev === undefined || cur === prev) return;
+        const up = cur > prev;
+        const cx = d.cell.x + 5, cy = d.cell.y + d.cell.height / 2, s = 1.8;
+        if (up) { doc.setFillColor(...GREEN); doc.triangle(cx - s, cy + s, cx + s, cy + s, cx, cy - s, "F"); }
+        else { doc.setFillColor(...RED); doc.triangle(cx - s, cy - s, cx + s, cy - s, cx, cy + s, "F"); }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  /* ══ 3. INVOICES DONE vs NEEDED — of the week's inspections that need an
+     invoice, how many were invoiced. This week next to the week before. ══ */
+  const ic = tp?.invoice_completion;
+  if (ic) {
+    if (y > 215) { doc.addPage(); y = 16; }
+    header("3. Invoices Done vs Needed");
+    intro('Of the inspections done in the week that need an invoice, how many have been invoiced. "Need an invoice" means every Raw meat and PMP job (these are always billed) plus any other job that was invoiced. Eggs and most poultry are not billed, so they are not counted.');
+    const pctOf = (p: { needed: number; done: number }) => p.needed > 0 ? Math.round(p.done * 100 / p.needed) : 0;
+    const cur = ic.cur, prev = ic.prev;
+    autoTable(doc, {
+      startY: y,
+      head: [["Week", "Needed an invoice", "Invoiced", "Done", "Still to do"]],
+      body: [
+        [`This week`, String(cur.needed), String(cur.done), `${pctOf(cur)}%`, String(cur.needed - cur.done)],
+        [`Week before`, String(prev.needed), String(prev.done), `${pctOf(prev)}%`, String(prev.needed - prev.done)],
+      ],
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right", fontStyle: "bold" }, 4: { halign: "right" } },
+      didParseCell: (d: any) => {
+        if (d.section === "body") {
+          const p = d.row.index === 0 ? cur : prev;
+          const pc = pctOf(p);
+          if (d.column.index === 3) d.cell.styles.textColor = pc >= 90 ? GREEN : pc >= 70 ? AMBER : RED;
+          if (d.column.index === 4 && (p.needed - p.done) > 0) { d.cell.styles.textColor = RED; d.cell.styles.fontStyle = "bold"; }
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+    doc.text('Counted per job; corporate-store jobs are billed month-end as one entity and are excluded.', ML, y, { maxWidth: CW });
+    doc.setFont("helvetica", "normal"); y += 8;
+
+    // The specific jobs still needing an invoice (this week + week before),
+    // oldest first — a chase-list for finance.
+    const todoRows = [
+      ...(cur.todo ?? []).map(t => ({ ...t, wk: "This week" })),
+      ...(prev.todo ?? []).map(t => ({ ...t, wk: "Week before" })),
+    ].sort((a, b) => (a.age ?? 0) < (b.age ?? 0) ? 1 : -1);
+    if (todoRows.length) {
+      if (y > 220) { doc.addPage(); y = 16; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...DARK);
+      doc.text("Still to invoice — chase these", ML, y + 2);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [["Client", "Inspection date", "Days waiting", "From"]],
+        body: todoRows.map(t => [
+          t.client,
+          t.date ? fmtDate(t.date) : "—",
+          t.age === null ? "—" : `${t.age} days`,
+          t.wk,
+        ]),
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2.6, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+        headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: ML, right: MR },
+        columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right" }, 2: { halign: "right", fontStyle: "bold" }, 3: { halign: "right" } },
+        didParseCell: (d: any) => {
+          if (d.section === "body" && d.column.index === 2) {
+            const t = todoRows[d.row.index];
+            if (t && t.age !== null) d.cell.styles.textColor = t.age > 14 ? RED : t.age > 7 ? AMBER : DARK;
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    } else {
+      doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(...GREEN);
+      doc.text("Nothing outstanding — every job from both weeks that needed an invoice has one.", ML, y);
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...DARK); y += 9;
+    }
+  }
+
+  /* ══ 3. WHO'S DOING THE WORK — per person: invoices uploaded, documents sent,
+     and how fast (approved → invoice). This week. ══ */
+  const people = data.admin_people ?? [];
+  if (people.length) {
+    if (y > 200) { doc.addPage(); y = 16; }
+    header("4. Who's Doing the Work");
+    intro('For this week, per person: how many invoices they uploaded, how many documents they sent to clients (both counted per job), and how fast they are — the average number of days from the inspection date to the invoice being uploaded. Shorter is better. If someone uploaded no invoices, the speed cell says so.');
+    const teamInv = people.reduce((a, p) => a + p.invoices, 0);
+    const teamSent = people.reduce((a, p) => a + p.sent, 0);
+    // Team average speed, weighted by each person's timed-invoice count.
+    const _twd = people.reduce((a, p) => a + (p.avg_days !== null ? p.avg_days * p.days_count : 0), 0);
+    const _twn = people.reduce((a, p) => a + (p.avg_days !== null ? p.days_count : 0), 0);
+    const teamAvg = _twn > 0 ? Math.round((_twd / _twn) * 10) / 10 : null;
+    autoTable(doc, {
+      startY: y,
+      head: [["Person", "Invoices uploaded", "Documents sent", "Avg days: inspection to invoice"]],
+      body: people.map(p => [
+        p.name,
+        String(p.invoices),
+        String(p.sent),
+        p.avg_days !== null ? `${p.avg_days} days` : (p.invoices === 0 ? "No invoices uploaded" : "Not enough data"),
+      ]),
+      foot: [["Whole team", String(teamInv), String(teamSent), teamAvg !== null ? `${teamAvg} days` : "—"]],
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      columnStyles: {
+        0: { fontStyle: "bold" },
+        1: { halign: "right", fontStyle: "bold" },
+        2: { halign: "right" },
+        3: { halign: "right" },
+      },
+      didParseCell: (d: any) => {
+        // Speed cell: green <=7 days, amber up to 14, red if slower.
+        if (d.section === "body" && d.column.index === 3) {
+          const p = people[d.row.index];
+          if (p && p.avg_days !== null) {
+            d.cell.styles.fontStyle = "bold";
+            d.cell.styles.textColor = p.avg_days <= 7 ? GREEN : p.avg_days <= 14 ? AMBER : RED;
+          } else {
+            d.cell.styles.textColor = GRAY;
+          }
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(...DARK);
+    doc.text('Speed colour: green = 7 days or fewer, amber = 8–14 days, red = over 14 days.', ML, y, { maxWidth: CW });
+    doc.setFont("helvetica", "normal"); y += 9;
+  }
+
+  /* ══ 4. COMMODITIES INSPECTED — last week vs the week before ══ */
+  const cw = data.commodity_week ?? [];
+  if (cw.length) {
+    if (y > 205) { doc.addPage(); y = 16; }
+    header("5. Commodities Inspected — Last Week vs the Week Before");
+    intro('Which commodities were inspected last week, and how many, next to the week before. Green = more than the week before, red = fewer. This is inspection volume by product type. Corporate-store jobs are billed month-end as one entity and are excluded here.');
+    const teamCur = cw.reduce((a, c) => a + c.count, 0);
+    const teamPrev = cw.reduce((a, c) => a + c.prev, 0);
+    const chgCell = (c: number, p: number) => {
+      const d = c - p;
+      if (d === 0) return "no change";
+      const pct = p > 0 ? ` (${d > 0 ? "+" : ""}${Math.round(d * 100 / p)}%)` : "";
+      return `${d > 0 ? "+" : ""}${d}${pct}`;
+    };
+    // Friendly commodity names
+    const niceName = (c: string) => ({ RAW: "Raw meat", PMP: "PMP (processed)", EGGS: "Eggs", POULTRY: "Poultry" } as Record<string, string>)[c] || c;
+    autoTable(doc, {
+      startY: y,
+      head: [["Commodity", "Last week", "Week before", "Change"]],
+      body: cw.map(c => [niceName(c.commodity), String(c.count), String(c.prev), chgCell(c.count, c.prev)]),
+      foot: [["All commodities", String(teamCur), String(teamPrev), chgCell(teamCur, teamPrev)]],
+      theme: "grid",
+      styles: { fontSize: 8.5, cellPadding: 3, valign: "middle", lineColor: [226, 232, 240], textColor: DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      footStyles: { fillColor: DARK, textColor: WHITE, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: ML, right: MR },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" }, 2: { halign: "right" }, 3: { halign: "right" } },
+      didParseCell: (d: any) => {
+        if (d.column.index === 3 && (d.section === "body" || d.section === "foot")) {
+          const s = String(d.cell.raw || "");
+          if (s.startsWith("+")) d.cell.styles.textColor = d.section === "foot" ? [190, 240, 200] : GREEN;
+          else if (s.startsWith("-")) d.cell.styles.textColor = d.section === "foot" ? [255, 180, 180] : RED;
+          else d.cell.styles.textColor = d.section === "foot" ? [255, 255, 255] : GRAY;
+          d.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  /* ── Footer on every page ── */
+  const pages = doc.getNumberOfPages();
+  for (let i = 2; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setTextColor(...GRAY); doc.setFontSize(7);
+    doc.text(`Food Safety Agency — Weekly Finance Report · ${periodLabel}`, ML, 292);
     doc.text(`Page ${i - 1} of ${pages - 1}`, W - MR, 292, { align: "right" });
   }
 

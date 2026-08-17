@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { DJANGO_API_URL } from "@/lib/config";
-import { buildInspectorReportPdf, buildWeeklyReportPdf, type ReportResponse } from "@/lib/weeklyReportPdf";
+import { buildInspectorReportPdf, buildManagerReportPdf, buildFinanceReportPdf, buildWeeklyReportPdf, type ReportResponse } from "@/lib/weeklyReportPdf";
 
 const INTERNAL_KEY = process.env.WEEKLY_INTERNAL_KEY || "aps-weekly-internal-2026";
 
@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const inspector = (searchParams.get("inspector") || "").trim();
+    const type = (searchParams.get("type") || "").trim().toLowerCase();
     const qs = searchParams.toString(); // inspector stays — Django adds that inspector's record-level detail
     const res = await fetch(`${DJANGO_API_URL}/api/weekly-report/${qs ? `?${qs}` : ""}`, {
       headers: { "X-Internal-Key": INTERNAL_KEY },
@@ -30,12 +31,18 @@ export async function GET(request: NextRequest) {
       logo = `data:image/png;base64,${buf.toString("base64")}`;
     } catch { /* no logo available */ }
 
-    // With ?inspector=<name>, build that inspector's PERSONAL report instead
+    // ?inspector=<name> → that inspector's PERSONAL report.
+    // ?type=manager     → the operations-focused MANAGER report.
+    // otherwise         → the full inspector-management report.
     const doc = inspector
       ? await buildInspectorReportPdf(data, inspector, logo)
-      : await buildWeeklyReportPdf(data, logo);
+      : type === "manager"
+        ? await buildManagerReportPdf(data, logo)
+        : type === "finance"
+          ? await buildFinanceReportPdf(data, logo)
+          : await buildWeeklyReportPdf(data, logo);
     const bytes = doc.output("arraybuffer") as ArrayBuffer;
-    const safeName = inspector ? `_${inspector.replace(/[^\w-]+/g, "-")}` : "";
+    const safeName = inspector ? `_${inspector.replace(/[^\w-]+/g, "-")}` : type === "manager" ? "_Manager" : type === "finance" ? "_Finance" : "";
     return new NextResponse(bytes, {
       headers: {
         "Content-Type": "application/pdf",

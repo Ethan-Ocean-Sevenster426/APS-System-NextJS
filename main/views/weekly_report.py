@@ -9,12 +9,14 @@ with no recorded outcome cannot count as compliant), capture/approval
 timestamps for administration tracking, and InspectionGroup hours/km for
 travel.
 
-Deliberately contains NO financial data (no revenue, salaries, costs or
-rates) — the exclusion is enforced here in the queries, not in the UI.
+Financial data (revenue, cost, profit per inspector) is included ONLY in the
+`monthly_financials` block, which the endpoint returns for the management-only
+Manager Report. It is management-confidential and never shown to inspectors.
 """
 import datetime
 
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, F, Min, Q, Sum
+from django.db.models.functions import TruncMonth
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -22,7 +24,9 @@ from ..models import (
     Client,
     FoodSafetyAgencyInspection,
     InspectionDocument,
+    InspectionFee,
     InspectionGroup,
+    InspectorSalary,
     QuarterlyTarget,
 )
 from ..services.kpi_email_service import get_quarter_bounds
@@ -181,15 +185,27 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
                 .exclude(inspection_group__group_type='Corporate Store')
                 .count())
 
+    def lab_results(a, b):
+        # Of the samples TAKEN in [a, b] (each needs a lab result), how many have
+        # a COA back. This answers "out of the X we needed this week, how many
+        # are done" — the denominator changes week to week with sample volume.
+        q = (FoodSafetyAgencyInspection.objects
+             .filter(date_of_inspection__gte=a, date_of_inspection__lte=b, is_sample_taken=True)
+             .exclude(inspection_group__group_type='Corporate Store'))
+        needed = q.count()
+        back = q.filter(coa_uploaded_date__isnull=False).count()
+        return {'needed': needed, 'back': back}
+
     def invoice_gaps(a, b):
-        # For invoices uploaded in [a, b], the days from (i) the group's capture
-        # and (ii) the group's document submission (sent_date) to the upload.
-        # sent_date is resolved at the GROUP level, not the single record the
-        # invoice hangs off — otherwise most invoices miss their send date.
+        # For invoices uploaded in [a, b], the days from (i) the INSPECTION DATE
+        # (when the inspection actually happened) and (ii) the group's document
+        # submission (sent_date) to the invoice upload. Inspection date is the
+        # real "capture" point the finance team cares about, not created_at
+        # (system entry). sent_date is resolved at the GROUP level.
         rows = list(FoodSafetyAgencyInspection.objects
                     .filter(invoice_uploaded_date__date__gte=a, invoice_uploaded_date__date__lte=b)
                     .exclude(inspection_group__group_type='Corporate Store')
-                    .values_list('invoice_uploaded_date', 'inspection_group_id', 'created_at'))
+                    .values_list('invoice_uploaded_date', 'inspection_group_id', 'date_of_inspection'))
         gids = {g for _, g, _ in rows if g is not None}
         sent_map = {}
         for gid, sd in (FoodSafetyAgencyInspection.objects
@@ -198,9 +214,9 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
             if gid is not None and (gid not in sent_map or sd < sent_map[gid]):
                 sent_map[gid] = sd
         cap_days, sub_days = [], []
-        for up, gid, cap in rows:
-            if up and cap:
-                d = (up.date() - cap.date()).days
+        for up, gid, doi in rows:
+            if up and doi:
+                d = (up.date() - doi).days   # date_of_inspection is a date
                 if d >= 0:
                     cap_days.append(d)
             sd = sent_map.get(gid)
@@ -217,6 +233,53 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
     cur_counts = Counter(cur_sent.values())
     prev_counts = Counter(prev_sent.values())
 
+    from django.db.models import Exists as _Ex2, OuterRef as _OR2
+
+    def invoice_completion(a, b):
+        # Of the RAW/PMP jobs inspected in [a, b], how many are invoiced.
+        # ONLY Raw meat and PMP are billed — poultry and eggs are not invoiced,
+        # so they are excluded entirely (a job counts if it has a RAW or PMP
+        # inspection). Counted per job. Also returns the specific jobs still
+        # needing an invoice, so the finance team can chase them.
+        from django.db.models import Min as _Min2
+        needed = (InspectionGroup.objects.exclude(group_type='Corporate Store')
+                  .filter(_Ex2(FoodSafetyAgencyInspection.objects.filter(
+                      inspection_group_id=_OR2('pk'),
+                      date_of_inspection__gte=a, date_of_inspection__lte=b,
+                      commodity__in=['RAW', 'PMP']))))
+        has_inv = _Ex2(FoodSafetyAgencyInspection.objects.filter(
+            inspection_group_id=_OR2('pk'), invoice_uploaded_date__isnull=False))
+        req = needed.count()
+        done = needed.filter(has_inv).count()
+        _today = datetime.date.today()
+        todo = [
+            {'client': g.client_name or 'Unknown',
+             'date': g.insp.isoformat() if g.insp else None,
+             'age': (_today - g.insp).days if g.insp else None}
+            for g in needed.exclude(has_inv).annotate(insp=_Min2('inspections__date_of_inspection')).order_by('insp')
+        ]
+        return {'needed': req, 'done': done, 'todo': todo}
+
+    # Live "awaiting COA" backlog — MUST match the Lab Analytics page's number.
+    # A group counts if it has a sampled, non-occurrence, non-EGGS/POULTRY
+    # inspection AND has no COA/lab document (checked by group, or by
+    # client_name + date for duplicated records). Field coa_uploaded_date alone
+    # is unreliable (often blank even when a COA document exists).
+    from django.db.models import Exists, OuterRef
+    _coa_groups = InspectionGroup.objects.filter(
+        Exists(FoodSafetyAgencyInspection.objects.filter(
+            inspection_group_id=OuterRef('pk'),
+            is_sample_taken=True, is_occurrence_report=False,
+        ).exclude(commodity__in=['EGGS', 'POULTRY']))
+    )
+    _coa_doc = Exists(InspectionDocument.objects.filter(
+        Q(inspection__inspection_group_id=OuterRef('pk'))
+        | Q(inspection__client_name=OuterRef('client_name'),
+            inspection__date_of_inspection=OuterRef('date_of_inspection')),
+        document_type__in=['coa', 'lab', 'lab_form'],
+    ))
+    samples_at_lab = _coa_groups.exclude(_coa_doc).count()
+
     return {
         'sent': {'count': len(cur_sent), 'prev': len(prev_sent)},
         'invoices_uploaded': {
@@ -227,11 +290,24 @@ def _admin_throughput(cur_start, cur_end, prev_start, prev_end):
             'count': coas(cur_start, cur_end),
             'prev': coas(prev_start, prev_end),
         },
+        # Of the samples taken that week (each needs a lab result), how many are
+        # back — so "X of Y (%)" reflects the actual demand that week.
+        'lab_results': {
+            'cur': lab_results(cur_start, cur_end),
+            'prev': lab_results(prev_start, prev_end),
+        },
         'approvals_done': {
             'count': approvals(cur_start, cur_end),
             'prev': approvals(prev_start, prev_end),
         },
+        # Live "awaiting COA" backlog — same logic/number as the Lab Analytics page.
+        'samples_at_lab': samples_at_lab,
         'invoice_time': {'avg': cur_avg, 'prev_avg': prev_avg, 'count': cur_n},
+        # Of the jobs inspected each week that need an invoice, how many are done.
+        'invoice_completion': {
+            'cur': invoice_completion(cur_start, cur_end),
+            'prev': invoice_completion(prev_start, prev_end),
+        },
         # Everyone who sent in EITHER week, so someone who dropped to 0 last week
         # (e.g. sent 36 the week before) is still visible. Sorted by last week,
         # then the week before.
@@ -326,6 +402,165 @@ def _non_inspector_names():
     return names
 
 
+def _inspector_roster():
+    """Full names of everyone who SHOULD be doing inspections (inspector-role
+    users), so the manager report can show inspectors who did zero work — that
+    silence is exactly what a manager needs to see, not hide."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    names = []
+    seen = set()
+    for u in User.objects.filter(role__in=['inspector', 'inspector_manager'], is_active=True):
+        full = f"{u.first_name} {u.last_name}".strip() or u.username
+        key = full.strip().lower()
+        if full and key not in seen:
+            seen.add(key)
+            names.append(full)
+    return names
+
+
+def _month_financials(month_start, month_end, excl):
+    """Per-inspector revenue / cost / profit for the WHOLE calendar month.
+
+    MANAGEMENT-ONLY. Mirrors the Revenue Per Inspector page's formula:
+      revenue = hours*hour_rate + km*km_rate + samples*sample_rate
+      cost    = one full month's salary + 20% management fee
+      profit  = revenue - cost
+    Covers the full calendar month (month_start = 1st, month_end = last day) so
+    a full month of revenue is compared against a full month of salary — a real
+    profit picture, not skewed by a partial month.
+    Rates come from InspectionFee (same fallbacks as the analytics endpoint);
+    salary from InspectorSalary. Corporate/occurrence are NOT excluded from
+    revenue here — inspectors still bill hours/km on those, same as Analytics.
+    """
+    fee = {f.fee_code: float(f.rate) for f in InspectionFee.objects.all()}
+    hour_rate = fee.get('inspection_hour_rate', 540.60)
+    km_rate = fee.get('inspection_km_rate', fee.get('travel_rate_per_km', 6.50))
+    sample_rate = fee.get('sample_collection', 0)
+
+    base = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name__in=excl)
+
+    # hours + km from the inspection groups in range
+    grp = {}
+    for r in InspectionGroup.objects.filter(
+        date_of_inspection__gte=month_start, date_of_inspection__lte=month_end,
+    ).exclude(base).values('inspector_name').annotate(
+        hrs=Sum('hours'), km=Sum('km_traveled'),
+    ):
+        grp[r['inspector_name']] = {'hrs': float(r['hrs'] or 0), 'km': float(r['km'] or 0)}
+
+    # inspections + samples from the per-commodity rows in range
+    insp = {}
+    for r in FoodSafetyAgencyInspection.objects.filter(
+        date_of_inspection__gte=month_start, date_of_inspection__lte=month_end,
+    ).exclude(base).values('inspector_name').annotate(
+        n=Count('id'), samples=Count('id', filter=Q(is_sample_taken=True)),
+    ):
+        insp[r['inspector_name']] = {'n': r['n'], 'samples': r['samples']}
+
+    salaries = {s.inspector_name.strip().lower(): float(s.monthly_salary)
+                for s in InspectorSalary.objects.all()}
+
+    def lookup_salary(name):
+        n = name.strip().lower()
+        if n in salaries:
+            return salaries[n]
+        parts = name.split()
+        if len(parts) > 1 and parts[-1].lower() in salaries:
+            return salaries[parts[-1].lower()]
+        if parts and parts[0].lower() in salaries:
+            return salaries[parts[0].lower()]
+        return 0.0
+
+    # An idle-but-still-employed inspector still costs us their salary, so they
+    # must show as a LOSS that month, not vanish. "Still employed" = they are an
+    # active user account (someone who has left is deactivated). We only start
+    # charging them from the month they FIRST did work (so we don't back-date a
+    # salary before they joined).
+    from django.contrib.auth import get_user_model
+    _User = get_user_model()
+    active_names = set()
+    for u in _User.objects.filter(role__in=['inspector', 'inspector_manager'], is_active=True):
+        full = f"{u.first_name} {u.last_name}".strip()
+        if full:
+            active_names.add(full.lower())
+
+    first_active = {}
+    for r in FoodSafetyAgencyInspection.objects.exclude(base).values('inspector_name').annotate(f=Min('date_of_inspection')):
+        if r['f']:
+            first_active[r['inspector_name']] = r['f']
+
+    def still_employed_this_month(name):
+        if lookup_salary(name) <= 0:
+            return False
+        if name.strip().lower() not in active_names:   # deactivated → they left
+            return False
+        first = first_active.get(name)
+        return bool(first and first <= month_end)      # only from when they started
+
+    # Names to show: anyone with work this month, plus still-employed salaried
+    # inspectors (so a zero-work month shows their salary cost as a loss).
+    names = set(grp.keys()) | set(insp.keys())
+    for sal_name in FoodSafetyAgencyInspection.objects.exclude(base).values_list('inspector_name', flat=True).distinct():
+        if sal_name and still_employed_this_month(sal_name):
+            names.add(sal_name)
+
+    rows = []
+    for name in names:
+        g = grp.get(name, {})
+        it = insp.get(name, {})
+        hrs = g.get('hrs', 0.0)
+        km = g.get('km', 0.0)
+        samples = it.get('samples', 0)
+        revenue = round(hrs * hour_rate + km * km_rate + samples * sample_rate, 2)
+        salary = lookup_salary(name)          # one full month
+        cost = round(salary * 1.20, 2)        # + 20% management fee
+        profit = round(revenue - cost, 2)
+        rev_per_hr = round(revenue / hrs) if hrs > 0 else 0
+        rows.append({
+            'inspector_name': name,
+            'inspections': it.get('n', 0),
+            'hours': round(hrs, 1),
+            'revenue': revenue,
+            'cost': cost,
+            'profit': profit,
+            'rev_per_hr': rev_per_hr,
+        })
+    rows.sort(key=lambda r: -r['profit'])
+    today = datetime.date.today()
+    return {
+        'rows': rows,
+        'month': month_start.strftime('%Y-%m'),
+        'month_label': month_start.strftime('%B %Y'),
+        'partial': month_end >= today,   # the month is not finished yet
+        'total_revenue': round(sum(r['revenue'] for r in rows), 2),
+        'total_cost': round(sum(r['cost'] for r in rows), 2),
+        'total_profit': round(sum(r['profit'] for r in rows), 2),
+    }
+
+
+def _month_financials_series(anchor_end, excl, n=6):
+    """Revenue/cost/profit per inspector for each of the last `n` calendar
+    months (newest first), each a full-month _month_financials() result. Used
+    by the Manager Report's month-by-month Revenue & Profit section."""
+    # First-of-month for the month the reporting week falls in
+    first = anchor_end.replace(day=1)
+    firsts = []
+    f = first
+    for _ in range(n):
+        firsts.append(f)
+        f = (f - datetime.timedelta(days=1)).replace(day=1)  # step back one month
+    out = []
+    for m_start in firsts:  # already newest-first
+        if m_start.month == 12:
+            nxt = m_start.replace(year=m_start.year + 1, month=1)
+        else:
+            nxt = m_start.replace(month=m_start.month + 1)
+        m_end = nxt - datetime.timedelta(days=1)
+        out.append(_month_financials(m_start, m_end, excl))
+    return out
+
+
 def _monday(d):
     return d - datetime.timedelta(days=d.weekday())
 
@@ -417,8 +652,32 @@ def api_weekly_report(request):
     cumulative = {r['inspector_name']: r for r in cum_rows}
 
     targets = {}
+    targets_by_commodity = {}   # name -> {POULTRY, RAW, PMP, EGGS}
     for t in QuarterlyTarget.objects.filter(year=year, quarter=quarter):
         targets[t.inspector_name] = (t.poultry or 0) + (t.raw or 0) + (t.pmp or 0) + (t.eggs or 0)
+        targets_by_commodity[t.inspector_name] = {
+            'POULTRY': t.poultry or 0, 'RAW': t.raw or 0,
+            'PMP': t.pmp or 0, 'EGGS': t.eggs or 0,
+        }
+
+    # Done-this-quarter per inspector PER COMMODITY (for the commodity KPI table).
+    cum_by_commodity = {}
+    for r in (FoodSafetyAgencyInspection.objects.filter(
+                date_of_inspection__gte=q_start, date_of_inspection__lte=week_end)
+              .exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name__in=excl))
+              .exclude(Q(commodity__isnull=True) | Q(commodity=''))
+              .values('inspector_name', 'commodity').annotate(n=Count('id'))):
+        cum_by_commodity.setdefault(r['inspector_name'], {})[r['commodity']] = r['n']
+
+    # Calendar-month total per inspector — the month the reporting week ends in,
+    # from the 1st up to and including week_end (so "this month" tracks with the
+    # report and never counts days after the reporting week).
+    month_start = week_end.replace(day=1)
+    month_rows = FoodSafetyAgencyInspection.objects.filter(
+        date_of_inspection__gte=month_start, date_of_inspection__lte=week_end,
+    ).exclude(Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name__in=excl)
+    ).values('inspector_name').annotate(n=Count('id'))
+    monthly = {r['inspector_name']: r['n'] for r in month_rows}
 
     cur_rank = _rank_map(cur, 'inspections')
     prev_rank = _rank_map(prev, 'inspections')
@@ -430,11 +689,14 @@ def api_weekly_report(request):
         cum_r = cumulative.get(name, {})
         cum = cum_r.get('n', 0)
         cum_approved = cum_r.get('a', 0)
+        month_n = monthly.get(name) or next(
+            (v for k, v in monthly.items() if k.lower() == name.lower()), 0)
         performance.append({
             'inspector_name': name,
             'quarter_target': target,
             'weekly_inspections': r['inspections'],
             'prev_inspections': prev.get(name, {}).get('inspections', 0),
+            'month_inspections': month_n,
             'cumulative_inspections': cum,
             'cumulative_approved': cum_approved,
             'cumulative_pending': cum - cum_approved,
@@ -443,6 +705,39 @@ def api_weekly_report(request):
             'rank_change': (prev_rank.get(name) - cur_rank[name]) if name in prev_rank else None,
         })
     performance.sort(key=lambda x: x['rank'])
+
+    # ── KPI target progress PER COMMODITY — for each inspector with any target
+    #    or work this quarter, target vs done-this-quarter for each commodity.
+    _COMMS = ['POULTRY', 'RAW', 'PMP', 'EGGS']
+    _COMM_LABEL = {'POULTRY': 'Poultry', 'RAW': 'Raw meat', 'PMP': 'PMP', 'EGGS': 'Eggs'}
+    kpi_commodity = []
+    _kpi_names = set(targets_by_commodity) | set(cum_by_commodity)
+    for name in _kpi_names:
+        # case-insensitive target lookup (target names are typed by hand)
+        tgt = targets_by_commodity.get(name) or next(
+            (v for k, v in targets_by_commodity.items() if k.lower() == name.lower()), {})
+        done = cum_by_commodity.get(name, {})
+        comms = []
+        for c in _COMMS:
+            t = tgt.get(c, 0)
+            dn = done.get(c, 0)
+            if t == 0 and dn == 0:
+                continue  # nothing set and nothing done for this commodity
+            comms.append({
+                'commodity': _COMM_LABEL[c], 'target': t, 'done': dn,
+                'pct': round(dn * 100 / t) if t else None,
+            })
+        if comms:
+            tot_t = sum(x['target'] for x in comms)
+            tot_d = sum(x['done'] for x in comms)
+            kpi_commodity.append({
+                'inspector_name': name,
+                'commodities': comms,
+                'total_target': tot_t,
+                'total_done': tot_d,
+                'total_pct': round(tot_d * 100 / tot_t) if tot_t else None,
+            })
+    kpi_commodity.sort(key=lambda r: -(r['total_pct'] if r['total_pct'] is not None else -1))
 
     # 8-week inspectorate trend (total inspections per week)
     trend_weeks = []
@@ -631,6 +926,210 @@ def api_weekly_report(request):
             'rate': round(agg['c'] * 100 / (agg['c'] + agg['nc']), 1) if (agg['c'] + agg['nc']) else None,
         })
 
+    # ── Monthly trend (last 6 calendar months up to the reporting week) ──
+    # inspections done + compliance rate per month, for the manager report's
+    # month-by-month tables. The current month runs only up to week_end so it
+    # lines up with the reporting period.
+    monthly_trend = []
+    _m_first = week_end.replace(day=1)
+    _month_firsts = []
+    _f = _m_first
+    for _ in range(6):
+        _month_firsts.append(_f)
+        # step back one calendar month
+        _f = (_f - datetime.timedelta(days=1)).replace(day=1)
+    def _month_stats(m_start):
+        """Full-month inspections + compliance rate for the calendar month
+        starting m_start (capped at week_end for the current month)."""
+        if m_start.month == 12:
+            nxt = m_start.replace(year=m_start.year + 1, month=1)
+        else:
+            nxt = m_start.replace(month=m_start.month + 1)
+        m_end = min(nxt - datetime.timedelta(days=1), week_end)
+        agg = _week_qs(m_start, m_end, excl).aggregate(
+            n=Count('id'),
+            c=Count('id', filter=Q(is_product_compliant=True)),
+            nc=Count('id', filter=Q(is_product_compliant=False)),
+        )
+        assessed = agg['c'] + agg['nc']
+        return {
+            'inspections': agg['n'],
+            'rate': round(agg['c'] * 100 / assessed, 1) if assessed else None,
+            'compliant': agg['c'], 'non_compliant': agg['nc'],
+            'partial': m_end < (nxt - datetime.timedelta(days=1)),
+        }
+
+    for m_start in reversed(_month_firsts):
+        st = _month_stats(m_start)
+        # The calendar month BEFORE this one — used so even the first visible row
+        # can show a real change vs the month before it (that earlier month is
+        # not shown as its own row, only its figures are used for the comparison).
+        prev_first = (m_start - datetime.timedelta(days=1)).replace(day=1)
+        prev_label = prev_first.strftime('%b')
+        prev_st = _month_stats(prev_first)
+        monthly_trend.append({
+            'month': m_start.strftime('%Y-%m'),
+            'label': m_start.strftime('%b %Y'),
+            'inspections': st['inspections'],
+            'compliant': st['compliant'],
+            'non_compliant': st['non_compliant'],
+            'rate': st['rate'],
+            'partial': st['partial'],
+            # figures for the month immediately before (for the change column)
+            'prev_inspections': prev_st['inspections'],
+            'prev_rate': prev_st['rate'],
+            'prev_label': prev_label,
+        })
+
+    # ── Admin monthly series (last 6 months): invoices raised + documents sent,
+    #    for the FINANCE report's rising/dropping trend. Both counted per JOB
+    #    (distinct InspectionGroup), corporate stores excluded, by action date. ──
+    def _admin_month(m_start):
+        if m_start.month == 12:
+            nxt = m_start.replace(year=m_start.year + 1, month=1)
+        else:
+            nxt = m_start.replace(month=m_start.month + 1)
+        m_end = min(nxt - datetime.timedelta(days=1), week_end)
+        inv = (FoodSafetyAgencyInspection.objects
+               .filter(invoice_uploaded_date__date__gte=m_start, invoice_uploaded_date__date__lte=m_end)
+               .exclude(inspection_group__group_type='Corporate Store')
+               .values('inspection_group_id').distinct().count())
+        sent = (FoodSafetyAgencyInspection.objects
+                .filter(sent_date__date__gte=m_start, sent_date__date__lte=m_end)
+                .exclude(inspection_group__group_type='Corporate Store')
+                .values('inspection_group_id').distinct().count())
+        return {'invoices': inv, 'sent': sent,
+                'partial': m_end < (nxt - datetime.timedelta(days=1))}
+
+    admin_monthly = []
+    for m_start in reversed(_month_firsts):
+        cur_m = _admin_month(m_start)
+        # month before this one (used for the change, so the first row isn't blank)
+        prev_first = (m_start - datetime.timedelta(days=1)).replace(day=1)
+        prev_m = _admin_month(prev_first)
+        admin_monthly.append({
+            'month': m_start.strftime('%Y-%m'),
+            'label': m_start.strftime('%b %Y'),
+            'invoices': cur_m['invoices'],
+            'sent': cur_m['sent'],
+            'partial': cur_m['partial'],
+            'prev_invoices': prev_m['invoices'],
+            'prev_sent': prev_m['sent'],
+            'prev_label': prev_first.strftime('%b'),
+        })
+
+    # ── Admin PEOPLE (finance report): per person this week — how many invoices
+    #    they uploaded, how many documents they sent, and how fast (average days
+    #    from the inspection being APPROVED to the invoice being uploaded). All
+    #    counted per job, corporate stores excluded. ──
+    _inv_qs = (FoodSafetyAgencyInspection.objects
+               .filter(invoice_uploaded_date__date__gte=week_start, invoice_uploaded_date__date__lte=week_end)
+               .exclude(inspection_group__group_type='Corporate Store'))
+    # invoices uploaded, per user, counted by distinct job
+    _people = {}
+    for r in (_inv_qs.filter(invoice_uploaded_by__isnull=False)
+              .values('invoice_uploaded_by__first_name', 'invoice_uploaded_by__last_name')
+              .annotate(jobs=Count('inspection_group_id', distinct=True))):
+        nm = f"{r['invoice_uploaded_by__first_name']} {r['invoice_uploaded_by__last_name']}".strip() or 'Unknown'
+        _people.setdefault(nm, {'invoices': 0, 'sent': 0, '_days': []})['invoices'] = r['jobs']
+    # Speed = inspection date -> invoice-upload days, but ONLY for inspections
+    # that happened IN THIS WEEK and have since been invoiced. This keeps the
+    # average about THIS week's work — otherwise old inspections invoiced this
+    # week (from months ago) inflate it. Corporate excluded.
+    for fn, ln, doi, up in (FoodSafetyAgencyInspection.objects
+                            .filter(date_of_inspection__gte=week_start, date_of_inspection__lte=week_end,
+                                    invoice_uploaded_date__isnull=False, invoice_uploaded_by__isnull=False)
+                            .exclude(inspection_group__group_type='Corporate Store')
+                            .values_list('invoice_uploaded_by__first_name', 'invoice_uploaded_by__last_name',
+                                         'date_of_inspection', 'invoice_uploaded_date')):
+        if doi and up:
+            d = (up.date() - doi).days   # date_of_inspection is a date
+            if d >= 0:
+                nm = f"{fn} {ln}".strip() or 'Unknown'
+                _people.setdefault(nm, {'invoices': 0, 'sent': 0, '_days': []})['_days'].append(d)
+    # documents sent, per person (sent_by_name), counted by distinct job
+    _sent_pairs = (FoodSafetyAgencyInspection.objects
+                   .filter(sent_date__date__gte=week_start, sent_date__date__lte=week_end)
+                   .exclude(inspection_group__group_type='Corporate Store')
+                   .values_list('inspection_group_id', 'sent_by_name'))
+    _seen_sent = {}
+    for gid, snm in _sent_pairs:
+        if gid is not None and gid not in _seen_sent:
+            _seen_sent[gid] = (snm or '').strip() or 'Unknown'
+    from collections import Counter as _Counter
+    for nm, cnt in _Counter(_seen_sent.values()).items():
+        _people.setdefault(nm, {'invoices': 0, 'sent': 0, '_days': []})['sent'] = cnt
+    admin_people = sorted(
+        [{'name': nm,
+          'invoices': v['invoices'],
+          'sent': v['sent'],
+          'avg_days': round(sum(v['_days']) / len(v['_days']), 1) if v['_days'] else None,
+          'days_count': len(v['_days'])}
+         for nm, v in _people.items()],
+        key=lambda r: (-r['invoices'], -r['sent'], r['name'].lower()),
+    )
+
+    # ── Commodities inspected: last week vs the week before, per commodity.
+    #    Corporate-store jobs are billed month-end as one entity, so they are
+    #    excluded here to match the rest of the finance figures. ──
+    def _by_commodity(a, b):
+        out = {}
+        for r in (_week_qs(a, b, excl)
+                  .exclude(inspection_group__group_type='Corporate Store')
+                  .exclude(Q(commodity__isnull=True) | Q(commodity=''))
+                  .values('commodity').annotate(n=Count('id'))):
+            out[r['commodity']] = r['n']
+        return out
+    _cw_cur = _by_commodity(week_start, week_end)
+    _cw_prev = _by_commodity(prev_start, prev_end)
+    commodity_week = sorted(
+        [{'commodity': c, 'count': _cw_cur.get(c, 0), 'prev': _cw_prev.get(c, 0)}
+         for c in set(_cw_cur) | set(_cw_prev)],
+        key=lambda r: -r['count'],
+    )
+
+    # ── BILLING BACKLOG (finance action list): RAW/PMP jobs sent to the client
+    #    but with NO invoice uploaded yet — completed billable work not yet
+    #    invoiced. ONLY Raw meat & PMP are billed (poultry/eggs are not), so the
+    #    backlog is restricted to jobs that have a RAW or PMP inspection. Counted
+    #    per job, corporate excluded, aged from the inspection date. ──
+    from django.db.models import Exists as _Ex, OuterRef as _OR, Min as _Min
+    _bl_qs = (InspectionGroup.objects.exclude(group_type='Corporate Store')
+              .filter(_Ex(FoodSafetyAgencyInspection.objects.filter(
+                  inspection_group_id=_OR('pk'), commodity__in=['RAW', 'PMP'])))
+              .filter(_Ex(FoodSafetyAgencyInspection.objects.filter(
+                  inspection_group_id=_OR('pk'), sent_date__isnull=False)))
+              .exclude(_Ex(FoodSafetyAgencyInspection.objects.filter(
+                  inspection_group_id=_OR('pk'), invoice_uploaded_date__isnull=False)))
+              .annotate(insp=_Min('inspections__date_of_inspection')))
+    _bl_rows = [{'client': (g.client_name or 'Unknown'),
+                 'age': (today - g.insp).days if g.insp else None}
+                for g in _bl_qs]
+    _buckets = {'d0_7': 0, 'd8_30': 0, 'd31_60': 0, 'd60_plus': 0}
+    _by_client = {}
+    for r in _bl_rows:
+        a = r['age']
+        if a is not None:
+            if a <= 7:
+                _buckets['d0_7'] += 1
+            elif a <= 30:
+                _buckets['d8_30'] += 1
+            elif a <= 60:
+                _buckets['d31_60'] += 1
+            else:
+                _buckets['d60_plus'] += 1
+        c = _by_client.setdefault(r['client'], {'client': r['client'], 'jobs': 0, 'oldest': 0})
+        c['jobs'] += 1
+        if a is not None and a > c['oldest']:
+            c['oldest'] = a
+    billing_backlog = {
+        'total': len(_bl_rows),
+        'buckets': _buckets,
+        # worst clients to bill — most uninvoiced jobs first
+        'top_clients': sorted(_by_client.values(), key=lambda c: (-c['jobs'], -c['oldest']))[:12],
+        'oldest_days': max((r['age'] for r in _bl_rows if r['age'] is not None), default=0),
+    }
+
     # ── 6. Travel activity (rank basis: kilometres travelled) ──
     grp_excl = Q(inspector_name__isnull=True) | Q(inspector_name='') | Q(inspector_name__in=excl)
     travel_rows = InspectionGroup.objects.filter(
@@ -732,6 +1231,9 @@ def api_weekly_report(request):
         for key, vals in _cur_turnaround.items()
     }
 
+    # Management financials for the last 6 full calendar months (newest first).
+    _fin_series = _month_financials_series(week_end, excl, n=6)
+
     return JsonResponse({
         'success': True,
         'week_start': week_start.isoformat(),
@@ -758,6 +1260,7 @@ def api_weekly_report(request):
         'throughput': _throughput,
         'outstanding_backlog': _outstanding_backlog(),
         'performance': performance,
+        'kpi_commodity': kpi_commodity,
         'inspection_trend': trend_weeks,
         'samples': samples,
         'sample_status': sample_status,
@@ -768,5 +1271,16 @@ def api_weekly_report(request):
         'compliance': compliance,
         'commodity_compliance': commodity_compliance,
         'compliance_trend': compliance_trend,
+        'monthly_trend': monthly_trend,
+        'admin_monthly': admin_monthly,
+        'admin_people': admin_people,
+        'commodity_week': commodity_week,
+        'billing_backlog': billing_backlog,
+        'roster': _inspector_roster(),
+        # MANAGEMENT-ONLY: revenue/cost/profit per inspector, per full calendar
+        # month for the last 6 months (newest first). `monthly_financials` is the
+        # newest month alone (used by the glance KPI + Standing Out highlights).
+        'monthly_financials': _fin_series[0] if _fin_series else None,
+        'monthly_financials_series': _fin_series,
         'travel': travel,
     })
